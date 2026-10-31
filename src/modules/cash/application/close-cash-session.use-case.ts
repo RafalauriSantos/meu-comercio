@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import { Money } from '@/shared/domain/money';
 import { CashSessionRepository } from '../domain/cash-session-repository.port';
-import { AuditPort } from '@/modules/audit/application/audit-service';
+import { AuditPort } from '@/modules/audit/domain/audit.port';
 
 export const CloseCashSessionSchema = z.object({
   closingBalance: z.union([z.number(), z.string()]).refine(val => {
@@ -80,6 +80,8 @@ export class CloseCashSessionUseCase {
     }
 
     const closedAt = new Date();
+    session.close(normalizedOperator, closingBalance, closedAt);
+
     await this.cashRepository.closeSession(
       merchantId,
       sessionId,

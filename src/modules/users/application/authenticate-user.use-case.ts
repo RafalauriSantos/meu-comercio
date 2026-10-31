@@ -3,8 +3,6 @@ import { User } from '../domain/user';
 import { verifySecret } from '../domain/password';
 import { UserRepository } from '../domain/user-repository.port';
 
-const MAX_FAILED_ATTEMPTS = 5;
-const LOCKOUT_DURATION_MINUTES = 15;
 
 export const LoginSchema = z.object({
   username: z.string().trim().min(1, 'Informe o usuário'),
@@ -58,13 +56,7 @@ export class AuthenticateUserUseCase {
     const isPasswordValid = await verifySecret(input.password, user.passwordHash);
 
     if (!isPasswordValid) {
-      const nextAttempts = user.failedLoginAttempts + 1;
-      let lockedUntil: Date | null = null;
-
-      if (nextAttempts >= MAX_FAILED_ATTEMPTS) {
-        lockedUntil = new Date(now.getTime() + LOCKOUT_DURATION_MINUTES * 60 * 1000);
-      }
-
+      const { nextAttempts, lockedUntil } = user.calculateNextFailedLogin(now);
       await this.userRepository.updateFailedLoginAttempts(user.username, nextAttempts, lockedUntil);
 
       if (lockedUntil) {

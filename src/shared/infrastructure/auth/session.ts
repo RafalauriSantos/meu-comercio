@@ -8,6 +8,14 @@ export interface SessionData {
   expiresAt: number; // Unix timestamp in milliseconds
 }
 
+export function isSessionOwner(session: SessionData): boolean {
+  return session.authorities.includes('ROLE_OWNER');
+}
+
+export function hasSessionAuthority(session: SessionData, authority: UserAuthority): boolean {
+  return isSessionOwner(session) || session.authorities.includes(authority);
+}
+
 const DEFAULT_TIMEOUT_MINUTES = 30;
 
 function getSessionSecret(): string {

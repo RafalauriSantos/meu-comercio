@@ -2,7 +2,7 @@ import { z } from 'zod';
 import { Money } from '@/shared/domain/money';
 import { CashSession } from '../domain/cash-session';
 import { CashSessionRepository } from '../domain/cash-session-repository.port';
-import { AuditPort } from '@/modules/audit/application/audit-service';
+import { AuditPort } from '@/modules/audit/domain/audit.port';
 
 export const OpenCashSessionSchema = z.object({
   openingBalance: z.union([z.number(), z.string()]).refine(val => {

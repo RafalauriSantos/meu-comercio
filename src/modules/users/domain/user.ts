@@ -55,6 +55,22 @@ export class User {
     return this.authorities.has(authority);
   }
 
+  public static readonly MAX_FAILED_ATTEMPTS = 5;
+  public static readonly LOCKOUT_DURATION_MINUTES = 15;
+
+  public calculateNextFailedLogin(now: Date = new Date()): {
+    nextAttempts: number;
+    lockedUntil: Date | null;
+  } {
+    const nextAttempts = this.failedLoginAttempts + 1;
+    const lockedUntil =
+      nextAttempts >= User.MAX_FAILED_ATTEMPTS
+        ? new Date(now.getTime() + User.LOCKOUT_DURATION_MINUTES * 60 * 1000)
+        : null;
+
+    return { nextAttempts, lockedUntil };
+  }
+
   public isLocked(now: Date = new Date()): boolean {
     if (!this.lockedUntil) {
       return false;

@@ -9,7 +9,7 @@ import {
   DiscrepancyReasonRequiredError,
   CashSessionNotOpenError,
 } from './close-cash-session.use-case';
-import { AuditPort } from '@/modules/audit/application/audit-service';
+import { AuditPort } from '@/modules/audit/domain/audit.port';
 
 class MockAuditService implements AuditPort {
   public records: Array<{ eventType: string; actorId: string; details: Record<string, unknown> }> = [];

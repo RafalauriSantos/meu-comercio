@@ -1,16 +1,6 @@
 import { db } from '@/shared/infrastructure/db/connection';
-import { auditEvents } from '../infrastructure/audit.schema';
-
-export interface AuditPort {
-  record(
-    merchantId: string,
-    eventType: string,
-    actorId: string,
-    aggregateType: string,
-    aggregateId: string,
-    details: Record<string, unknown>
-  ): Promise<void>;
-}
+import { auditEvents } from './audit.schema';
+import { AuditPort } from '../domain/audit.port';
 
 export class DrizzleAuditService implements AuditPort {
   async record(

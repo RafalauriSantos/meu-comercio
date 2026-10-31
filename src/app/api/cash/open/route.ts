@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { ZodError } from 'zod';
 import { requireAuthSession, UnauthorizedError } from '@/shared/infrastructure/auth/auth-context';
 import { DrizzleCashSessionRepository } from '@/modules/cash/infrastructure/drizzle-cash-session-repository';
-import { DrizzleAuditService } from '@/modules/audit/application/audit-service';
+import { DrizzleAuditService } from '@/modules/audit/infrastructure/drizzle-audit-service';
 import {
   OpenCashSessionUseCase,
   CashSessionAlreadyOpenError,

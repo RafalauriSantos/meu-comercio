@@ -1,50 +1,75 @@
 # Meu Comércio
 
-Sistema Ponto de Venda (PDV) e Gestão Multi-Tenant para pequenos e médios comércios, projetado para operação rápida de balcão, controle rigoroso de caixa, auditoria imutável, estoque e suporte a contingência offline.
+> **PDV e Gestão Financeira para Pequeno Varejo**  
+> Arquitetura **Hexagonal (Modular Monolith)** com domínio puro, precisão financeira exata e isolamento multi-tenant.
 
-## Arquitetura: Monólito Modular Desacoplado
+[![Tests](https://img.shields.io/badge/Vitest-72%20passed%20(100%25)-brightgreen)](./docs/TRACEABILITY.md)
+[![TypeScript](https://img.shields.io/badge/TypeScript-Strict-blue)](https://www.typescriptlang.org/)
+[![Next.js](https://img.shields.io/badge/Next.js-16%20Turbopack-black)](https://nextjs.org/)
+[![Database](https://img.shields.io/badge/Neon-PostgreSQL%20Serverless-00e599)](https://neon.tech/)
+[![ORM](https://img.shields.io/badge/Drizzle-ORM-C5F74F)](https://orm.drizzle.team/)
 
-O projeto adota uma arquitetura em **Monólito Modular (Hexagonal / Ports & Adapters)** rodando sobre o ecossistema nativo da **Vercel** com **Next.js (App Router)** e banco de dados **PostgreSQL Serverless (Neon)**:
+---
 
-- **Domínio Puro**: Módulos de negócio independentes de framework (`src/modules/*`), com regras financeiras, cálculo de troco, travas de estoque e controle de turnos de caixa.
-- **Precisão Financeira**: Valores monetários são encapsulados pelo Value Object `Money` com precisão decimal exata e centavos inteiros (`cents`), eliminando erros de ponto flutuante.
-- **Isolamento Multi-Tenant**: Toda entidade e operação é delimitada estritamente por `merchant_id`.
-- **Entrega / Web Adapters**: As rotas do Next.js (`src/app/api/*`) atuam unicamente como controladores HTTP finos que acionam os Casos de Uso dos módulos.
+## ⚡ Visão Rápida (5 Segundos)
 
-## Módulos do Sistema
+- **Zero Floats em Dinheiro**: Todo cálculo monetário utiliza o Value Object `Money` baseado em centavos inteiros com arredondamento comercial *half-up*.
+- **Caixa com Conferência Cega**: Trava no banco garantindo apenas 1 sessão aberta por loja (`idx_one_open_cash_session_per_merchant`) e justificativa compulsória de divergência.
+- **Checkout & Split Payments**: Divisão de pagamento (Dinheiro, PIX, Débito, Crédito), troco exato, dedução atômica de estoque e proteção contra duplicidade via `Idempotency-Key`.
+- **Prevenção Estrita de Estoque Negativo**: Regra de negócio no domínio que rejeita vendas antes de efetivar qualquer débito parcial.
+- **Multi-Tenancy por Design**: 100% das tabelas e consultas são isoladas por `merchant_id`.
 
-| Módulo | Responsabilidade |
-| --- | --- |
-| `users` | Autenticação, gestão de operadores, bloqueio por tentativas e PIN de autorização da proprietária |
-| `cash` | Abertura e fechamento de sessão de caixa (turno), conferência cega e justificativa de divergências |
-| `products` | Catálogo de produtos, leitura de código de barras, busca por nome e precificação |
-| `inventory` | Movimentações de estoque, prevenção estrita de saldo negativo e auditoria de reposição |
-| `sales` | Checkout, cálculo de totais no servidor, dinheiro com troco, split payments e idempotência |
-| `customers` | Cadastro de clientes e gestão de limite de fiado com autorização por PIN |
-| `audit` | Registro imutável de eventos sensíveis (descontos, estornos, quebras de caixa) |
+---
 
-## Comandos Principais
+## 🏛️ Estrutura Hexagonal
 
-```bash
-# Instalar dependências
-npm install
+O domínio é TypeScript puro (`src/modules/*`), completamente desacoplado de frameworks e banco de dados:
 
-# Executar suíte de testes (Vitest)
-npm test
-
-# Executar testes em modo watch
-npm run test:watch
-
-# Iniciar ambiente de desenvolvimento
-npm run dev
-
-# Build de produção (Vercel)
-npm run build
+```
+src/
+├── modules/
+│   ├── users/        # Autenticação, papéis (Owner/Operator), lockout e PIN
+│   ├── cash/         # Turnos de caixa, suprimento, sangria e conferência cega
+│   ├── products/     # Catálogo, busca por nome e leitura de código de barras
+│   ├── inventory/    # Controle de estoque com trava de saldo negativo
+│   ├── sales/        # Checkout, split payments, cálculo de troco e idempotência
+│   └── audit/        # Trilha de auditoria imutável (audit_events)
+├── shared/
+│   ├── domain/       # Value Objects (Money)
+│   └── infrastructure/ # Sessões HMAC-SHA256, cookies __Host- e Drizzle DB
+└── app/
+    └── api/          # Controladores HTTP finos (Next.js App Router)
 ```
 
-## Governança e Regras
+---
 
-Consulte:
-- [`DECISIONS.md`](./DECISIONS.md): Fonte da verdade para todas as decisões de negócio e arquitetura aprovadas.
-- [`CLAUDE.md`](./CLAUDE.md): Padrões de revisão de código, qualidade e critérios bloqueantes.
-- [`PRODUCT.md`](./PRODUCT.md): Visão do produto, papéis e funcionalidades.
+## 🚀 Como Executar
+
+```bash
+# 1. Instalar dependências
+npm install
+
+# 2. Executar suíte de testes (72 testes unitários e de integração)
+npm test
+
+# 3. Executar build de produção (Next.js 16 Turbopack)
+npm run build
+
+# 4. Iniciar ambiente de desenvolvimento
+npm run dev
+```
+
+---
+
+## 📋 Governança & Decisões Arquiteturais
+
+Todas as decisões técnicas e regras de negócio estão formalmente documentadas em Architecture Decision Records (ADRs):
+
+- [`docs/DECISIONS.md`](./docs/DECISIONS.md): ADR-001 a ADR-007 (Money, Multi-Tenancy, Idempotência, Caixa Cego, Estoque).
+- [`docs/TRACEABILITY.md`](./docs/TRACEABILITY.md): Matriz de rastreabilidade vinculando critérios de negócio à suíte de testes.
+- [`docs/BACKLOG.md`](./docs/BACKLOG.md): Fatias verticais de entrega (Slices).
+
+---
+
+## 📄 Licença
+Distribuído sob a licença MIT.

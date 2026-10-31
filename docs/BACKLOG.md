@@ -11,7 +11,7 @@ Este documento rastreia formalmente as fatias verticais de entrega, critérios d
 - [x] Estrutura de diretórios desacoplada em `src/modules/*` com `domain`, `application` e `infrastructure`.
 - [x] Value Object `Money` baseado em centavos inteiros e precisão decimal comercial *half-up*.
 - [x] Suíte de testes unitários com Vitest rodando em modo nativo.
-- [x] Registro da governança em `DECISIONS.md`, `CLAUDE.md` e `PRODUCT.md`.
+- [x] Registro da governança em `DECISIONS.md` e `PRODUCT.md`.
 - **Status:** Concluído ✅ (`db05f44`)
 
 ### [x] Slice 1: Setup Neon, Módulo de Usuários e Autenticação

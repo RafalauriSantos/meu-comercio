@@ -40,5 +40,6 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 
-# Allow project governance
-!CLAUDE.md
+# Internal tools & agents
+.agents/
+CLAUDE.md

@@ -141,3 +141,34 @@ Este documento registra formalmente as decisões de arquitetura e de produto do 
   - *Positivo*: Blindagem total contra desvios de fiado no balcão; garantia matemática de que nenhum fiado sem limite seja concedido sem ciência expressa da proprietária; conciliação contábil entre baixas de dívida e dinheiro físico na gaveta.
   - *Negativo*: Requer presença ou digitação explícita do PIN da dona para transações que estourem o teto; exige caixa aberto mesmo que o pagamento do cliente seja feito fora de uma venda convencional.
 
+---
+
+## ADR-009: Adaptação da Interface do PDV no Next.js App Router, Fila Offline e Integração com Slices 1 a 5
+
+- **Data**: 2026-10-31
+- **Status**: Aprovado
+- **Contexto**: O sistema de frente de caixa e retaguarda requer uma interface de alta produtividade para o balcão do pequeno varejo de bairro, adaptando a interface validada do projeto legado em `/home/rafael-lauri/projetos/sistema-mini-mercado/frontend`. O design original já possui ergonomia testada com atalhos de teclado (F2, F3, F4, F5, F7, F10, Esc, Enter), leitor de código de barras simulado, split checkout, autorização de desconto com PIN, controle de caixa e fila de contingência para vendas em dinheiro quando a rede oscilar. A migração precisa adotar a arquitetura Next.js 16 App Router com páginas dedicadas (`/`, `/gestao`, `/login`), garantindo consumo exclusivo dos endpoints reais implementados nos Slices 1 a 5 (`/api/auth/*`, `/api/cash/*`, `/api/products/*`, `/api/sales/*`, `/api/customers/*`) com `credentials: 'include'`.
+- **Decisão**:
+  1. **Adaptação Direta da Interface Validada (Zero Reescrita Desnecessária)**:
+     - Reaproveitamento do design visual de alto contraste e layout funcional dos arquivos legados `pdv.css` e `management.css` alocados em `src/frontend/styles/`.
+     - Preservação integral do layout em duas colunas no PDV (`.pdv-grid`): coluna de escaneamento, último item lido e status da operação à esquerda; lista de itens do carrinho ao centro; resumo financeiro, formas de pagamento, troco e botões de ação à direita.
+  2. **Estrutura de Rotas no App Router (`src/app/`)**:
+     - `src/app/page.tsx` (`'use client'`): Terminal de PDV focado em velocidade operacional, manipulação do carrinho com prevenção de estoque negativo, atalhos de teclado (`F2` Dinheiro, `F3` Pix, `F4` Débito, `F5` Crédito, `F7` Desconto, `F10` Finalizar, `Esc` Limpar), suporte a split payments e autorização de fiado com PIN da proprietária.
+     - `src/app/gestao/page.tsx` (`'use client'`): Painel de gestão unificado para a dona e operadores autorizados, cobrindo:
+       - Catálogo e Estoque (busca rápida, criação de novos produtos via `POST /api/products`, reposição manual de estoque via `POST /api/inventory/restock`).
+       - Clientes e Fiado (busca de clientes, cadastro via `POST /api/customers`, consulta de saldo devedor via `GET /api/customers/[id]/balance`, quitação total/parcial via `POST /api/customers/[id]/settle`).
+       - Turno de Caixa (conferência do caixa atual via `GET /api/cash/current` e fechamento de caixa cego com justificativa via `POST /api/cash/close`).
+     - `src/app/login/page.tsx` (`'use client'`): Tela de acesso que verifica `/api/setup/status`, provê fluxo de setup inicial da dona caso necessário (`/api/setup/owner`), autenticação com credenciais (`/api/auth/login`) e verificação de abertura de caixa (`/api/cash/open`).
+  3. **Mecanismo de Contingência Offline (`src/frontend/lib/offline-sync.ts`)**:
+     - Vendas em dinheiro (`CASH`) simples podem ser registradas mesmo sem conexão à internet (`!navigator.onLine` ou falha transitória de rede).
+     - As vendas em contingência são assinadas com chave de idempotência (`Idempotency-Key` UUID v4), salvas de forma segura no `localStorage` isoladas por tenant e operador (`miniMarketOfflineSales:${merchantId}:${username}`).
+     - Produtos consultados enquanto online são mantidos em cache local (`miniMarketCachedProducts:${merchantId}:${username}`) com preço de venda e quantidade disponível.
+     - Ao restabelecer a conectividade (`window.addEventListener('online')`), um processo assíncrono idempotente envia as vendas enfileiradas para `POST /api/sales`, tratando divergências de catálogo e limpando a fila com sucesso.
+  4. **Segurança e Comunicação de API Sem CSRF Legado**:
+     - A comunicação com o backend em Next.js utiliza cookies de sessão seguros `HttpOnly` com prefixo `__Host-` geridos nos Slices 1 a 5. Todas as requisições `fetch` utilizam `credentials: 'include'`.
+     - Elimina a dependência de token CSRF manual do legado, utilizando o modelo nativo de rotas Next.js com proteção de cabeçalhos de origem e SameSite.
+- **Trade-offs / Consequências**:
+  - *Positivo*: Continuidade total da experiência operacional e usabilidade validada; zero retrabalho em reinventar layouts ou regras de teclado; robustez contra quedas de internet no caixa do mercado; integração perfeita com os contratos de API já testados e aprovados.
+  - *Negativo*: Armazenamento em `localStorage` é limitado por navegador/dispositivo, exigindo que a sincronização ocorra no mesmo terminal onde as vendas offline foram originadas.
+
+

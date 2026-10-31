@@ -66,8 +66,13 @@ Este documento rastreia formalmente as fatias verticais de entrega, critérios d
 - [x] 5.8 Tratamento de invariantes de domínio e erros de negócio explícitos (`CustomerNotFoundError`, `CustomerAlreadyExistsError`, `CustomerInactiveError`, `CreditLimitExceededError`, `InvalidOwnerPinError`, `DebtSettlementExceedsBalanceError`, `NoOpenCashSessionError`).
 - **Status:** Concluído e Auditado ✅ (109 testes aprovados, Veredito PR-Reviewer PASS) — Commit 33d423c
 
-### [ ] Slice 6: Interface de PDV e Modo Offline (Vercel Deploy)
-- [ ] Migração das telas React (`App.tsx`, `Management.tsx`) para o App Router do Next.js.
-- [ ] Fila offline para vendas simples em dinheiro.
-- [ ] Deploy e homologação na Vercel conectado ao banco Neon.
-- **Status:** Planejado ⏳
+### [x] Slice 6: Interface de PDV, Painel de Gestão e Modo Offline
+- [x] 6.1 Adaptação de Estilos Visuais (`src/frontend/styles/`): migração de `pdv.css` e `management.css` preservando tema de alto contraste, responsividade e layout em grid do terminal PDV.
+- [x] 6.2 Cliente HTTP Tipado (`src/frontend/lib/api-client.ts`): cliente `fetch` com `credentials: 'include'` conectado aos endpoints dos Slices 1 a 5 (`/api/auth/*`, `/api/cash/*`, `/api/products/*`, `/api/sales/*`, `/api/customers/*`).
+- [x] 6.3 Mecanismo de Contingência Offline (`src/frontend/lib/offline-sync.ts`): adaptação do `offlineStore.ts` com fila de vendas em dinheiro no `localStorage`, cache de produtos, chaves de idempotência e sincronização automática ao restabelecer conexão.
+- [x] 6.4 Fluxo de Acesso e Abertura de Caixa (`src/app/login/page.tsx`): verificação de setup inicial (`/api/setup/status` e `/api/setup/owner`), autenticação de operador/dona (`/api/auth/login`) e abertura de caixa com saldo inicial (`/api/cash/open`).
+- [x] 6.5 Terminal de PDV e Checkout com Atalhos (`src/app/page.tsx`): leitura de código de barras ou busca por nome, controle do carrinho sem permitir estoque negativo, atalhos de teclado (`Enter`, `Esc`, `F2`–`F5`, `F7`, `F10`, `Ctrl+L`), split checkout e venda a fiado com PIN da proprietária.
+- [x] 6.6 Painel de Gestão (`src/app/gestao/page.tsx`): catálogo de produtos e reposição de estoque (`/api/inventory/restock`), clientes e extrato de fiado com quitação em caixa aberto (`/api/customers/[id]/settle`), e fechamento cego de caixa com justificativa de divergência (`/api/cash/close`).
+- [x] 6.7 Suíte de Testes Unitários de Frontend e Fila Offline: cobertura de testes para lógica de sincronização offline, cálculos do carrinho, regras de atalhos e split payment.
+- **Status:** Concluído e Auditado ✅ (157 testes aprovados, Veredito PR-Reviewer PASS)
+

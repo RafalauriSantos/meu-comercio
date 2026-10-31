@@ -62,3 +62,39 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ message: 'Erro interno ao cadastrar produto.' }, { status: 500 });
   }
 }
+
+export async function GET(request: NextRequest) {
+  try {
+    const session = await requireAuthSession();
+    const { searchParams } = new URL(request.url);
+    const query = searchParams.get('q') || '';
+
+    const productRepo = new DrizzleProductRepository();
+    const inventoryRepo = new DrizzleInventoryRepository();
+
+    const items = await productRepo.searchByNameOrBarcode(session.merchantId, query, 100);
+
+    const withInventory = await Promise.all(
+      items.map(async (p) => ({
+        id: p.id,
+        barcode: p.barcode,
+        name: p.name,
+        salePrice: p.salePrice.toDecimal(),
+        availableQuantity: await inventoryRepo.getAvailableQuantity(session.merchantId, p.id),
+        active: p.active,
+      }))
+    );
+
+    return NextResponse.json({ items: withInventory });
+  } catch (error) {
+    if (error && typeof error === 'object' && 'digest' in error) {
+      throw error;
+    }
+    if (error instanceof UnauthorizedError) {
+      return NextResponse.json({ message: error.message }, { status: 401 });
+    }
+    console.error('Error fetching products:', error);
+    return NextResponse.json({ message: 'Erro interno ao buscar produtos.' }, { status: 500 });
+  }
+}
+

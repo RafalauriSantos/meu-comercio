@@ -43,13 +43,17 @@ Este documento rastreia formalmente as fatias verticais de entrega, critérios d
 - [x] Reposição de estoque (`/api/inventory/restock`) com rastreamento e registro de auditoria.
 - **Status:** Concluído e Auditado ✅
 
-### [ ] Slice 4: Vendas, Checkout e Split Payments
-- [ ] Schemas `sales`, `sale_items` e `payments`.
-- [ ] Cálculo de totais e troco no servidor.
-- [ ] Dedução atômica de estoque na conclusão da venda.
-- [ ] Idempotência de vendas (`Idempotency-Key`).
-- [ ] Vínculo automático da entrada de dinheiro com o caixa aberto.
-- **Status:** Planejado ⏳
+### [x] Slice 4: Vendas, Checkout e Split Payments
+- [x] 4.1 Schemas relacionais Drizzle `sales`, `sale_items` e `payments` com multi-tenancy estrito (`merchant_id`), chaves estrangeiras e integridade referencial.
+- [x] 4.2 Restrição única parcial para chave de idempotência (`merchant_id, idempotency_key WHERE idempotency_key IS NOT NULL`).
+- [x] 4.3 Entidades puras de domínio (`Sale`, `SaleItem`, `Payment`) com invariantes estritas e cálculos imutáveis via Value Object `Money`.
+- [x] 4.4 Validação compulsória de sessão de caixa aberta (`findCurrentOpenSession`) antes de autorizar qualquer venda.
+- [x] 4.5 Verificação de estoque disponível e dedução atômica por produto vendido com lançamento de movimentação `'SALE'`.
+- [x] 4.6 Suporte a pagamentos múltiplos/divididos (Split Payments) em Dinheiro (`CASH`), PIX (`PIX`), Débito (`DEBIT_CARD`) e Crédito (`CREDIT_CARD`), garantindo soma exata do valor da venda.
+- [x] 4.7 Cálculo exato de troco para pagamentos em dinheiro com validação de valor recebido >= valor pago.
+- [x] 4.8 Registro automático de entrada de dinheiro (`SALE_RECEIPT`) no caixa aberto ativo quando houver componente em dinheiro.
+- [x] 4.9 Registro em trilha de auditoria imutável (`audit_events`) do evento `SALE_CONFIRMED`.
+- **Status:** Concluído e Auditado ✅ (PR Reviewer: PASS)
 
 ### [ ] Slice 5: Clientes e Limite de Fiado
 - [ ] Cadastro de clientes (nome e telefone).

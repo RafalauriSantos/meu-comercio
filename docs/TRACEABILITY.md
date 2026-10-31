@@ -25,3 +25,11 @@ Mapeamento entre os critérios de negócio aprovados em `DECISIONS.md` e a suít
 | Busca de produto por código de barras e por termo textual | `products` | `src/modules/products/application/products.use-case.test.ts` | Aprovado |
 | Reposição de estoque (restock) com saldo atualizado | `inventory` | `src/modules/products/application/products.use-case.test.ts` | Aprovado |
 | Rejeição absoluta de quantidade negativa no estoque | `inventory` | `src/modules/products/application/products.use-case.test.ts` | Aprovado |
+| Validação de caixa aberto obrigatório para venda | `sales` / `cash` | `src/modules/sales/application/create-sale.use-case.test.ts` | Aprovado (23 testes) |
+| Verificação e baixa atômica de estoque na venda | `sales` / `inventory` | `src/modules/sales/application/create-sale.use-case.test.ts` | Aprovado |
+| Cálculo de total, desconto e troco com Money | `sales` / `shared` | `src/modules/sales/application/create-sale.use-case.test.ts` | Aprovado |
+| Split payments múltiplos com validação de cobertura total | `sales` | `src/modules/sales/application/create-sale.use-case.test.ts` | Aprovado |
+| Registro automático de entrada de dinheiro no caixa aberto | `sales` / `cash` | `src/modules/sales/application/create-sale.use-case.test.ts` | Aprovado |
+| Idempotência com rejeição de chave duplicada | `sales` | `src/modules/sales/application/create-sale.use-case.test.ts` | Aprovado |
+| Registro imutável de auditoria da venda confirmada | `sales` / `audit` | `src/modules/sales/application/create-sale.use-case.test.ts` | Aprovado |
+

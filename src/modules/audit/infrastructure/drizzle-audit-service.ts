@@ -21,3 +21,5 @@ export class DrizzleAuditService implements AuditPort {
     });
   }
 }
+
+export { DrizzleAuditService as DrizzleAuditAdapter };

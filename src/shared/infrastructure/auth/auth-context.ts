@@ -15,6 +15,8 @@ export async function requireAuthSession(): Promise<SessionData> {
   return session;
 }
 
+export const requireAuthenticatedSession = requireAuthSession;
+
 export async function setSessionCookie(
   sessionToken: string,
   maxAgeSeconds = 30 * 60

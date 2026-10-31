@@ -80,3 +80,33 @@ Este documento registra formalmente as decisões de arquitetura e de produto do 
 - **Trade-offs / Consequências**:
   - *Positivo*: Proteção efetiva contra ataques de força bruta no balcão e online.
   - *Negativo*: Operadores descuidados podem bloquear a si mesmos por 15 minutos ou precisar que a proprietária redefina a senha.
+
+---
+
+## ADR-007: Vendas no PDV, Split Payments e Idempotência Transacional
+
+- **Data**: 2026-10-31
+- **Status**: Aprovado
+- **Contexto**: No balcão de um mini mercado, as transações de venda exigem alta integridade, agilidade e resiliência contra falhas de rede. É comum que clientes dividam o pagamento (ex.: parte em dinheiro físico, parte via PIX ou cartão). Além disso, cliques duplos no PDV ou instabilidades na conexão podem reenviar requisições de finalização, gerando o risco de duplicidade de cobranças ou baixas indevidas de estoque. Por fim, a entrada de cédulas e moedas no PDV precisa ser imediatamente computada no saldo esperado da gaveta de dinheiro (turno de caixa ativo).
+- **Decisão**:
+  1. **Modelagem de Domínio Rica e Exatidão com Money**:
+     - O agregado `Sale` é composto por `SaleItem[]` e `Payment[]`.
+     - Todos os cálculos (subtotal, desconto, total da venda, valor recebido em dinheiro e troco) são realizados exclusivamente no servidor utilizando o Value Object `Money` (arredondamento comercial *half-up* sem ponto flutuante).
+     - Estados ilegais são proibidos no domínio: pagamentos divididos (Split Payments) devem ter a soma exata dos valores alocados igual ao total da venda; pagamentos em dinheiro com valor recebido inferior ao total em dinheiro são rejeitados; parcelamento só é admitido para cartão de crédito.
+  2. **Idempotência em Duas Camadas**:
+     - O cliente de PDV envia um cabeçalho ou parâmetro `idempotencyKey` (UUID).
+     - **Camada de Aplicação**: O `CreateSaleUseCase` consulta o repositório (`saleRepository.findByIdempotencyKey`) antes de processar; caso já exista venda confirmada para o mesmo `merchant_id` e `idempotencyKey`, rejeita a repetição (`DuplicateSaleRequestError`) ou retorna a venda já existente de forma segura.
+     - **Camada de Banco (Drizzle ORM / Postgres)**: Criação de índice único parcial `idx_sales_merchant_idempotency` na tabela `sales` (`merchant_id, idempotency_key WHERE idempotency_key IS NOT NULL`), garantindo atomicidade contra condições de corrida concorrentes no nível do banco.
+  3. **Vínculo Compulsório com Caixa Aberto**:
+     - Nenhuma venda pode ser registrada sem que haja uma sessão de caixa aberta (`status = 'OPEN'`) para o comerciante.
+     - Quando houver pagamento com método `CASH`, o caso de uso calcula o valor líquido em dinheiro e emite imediatamente um registro de movimentação de caixa `SALE_RECEIPT` via `cashSessionRepository.addMovement(merchantId, sessionId, 'SALE_RECEIPT', cashAmount, saleId)`, garantindo a conferência cega do caixa.
+  4. **Dedução Atômica de Estoque**:
+     - Antes de consolidar a venda, o estoque de todos os itens é validado.
+     - Se qualquer item possuir saldo menor que o solicitado, a operação é abortada com `InsufficientStockError`.
+     - Na consolidação, o estoque é debitado com `inventoryItem.deduct(quantity)` e uma movimentação do tipo `'SALE'` é registrada para cada produto.
+  5. **Auditoria Imutável**:
+     - Ao concluir a venda, emite-se um evento `SALE_CONFIRMED` na tabela `audit_events` com operador, totais, descontos e métodos de pagamento.
+- **Trade-offs / Consequências**:
+  - *Positivo*: Erro zero em cálculos financeiros e troco; prevenção integral de vendas duplicadas por timeout ou duplo clique; rastreabilidade completa entre venda, estoque e gaveta de dinheiro.
+  - *Negativo*: Requer que o turno de caixa esteja formalmente aberto antes da realização de qualquer venda pelo operador.
+

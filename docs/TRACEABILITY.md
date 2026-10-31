@@ -43,11 +43,11 @@ Mapeamento entre os critérios de negócio aprovados em `DECISIONS.md` e a suít
 | Rejeição de quitação de fiado sem sessão de caixa aberta | `customers` / `cash` | `src/modules/customers/application/customers.use-case.test.ts` | Aprovado |
 | Rejeição de quitação com valor superior à dívida em aberto | `customers` | `src/modules/customers/application/customers.use-case.test.ts` | Aprovado |
 | Trilha de auditoria imutável de quitação de dívida | `customers` / `audit` | `src/modules/customers/application/customers.use-case.test.ts` | Aprovado |
-| Enfileiramento seguro de venda em dinheiro no modo offline | `frontend` | `src/frontend/lib/offline-sync.test.ts` | Planejado ⏳ |
-| Isolamento de fila offline por operador e comércio | `frontend` | `src/frontend/lib/offline-sync.test.ts` | Planejado ⏳ |
-| Replay/sincronização de vendas com chave de idempotência preservada | `frontend` | `src/frontend/lib/offline-sync.test.ts` | Planejado ⏳ |
-| Detecção de inconsistência de preço/estoque na sincronização | `frontend` | `src/frontend/lib/offline-sync.test.ts` | Planejado ⏳ |
-| Cálculo de carrinho, desconto autorizado e troco no frontend | `frontend` | `src/frontend/lib/cart-calculator.test.ts` | Planejado ⏳ |
-| Validação de split payment somando total exato da venda | `frontend` | `src/frontend/lib/cart-calculator.test.ts` | Planejado ⏳ |
+| Enfileiramento seguro de venda em dinheiro no modo offline | `frontend` | `src/frontend/lib/offline-sync.test.ts` | Aprovado (15 testes) |
+| Isolamento de fila offline por operador e comércio | `frontend` | `src/frontend/lib/offline-sync.test.ts` | Aprovado |
+| Replay/sincronização de vendas com chave de idempotência preservada | `frontend` | `src/frontend/lib/offline-sync.test.ts` | Aprovado |
+| Detecção de inconsistência de preço/estoque na sincronização | `frontend` | `src/frontend/lib/offline-sync.test.ts` | Aprovado |
+| Cálculo de carrinho, desconto autorizado e troco no frontend | `frontend` | `src/frontend/lib/cart-calculator.test.ts` | Aprovado (23 testes) |
+| Validação de split payment somando total exato da venda | `frontend` | `src/frontend/lib/cart-calculator.test.ts` | Aprovado |
 
 

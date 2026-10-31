@@ -1,0 +1,232 @@
+/* Estilos do Painel de Gestão e Retaguarda */
+@import './pdv.css';
+
+.management-page {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 24px 20px 48px;
+  width: 100%;
+}
+
+.page-heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 24px;
+}
+
+.page-heading h1 {
+  font-size: 26px;
+  margin: 0;
+}
+
+.toolbar {
+  display: flex;
+  gap: 12px;
+  margin: 16px 0;
+}
+
+.toolbar input {
+  flex: 1;
+  padding: 10px 14px;
+  border: 1px solid var(--pdv-line);
+  border-radius: 8px;
+  font-size: 15px;
+}
+
+.management-tabs {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 20px;
+  border-bottom: 2px solid var(--pdv-line);
+  padding-bottom: 8px;
+}
+
+.management-tabs button {
+  padding: 8px 16px;
+  border-radius: 8px;
+  font-weight: 600;
+  background: transparent;
+  color: var(--pdv-muted);
+}
+
+.management-tabs button.active {
+  background: var(--pdv-green);
+  color: #fff;
+}
+
+.management-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 16px;
+}
+
+.customer-card {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  background: #fff;
+}
+
+.customer-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+}
+
+.customer-card-header b {
+  font-size: 18px;
+}
+
+.debt-amount {
+  font-size: 24px;
+  font-weight: 700;
+  color: #ad2819;
+}
+
+.debt-amount.zero {
+  color: var(--pdv-green);
+}
+
+.limit-bar {
+  height: 8px;
+  background: #e6eae7;
+  border-radius: 4px;
+  overflow: hidden;
+  margin: 6px 0;
+}
+
+.limit-bar-fill {
+  height: 100%;
+  background: var(--pdv-green);
+  transition: width 300ms ease;
+}
+
+.limit-bar-fill.warning {
+  background: #d97706;
+}
+
+.limit-bar-fill.exceeded {
+  background: #dc2626;
+}
+
+.product-entry {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.product-row {
+  display: grid;
+  grid-template-columns: minmax(200px, 1fr) 120px 100px auto;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 18px;
+  background: #fff;
+}
+
+.product-row .stock-badge {
+  padding: 4px 8px;
+  border-radius: 6px;
+  font-weight: 600;
+  font-size: 13px;
+  text-align: center;
+}
+
+.product-row .stock-badge.low {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.product-row .stock-badge.ok {
+  background: #ecfdf5;
+  color: #065f46;
+}
+
+.restock-box {
+  background: #f8faf9;
+  border: 1px dashed var(--pdv-line);
+  border-radius: 8px;
+  padding: 14px;
+  display: flex;
+  gap: 12px;
+  align-items: flex-end;
+}
+
+.restock-box label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.restock-box input {
+  padding: 8px 12px;
+  border: 1px solid var(--pdv-line);
+  border-radius: 6px;
+}
+
+/* Caixa Fechamento e Conferência Cega */
+.cash-layout {
+  display: grid;
+  grid-template-columns: 1fr 340px;
+  gap: 20px;
+}
+
+.cash-details-list {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  background: #f7f9f8;
+  padding: 16px;
+  border-radius: 8px;
+  margin: 16px 0;
+}
+
+.cash-details-list dt {
+  color: var(--pdv-muted);
+  font-size: 13px;
+}
+
+.cash-details-list dd {
+  margin: 4px 0 0;
+  font-size: 18px;
+  font-weight: 700;
+}
+
+.cash-difference-alert {
+  padding: 12px;
+  border-radius: 8px;
+  margin: 12px 0;
+  font-weight: 600;
+}
+
+.cash-difference-alert.short {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+.cash-difference-alert.over {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.cash-difference-alert.even {
+  background: #d1fae5;
+  color: #065f46;
+}
+
+@media (max-width: 800px) {
+  .product-row {
+    grid-template-columns: 1fr;
+  }
+  .cash-layout {
+    grid-template-columns: 1fr;
+  }
+  .restock-box {
+    flex-direction: column;
+    align-items: stretch;
+  }
+}

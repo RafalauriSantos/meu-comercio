@@ -1,4 +1,4 @@
-import { Pool, neon } from '@neondatabase/serverless';
+import { Pool } from '@neondatabase/serverless';
 import { drizzle as drizzleServerless } from 'drizzle-orm/neon-serverless';
 import * as schema from './schema';
 

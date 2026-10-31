@@ -155,4 +155,25 @@ describe('AuthenticateUserUseCase', () => {
       })
     ).rejects.toThrow(AccountDisabledError);
   });
+
+  it('should reset failed login attempts upon subsequent successful login', async () => {
+    // Fail 2 times
+    await expect(
+      useCase.execute({ username: 'tatiane', password: 'wrong-password' })
+    ).rejects.toThrow(InvalidCredentialsError);
+    await expect(
+      useCase.execute({ username: 'tatiane', password: 'wrong-password' })
+    ).rejects.toThrow(InvalidCredentialsError);
+
+    expect(repository.users.get('tatiane')?.failedLoginAttempts).toBe(2);
+
+    // Now succeed
+    const authenticated = await useCase.execute({
+      username: 'tatiane',
+      password: 'password-correta-123',
+    });
+
+    expect(authenticated.username).toBe('tatiane');
+    expect(repository.users.get('tatiane')?.failedLoginAttempts).toBe(0);
+  });
 });

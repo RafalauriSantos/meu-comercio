@@ -7,6 +7,7 @@ import {
   CloseCashSessionUseCase,
   CashSessionCloseNotAuthorizedError,
   DiscrepancyReasonRequiredError,
+  CashSessionNotOpenError,
 } from './close-cash-session.use-case';
 import { AuditPort } from '@/modules/audit/application/audit-service';
 
@@ -200,5 +201,43 @@ describe('Cash Session Use Cases', () => {
     const closed = await repository.findSessionById(MERCHANT_ID, session.id);
     expect(closed?.isOpen()).toBe(false);
     expect(closed?.closedBy).toBe('proprietaria');
+  });
+
+  it('should reject opening session with negative or invalid balance', async () => {
+    await expect(
+      openUseCase.execute(MERCHANT_ID, 'operador1', { openingBalance: '-50.00' })
+    ).rejects.toThrow();
+
+    await expect(
+      openUseCase.execute(MERCHANT_ID, 'operador1', { openingBalance: 'invalid-number' })
+    ).rejects.toThrow();
+  });
+
+  it('should reject closing a session that does not exist or is already closed', async () => {
+    await expect(
+      closeUseCase.execute(MERCHANT_ID, 'sessao-inexistente', 'operador1', true, {
+        closingBalance: '100.00',
+      })
+    ).rejects.toThrow(CashSessionNotOpenError);
+
+    // Open and close
+    const session = await openUseCase.execute(MERCHANT_ID, 'operador1', { openingBalance: '100.00' });
+    await closeUseCase.execute(MERCHANT_ID, session.id, 'operador1', false, { closingBalance: '100.00' });
+
+    // Try closing again
+    await expect(
+      closeUseCase.execute(MERCHANT_ID, session.id, 'operador1', false, {
+        closingBalance: '100.00',
+      })
+    ).rejects.toThrow(CashSessionNotOpenError);
+  });
+
+  it('should reject closing session with negative balance', async () => {
+    const session = await openUseCase.execute(MERCHANT_ID, 'operador1', { openingBalance: '100.00' });
+    await expect(
+      closeUseCase.execute(MERCHANT_ID, session.id, 'operador1', false, {
+        closingBalance: '-20.00',
+      })
+    ).rejects.toThrow();
   });
 });

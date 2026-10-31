@@ -74,5 +74,30 @@ describe('Money Value Object', () => {
     expect(m10.lessThan(m20)).toBe(true);
     expect(m20.greaterThan(m10)).toBe(true);
     expect(m10.equals(Money.fromDecimal('10.00'))).toBe(true);
+    expect(m10.lessThanOrEqual(Money.fromDecimal('10.00'))).toBe(true);
+    expect(m20.greaterThanOrEqual(Money.fromDecimal('20.00'))).toBe(true);
+  });
+
+  it('should reject division by zero or non-finite numbers', () => {
+    const m = Money.fromDecimal('10.00');
+    expect(() => m.divide(0)).toThrowError('Invalid divisor: 0');
+    expect(() => m.divide(NaN)).toThrowError('Invalid divisor: NaN');
+    expect(() => m.multiply(Infinity)).toThrowError('Multiplication factor must be finite: Infinity');
+  });
+
+  it('should verify sign predicates correctly', () => {
+    expect(Money.zero().isZero()).toBe(true);
+    expect(Money.zero().isPositive()).toBe(false);
+    expect(Money.zero().isNegative()).toBe(false);
+
+    const pos = Money.fromDecimal('5.50');
+    expect(pos.isZero()).toBe(false);
+    expect(pos.isPositive()).toBe(true);
+    expect(pos.isNegative()).toBe(false);
+
+    const neg = Money.fromDecimal('-5.50');
+    expect(neg.isZero()).toBe(false);
+    expect(neg.isPositive()).toBe(false);
+    expect(neg.isNegative()).toBe(true);
   });
 });

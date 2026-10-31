@@ -24,7 +24,7 @@ describe('Session Token Management', () => {
       authorities: ['ROLE_OWNER'],
     });
 
-    const [payload, sig] = token.split('.');
+    const [, sig] = token.split('.');
     const tamperedPayload = Buffer.from(
       JSON.stringify({
         username: 'hacker',

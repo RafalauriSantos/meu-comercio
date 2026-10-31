@@ -3,6 +3,7 @@
 > **PDV e Gestão Financeira para Pequeno Varejo**  
 > Arquitetura **Hexagonal (Modular Monolith)** com domínio puro, precisão financeira exata e isolamento multi-tenant.
 
+[![CI](https://github.com/RafalauriSantos/meu-comercio/actions/workflows/ci.yml/badge.svg)](https://github.com/RafalauriSantos/meu-comercio/actions)
 [![Tests](https://img.shields.io/badge/Vitest-109%20passed%20(100%25)-brightgreen)](./docs/TRACEABILITY.md)
 [![TypeScript](https://img.shields.io/badge/TypeScript-Strict-blue)](https://www.typescriptlang.org/)
 [![Next.js](https://img.shields.io/badge/Next.js-16%20Turbopack-black)](https://nextjs.org/)

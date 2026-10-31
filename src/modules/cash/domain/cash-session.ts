@@ -11,6 +11,28 @@ export type CashMovementType =
   | 'SUPPLY'
   | 'BLEED';
 
+const CASH_INFLOW_TYPES: ReadonlySet<CashMovementType> = new Set([
+  'OPENING_BALANCE',
+  'SALE_RECEIPT',
+  'CREDIT_PAYMENT',
+  'SUPPLY',
+]);
+
+const CASH_OUTFLOW_TYPES: ReadonlySet<CashMovementType> = new Set([
+  'SALE_REFUND',
+  'BLEED',
+]);
+
+export function applyCashMovement(currentTotal: Money, type: CashMovementType, amount: Money): Money {
+  if (CASH_INFLOW_TYPES.has(type)) {
+    return currentTotal.add(amount);
+  }
+  if (CASH_OUTFLOW_TYPES.has(type)) {
+    return currentTotal.subtract(amount);
+  }
+  return currentTotal;
+}
+
 export interface CashSessionProps {
   id: string;
   merchantId: string;

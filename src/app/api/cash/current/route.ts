@@ -26,7 +26,7 @@ export async function GET() {
         movementsCount: currentSession.movementsCount,
       },
     });
-  } catch (error: unknown) {
+  } catch (error) {
     if (error && typeof error === 'object' && 'digest' in error) {
       throw error;
     }

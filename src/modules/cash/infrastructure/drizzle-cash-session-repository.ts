@@ -1,7 +1,7 @@
 import { eq, and, sql } from 'drizzle-orm';
 import { db } from '@/shared/infrastructure/db/connection';
 import { cashSessions, cashMovements } from './cash.schema';
-import { CashSession, CashMovementType } from '../domain/cash-session';
+import { CashSession, CashMovementType, applyCashMovement } from '../domain/cash-session';
 import {
   CashSessionRepository,
   CurrentCashSessionSummary,
@@ -10,7 +10,7 @@ import { Money } from '@/shared/domain/money';
 
 export class DrizzleCashSessionRepository implements CashSessionRepository {
   async findCurrentOpenSession(merchantId: string): Promise<CurrentCashSessionSummary | null> {
-    const rows = await db
+    const [row] = await db
       .select()
       .from(cashSessions)
       .where(
@@ -21,22 +21,22 @@ export class DrizzleCashSessionRepository implements CashSessionRepository {
       )
       .limit(1);
 
-    if (rows.length === 0) {
+    if (!row) {
       return null;
     }
 
-    const row = rows[0];
-    const expectedCash = await this.getExpectedCash(merchantId, row.id);
-
-    const countResult = await db
-      .select({ count: sql<number>`count(*)::int` })
-      .from(cashMovements)
-      .where(
-        and(
-          eq(cashMovements.merchantId, merchantId),
-          eq(cashMovements.cashSessionId, row.id)
-        )
-      );
+    const [expectedCash, countResult] = await Promise.all([
+      this.getExpectedCash(merchantId, row.id),
+      db
+        .select({ count: sql<number>`count(*)::int` })
+        .from(cashMovements)
+        .where(
+          and(
+            eq(cashMovements.merchantId, merchantId),
+            eq(cashMovements.cashSessionId, row.id)
+          )
+        ),
+    ]);
 
     return {
       id: row.id,
@@ -50,7 +50,7 @@ export class DrizzleCashSessionRepository implements CashSessionRepository {
   }
 
   async findSessionById(merchantId: string, sessionId: string): Promise<CashSession | null> {
-    const rows = await db
+    const [row] = await db
       .select()
       .from(cashSessions)
       .where(
@@ -61,11 +61,10 @@ export class DrizzleCashSessionRepository implements CashSessionRepository {
       )
       .limit(1);
 
-    if (rows.length === 0) {
+    if (!row) {
       return null;
     }
 
-    const row = rows[0];
     return new CashSession({
       id: row.id,
       merchantId: row.merchantId,
@@ -143,25 +142,9 @@ export class DrizzleCashSessionRepository implements CashSessionRepository {
         )
       );
 
-    let total = Money.zero();
-
-    for (const mov of movements) {
-      const amount = Money.fromDecimal(mov.amount);
-      if (
-        mov.movementType === 'OPENING_BALANCE' ||
-        mov.movementType === 'SALE_RECEIPT' ||
-        mov.movementType === 'CREDIT_PAYMENT' ||
-        mov.movementType === 'SUPPLY'
-      ) {
-        total = total.add(amount);
-      } else if (
-        mov.movementType === 'SALE_REFUND' ||
-        mov.movementType === 'BLEED'
-      ) {
-        total = total.subtract(amount);
-      }
-    }
-
-    return total;
+    return movements.reduce(
+      (total, mov) => applyCashMovement(total, mov.movementType as CashMovementType, Money.fromDecimal(mov.amount)),
+      Money.zero()
+    );
   }
 }

@@ -20,6 +20,13 @@ export class SetupAlreadyCompletedError extends Error {
   }
 }
 
+const INITIAL_AUTHORITIES: UserAuthority[] = [
+  'ROLE_OWNER',
+  'CREATE_SALE',
+  'OPEN_CASH',
+  'CLOSE_CASH',
+];
+
 export class InitialOwnerSetupUseCase {
   constructor(private readonly userRepository: UserRepository) {}
 
@@ -31,15 +38,10 @@ export class InitialOwnerSetupUseCase {
       throw new SetupAlreadyCompletedError();
     }
 
-    const passwordHash = await hashSecret(input.password);
-    const authorizationPinHash = await hashSecret(input.authorizationPin);
-
-    const initialAuthorities: UserAuthority[] = [
-      'ROLE_OWNER',
-      'CREATE_SALE',
-      'OPEN_CASH',
-      'CLOSE_CASH',
-    ];
+    const [passwordHash, authorizationPinHash] = await Promise.all([
+      hashSecret(input.password),
+      hashSecret(input.authorizationPin),
+    ]);
 
     return this.userRepository.createInitialMerchantWithOwner({
       merchantName: input.merchantName,
@@ -47,7 +49,7 @@ export class InitialOwnerSetupUseCase {
       passwordHash,
       authorizationPinHash,
       email: input.email ?? null,
-      authorities: initialAuthorities,
+      authorities: INITIAL_AUTHORITIES,
     });
   }
 }

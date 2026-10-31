@@ -71,7 +71,7 @@ export class CloseCashSessionUseCase {
     const hasDiscrepancy = !difference.isZero();
     const reason = input.discrepancyReason?.trim();
 
-    if (hasDiscrepancy && (!reason || reason.length === 0)) {
+    if (hasDiscrepancy && !reason) {
       throw new DiscrepancyReasonRequiredError();
     }
 

@@ -26,18 +26,16 @@ export class Money {
   }
 
   public static fromDecimal(amount: number | string | Decimal, currency = 'BRL'): Money {
+    let decimal: Decimal;
     try {
-      const decimal = new Decimal(amount);
-      if (!decimal.isFinite()) {
-        throw new Error(`Amount must be finite: ${amount}`);
-      }
-      return new Money(decimal, currency);
-    } catch (err: unknown) {
-      if (err instanceof Error && err.message.includes('Amount must be finite')) {
-        throw err;
-      }
+      decimal = new Decimal(amount);
+    } catch {
       throw new Error(`Invalid monetary amount: ${amount}`);
     }
+    if (!decimal.isFinite()) {
+      throw new Error(`Amount must be finite: ${amount}`);
+    }
+    return new Money(decimal, currency);
   }
 
   public add(other: Money): Money {
@@ -112,11 +110,11 @@ export class Money {
   }
 
   public isPositive(): boolean {
-    return this.value.isPositive() && !this.value.isZero();
+    return this.value.greaterThan(0);
   }
 
   public isNegative(): boolean {
-    return this.value.isNegative();
+    return this.value.lessThan(0);
   }
 
   private assertSameCurrency(other: Money): void {

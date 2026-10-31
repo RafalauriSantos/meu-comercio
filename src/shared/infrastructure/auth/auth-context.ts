@@ -4,10 +4,7 @@ import { getSessionCookieName, verifySessionToken, SessionData } from './session
 export async function getCurrentSession(): Promise<SessionData | null> {
   const cookieStore = await cookies();
   const token = cookieStore.get(getSessionCookieName())?.value;
-  if (!token) {
-    return null;
-  }
-  return verifySessionToken(token);
+  return token ? verifySessionToken(token) : null;
 }
 
 export async function requireAuthSession(): Promise<SessionData> {

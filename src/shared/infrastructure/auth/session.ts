@@ -35,43 +35,31 @@ export function getSessionCookieName(): string {
     : 'MEU_COMERCIO_SESSION';
 }
 
+function signPayload(payload: string, secret: string): string {
+  return crypto.createHmac('sha256', secret).update(payload).digest('base64url');
+}
+
 export function createSessionToken(
   data: Omit<SessionData, 'expiresAt'>,
   timeoutMinutes = DEFAULT_TIMEOUT_MINUTES
 ): string {
   const secret = getSessionSecret();
-  const expiresAt = Date.now() + timeoutMinutes * 60 * 1000;
-
   const session: SessionData = {
     ...data,
-    expiresAt,
+    expiresAt: Date.now() + timeoutMinutes * 60 * 1000,
   };
 
   const payload = Buffer.from(JSON.stringify(session)).toString('base64url');
-  const signature = crypto
-    .createHmac('sha256', secret)
-    .update(payload)
-    .digest('base64url');
-
-  return `${payload}.${signature}`;
+  return `${payload}.${signPayload(payload, secret)}`;
 }
 
 export function verifySessionToken(token: string): SessionData | null {
-  if (!token || !token.includes('.')) {
-    return null;
-  }
-
-  const [payload, signature] = token.split('.');
+  const [payload, signature] = token?.split('.') ?? [];
   if (!payload || !signature) {
     return null;
   }
 
-  const secret = getSessionSecret();
-  const expectedSignature = crypto
-    .createHmac('sha256', secret)
-    .update(payload)
-    .digest('base64url');
-
+  const expectedSignature = signPayload(payload, getSessionSecret());
   const sigBuffer = Buffer.from(signature);
   const expectedSigBuffer = Buffer.from(expectedSignature);
 
@@ -85,12 +73,7 @@ export function verifySessionToken(token: string): SessionData | null {
   try {
     const json = Buffer.from(payload, 'base64url').toString('utf8');
     const session = JSON.parse(json) as SessionData;
-
-    if (Date.now() > session.expiresAt) {
-      return null; // Expired
-    }
-
-    return session;
+    return Date.now() > session.expiresAt ? null : session;
   } catch {
     return null;
   }

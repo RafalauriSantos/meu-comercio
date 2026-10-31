@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { Money } from '@/shared/domain/money';
-import { CashSession, CashMovementType } from '../domain/cash-session';
+import { CashSession, CashMovementType, applyCashMovement } from '../domain/cash-session';
 import { CashSessionRepository, CurrentCashSessionSummary } from '../domain/cash-session-repository.port';
 import { OpenCashSessionUseCase, CashSessionAlreadyOpenError } from './open-cash-session.use-case';
 import {
@@ -80,18 +80,9 @@ class MockCashSessionRepository implements CashSessionRepository {
   }
 
   async getExpectedCash(_merchantId: string, sessionId: string): Promise<Money> {
-    const sessionMovements = this.movements.filter(m => m.sessionId === sessionId);
-    let total = Money.zero();
-
-    for (const mov of sessionMovements) {
-      if (mov.movementType === 'OPENING_BALANCE' || mov.movementType === 'SALE_RECEIPT' || mov.movementType === 'CREDIT_PAYMENT' || mov.movementType === 'SUPPLY') {
-        total = total.add(mov.amount);
-      } else if (mov.movementType === 'SALE_REFUND' || mov.movementType === 'BLEED') {
-        total = total.subtract(mov.amount);
-      }
-    }
-
-    return total;
+    return this.movements
+      .filter(m => m.sessionId === sessionId)
+      .reduce((total, mov) => applyCashMovement(total, mov.movementType, mov.amount), Money.zero());
   }
 }
 

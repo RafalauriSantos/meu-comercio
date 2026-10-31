@@ -48,11 +48,7 @@ export class User {
     if (!this.enabled || this.isLocked()) {
       return false;
     }
-    // Owners always possess all operational authorities
-    if (this.isOwner()) {
-      return true;
-    }
-    return this.authorities.has(authority);
+    return this.isOwner() || this.authorities.has(authority);
   }
 
   public static readonly MAX_FAILED_ATTEMPTS = 5;
@@ -72,9 +68,6 @@ export class User {
   }
 
   public isLocked(now: Date = new Date()): boolean {
-    if (!this.lockedUntil) {
-      return false;
-    }
-    return this.lockedUntil.getTime() > now.getTime();
+    return Boolean(this.lockedUntil && this.lockedUntil.getTime() > now.getTime());
   }
 }

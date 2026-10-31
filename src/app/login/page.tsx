@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { apiClient, AuthUser } from '@/frontend/lib/api-client';
 import { getErrorMessage, parseCurrencyInput } from '@/frontend/lib/formatters';
-import '@/frontend/styles/pdv.css';
+import '@/frontend/styles/auth.css';
 
 export default function LoginPage() {
   const router = useRouter();
@@ -139,10 +139,13 @@ export default function LoginPage() {
 
   if (loading) {
     return (
-      <main className="pdv-page" style={{ alignItems: 'center', justifyContent: 'center' }}>
-        <div className="card" style={{ padding: '32px', textAlign: 'center' }}>
-          <p className="eyebrow">Carregando</p>
-          <h2>Verificando sistema...</h2>
+      <main className="auth-wrapper">
+        <div className="auth-card" style={{ textAlign: 'center', padding: '48px 32px' }}>
+          <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '16px' }}>
+            <div className="auth-loading-spinner" style={{ width: '32px', height: '32px', borderTopColor: '#059669', borderColor: '#d1fae5' }} />
+          </div>
+          <span className="auth-pill" style={{ margin: '0 auto 8px' }}>Carregando</span>
+          <h2 className="auth-title" style={{ fontSize: '18px' }}>Verificando sistema...</h2>
         </div>
       </main>
     );
@@ -151,78 +154,112 @@ export default function LoginPage() {
   // Tela 1: Configuração Inicial da Proprietária
   if (setupRequired) {
     return (
-      <main className="pdv-page" style={{ alignItems: 'center', justifyContent: 'center' }}>
-        <div className="card" style={{ maxWidth: '440px', width: '100%', padding: '28px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '16px' }}>
-            <span className="brand-mark">b</span>
-            <div>
-              <span className="eyebrow">Primeiro Acesso</span>
-              <h1>Configurar Loja</h1>
+      <main className="auth-wrapper">
+        <div className="auth-card">
+          <header className="auth-header">
+            <div className="auth-header-top">
+              <div className="auth-icon-badge">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="m2 7 4.41-4.41A2 2 0 0 1 7.83 2h8.34a2 2 0 0 1 1.42.59L22 7"/>
+                  <path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/>
+                  <path d="M15 22v-4a2 2 0 0 0-2-2h-2a2 2 0 0 0-2 2v4"/>
+                  <path d="M2 7h20"/>
+                </svg>
+              </div>
+              <div>
+                <span className="auth-pill">Primeiro Acesso</span>
+                <h1 className="auth-title">Configurar Loja</h1>
+              </div>
             </div>
-          </div>
-          <p className="muted" style={{ marginBottom: '18px' }}>
-            Cadastre a conta da proprietária para inicializar o comércio e autorizar operações no balcão.
-          </p>
+            <p className="auth-subtitle">
+              Cadastre a conta da proprietária para inicializar o comércio e autorizar operações no balcão.
+            </p>
+          </header>
 
-          {error && <div className="error">{error}</div>}
+          {error && (
+            <div className="auth-error">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0, marginTop: '2px' }}>
+                <circle cx="12" cy="12" r="10"/>
+                <line x1="12" y1="8" x2="12" y2="12"/>
+                <line x1="12" y1="16" x2="12.01" y2="16"/>
+              </svg>
+              <span>{error}</span>
+            </div>
+          )}
 
-          <form onSubmit={handleSetup} style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-            <div>
-              <label className="eyebrow" htmlFor="setup-user">Usuário da Proprietária</label>
+          <form onSubmit={handleSetup} className="auth-form">
+            <div className="auth-field">
+              <label className="auth-label" htmlFor="setup-user">Usuário da Proprietária</label>
               <input
                 id="setup-user"
-                className="barcode-row"
-                style={{ width: '100%' }}
+                className="auth-input"
                 type="text"
                 required
+                autoFocus
                 value={setupUsername}
                 onChange={(e) => setSetupUsername(e.target.value)}
                 placeholder="Ex: tatiane"
               />
             </div>
-            <div>
-              <label className="eyebrow" htmlFor="setup-pass">Senha de Acesso</label>
+
+            <div className="auth-field">
+              <div className="auth-label">
+                <label htmlFor="setup-pass">Senha de Acesso</label>
+                <span className="auth-label-hint">Mínimo 8 caracteres</span>
+              </div>
               <input
                 id="setup-pass"
-                className="barcode-row"
-                style={{ width: '100%' }}
+                className="auth-input"
                 type="password"
                 required
                 minLength={8}
                 value={setupPassword}
                 onChange={(e) => setSetupPassword(e.target.value)}
+                placeholder="••••••••"
               />
             </div>
-            <div>
-              <label className="eyebrow" htmlFor="setup-conf">Confirmar Senha</label>
+
+            <div className="auth-field">
+              <label className="auth-label" htmlFor="setup-conf">Confirmar Senha</label>
               <input
                 id="setup-conf"
-                className="barcode-row"
-                style={{ width: '100%' }}
+                className="auth-input"
                 type="password"
                 required
                 minLength={8}
                 value={setupConfirm}
                 onChange={(e) => setSetupConfirm(e.target.value)}
+                placeholder="••••••••"
               />
             </div>
-            <div>
-              <label className="eyebrow" htmlFor="setup-pin">PIN de Autorização (4 a 6 dígitos)</label>
+
+            <div className="auth-field">
+              <div className="auth-label">
+                <label htmlFor="setup-pin">PIN de Autorização</label>
+                <span className="auth-label-hint">4 a 6 números</span>
+              </div>
               <input
                 id="setup-pin"
-                className="barcode-row mono"
-                style={{ width: '100%' }}
+                className="auth-input mono"
                 type="password"
                 inputMode="numeric"
                 maxLength={6}
                 required
                 value={setupPin}
                 onChange={(e) => setSetupPin(e.target.value)}
-                placeholder="Ex: 1234"
+                placeholder="••••"
               />
             </div>
-            <button className="primary wide" type="submit" disabled={processing} style={{ marginTop: '12px' }}>
-              {processing ? 'Cadastrando...' : 'Finalizar Setup e Entrar'}
+
+            <button className="auth-btn-primary" type="submit" disabled={processing}>
+              {processing ? (
+                <>
+                  <div className="auth-loading-spinner" />
+                  <span>Cadastrando...</span>
+                </>
+              ) : (
+                'Finalizar Setup e Entrar'
+              )}
             </button>
           </form>
         </div>
@@ -233,46 +270,70 @@ export default function LoginPage() {
   // Tela 2: Abertura de Caixa se o usuário já logou e o caixa está fechado
   if (user && cashOpen === false) {
     return (
-      <main className="pdv-page" style={{ alignItems: 'center', justifyContent: 'center' }}>
-        <div className="card" style={{ maxWidth: '440px', width: '100%', padding: '28px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '16px' }}>
-            <span className="brand-mark">b</span>
-            <div>
-              <span className="eyebrow">Operação de Caixa</span>
-              <h1>Abrir Novo Caixa</h1>
+      <main className="auth-wrapper">
+        <div className="auth-card">
+          <header className="auth-header">
+            <div className="auth-header-top">
+              <div className="auth-icon-badge">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <rect width="20" height="12" x="2" y="6" rx="2"/>
+                  <circle cx="12" cy="12" r="2"/>
+                  <path d="M6 12h.01M18 12h.01"/>
+                </svg>
+              </div>
+              <div>
+                <span className="auth-pill">Operação de Caixa</span>
+                <h1 className="auth-title">Abrir Novo Caixa</h1>
+              </div>
             </div>
-          </div>
-          <p className="muted" style={{ marginBottom: '16px' }}>
-            Olá, <strong>{user.username}</strong>! O caixa está fechado. Informe o fundo de troco inicial para começar a registrar vendas no balcão.
-          </p>
+            <p className="auth-subtitle">
+              Olá, <strong>{user.username}</strong>! O caixa está fechado. Informe o valor do fundo de troco para iniciar as vendas.
+            </p>
+          </header>
 
-          {error && <div className="error">{error}</div>}
+          {error && (
+            <div className="auth-error">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0, marginTop: '2px' }}>
+                <circle cx="12" cy="12" r="10"/>
+                <line x1="12" y1="8" x2="12" y2="12"/>
+                <line x1="12" y1="16" x2="12.01" y2="16"/>
+              </svg>
+              <span>{error}</span>
+            </div>
+          )}
 
-          <form onSubmit={handleOpenCash} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-            <div>
-              <label className="eyebrow" htmlFor="opening-balance">Fundo de Troco Inicial (R$)</label>
+          <form onSubmit={handleOpenCash} className="auth-form">
+            <div className="auth-field">
+              <label className="auth-label" htmlFor="opening-balance">Fundo de Troco Inicial (R$)</label>
               <input
                 id="opening-balance"
-                className="barcode-row mono"
-                style={{ width: '100%', fontSize: '20px', fontWeight: 'bold' }}
+                className="auth-input mono"
+                style={{ fontSize: '18px', fontWeight: 'bold' }}
                 type="number"
                 step="0.01"
                 min="0"
                 required
+                autoFocus
                 value={openingBalance}
                 onChange={(e) => setOpeningBalance(e.target.value)}
               />
             </div>
 
-            <button className="primary wide" type="submit" disabled={processing}>
-              {processing ? 'Abrindo caixa...' : 'Confirmar e Ir para o PDV'}
+            <button className="auth-btn-primary" type="submit" disabled={processing}>
+              {processing ? (
+                <>
+                  <div className="auth-loading-spinner" />
+                  <span>Abrindo caixa...</span>
+                </>
+              ) : (
+                'Confirmar e Ir para o PDV'
+              )}
             </button>
 
             <button
-              className="ghost"
+              className="auth-btn-secondary"
               type="button"
               onClick={() => router.push('/gestao')}
-              style={{ marginTop: '4px' }}
             >
               Ir para Painel de Gestão sem abrir caixa
             </button>
@@ -284,28 +345,43 @@ export default function LoginPage() {
 
   // Tela 3: Login de Operador / Proprietária
   return (
-    <main className="pdv-page" style={{ alignItems: 'center', justifyContent: 'center' }}>
-      <div className="card" style={{ maxWidth: '420px', width: '100%', padding: '32px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '16px' }}>
-          <span className="brand-mark">b</span>
-          <div>
-            <span className="eyebrow">Meu Comércio PDV</span>
-            <h1>Entrar no Sistema</h1>
+    <main className="auth-wrapper">
+      <div className="auth-card">
+        <header className="auth-header">
+          <div className="auth-header-top">
+            <div className="auth-icon-badge">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/>
+                <circle cx="12" cy="7" r="4"/>
+              </svg>
+            </div>
+            <div>
+              <span className="auth-pill">Meu Comércio PDV</span>
+              <h1 className="auth-title">Entrar no Sistema</h1>
+            </div>
           </div>
-        </div>
-        <p className="muted" style={{ marginBottom: '18px' }}>
-          Identifique-se para acessar o balcão de vendas e o controle financeiro.
-        </p>
+          <p className="auth-subtitle">
+            Identifique-se para acessar o balcão de vendas e o controle financeiro.
+          </p>
+        </header>
 
-        {error && <div className="error">{error}</div>}
+        {error && (
+          <div className="auth-error">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0, marginTop: '2px' }}>
+              <circle cx="12" cy="12" r="10"/>
+              <line x1="12" y1="8" x2="12" y2="12"/>
+              <line x1="12" y1="16" x2="12.01" y2="16"/>
+            </svg>
+            <span>{error}</span>
+          </div>
+        )}
 
-        <form onSubmit={handleLogin} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-          <div>
-            <label className="eyebrow" htmlFor="login-username">Operador / Usuário</label>
+        <form onSubmit={handleLogin} className="auth-form">
+          <div className="auth-field">
+            <label className="auth-label" htmlFor="login-username">Operador / Usuário</label>
             <input
               id="login-username"
-              className="barcode-row"
-              style={{ width: '100%' }}
+              className="auth-input"
               type="text"
               required
               autoFocus
@@ -314,12 +390,12 @@ export default function LoginPage() {
               placeholder="Digite seu usuário"
             />
           </div>
-          <div>
-            <label className="eyebrow" htmlFor="login-password">Senha</label>
+
+          <div className="auth-field">
+            <label className="auth-label" htmlFor="login-password">Senha</label>
             <input
               id="login-password"
-              className="barcode-row"
-              style={{ width: '100%' }}
+              className="auth-input"
               type="password"
               required
               value={password}
@@ -328,8 +404,15 @@ export default function LoginPage() {
             />
           </div>
 
-          <button className="primary wide" type="submit" disabled={processing} style={{ marginTop: '10px' }}>
-            {processing ? 'Entrando...' : 'Entrar no PDV'}
+          <button className="auth-btn-primary" type="submit" disabled={processing}>
+            {processing ? (
+              <>
+                <div className="auth-loading-spinner" />
+                <span>Entrando...</span>
+              </>
+            ) : (
+              'Entrar no PDV'
+            )}
           </button>
         </form>
       </div>

@@ -6,99 +6,96 @@
 [![Next.js](https://img.shields.io/badge/Next.js-16%20Turbopack-black)](https://nextjs.org/)
 [![Database](https://img.shields.io/badge/Neon-PostgreSQL%20Serverless-00e599)](https://neon.tech/)
 
-> Sistema de Ponto de Venda (PDV) e Gestão Comercial para pequenos comércios e mini-mercados de bairro, desenvolvido para operação rápida de balcão, precisão financeira matemática sem floats, controle rigoroso de caixa cego, fiado com PIN da dona e contingência offline. Arquitetura em Monólito Modular Hexagonal (Ports & Adapters) sobre Next.js 16 App Router com Turbopack, Drizzle ORM e PostgreSQL Neon Serverless.
+Sistema de Ponto de Venda (PDV) e gestão comercial para mini-mercados e pequeno varejo. Operadores realizam vendas com leitor de código de barras ou atalhos de teclado, registram pagamentos únicos ou divididos (dinheiro, Pix, cartões e fiado) e fecham o caixa com conferência cega. O sistema impede estoque negativo, calcula troco em centavos sem ponto flutuante, exige PIN da dona para compras que excedam o limite de fiado e mantém fila local de vendas em dinheiro caso a conexão caia. Construído em monólito modular com Next.js 16, Drizzle ORM e Neon PostgreSQL.
 
 ## Acesse
 
 - **Rotas principais:**
-  - `/` — Terminal de PDV com leitura contínua, atalhos de teclado (F2/F3/F4/F5/F7/F10/Esc), split checkout e fila offline.
-  - `/gestao` — Painel de retaguarda (catálogo de produtos, reposição de estoque, extrato de fiado e fechamento de caixa).
-  - `/login` — Autenticação segura, setup inicial da dona e abertura de turno de caixa.
-- **Contas de demonstração** (senha padrão `demo-comercio-2026`):
-  - **Proprietária:** `dona@demo.example` (PIN de liberação: `1234`) — acesso irrestrito ao PDV, retaguarda, override de fiado e fechamento forçado de qualquer caixa.
-  - **Operador de caixa:** `operador@demo.example` — abertura de caixa, vendas de balcão e fechamento do seu próprio turno.
-- No primeiro acesso em ambiente limpo, o sistema detecta ausência de lojistas e redireciona automaticamente para o assistente de provisionamento da proprietária (`/login`).
+  - `/` — Terminal de PDV com leitura contínua, atalhos de teclado, split checkout e fila offline.
+  - `/gestao` — Painel de retaguarda: catálogo de produtos, reposição de estoque, extrato de fiado e fechamento de caixa.
+  - `/login` — Autenticação de operador e dona, setup inicial e abertura de caixa.
+- **Contas de demonstração** (senha `demo-comercio-2026`):
+  - **Proprietária:** `dona@demo.example` (PIN de liberação: `1234`) — acesso total, liberação de excesso de fiado e fechamento de qualquer caixa.
+  - **Operador de caixa:** `operador@demo.example` — abertura de caixa, vendas e fechamento do seu próprio turno.
+- Em ambiente sem lojistas cadastrados, o sistema abre o assistente de provisionamento da primeira proprietária em `/login`.
 
 ## Rodar localmente
 
-Requisitos: Node.js 22 (`.nvmrc`), PostgreSQL (instância Neon Serverless ou Postgres local) e npm.
+Requisitos: Node.js 22, PostgreSQL (instância Neon ou local) e npm.
 
 ```bash
-npm ci             # Instala as dependências exatas do projeto
-cp .env.example .env.local  # Configura as variáveis de ambiente (banco e sessão)
-npm run dev        # Inicia o servidor de desenvolvimento em http://localhost:3000
-npm test           # Executa os 157 testes automatizados da suíte (Vitest)
-npm run build      # Valida e compila a aplicação de produção com Turbopack
+npm ci
+cp .env.example .env.local  # configure DATABASE_URL e SESSION_SECRET
+npm run dev                 # aplicação em http://localhost:3000
+npm test                    # executa a suíte de 157 testes (Vitest)
+npm run build               # compila o build de produção (Turbopack)
 ```
-
-- Configure `DATABASE_URL` e `SESSION_SECRET` (gerado com `openssl rand -base64 32`) em `.env.local`.
-- As migrações do banco e a criação de índices são gerenciadas pelo Drizzle Kit (`npx drizzle-kit push` ou migrações SQL).
 
 ## Testes e Qualidade
 
-- **157 testes automatizados aprovados (Vitest, 15 arquivos de teste)** cobrindo 100% dos fluxos críticos: aritmética de centavos do Value Object `Money`, abertura/fechamento de caixa com conferência cega, checagem e dedução atômica de estoque, idempotência transacional de checkout, liberação de excesso de fiado por PIN da dona, quitação de dívidas e fila de sincronização offline.
-- **ESLint com 0 erros e 0 avisos:** checagem rigorosa de código em conformidade com os padrões estabelecidos do Next.js e TypeScript.
-- **TypeScript em modo estrito (`strict: true`):** compilação validada com `npx tsc --noEmit` sem qualquer violação de tipos.
-- **CI Pipeline no GitHub Actions (`.github/workflows/ci.yml`):** validação automatizada em cada push e pull request na branch `main`, executando `npm ci`, ESLint, suíte completa de testes no Vitest, checagem de tipos estrita e build de produção com Turbopack.
+- **157 testes automatizados aprovados (Vitest, 15 arquivos):** cobertura para cálculo monetário com centavos inteiros, conferência cega de caixa, baixa atômica de estoque, idempotência de checkout, limite de fiado com PIN, quitação de dívidas e fila offline.
+- **ESLint com 0 erros e 0 avisos:** checagem estrita sem violações.
+- **TypeScript em modo estrito (`strict: true`):** validado com `npx tsc --noEmit`.
+- **CI Pipeline no GitHub Actions (`.github/workflows/ci.yml`):** executado a cada push na `main` e em pull requests, com jobs para lint, tipos, testes e build.
 
 ## O que foi feito
 
 | Requisito | Situação |
 |---|---|
-| Monólito Modular Hexagonal com domínio puro desacoplado de frameworks e banco | Feito |
-| Multi-tenancy nativo por `merchant_id` com isolamento completo e chaves compostas | Feito |
-| Manipulação monetária exata via Value Object `Money` (28 dígitos de precisão, zero floats) | Feito |
-| Terminal de PDV com ergonomia de alta produtividade e leitura contínua de código de barras | Feito |
+| Monólito modular com domínio desacoplado de banco e HTTP | Feito |
+| Multi-tenancy por `merchant_id` em todas as tabelas e consultas | Feito |
+| Cálculos monetários com centavos inteiros via Value Object `Money` (sem float) | Feito |
+| Leitor contínuo de código de barras com autofoco | Feito |
 | Atalhos de teclado no balcão (`F2` Dinheiro, `F3` Pix, `F4` Débito, `F5` Crédito, `F7` Desconto, `F10` Finalizar, `Esc` Limpar) | Feito |
-| Split checkout (divisão de pagamento entre dinheiro, PIX, débito e crédito) | Feito |
-| Cálculo automático e exato de troco em pagamentos em dinheiro | Feito |
-| Proteção contra vendas duplicadas via chave de idempotência (`Idempotency-Key` UUID v4) | Feito |
-| Prevenção estrita de estoque negativo com validação e baixa atômica de saldo | Feito |
-| Catálogo de produtos com busca textual, leitura de código de barras e reposição de estoque | Feito |
-| Turno de caixa único por comércio garantido por índice parcial no banco (`idx_one_open_cash_session_per_merchant`) | Feito |
-| Fechamento de caixa com conferência cega e justificativa textual compulsória de divergência | Feito |
-| Lançamento automático de entradas em dinheiro (`SALE_RECEIPT` e `DEBT_PAYMENT`) na gaveta física do caixa ativo | Feito |
-| Permissões de caixa: operador só fecha o próprio turno; dona pode fechar qualquer turno da loja | Feito |
-| Autenticação com lockout temporário após 5 tentativas incorretas e cookies seguros `HttpOnly` (`__Host-`) | Feito |
-| Cadastro de clientes com limite de crédito e ledger imutável de fiado (`customer_credit_ledger`) | Feito |
-| Venda fiado dentro do limite sem fricção e autorização de excesso via senha e PIN da proprietária (bcrypt) | Feito |
-| Quitação de fiado vinculada compulsoriamente a turno de caixa aberto com entrada imediata na gaveta | Feito |
-| Fila de contingência offline no frontend para vendas em dinheiro com sincronização automática | Feito |
-| Trilha de auditoria imutável append-only (`audit_events`) para todas as ações sensíveis do sistema | Feito |
-| Painel de retaguarda unificado (`/gestao`) com abas para Catálogo/Estoque, Fiado/Clientes e Fechamento de Caixa | Feito |
+| Split checkout (divisão de pagamento entre múltiplos métodos) | Feito |
+| Troco calculado no servidor para pagamentos em dinheiro | Feito |
+| Idempotência de venda via cabeçalho `Idempotency-Key` (UUID) | Feito |
+| Prevenção de estoque negativo com validação e baixa atômica | Feito |
+| Catálogo de produtos com busca por nome, código de barras e reposição | Feito |
+| Sessão de caixa única por loja garantida por índice parcial no banco | Feito |
+| Fechamento de caixa com conferência cega e justificativa de divergência | Feito |
+| Entradas em dinheiro registradas automaticamente na gaveta do caixa ativo | Feito |
+| Permissões: operador fecha apenas seu turno; dona fecha qualquer turno | Feito |
+| Lockout de autenticação após 5 tentativas incorretas por 15 minutos | Feito |
+| Cadastro de clientes com limite de crédito e extrato de fiado | Feito |
+| Venda fiado com bloqueio de excesso de limite, liberável por PIN da dona | Feito |
+| Quitação de fiado vinculada a caixa aberto com entrada na gaveta | Feito |
+| Fila offline para vendas em dinheiro com sincronização automática | Feito |
+| Trilha de auditoria imutável (`audit_events`) para ações sensíveis | Feito |
+| Painel de retaguarda (`/gestao`) com produtos, fiado e fechamento de caixa | Feito |
 
 ## Regras de negócio e comportamentos do sistema
 
-- **Manipulação Monetária Exata via Money (Zero Floats):** É expressamente proibido o uso do tipo de ponto flutuante `number` para armazenar ou calcular valores monetários. Todo o sistema utiliza o Value Object `Money` apoiado na biblioteca `decimal.js`, operando com 28 dígitos de precisão, arredondamento comercial *half-up* e persistência em centavos inteiros (`toCents()`) ou tipos SQL `numeric(19, 4)` / `numeric(10, 2)`. Garante exatidão absoluta em descontos, divisões de split, troco e conferência de caixa.
-- **Sessão Única de Caixa por Comércio no Banco:** Uma loja só pode manter um turno de caixa aberto por vez. Essa regra é blindada a nível físico pelo PostgreSQL via índice único parcial `idx_one_open_cash_session_per_merchant` (`merchant_id, status WHERE status = 'OPEN'`), impedindo condições de corrida e duplicidade de gavetas abertas mesmo sob requisições concorrentes.
-- **Conferência Cega de Caixa:** No encerramento do turno, o operador não visualiza o saldo apurado pelo sistema. Ele realiza a contagem física das cédulas e moedas na gaveta e digita o valor contado. O sistema calcula a divergência; caso haja quebra (positiva ou negativa), o fechamento exige justificativa textual compulsória, gravando a auditoria com os valores esperado, apurado e a declaração do operador.
-- **Vínculo Compulsório entre Dinheiro e Caixa Ativo:** Qualquer transação envolvendo dinheiro físico — seja o recebimento de uma venda (`SALE_RECEIPT`) ou a quitação de uma dívida de fiado (`DEBT_PAYMENT`) — exige obrigatoriamente um caixa com status `OPEN`. A movimentação na gaveta física é registrada no mesmo ciclo transacional.
-- **Prevenção Estrita de Estoque Negativo:** O domínio valida a disponibilidade de todos os itens do carrinho antes de efetivar qualquer baixa. Se qualquer produto não possuir estoque suficiente, a venda é cancelada integralmente com `InsufficientStockError`, eliminando qualquer possibilidade de saldo negativo ou débito parcial de itens.
-- **Idempotência Transacional em Duas Camadas:** O PDV gera um UUID v4 por tentativa de checkout. A camada de aplicação rejeita duplicidades via repositório e o banco impõe índice único parcial `idx_sales_merchant_idempotency` na tabela `sales`. Cliques duplos acidentais ou retransmissões por lentidão de rede retornam a venda existente de forma segura, sem gerar cobrança duplicada ou dupla baixa de estoque.
-- **Ledger Imutável de Fiado e Liberação por PIN:** O saldo devedor do cliente é computado via agregação de eventos contábeis imutáveis (`DEBIT` para novas compras e `CREDIT` para quitações). Vendas dentro do limite são aprovadas diretamente pelo operador. Vendas que excedam o limite disponível disparam a exigência de autorização da proprietária: é exigida autenticação com usuário e PIN numérico, validado contra hash `bcrypt`. A liberação excepcional grava registro detalhado em `audit_events`.
-- **Quitação de Fiado com Teto de Saldo:** O valor amortizado ou quitado não pode ser superior à dívida total em aberto do cliente (`DebtSettlementExceedsBalanceError`). A quitação entra imediatamente como dinheiro físico no caixa aberto do operador.
-- **Contingência Offline para Vendas em Dinheiro:** Quando o navegador perde conexão (`!navigator.onLine` ou queda transitória da API), o PDV permite registrar vendas em dinheiro físico (`CASH`), salvando a transação assinada com UUID no armazenamento isolado do navegador por operador e loja (`miniMarketOfflineSales:${merchantId}:${username}`). Ao restabelecer a conectividade, o processo assíncrono envia os dados à API idempotentemente e limpa a fila.
-- **Proteção contra Força Bruta (Lockout):** Tentativas repetidas de acesso indevido no balcão são contidas pelo bloqueio automático da conta após 5 falhas consecutivas de senha por 15 minutos (`lockedUntil = now + 15 min`).
+- **Valores monetários sem ponto flutuante:** valores são manipulados exclusivamente pelo Value Object `Money` com centavos inteiros e arredondamento commercial *half-up*. Previne discrepâncias em divisões de pagamento, descontos e troco.
+- **Caixa único por comércio:** o banco impõe índice único parcial `idx_one_open_cash_session_per_merchant` (`merchant_id, status WHERE status = 'OPEN'`), impedindo mais de uma sessão aberta simultaneamente por loja.
+- **Conferência cega de caixa:** o operador digita o valor físico contado sem ver o total calculado pelo sistema. Se houver divergência (quebra ou sobra), o sistema exige justificativa textual e registra o evento em auditoria.
+- **Vínculo com caixa aberto:** recebimentos em dinheiro de vendas (`SALE_RECEIPT`) ou quitações de fiado (`DEBT_PAYMENT`) exigem caixa com status `OPEN` e atualizam o saldo da gaveta no mesmo ciclo.
+- **Prevenção de estoque negativo:** o sistema valida todos os itens do carrinho antes da baixa. Falta de estoque em qualquer item cancela a operação inteira sem débitos parciais.
+- **Idempotência em duas camadas:** checkout utiliza UUID gerado pelo cliente. Tentativas duplicadas são identificadas na aplicação e barradas pelo índice único parcial no banco.
+- **Fiado e autorização por PIN:** o saldo devedor é calculado pelo histórico de débitos e créditos. Compras que ultrapassem o limite exigem usuário e PIN da dona (validado contra hash `bcrypt`), gravando autorização na auditoria.
+- **Quitação de fiado:** o valor pago não pode exceder o saldo devedor. O montante entra diretamente como dinheiro no caixa aberto.
+- **Contingência offline:** quedas de conexão permitem registrar vendas em dinheiro físico, armazenadas localmente no navegador por operador e loja (`miniMarketOfflineSales:${merchantId}:${username}`). Na volta da rede, a sincronização envia os registros com a chave de idempotência preservada.
+- **Bloqueio por tentativas:** 5 falhas consecutivas de senha bloqueiam o usuário temporariamente por 15 minutos.
 
 ## Limitações conhecidas e escopo
 
-- **Contingência Offline Exclusiva para Dinheiro Físico:** Vendas parceladas ou processadas por meios eletrônicos (PIX, Cartão de Crédito e Cartão de Débito) requerem comunicação online ativa com os serviços financeiros e adquirentes; portanto, não entram na fila de contingência offline.
-- **Sincronização Vinculada ao Terminal Local:** As vendas offline em dinheiro ficam protegidas no `localStorage` isolado do navegador do terminal. A sincronização automática é efetuada assim que a internet do próprio terminal for restaurada.
-- **Turno Único por Estabelecimento:** A governança atual do banco de dados assegura uma única gaveta de caixa ativa simultaneamente por loja, eliminando furos de conciliação física entre operadores no mesmo turno.
-- **Sessão Segura por Cookies de Servidor:** A persistência da sessão utiliza tokens criptograficamente assinados com HMAC-SHA256 trafegados em cookies seguros `HttpOnly` com prefixo `__Host-` em produção, protegendo os terminais de PDV contra ataques de XSS e extração indevida de credenciais.
+- **Modo offline restrito a dinheiro:** pagamentos eletrônicos (Pix e cartões) dependem de comunicação com adquirentes e não entram na fila offline.
+- **Sincronização no terminal local:** vendas offline ficam no armazenamento local do navegador onde foram emitidas e sincronizam assim que a conexão daquele terminal retorna.
+- **Uma gaveta aberta por loja:** a governança do banco mantém uma única sessão de caixa ativa por comércio para evitar divergências físicas entre operadores no mesmo turno.
+- **Sessão por cookies de servidor:** autenticação utiliza cookies seguros `HttpOnly` com prefixo `__Host-` e assinatura HMAC-SHA256.
 
 ## Decisões arquiteturais e governança
 
-Todas as decisões arquiteturais, padrões de design e salvaguardas de negócio estão formalmente documentadas em Architecture Decision Records (ADRs):
+Decisões técnicas documentadas em Architecture Decision Records (ADRs):
 
 - [docs/DECISIONS.md](docs/DECISIONS.md):
   - **ADR-001**: Monólito Modular Desacoplado (Hexagonal / Ports & Adapters)
-  - **ADR-002**: Manipulação Monetária Exata via Value Object Money (zero floats)
+  - **ADR-002**: Manipulação Monetária Exata via Value Object Money
   - **ADR-003**: Multi-tenancy por `merchant_id` com Chave Estrangeira Composta
   - **ADR-004**: Sessão Única de Caixa por Comércio e Conferência Cega
   - **ADR-005**: Imutabilidade Financeira e Trilha de Auditoria Persistente
   - **ADR-006**: Autenticação Segura com Bloqueio Temporário (Lockout)
   - **ADR-007**: Vendas no PDV, Split Payments e Idempotência Transacional
-  - **ADR-008**: Modelo de Fiado / Crediário, Override por PIN da Proprietária e Quitação em Caixa Aberto
-  - **ADR-009**: Adaptação da Interface do PDV no Next.js App Router, Fila Offline e Integração com Slices 1 a 5
-- [docs/TRACEABILITY.md](docs/TRACEABILITY.md): Matriz de rastreabilidade vinculando todos os critérios de negócio aos 157 testes automatizados da suíte.
+  - **ADR-008**: Modelo de Fiado, Override por PIN da Proprietária e Quitação em Caixa Aberto
+  - **ADR-009**: Adaptação da Interface do PDV no Next.js App Router e Fila Offline
+- [docs/TRACEABILITY.md](docs/TRACEABILITY.md): Matriz vinculando regras de negócio aos 157 testes automatizados.

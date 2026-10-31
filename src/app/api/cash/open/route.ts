@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { ZodError } from 'zod';
 import { requireAuthSession, UnauthorizedError } from '@/shared/infrastructure/auth/auth-context';
+import { hasSessionAuthority } from '@/shared/infrastructure/auth/session';
 import { DrizzleCashSessionRepository } from '@/modules/cash/infrastructure/drizzle-cash-session-repository';
 import { DrizzleAuditService } from '@/modules/audit/infrastructure/drizzle-audit-service';
 import {
@@ -12,8 +13,7 @@ export async function POST(request: NextRequest) {
   try {
     const session = await requireAuthSession();
 
-    const hasPermission = session.authorities.includes('ROLE_OWNER') || session.authorities.includes('OPEN_CASH');
-    if (!hasPermission) {
+    if (!hasSessionAuthority(session, 'OPEN_CASH')) {
       return NextResponse.json(
         { message: 'Você não tem permissão para abrir o caixa (OPEN_CASH).' },
         { status: 403 }

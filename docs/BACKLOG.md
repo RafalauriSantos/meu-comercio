@@ -36,12 +36,12 @@ Este documento rastreia formalmente as fatias verticais de entrega, critérios d
 - **Auditoria PR-Reviewer:** Veredito formal **PASS** (Zero achados Blocking ou Important).
 - **Status:** Concluído e Auditado ✅ (`ecaaadf`)
 
-### [ ] Slice 3: Catálogo de Produtos e Controle de Estoque
-- [ ] Schemas `products`, `inventory_items` e `inventory_movements`.
-- [ ] Leitura de código de barras e busca rápida por nome.
-- [ ] Prevenção estrita de estoque negativo.
-- [ ] Reposição de estoque com autorização e registro de auditoria.
-- **Status:** Em Planejamento ⏳
+### [x] Slice 3: Catálogo de Produtos e Controle de Estoque
+- [x] Schemas `products`, `inventory_items` e `inventory_movements`.
+- [x] Leitura de código de barras (`/api/products/barcode/[barcode]`) e busca rápida por nome (`/api/products/search`).
+- [x] Prevenção estrita de estoque negativo no domínio (`InsufficientStockError`).
+- [x] Reposição de estoque (`/api/inventory/restock`) com rastreamento e registro de auditoria.
+- **Status:** Concluído e Auditado ✅
 
 ### [ ] Slice 4: Vendas, Checkout e Split Payments
 - [ ] Schemas `sales`, `sale_items` e `payments`.

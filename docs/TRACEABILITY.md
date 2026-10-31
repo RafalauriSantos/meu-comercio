@@ -20,3 +20,8 @@ Mapeamento entre os critérios de negócio aprovados em `DECISIONS.md` e a suít
 | Fechamento por operador diferente não autorizado | `cash` | `src/modules/cash/application/cash-session.use-case.test.ts` | Aprovado |
 | Fechamento de qualquer turno pela proprietária | `cash` | `src/modules/cash/application/cash-session.use-case.test.ts` | Aprovado |
 | Trilha de auditoria em abertura/fechamento | `cash` / `audit` | `src/modules/cash/application/cash-session.use-case.test.ts` | Aprovado |
+| Criação de produto com preço em centavos e isolamento por comerciante | `products` | `src/modules/products/application/products.use-case.test.ts` | Aprovado (6 testes) |
+| Código de barras duplicado rejeitado | `products` | `src/modules/products/application/products.use-case.test.ts` | Aprovado |
+| Busca de produto por código de barras e por termo textual | `products` | `src/modules/products/application/products.use-case.test.ts` | Aprovado |
+| Reposição de estoque (restock) com saldo atualizado | `inventory` | `src/modules/products/application/products.use-case.test.ts` | Aprovado |
+| Rejeição absoluta de quantidade negativa no estoque | `inventory` | `src/modules/products/application/products.use-case.test.ts` | Aprovado |

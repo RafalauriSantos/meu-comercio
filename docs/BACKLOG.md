@@ -64,7 +64,7 @@ Este documento rastreia formalmente as fatias verticais de entrega, critérios d
 - [x] 5.6 `AuthorizeCreditSaleUseCase`: verificação de limite disponível para compras a prazo; exigência e validação de PIN da proprietária (`ROLE_OWNER` via `bcrypt`) em caso de excesso de limite, com auditoria compulsória `CREDIT_SALE_LIMIT_AUTHORIZED`.
 - [x] 5.7 `SettleCustomerDebtUseCase`: quitação total ou parcial de dívida exigindo sessão de caixa aberta (`OPEN`), registrando entrada de dinheiro na gaveta (`DEBT_PAYMENT`), amortização no extrato e auditoria `CUSTOMER_DEBT_SETTLED`.
 - [x] 5.8 Tratamento de invariantes de domínio e erros de negócio explícitos (`CustomerNotFoundError`, `CustomerAlreadyExistsError`, `CustomerInactiveError`, `CreditLimitExceededError`, `InvalidOwnerPinError`, `DebtSettlementExceedsBalanceError`, `NoOpenCashSessionError`).
-- **Status:** Concluído TDD & Casos de Uso Implementados ✅ (88 testes passando)
+- **Status:** Concluído e Auditado ✅ (109 testes aprovados, Veredito PR-Reviewer PASS) — Commit 33d423c
 
 ### [ ] Slice 6: Interface de PDV e Modo Offline (Vercel Deploy)
 - [ ] Migração das telas React (`App.tsx`, `Management.tsx`) para o App Router do Next.js.

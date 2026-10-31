@@ -65,7 +65,7 @@ class MockCashSessionRepository implements CashSessionRepository {
     closedAt: Date
   ): Promise<void> {
     const s = await this.findSessionById(merchantId, sessionId);
-    if (s) {
+    if (s && s.isOpen()) {
       s.close(operatorId, closingBalance, closedAt);
     }
   }

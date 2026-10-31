@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { ZodError } from 'zod';
-import { cookies } from 'next/headers';
 import { DrizzleUserRepository } from '@/modules/users/infrastructure/drizzle-user-repository';
 import {
   AuthenticateUserUseCase,
@@ -8,7 +7,8 @@ import {
   AccountLockedError,
   AccountDisabledError,
 } from '@/modules/users/application/authenticate-user.use-case';
-import { createSessionToken, getSessionCookieName } from '@/shared/infrastructure/auth/session';
+import { createSessionToken } from '@/shared/infrastructure/auth/session';
+import { setSessionCookie } from '@/shared/infrastructure/auth/auth-context';
 
 export async function POST(request: NextRequest) {
   try {
@@ -24,14 +24,7 @@ export async function POST(request: NextRequest) {
       authorities: Array.from(user.authorities),
     });
 
-    const cookieStore = await cookies();
-    cookieStore.set(getSessionCookieName(), sessionToken, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
-      path: '/',
-      maxAge: 30 * 60,
-    });
+    await setSessionCookie(sessionToken);
 
     return NextResponse.json({
       username: user.username,

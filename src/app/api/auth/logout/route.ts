@@ -1,9 +1,7 @@
 import { NextResponse } from 'next/server';
-import { cookies } from 'next/headers';
-import { getSessionCookieName } from '@/shared/infrastructure/auth/session';
+import { clearSessionCookie } from '@/shared/infrastructure/auth/auth-context';
 
 export async function POST() {
-  const cookieStore = await cookies();
-  cookieStore.delete(getSessionCookieName());
+  await clearSessionCookie();
   return NextResponse.json({ success: true, message: 'Sessão encerrada com sucesso.' });
 }

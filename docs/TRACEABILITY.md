@@ -32,4 +32,15 @@ Mapeamento entre os critérios de negócio aprovados em `DECISIONS.md` e a suít
 | Registro automático de entrada de dinheiro no caixa aberto | `sales` / `cash` | `src/modules/sales/application/create-sale.use-case.test.ts` | Aprovado |
 | Idempotência com rejeição de chave duplicada | `sales` | `src/modules/sales/application/create-sale.use-case.test.ts` | Aprovado |
 | Registro imutável de auditoria da venda confirmada | `sales` / `audit` | `src/modules/sales/application/create-sale.use-case.test.ts` | Aprovado |
+| Criação de cliente com telefone único e limite de crédito | `customers` | `src/modules/customers/application/customers.use-case.test.ts` | Aprovado (16 testes) |
+| Rejeição de telefone de cliente duplicado no mesmo comércio | `customers` | `src/modules/customers/application/customers.use-case.test.ts` | Aprovado |
+| Consulta de saldo devedor e crédito disponível com Money | `customers` | `src/modules/customers/application/customers.use-case.test.ts` | Aprovado |
+| Autorização de venda fiado dentro do limite sem exigir PIN | `customers` | `src/modules/customers/application/customers.use-case.test.ts` | Aprovado |
+| Exigência e validação de PIN da proprietária para excesso de limite | `customers` / `users` | `src/modules/customers/application/customers.use-case.test.ts` | Aprovado |
+| Rejeição de autorização com PIN incorreto ou perfil não-proprietária | `customers` / `users` | `src/modules/customers/application/customers.use-case.test.ts` | Aprovado |
+| Trilha de auditoria da liberação de limite excepcional | `customers` / `audit` | `src/modules/customers/application/customers.use-case.test.ts` | Aprovado |
+| Quitação de fiado vinculada a caixa aberto ativo com DEBT_PAYMENT | `customers` / `cash` | `src/modules/customers/application/customers.use-case.test.ts` | Aprovado |
+| Rejeição de quitação de fiado sem sessão de caixa aberta | `customers` / `cash` | `src/modules/customers/application/customers.use-case.test.ts` | Aprovado |
+| Rejeição de quitação com valor superior à dívida em aberto | `customers` | `src/modules/customers/application/customers.use-case.test.ts` | Aprovado |
+| Trilha de auditoria imutável de quitação de dívida | `customers` / `audit` | `src/modules/customers/application/customers.use-case.test.ts` | Aprovado |
 

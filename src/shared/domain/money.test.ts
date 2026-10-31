@@ -72,10 +72,14 @@ describe('Money Value Object', () => {
     const m20 = Money.fromDecimal('20.00');
 
     expect(m10.lessThan(m20)).toBe(true);
+    expect(m10.isLessThan(m20)).toBe(true);
     expect(m20.greaterThan(m10)).toBe(true);
+    expect(m20.isGreaterThan(m10)).toBe(true);
     expect(m10.equals(Money.fromDecimal('10.00'))).toBe(true);
     expect(m10.lessThanOrEqual(Money.fromDecimal('10.00'))).toBe(true);
+    expect(m10.isLessThanOrEqual(Money.fromDecimal('10.00'))).toBe(true);
     expect(m20.greaterThanOrEqual(Money.fromDecimal('20.00'))).toBe(true);
+    expect(m20.isGreaterThanOrEqual(Money.fromDecimal('20.00'))).toBe(true);
   });
 
   it('should reject division by zero or non-finite numbers', () => {

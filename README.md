@@ -3,7 +3,7 @@
 > **PDV e Gestão Financeira para Pequeno Varejo**  
 > Arquitetura **Hexagonal (Modular Monolith)** com domínio puro, precisão financeira exata e isolamento multi-tenant.
 
-[![Tests](https://img.shields.io/badge/Vitest-72%20passed%20(100%25)-brightgreen)](./docs/TRACEABILITY.md)
+[![Tests](https://img.shields.io/badge/Vitest-109%20passed%20(100%25)-brightgreen)](./docs/TRACEABILITY.md)
 [![TypeScript](https://img.shields.io/badge/TypeScript-Strict-blue)](https://www.typescriptlang.org/)
 [![Next.js](https://img.shields.io/badge/Next.js-16%20Turbopack-black)](https://nextjs.org/)
 [![Database](https://img.shields.io/badge/Neon-PostgreSQL%20Serverless-00e599)](https://neon.tech/)
@@ -49,7 +49,7 @@ src/
 # 1. Instalar dependências
 npm install
 
-# 2. Executar suíte de testes (72 testes unitários e de integração)
+# 2. Executar suíte de testes (109 testes unitários e de integração)
 npm test
 
 # 3. Executar build de produção (Next.js 16 Turbopack)

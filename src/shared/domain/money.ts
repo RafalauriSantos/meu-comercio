@@ -90,9 +90,17 @@ export class Money {
     return this.value.greaterThan(other.value);
   }
 
+  public isGreaterThan(other: Money): boolean {
+    return this.greaterThan(other);
+  }
+
   public greaterThanOrEqual(other: Money): boolean {
     this.assertSameCurrency(other);
     return this.value.greaterThanOrEqualTo(other.value);
+  }
+
+  public isGreaterThanOrEqual(other: Money): boolean {
+    return this.greaterThanOrEqual(other);
   }
 
   public lessThan(other: Money): boolean {
@@ -100,9 +108,17 @@ export class Money {
     return this.value.lessThan(other.value);
   }
 
+  public isLessThan(other: Money): boolean {
+    return this.lessThan(other);
+  }
+
   public lessThanOrEqual(other: Money): boolean {
     this.assertSameCurrency(other);
     return this.value.lessThanOrEqualTo(other.value);
+  }
+
+  public isLessThanOrEqual(other: Money): boolean {
+    return this.lessThanOrEqual(other);
   }
 
   public isZero(): boolean {

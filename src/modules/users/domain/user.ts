@@ -70,4 +70,14 @@ export class User {
   public isLocked(now: Date = new Date()): boolean {
     return Boolean(this.lockedUntil && this.lockedUntil.getTime() > now.getTime());
   }
+
+  public canAuthorizePin(merchantId: string, now: Date = new Date()): boolean {
+    return (
+      this.merchantId === merchantId &&
+      this.isOwner() &&
+      this.enabled &&
+      !this.isLocked(now) &&
+      Boolean(this.authorizationPinHash)
+    );
+  }
 }

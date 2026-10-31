@@ -110,3 +110,34 @@ Este documento registra formalmente as decisões de arquitetura e de produto do 
   - *Positivo*: Erro zero em cálculos financeiros e troco; prevenção integral de vendas duplicadas por timeout ou duplo clique; rastreabilidade completa entre venda, estoque e gaveta de dinheiro.
   - *Negativo*: Requer que o turno de caixa esteja formalmente aberto antes da realização de qualquer venda pelo operador.
 
+---
+
+## ADR-008: Modelo de Fiado / Crediário, Override por PIN da Proprietária e Quitação em Caixa Aberto
+
+- **Data**: 2026-10-31
+- **Status**: Aprovado
+- **Contexto**: O fiado (crediário próprio) é uma prática comercial vital para fidelização em pequenos mercados de bairro, mas constitui a principal fonte de perdas por inadimplência e vulnerabilidade operacional. No balcão, operadores de caixa comuns não possuem autoridade discricionária para permitir que clientes excedam seus limites pré-definidos de crédito. Exceções só podem ser autorizadas pela proprietária (`ROLE_OWNER`) através de autenticação por PIN seguro. Além disso, quando o cliente comparece para pagar sua conta fiado (total ou parcialmente em dinheiro), essa entrada de recursos deve repercutir imediatamente no saldo esperado da gaveta física de dinheiro (turno de caixa ativo), prevenindo desvios ou esquecimentos de lançamento.
+- **Decisão**:
+  1. **Ledger Imutável de Crédito (`customer_credit_ledger`)**:
+     - Abandona-se a mutação destrutiva de saldo em favor de um ledger financeiro append-only.
+     - Lançamentos do tipo `DEBIT` registram compras fiado (aumentam a dívida).
+     - Lançamentos do tipo `CREDIT` registram pagamentos e amortizações (diminuem a dívida).
+     - O saldo devedor acumulado é calculado rigorosamente via agregação `SUM(DEBIT) - SUM(CREDIT)`.
+  2. **Domínio Rico com Value Object `Money`**:
+     - Entidade `Customer`: armazena `creditLimit` e métodos puros `calculateAvailableCredit(currentDebt)` e `wouldExceedCreditLimit(currentDebt, saleAmount)`.
+     - Invariantes monetárias: limite de crédito nunca negativo; valores de movimentação estritamente maiores que zero; pagamentos superiores à dívida total em aberto são sumariamente rejeitados no domínio (`DebtSettlementExceedsBalanceError`).
+  3. **Override por PIN da Proprietária (`AuthorizeCreditSaleUseCase`)**:
+     - Vendas dentro do limite disponível de crédito são autorizadas diretamente pelo operador.
+     - Vendas que excedam o limite disponível disparam a exigência de credenciais da dona (`ownerUsername` e `ownerPin`).
+     - A validação consulta a autoridade do usuário (`isOwner()`) e compara o PIN fornecido contra o hash `authorization_pin_hash` armazenado no banco via `bcrypt`.
+     - Toda autorização de exceção registra evento compulsório na trilha de auditoria (`CREDIT_SALE_LIMIT_AUTHORIZED`) com os valores envolvidos e identificação da autorizadora.
+  4. **Quitação de Dívida Vinculada a Caixa Aberto (`SettleCustomerDebtUseCase`)**:
+     - É estritamente vedada a quitação de fiado sem uma sessão de caixa aberta (`NoOpenCashSessionError`).
+     - A operação registra um crédito (`CREDIT`) no extrato do cliente e, no mesmo fluxo transacional, adiciona uma entrada de dinheiro do tipo `DEBT_PAYMENT` na sessão de caixa ativa do operador, alimentando a conferência cega.
+     - Gera registro de auditoria imutável `CUSTOMER_DEBT_SETTLED`.
+  5. **Unicidade e Isolamento Multi-tenant**:
+     - Restrição de unicidade composta `(merchant_id, phone)` impedindo telefones duplicados para o mesmo lojista.
+- **Trade-offs / Consequências**:
+  - *Positivo*: Blindagem total contra desvios de fiado no balcão; garantia matemática de que nenhum fiado sem limite seja concedido sem ciência expressa da proprietária; conciliação contábil entre baixas de dívida e dinheiro físico na gaveta.
+  - *Negativo*: Requer presença ou digitação explícita do PIN da dona para transações que estourem o teto; exige caixa aberto mesmo que o pagamento do cliente seja feito fora de uma venda convencional.
+

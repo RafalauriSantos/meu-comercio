@@ -55,11 +55,16 @@ Este documento rastreia formalmente as fatias verticais de entrega, critérios d
 - [x] 4.9 Registro em trilha de auditoria imutável (`audit_events`) do evento `SALE_CONFIRMED`.
 - **Status:** Concluído e Auditado ✅ (PR Reviewer: PASS)
 
-### [ ] Slice 5: Clientes e Limite de Fiado
-- [ ] Cadastro de clientes (nome e telefone).
-- [ ] Limite de crédito e liberação de excesso via PIN da proprietária.
-- [ ] Quitação de fiado com entrada no caixa.
-- **Status:** Planejado ⏳
+### [x] Slice 5: Clientes e Fiado / Crediário com PIN da Proprietária (customers)
+- [x] 5.1 Schemas relacionais Drizzle `customers` e `customer_credit_ledger` com multi-tenancy estrito (`merchant_id`), chaves estrangeiras e integridade referencial.
+- [x] 5.2 Restrição de unicidade composta por `(merchant_id, phone)` impedindo cadastro duplicado de cliente por comércio.
+- [x] 5.3 Entidades de domínio puras `Customer` e `CreditMovement` com cálculos exatos baseados no Value Object `Money`.
+- [x] 5.4 `CreateCustomerUseCase`: cadastro de clientes com telefone obrigatório, limite inicial de crédito e emissão do evento de auditoria `CUSTOMER_CREATED`.
+- [x] 5.5 `GetCustomerBalanceUseCase`: consulta de saldo devedor consolidado (`SUM(DEBIT) - SUM(CREDIT)`) e crédito disponível em tempo real.
+- [x] 5.6 `AuthorizeCreditSaleUseCase`: verificação de limite disponível para compras a prazo; exigência e validação de PIN da proprietária (`ROLE_OWNER` via `bcrypt`) em caso de excesso de limite, com auditoria compulsória `CREDIT_SALE_LIMIT_AUTHORIZED`.
+- [x] 5.7 `SettleCustomerDebtUseCase`: quitação total ou parcial de dívida exigindo sessão de caixa aberta (`OPEN`), registrando entrada de dinheiro na gaveta (`DEBT_PAYMENT`), amortização no extrato e auditoria `CUSTOMER_DEBT_SETTLED`.
+- [x] 5.8 Tratamento de invariantes de domínio e erros de negócio explícitos (`CustomerNotFoundError`, `CustomerAlreadyExistsError`, `CustomerInactiveError`, `CreditLimitExceededError`, `InvalidOwnerPinError`, `DebtSettlementExceedsBalanceError`, `NoOpenCashSessionError`).
+- **Status:** Concluído TDD & Casos de Uso Implementados ✅ (88 testes passando)
 
 ### [ ] Slice 6: Interface de PDV e Modo Offline (Vercel Deploy)
 - [ ] Migração das telas React (`App.tsx`, `Management.tsx`) para o App Router do Next.js.

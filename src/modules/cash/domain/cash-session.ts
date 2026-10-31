@@ -8,6 +8,7 @@ export type CashMovementType =
   | 'SALE_RECEIPT'
   | 'SALE_REFUND'
   | 'CREDIT_PAYMENT'
+  | 'DEBT_PAYMENT'
   | 'SUPPLY'
   | 'BLEED';
 
@@ -15,6 +16,7 @@ const CASH_INFLOW_TYPES: ReadonlySet<CashMovementType> = new Set([
   'OPENING_BALANCE',
   'SALE_RECEIPT',
   'CREDIT_PAYMENT',
+  'DEBT_PAYMENT',
   'SUPPLY',
 ]);
 

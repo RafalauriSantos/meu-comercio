@@ -115,12 +115,12 @@ Este documento rastreia formalmente as fatias verticais de entrega, critérios d
 - [ ] 11.5 **Importação de Produtos em Lote (Excel/CSV)**: Parser de planilhas para cadastro massivo de catálogo (código de barras, nome, preço de custo, preço de venda e estoque inicial) poupando dezenas de horas de digitação manual na implantação.
 - [ ] 11.6 **Recuperação de Acesso e Redefinição de PIN da Proprietária**: Mecanismo seguro de recuperação caso a dona esqueça a senha ou o PIN de autorização.
 
-### [ ] Slice 12: Endurecimento Integral de Segurança (Defense-in-Depth)
-- [ ] 12.1 **Cabeçalhos de Segurança HTTP OWASP**: Configuração em `next.config.ts` com CSP estrito, `X-Frame-Options: DENY`, `X-Content-Type-Options: nosniff`, `Referrer-Policy: strict-origin-when-cross-origin`, `Permissions-Policy` e HSTS.
-- [ ] 12.2 **Rate Limiting em Camada Dupla por IP**: Middleware de limitação de requisições por IP, aplicando teto de 10 req/min para autenticação e rotas críticas (HTTP 429 com `Retry-After`) e teto amplo de 120 req/min para o PDV.
-- [ ] 12.3 **Guardião de Origem Anti-CSRF**: Validação de cabeçalhos `Origin` e `Host` em todas as mutações (`POST`, `PUT`, `DELETE`).
-- [ ] 12.4 **Honeypot Anti-Bot em Formulários**: Campo invisível para captura passiva de robôs de submissão automática em `/login`.
-- [ ] 12.5 **Sanitização de Payloads e Limite de 1 MB**: Proteção estrita contra poluição de protótipo (`__proto__`, `constructor`) via Zod `strip`.
+### [x] Slice 12: Endurecimento Integral de Segurança (Defense-in-Depth)
+- [x] 12.1 **Cabeçalhos de Segurança HTTP OWASP**: Configuração em `next.config.ts` com CSP estrito, `X-Frame-Options: DENY`, `X-Content-Type-Options: nosniff`, `Referrer-Policy: strict-origin-when-cross-origin`, `Permissions-Policy` e HSTS.
+- [x] 12.2 **Rate Limiting Granular por IP**: Middleware de limitação de requisições com 5 req/min para autenticação (`/api/auth/*`), 20 req/min para checkout/venda (`POST /api/sales`), 30 req/min para caixa/fiado (`/api/cash/*`, `/api/customers/*`) e 60 req/min para catálogo (`/api/products/*`).
+- [x] 12.3 **Guardião de Origem Anti-CSRF**: Validação de cabeçalhos `Origin` e `Host` em todas as mutações (`POST`, `PUT`, `DELETE`).
+- [x] 12.4 **Honeypot Anti-Bot em Formulários**: Campo invisível para captura passiva de robôs de submissão automática em `/login`.
+- [x] 12.5 **Sanitização de Payloads e Limite de 1 MB**: Proteção estrita contra poluição de protótipo (`__proto__`, `constructor`) via Zod `strip`.
 
 
 

@@ -1,7 +1,7 @@
 # Meu Comércio
 
 [![CI](https://github.com/RafalauriSantos/meu-comercio/actions/workflows/ci.yml/badge.svg)](https://github.com/RafalauriSantos/meu-comercio/actions)
-[![Tests](https://img.shields.io/badge/Vitest-178%20passed%20(100%25)-brightgreen)](./docs/TRACEABILITY.md)
+[![Tests](https://img.shields.io/badge/Vitest-181%20passed%20(100%25)-brightgreen)](./docs/TRACEABILITY.md)
 [![TypeScript](https://img.shields.io/badge/TypeScript-Strict-blue)](https://www.typescriptlang.org/)
 [![Next.js](https://img.shields.io/badge/Next.js-16%20Turbopack-black)](https://nextjs.org/)
 [![Database](https://img.shields.io/badge/Neon-PostgreSQL%20Serverless-00e599)](https://neon.tech/)
@@ -28,13 +28,13 @@ Requisitos: Node.js 22, PostgreSQL (instância Neon ou local) e npm.
 npm ci
 cp .env.example .env.local  # configure DATABASE_URL e SESSION_SECRET
 npm run dev                 # aplicação em http://localhost:3000
-npm test                    # executa a suíte de 178 testes (Vitest)
+npm test                    # executa a suíte de 181 testes (Vitest)
 npm run build               # compila o build de produção (Turbopack)
 ```
 
 ## Testes e Qualidade
 
-- **178 testes automatizados aprovados (Vitest, 20 arquivos):** cobertura para cálculo monetário com centavos inteiros, conferência cega de caixa, baixa atômica de estoque, idempotência de checkout, limite de fiado com PIN, quitação de dívidas, fila offline, gestão de operadores, auto-cadastro multi-tenant SaaS, rate limiting por IP e proteção anti-CSRF por cabeçalhos de origem.
+- **181 testes automatizados aprovados (Vitest, 21 arquivos):** cobertura para cálculo monetário com centavos inteiros, conferência cega de caixa, baixa atômica de estoque, idempotência de checkout, limite de fiado com PIN, quitação de dívidas, fila offline, gestão de operadores, auto-cadastro multi-tenant SaaS, rate limiting por IP e proteção anti-CSRF por cabeçalhos de origem.
 - **ESLint com 0 erros e 0 avisos:** checagem estrita sem violações.
 - **TypeScript em modo estrito (`strict: true`):** validado com `npx tsc --noEmit`.
 - **CI Pipeline no GitHub Actions (`.github/workflows/ci.yml`):** executado a cada push na `main` e em pull requests, com jobs para lint, tipos, testes, build e deploy de produção como etapa final.
@@ -104,5 +104,5 @@ Decisões técnicas documentadas em Architecture Decision Records (ADRs):
   - **ADR-010**: Modelo SaaS Multi-Tenant Autônomo e Integração Planejada de Observabilidade e Perímetro
   - **ADR-011**: Sangria, Suprimento de Caixa, Impressão Térmica Não-Fiscal e Estorno de Vendas
   - **ADR-012**: Endurecimento Integral de Segurança (Defense-in-Depth) em Todos os Níveis
-- [docs/TRACEABILITY.md](docs/TRACEABILITY.md): Matriz vinculando regras de negócio aos 178 testes automatizados.
+- [docs/TRACEABILITY.md](docs/TRACEABILITY.md): Matriz vinculando regras de negócio aos 181 testes automatizados.
 

@@ -4,12 +4,22 @@ import { isAllowedOrigin } from '@/shared/infrastructure/security/origin-guard';
 
 const authLimiter = new SlidingWindowRateLimiter({
   windowMs: 60_000,
+  maxRequests: 5,
+});
+
+const salesCheckoutLimiter = new SlidingWindowRateLimiter({
+  windowMs: 60_000,
   maxRequests: 20,
 });
 
-const apiLimiter = new SlidingWindowRateLimiter({
+const cashAndCustomerLimiter = new SlidingWindowRateLimiter({
   windowMs: 60_000,
-  maxRequests: 180,
+  maxRequests: 30,
+});
+
+const catalogAndGeneralLimiter = new SlidingWindowRateLimiter({
+  windowMs: 60_000,
+  maxRequests: 60,
 });
 
 export function middleware(request: NextRequest) {
@@ -28,14 +38,26 @@ export function middleware(request: NextRequest) {
     );
   }
 
-  // 2. IP-based Rate Limiting on API endpoints
+  // 2. IP-based Granular Rate Limiting on API endpoints
   if (pathname.startsWith('/api/')) {
     const forwardedFor = request.headers.get('x-forwarded-for');
     const clientIp = forwardedFor ? forwardedFor.split(',')[0].trim() : request.headers.get('x-real-ip') || '127.0.0.1';
 
-    const isAuthRoute = pathname.startsWith('/api/auth/') || pathname.startsWith('/api/setup/');
-    const limiter = isAuthRoute ? authLimiter : apiLimiter;
-    const limitResult = limiter.check(`${clientIp}:${isAuthRoute ? 'auth' : 'api'}`);
+    let limiter = catalogAndGeneralLimiter;
+    let bucket = 'catalog';
+
+    if (pathname.startsWith('/api/auth/') || pathname.startsWith('/api/setup/')) {
+      limiter = authLimiter;
+      bucket = 'auth';
+    } else if (method === 'POST' && pathname === '/api/sales') {
+      limiter = salesCheckoutLimiter;
+      bucket = 'sales_checkout';
+    } else if (pathname.startsWith('/api/cash/') || pathname.startsWith('/api/customers/')) {
+      limiter = cashAndCustomerLimiter;
+      bucket = 'cash_cust';
+    }
+
+    const limitResult = limiter.check(`${clientIp}:${bucket}`);
 
     if (!limitResult.allowed) {
       return NextResponse.json(

@@ -40,6 +40,14 @@ export interface CustomerItem {
   createdAt?: string;
 }
 
+export interface OperatorItem {
+  username: string;
+  enabled: boolean;
+  createdAt: string;
+  authorities: string[];
+}
+
+
 export interface CustomerBalance {
   customerId: string;
   name: string;
@@ -283,4 +291,14 @@ export const apiClient = {
   },
   getSaleById: (saleId: string) =>
     apiRequest<SaleResponse>(`/api/sales/${encodeURIComponent(saleId)}`),
+
+  // Operators
+  listOperators: () =>
+    apiRequest<{ items: OperatorItem[] }>('/api/users/operators'),
+  createOperator: (payload: { username: string; password: string }) =>
+    apiRequest<OperatorItem>('/api/users/operators', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }),
 };
+

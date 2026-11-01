@@ -10,13 +10,14 @@ import {
   CustomerItem,
   CustomerBalance,
   CashSessionData,
+  OperatorItem,
 } from '@/frontend/lib/api-client';
 import { formatMoney, parseCurrencyInput, getErrorMessage } from '@/frontend/lib/formatters';
 import '@/frontend/styles/management.css';
 
 export default function GestaoPage() {
   const router = useRouter();
-  const [activeTab, setActiveTab] = useState<'produtos' | 'fiado' | 'caixa'>('produtos');
+  const [activeTab, setActiveTab] = useState<'produtos' | 'fiado' | 'caixa' | 'operadores'>('produtos');
   const [user, setUser] = useState<AuthUser | null>(null);
   const [loading, setLoading] = useState(true);
   const [feedback, setFeedback] = useState<{ text: string; isError?: boolean } | null>(null);
@@ -55,6 +56,12 @@ export default function GestaoPage() {
   const [openingBalance, setOpeningBalance] = useState('100.00');
   const [processing, setProcessing] = useState(false);
 
+  // Estados de Operadores (Equipe)
+  const [operators, setOperators] = useState<OperatorItem[]>([]);
+  const [showNewOperator, setShowNewOperator] = useState(false);
+  const [newOpUsername, setNewOpUsername] = useState('');
+  const [newOpPassword, setNewOpPassword] = useState('');
+
   const loadProducts = useCallback(async (query = '') => {
     try {
       const res = await apiClient.listProducts(query);
@@ -70,18 +77,20 @@ export default function GestaoPage() {
       const list = res.items || [];
       setCustomers(list);
 
-      // Carregar saldos devedores de cada cliente
+      // Carregar saldos devedores de cada cliente em paralelo
+      const balancePromises = list.map(async (c) => {
+        try {
+          const b = await apiClient.getCustomerBalance(c.id);
+          return { id: c.id, balance: b };
+        } catch {
+          return null;
+        }
+      });
+      const results = await Promise.all(balancePromises);
       const balances: Record<string, CustomerBalance> = {};
-      await Promise.all(
-        list.map(async (c) => {
-          try {
-            const b = await apiClient.getCustomerBalance(c.id);
-            balances[c.id] = b;
-          } catch {
-            // Se falhar em um, continua
-          }
-        })
-      );
+      for (const r of results) {
+        if (r) balances[r.id] = r.balance;
+      }
       setCustomerBalances(balances);
     } catch (err) {
       console.error('Erro ao carregar clientes:', err);
@@ -98,12 +107,25 @@ export default function GestaoPage() {
     }
   }, []);
 
+  const loadOperators = useCallback(async () => {
+    try {
+      const res = await apiClient.listOperators();
+      setOperators(res.items || []);
+    } catch (err) {
+      console.error('Erro ao carregar operadores:', err);
+    }
+  }, []);
+
   useEffect(() => {
     async function init() {
       try {
         const me = await apiClient.me();
         setUser(me);
-        await Promise.all([loadProducts(), loadCustomers(), loadCash()]);
+        const tasks: Promise<unknown>[] = [loadProducts(), loadCustomers(), loadCash()];
+        if (me.isOwner) {
+          tasks.push(loadOperators());
+        }
+        await Promise.all(tasks);
       } catch {
         router.push('/login');
       } finally {
@@ -111,7 +133,7 @@ export default function GestaoPage() {
       }
     }
     init();
-  }, [router, loadProducts, loadCustomers, loadCash]);
+  }, [router, loadProducts, loadCustomers, loadCash, loadOperators]);
 
   // --- Handlers de Produtos ---
   async function handleCreateProduct(e: React.FormEvent) {
@@ -249,6 +271,28 @@ export default function GestaoPage() {
     }
   }
 
+  async function handleCreateOperator(e: React.FormEvent) {
+    e.preventDefault();
+    setProcessing(true);
+    setFeedback(null);
+    try {
+      await apiClient.createOperator({
+        username: newOpUsername.trim(),
+        password: newOpPassword,
+      });
+      setFeedback({ text: `Operador '${newOpUsername.trim()}' cadastrado com sucesso!` });
+      setShowNewOperator(false);
+      setNewOpUsername('');
+      setNewOpPassword('');
+      await loadOperators();
+    } catch (err) {
+      setFeedback({ text: getErrorMessage(err, 'Erro ao cadastrar operador.'), isError: true });
+    } finally {
+      setProcessing(false);
+    }
+  }
+
+
   const expectedCashNum = cashSession ? parseCurrencyInput(cashSession.expectedCash) : 0;
   const countedNum = parseCurrencyInput(closingCounted);
   const difference = closingCounted ? countedNum - expectedCashNum : 0;
@@ -318,6 +362,14 @@ export default function GestaoPage() {
         >
           Controle de Caixa {cashOpen ? '● Aberto' : '● Fechado'}
         </button>
+        {user?.isOwner && (
+          <button
+            className={activeTab === 'operadores' ? 'active' : ''}
+            onClick={() => setActiveTab('operadores')}
+          >
+            Operadores ({operators.length})
+          </button>
+        )}
       </nav>
 
       {/* TAB 1: PRODUTOS */}
@@ -765,6 +817,105 @@ export default function GestaoPage() {
               <li>Qualquer quebra ou sobra de caixa gera auditoria fiscal e rastreabilidade para a proprietária.</li>
             </ul>
           </aside>
+        </section>
+      )}
+
+      {/* TAB 4: OPERADORES DE CAIXA */}
+      {activeTab === 'operadores' && user?.isOwner && (
+        <section>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+            <div>
+              <h2 style={{ margin: 0 }}>Equipe & Operadores de Caixa</h2>
+              <p className="muted" style={{ margin: '4px 0 0' }}>
+                Cadastre e gerencie operadores para registrar vendas e abrir turnos de caixa no balcão.
+              </p>
+            </div>
+            <button
+              className="primary"
+              onClick={() => setShowNewOperator(!showNewOperator)}
+            >
+              {showNewOperator ? 'Cancelar' : '＋ Novo Operador'}
+            </button>
+          </div>
+
+          {/* Form Novo Operador */}
+          {showNewOperator && (
+            <form onSubmit={handleCreateOperator} className="card" style={{ marginBottom: '20px', maxWidth: '520px' }}>
+              <h3 style={{ marginTop: 0 }}>Cadastrar Novo Operador</h3>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+                <div>
+                  <label className="eyebrow" htmlFor="op-username">Usuário de Acesso</label>
+                  <input
+                    id="op-username"
+                    style={{ width: '100%', padding: '10px' }}
+                    required
+                    value={newOpUsername}
+                    onChange={(e) => setNewOpUsername(e.target.value)}
+                    placeholder="Ex: joao.caixa ou maria"
+                  />
+                  <small className="muted" style={{ display: 'block', marginTop: '4px' }}>
+                    O usuário que o operador usará para entrar no PDV.
+                  </small>
+                </div>
+                <div>
+                  <label className="eyebrow" htmlFor="op-password">Senha de Acesso</label>
+                  <input
+                    id="op-password"
+                    style={{ width: '100%', padding: '10px' }}
+                    type="password"
+                    required
+                    minLength={6}
+                    value={newOpPassword}
+                    onChange={(e) => setNewOpPassword(e.target.value)}
+                    placeholder="Mínimo 6 caracteres"
+                  />
+                </div>
+              </div>
+              <button className="primary" type="submit" disabled={processing} style={{ marginTop: '16px' }}>
+                {processing ? 'Salvando...' : 'Salvar Operador'}
+              </button>
+            </form>
+          )}
+
+          {/* Tabela de Operadores */}
+          <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
+              <thead>
+                <tr style={{ background: '#f8fafc', borderBottom: '1px solid var(--pdv-line)' }}>
+                  <th style={{ padding: '12px 16px' }}>Usuário</th>
+                  <th style={{ padding: '12px 16px' }}>Função</th>
+                  <th style={{ padding: '12px 16px' }}>Status</th>
+                  <th style={{ padding: '12px 16px' }}>Cadastrado em</th>
+                </tr>
+              </thead>
+              <tbody>
+                {operators.length === 0 ? (
+                  <tr>
+                    <td colSpan={4} style={{ padding: '24px', textAlign: 'center', color: 'var(--pdv-muted)' }}>
+                      Nenhum operador cadastrado ainda. Clique em &quot;＋ Novo Operador&quot; para adicionar funcionários ao caixa.
+                    </td>
+                  </tr>
+                ) : (
+                  operators.map((op) => (
+                    <tr key={op.username} style={{ borderBottom: '1px solid var(--pdv-line-soft)' }}>
+                      <td style={{ padding: '12px 16px', fontWeight: 'bold' }}>{op.username}</td>
+                      <td style={{ padding: '12px 16px' }}>
+                        <span className="stock-badge ok">Operador de Caixa</span>
+                      </td>
+                      <td style={{ padding: '12px 16px' }}>
+                        <span style={{ color: op.enabled ? '#059669' : '#dc2626', fontWeight: '600' }}>
+                          {op.enabled ? '● Ativo' : '● Inativo'}
+                        </span>
+                      </td>
+                      <td style={{ padding: '12px 16px', color: 'var(--pdv-muted)' }}>
+                        {new Date(op.createdAt).toLocaleDateString('pt-BR')}
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
         </section>
       )}
     </div>

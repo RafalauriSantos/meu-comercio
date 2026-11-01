@@ -122,5 +122,5 @@ jobs:
           echo "|---|---|" >> $GITHUB_STEP_SUMMARY
           echo "| Lint & Security | Passed |" >> $GITHUB_STEP_SUMMARY
           echo "| TypeScript | Passed |" >> $GITHUB_STEP_SUMMARY
-          echo "| Tests (157 passing) | Passed |" >> $GITHUB_STEP_SUMMARY
+          echo "| Tests (160 passing) | Passed |" >> $GITHUB_STEP_SUMMARY
           echo "| Production Build | Passed |" >> $GITHUB_STEP_SUMMARY

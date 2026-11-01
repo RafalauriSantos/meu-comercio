@@ -44,10 +44,11 @@ export default function LoginPage() {
 
         // Se o setup já foi concluído, verificar se já está logado
         try {
-          const me = await apiClient.me();
+          const [me, cash] = await Promise.all([
+            apiClient.me(),
+            apiClient.getCurrentCash().catch(() => ({ open: false, session: null })),
+          ]);
           setUser(me);
-          // Verificar status do caixa
-          const cash = await apiClient.getCurrentCash();
           setCashOpen(cash.open);
         } catch {
           // Não autenticado

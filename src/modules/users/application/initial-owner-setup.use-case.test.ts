@@ -32,6 +32,24 @@ class InMemoryUserRepository implements UserRepository {
     return user;
   }
 
+  async createOperator(params: import('../domain/user-repository.port').CreateOperatorParams): Promise<User> {
+    const user = new User({
+      username: params.username,
+      merchantId: params.merchantId,
+      passwordHash: params.passwordHash,
+      enabled: true,
+      failedLoginAttempts: 0,
+      authorities: params.authorities,
+      createdAt: new Date(),
+    });
+    this.users.set(user.username, user);
+    return user;
+  }
+
+  async listOperators(merchantId: string): Promise<User[]> {
+    return Array.from(this.users.values()).filter((u) => u.merchantId === merchantId);
+  }
+
   async updateFailedLoginAttempts(): Promise<void> {}
   async resetFailedLoginAttempts(): Promise<void> {}
 }

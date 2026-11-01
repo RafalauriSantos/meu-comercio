@@ -234,9 +234,11 @@ Este documento registra formalmente as decisões de arquitetura e de produto do 
        - `Strict-Transport-Security (HSTS)`: força tráfego sob HTTPS por 2 anos com subdomínios.
      - Campo Honeypot invisível em formulários de registro e login para captura passiva e rejeição imediata de bots automatizados.
   2. **Camada Backend & Middleware HTTP**:
-     - Middleware de **Rate Limiting** por IP (Sliding Window):
-       - Limite estrito em rotas de autenticação (`/api/auth/*`, `/api/setup/*`): 10 requisições por minuto por IP com resposta `429 Too Many Requests` e cabeçalho `Retry-After`.
-       - Limite confortável em rotas operacionais do PDV (`/api/sales`, `/api/products`): 120 requisições por minuto por IP para não degradar a agilidade do balcão.
+     - Middleware de **Rate Limiting** granular por IP (Sliding Window):
+       - Autenticação e Registro (`/api/auth/*`, `/api/setup/*`): 5 requisições por minuto por IP com resposta `429 Too Many Requests` e cabeçalho `Retry-After`.
+       - Finalização de Vendas (`POST /api/sales`): 20 requisições por minuto por IP (impede rajadas automatizadas e sobrecarga no banco).
+       - Movimentações de Caixa e Fiado (`/api/cash/*`, `/api/customers/*`): 30 requisições por minuto por IP.
+       - Consultas do Catálogo / PDV (`/api/products/*`): 60 requisições por minuto por IP (suficiente para operadores rápidos e inviabiliza raspagem).
      - Validação estrita de cabeçalho `Origin` / `Host` em mutações (`POST`, `PUT`, `DELETE`), bloqueando ataques CSRF vindos de domínios externos.
      - Limite de 1 MB para payloads JSON e sanitização de schemas Zod (`strip`) para eliminar riscos de Prototype Pollution.
   3. **Camada de Banco de Dados**:

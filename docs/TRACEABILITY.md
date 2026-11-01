@@ -59,8 +59,9 @@ Mapeamento entre os critérios de negócio aprovados em `DECISIONS.md` e a suít
 | Rota de auto-cadastro SaaS POST /api/auth/register | `users` / `api` | `src/app/api/auth/register/route.test.ts` | Aprovado (3 testes) |
 | Rate Limiting por IP em rotas críticas com HTTP 429 | `security` | `src/shared/infrastructure/security/rate-limiter.test.ts` | Aprovado (5 testes) |
 | Validação de origem estrita anti-CSRF (Origin/Host) | `security` | `src/shared/infrastructure/security/origin-guard.test.ts` | Aprovado (6 testes) |
+| Middleware integrado Next.js com limitação granular e headers | `security` | `src/middleware.test.ts` | Aprovado (3 testes) |
 
-**Total de Testes Automatizados:** 178 testes aprovados (20 suítes no Vitest, 0 falhas).
+**Total de Testes Automatizados:** 181 testes aprovados (21 suítes no Vitest, 0 falhas).
 
 
 

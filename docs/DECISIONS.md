@@ -216,6 +216,37 @@ Este documento registra formalmente as decisões de arquitetura e de produto do 
   - *Positivo*: Fidelidade total à rotina física do comércio; precisão absoluta na conferência cega do caixa; redução drástica de atrito com clientes em erros de balcão e no controle de fiado.
   - *Negativo*: Aumenta o volume de transações e movimentações na tabela `cash_movements`.
 
+---
+
+## ADR-012: Endurecimento Integral de Segurança (Defense-in-Depth) em Todos os Níveis
+
+- **Data**: 2026-10-31
+- **Status**: Aprovado
+- **Contexto**: Como aplicação SaaS multi-tenant que processa transações financeiras reais, dinheiro em caixa e estoque, o sistema precisa de proteção robusta contra ameaças cibernéticas da web aberta (ataques de força bruta, DoS em APIs de autenticação, Clickjacking, MIME sniffing, injeção de scripts XSS, CSRF e automações maliciosas de bots).
+- **Decisão**:
+  1. **Camada Frontend & Borda do Navegador**:
+     - Configuração de cabeçalhos estritos de segurança HTTP (OWASP Top 10) em `next.config.ts`:
+       - `Content-Security-Policy (CSP)`: restringe origens confiáveis para scripts, estilos e conexões.
+       - `X-Frame-Options: DENY`: bloqueia Clickjacking impedindo iframes de terceiros.
+       - `X-Content-Type-Options: nosniff`: impede ataques de MIME sniffing.
+       - `Referrer-Policy: strict-origin-when-cross-origin`: protege o sigilo de caminhos de URLs.
+       - `Permissions-Policy`: desativa recursos de hardware não utilizados (câmera, microfone, geolocalização).
+       - `Strict-Transport-Security (HSTS)`: força tráfego sob HTTPS por 2 anos com subdomínios.
+     - Campo Honeypot invisível em formulários de registro e login para captura passiva e rejeição imediata de bots automatizados.
+  2. **Camada Backend & Middleware HTTP**:
+     - Middleware de **Rate Limiting** por IP (Sliding Window):
+       - Limite estrito em rotas de autenticação (`/api/auth/*`, `/api/setup/*`): 10 requisições por minuto por IP com resposta `429 Too Many Requests` e cabeçalho `Retry-After`.
+       - Limite confortável em rotas operacionais do PDV (`/api/sales`, `/api/products`): 120 requisições por minuto por IP para não degradar a agilidade do balcão.
+     - Validação estrita de cabeçalho `Origin` / `Host` em mutações (`POST`, `PUT`, `DELETE`), bloqueando ataques CSRF vindos de domínios externos.
+     - Limite de 1 MB para payloads JSON e sanitização de schemas Zod (`strip`) para eliminar riscos de Prototype Pollution.
+  3. **Camada de Banco de Dados**:
+     - Conexões com o Neon PostgreSQL exigindo TLS criptografado (`sslmode=require`).
+     - Preservação estrita de integridade referencial e chaves compostas por `merchant_id`.
+- **Trade-offs / Consequências**:
+  - *Positivo*: Nível corporativo/bancário de proteção; blindagem contra bots e ataques em massa; zero impacto na velocidade de operação de vendas no caixa.
+  - *Negativo*: Requer manutenção de limites de taxa calibrados para não bloquear redes corporativas ou Wi-Fi com múltiplos caixas sob o mesmo IP público (limite generoso em rotas normais).
+
+
 
 
 

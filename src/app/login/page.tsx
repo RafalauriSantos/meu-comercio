@@ -33,6 +33,7 @@ export default function LoginPage() {
   // Feedback
   const [error, setError] = useState('');
   const [processing, setProcessing] = useState(false);
+  const [honeypot, setHoneypot] = useState('');
 
   useEffect(() => {
     async function checkStatus() {
@@ -70,6 +71,9 @@ export default function LoginPage() {
 
   async function handleLogin(e: React.FormEvent) {
     e.preventDefault();
+    if (honeypot) {
+      return;
+    }
     setError('');
     setProcessing(true);
 
@@ -93,6 +97,9 @@ export default function LoginPage() {
 
   async function handleRegister(e: React.FormEvent) {
     e.preventDefault();
+    if (honeypot) {
+      return;
+    }
     setError('');
 
     if (setupPassword !== setupConfirm) {
@@ -288,6 +295,17 @@ export default function LoginPage() {
             )}
 
             <form onSubmit={handleLogin} className="auth-form">
+              <div style={{ display: 'none', position: 'absolute', left: '-9999px' }} aria-hidden="true">
+                <label htmlFor="login-website">Website</label>
+                <input
+                  id="login-website"
+                  type="text"
+                  tabIndex={-1}
+                  autoComplete="off"
+                  value={honeypot}
+                  onChange={(e) => setHoneypot(e.target.value)}
+                />
+              </div>
               <div className="auth-field">
                 <label className="auth-label" htmlFor="login-username">Operador / Usuário</label>
                 <input
@@ -372,6 +390,17 @@ export default function LoginPage() {
             )}
 
             <form onSubmit={handleRegister} className="auth-form">
+              <div style={{ display: 'none', position: 'absolute', left: '-9999px' }} aria-hidden="true">
+                <label htmlFor="setup-website">Website</label>
+                <input
+                  id="setup-website"
+                  type="text"
+                  tabIndex={-1}
+                  autoComplete="off"
+                  value={honeypot}
+                  onChange={(e) => setHoneypot(e.target.value)}
+                />
+              </div>
               <div className="auth-field">
                 <label className="auth-label" htmlFor="setup-merchant">Nome do Comércio</label>
                 <input

@@ -171,4 +171,25 @@ Este documento registra formalmente as decisões de arquitetura e de produto do 
   - *Positivo*: Continuidade total da experiência operacional e usabilidade validada; zero retrabalho em reinventar layouts ou regras de teclado; robustez contra quedas de internet no caixa do mercado; integração perfeita com os contratos de API já testados e aprovados.
   - *Negativo*: Armazenamento em `localStorage` é limitado por navegador/dispositivo, exigindo que a sincronização ocorra no mesmo terminal onde as vendas offline foram originadas.
 
+---
+
+## ADR-010: Modelo SaaS Multi-Tenant Autônomo e Integração Planejada de Observabilidade e Perímetro
+
+- **Data**: 2026-10-31
+- **Status**: Aprovado e Implementado
+- **Contexto**: O sistema originalmente possuía um "Setup Inicial" concebido para appliances on-premise de lojista único (`InitialOwnerSetupUseCase`), travando novos cadastros caso qualquer usuário existisse no banco. Para permitir que a dona do comércio e novos lojistas possam criar suas contas de forma independente, sem colisão de dados com contas de teste ou de desenvolvimento, fez-se necessária a evolução para um modelo SaaS com auto-cadastro. Adicionalmente, identificaram-se padrões de excelência nos projetos de referência do desenvolvedor (`argus`, `casa-de-leiloes` e `barbearia.js`) para guiar a evolução do sistema.
+- **Decisão**:
+  1. **Auto-Cadastro SaaS Multi-Tenant (`RegisterMerchantUseCase`)**:
+     - Criação do caso de uso `RegisterMerchantUseCase` e da rota `POST /api/auth/register`, permitindo que qualquer comerciante registre sua loja fornecendo nome do comércio, usuário da dona, senha e PIN de autorização.
+     - Cada cadastro cria um registro em `merchants` gerando um `merchant_id` UUID isolado, e um registro em `app_users` com autoridade `ROLE_OWNER` associado a esse tenant.
+     - A interface de login (`src/app/login/page.tsx`) passa a dispor de navegação em abas (`Entrar no PDV` e `Cadastrar Nova Loja`), garantindo acesso imediato sem interferência entre lojistas.
+  2. **Arquitetura de Integração Futura (Hub & Spoke / Modular Event-Driven)**:
+     - **Padrão Barbearia.js (Perímetro & PWA)**: O PDV será empacotado como Progressive Web App (PWA) instalável em tela cheia com Service Worker e proteção de borda anti-bruteforce (Cloudflare Turnstile) no login/PIN.
+     - **Padrão Casa de Leilões (Ledger Criptográfico)**: O ledger de fiado (`customer_credit_ledger`) e a tabela de auditoria (`audit_events`) adotarão encadeamento de hash SHA-256 (`hash = SHA256(previous_hash + payload)`), fornecendo prova matemática contra adulteração retroativa.
+     - **Padrão Argus (Observabilidade e Alertas)**: O Meu Comércio atuará como emissor de eventos via webhooks seguros para um worker satélite de mensageria, enviando relatórios de fechamento de caixa e alertas de estoque baixo diretamente no Telegram pessoal da proprietária.
+- **Trade-offs / Consequências**:
+  - *Positivo*: O sistema torna-se um SaaS comercializável completo; dados de testes e dados de produção reais coexistem com isolamento matemático garantido; roteiro de evolução claro baseado em componentes já validados nos outros projetos.
+  - *Negativo*: Requer governança de nomes de usuário globais únicos no sistema para evitar colisões no login simples.
+
+
 

@@ -74,5 +74,37 @@ Este documento rastreia formalmente as fatias verticais de entrega, critérios d
 - [x] 6.5 Terminal de PDV e Checkout com Atalhos (`src/app/page.tsx`): leitura de código de barras ou busca por nome, controle do carrinho sem permitir estoque negativo, atalhos de teclado (`Enter`, `Esc`, `F2`–`F5`, `F7`, `F10`, `Ctrl+L`), split checkout e venda a fiado com PIN da proprietária.
 - [x] 6.6 Painel de Gestão (`src/app/gestao/page.tsx`): catálogo de produtos e reposição de estoque (`/api/inventory/restock`), clientes e extrato de fiado com quitação em caixa aberto (`/api/customers/[id]/settle`), e fechamento cego de caixa com justificativa de divergência (`/api/cash/close`).
 - [x] 6.7 Suíte de Testes Unitários de Frontend e Fila Offline: cobertura de testes para lógica de sincronização offline, cálculos do carrinho, regras de atalhos e split payment.
-- **Status:** Concluído e Auditado ✅ (157 testes aprovados, Veredito PR-Reviewer PASS)
+- [x] 6.8 Gestão e Cadastro de Operadores de Caixa: caso de uso `CreateOperatorUseCase`, endpoint `POST /api/users/operators` e aba dedicada em `/gestao` permitindo à proprietária criar acessos para funcionários do balcão (PR #5).
+- [x] 6.9 Paralelização e Otimização de Carregamento: consultas iniciais otimizadas via `Promise.all` em `/`, `/gestao` e `/login` reduzindo o tempo de carregamento perceptível.
+- [x] 6.10 Pipeline de CI/CD com Deploy Final na Vercel: automação com GitHub Actions executando o deploy em produção estritamente como 5ª etapa após Lint, Typecheck, 167 Testes e Build passarem verdes na `main` (PR #6 e PR #7).
+- [x] 6.11 Auto-Cadastro SaaS Multi-Tenant com Isolamento Rigoroso: caso de uso `RegisterMerchantUseCase`, rota `POST /api/auth/register`, testes de isolamento e interface de login com alternador de abas (`Entrar` e `Cadastrar Nova Loja`) (PR #8).
+- **Status:** Concluído e Auditado ✅ (167 testes aprovados, Veredito PR-Reviewer PASS)
+
+---
+
+## 🔮 Roadmap de Evolução (Planejado a partir dos Projetos de Referência)
+
+### [ ] Slice 7: PWA Instalável & Perímetro de Borda (Modelado a partir de `barbearia.js`)
+- [ ] 7.1 Manifesto Web (`manifest.json`) e ícones de aplicação para instalação do PDV como aplicativo desktop/tablet em modo tela cheia (*standalone*).
+- [ ] 7.2 Service Worker para cache avançado de assets e casca da aplicação (App Shell) acelerando abertura instantânea.
+- [ ] 7.3 Proteção perimetral no Login e Verificação de PIN contra ataques de força bruta com Cloudflare Turnstile.
+- [ ] 7.4 Ambiente containerizado `docker-compose.yml` para desenvolvimento e testes locais com um único comando (`npm run docker:up`).
+- [ ] 7.5 Scanner de vulnerabilidades CodeQL (SAST) e Gitleaks integrados no GitHub Actions.
+
+### [ ] Slice 8: Integridade Criptográfica com Hash Chaining (Modelado a partir de `casa-de-leiloes`)
+- [ ] 8.1 Encadeamento criptográfico SHA-256 no ledger de fiado (`customer_credit_ledger`) gravando `previous_hash` e `hash` a cada lançamento de compra ou quitação.
+- [ ] 8.2 Hash chaining na trilha imutável de auditoria (`audit_events`) fornecendo prova matemática contra adulteração ou exclusão de registros de fechamento de caixa e sangrias.
+- [ ] 8.3 Trava de concorrência pessimista (`SELECT FOR UPDATE`) na dedução de estoque para impedir venda simultânea da mesma unidade por múltiplos terminais.
+
+### [ ] Slice 9: Bot de Observabilidade e Alertas no Telegram para a Proprietária (Modelado a partir de `argus`)
+- [ ] 9.1 Webhook de saída no fechamento de caixa emitindo o resumo consolidado do turno (dinheiro, PIX, cartões, fiado e divergências) diretamente no Telegram da dona.
+- [ ] 9.2 Alertas imediatos de estoque mínimo para produtos críticos em tempo real.
+- [ ] 9.3 Comandos interativos no Telegram (`/saldo`, `/caixa`, `/vendas_hoje`) permitindo à dona consultar o faturamento de onde estiver sem abrir o navegador.
+
+### [ ] Slice 10: Integração de Maquininha de Cartão Smart POS / TEF (Stone Connect / POS Cloud)
+- [ ] 10.1 Adaptador de Gateway de Pagamento para API Cloud da maquininha da loja (ex: Stone Connect / PagBank).
+- [ ] 10.2 Disparo automático do valor da venda para o visor da maquininha no balcão sem digitação manual pelo operador.
+- [ ] 10.3 Confirmação síncrona via Webhook/Polling com gravação de NSU/TID e baixa automática do carrinho.
+- [ ] 10.4 Alternador transparente para modo manual quando a maquininha perder sinal de internet.
+
 

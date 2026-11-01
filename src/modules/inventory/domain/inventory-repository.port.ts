@@ -1,6 +1,6 @@
 import { InventoryItem } from './inventory-item';
 
-export type InventoryMovementType = 'RESTOCK' | 'SALE' | 'SALE_REFUND' | 'ADJUSTMENT';
+export type InventoryMovementType = 'RESTOCK' | 'SALE' | 'SALE_REFUND' | 'ADJUSTMENT' | 'RETURN';
 
 export interface InventoryRepository {
   findByProductId(merchantId: string, productId: string): Promise<InventoryItem | null>;

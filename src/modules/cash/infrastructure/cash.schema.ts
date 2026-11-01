@@ -26,6 +26,8 @@ export const cashMovements = pgTable('cash_movements', {
   saleId: uuid('sale_id'),
   movementType: varchar('movement_type', { length: 32 }).notNull(),
   amount: numeric('amount', { precision: 19, scale: 4 }).notNull(),
+  reason: varchar('reason', { length: 255 }),
+  operatorId: varchar('operator_id', { length: 120 }),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 }, (table) => [
   index('idx_cash_movements_session').on(table.cashSessionId),

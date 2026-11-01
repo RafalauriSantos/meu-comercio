@@ -117,7 +117,9 @@ export class DrizzleCashSessionRepository implements CashSessionRepository {
     sessionId: string,
     movementType: CashMovementType,
     amount: Money,
-    saleId?: string | null
+    saleId?: string | null,
+    reason?: string | null,
+    operatorId?: string | null
   ): Promise<void> {
     await db.insert(cashMovements).values({
       merchantId,
@@ -125,26 +127,48 @@ export class DrizzleCashSessionRepository implements CashSessionRepository {
       movementType,
       amount: amount.toDecimal(),
       saleId: saleId ?? null,
+      reason: reason ?? null,
+      operatorId: operatorId ?? null,
     });
   }
 
   async getExpectedCash(merchantId: string, sessionId: string): Promise<Money> {
-    const movements = await db
-      .select({
-        movementType: cashMovements.movementType,
-        amount: cashMovements.amount,
-      })
-      .from(cashMovements)
-      .where(
-        and(
-          eq(cashMovements.merchantId, merchantId),
-          eq(cashMovements.cashSessionId, sessionId)
-        )
-      );
+    const [sessionRow, movements] = await Promise.all([
+      db
+        .select({ openingBalance: cashSessions.openingBalance })
+        .from(cashSessions)
+        .where(and(eq(cashSessions.merchantId, merchantId), eq(cashSessions.id, sessionId)))
+        .limit(1),
+      db
+        .select({
+          movementType: cashMovements.movementType,
+          amount: cashMovements.amount,
+        })
+        .from(cashMovements)
+        .where(
+          and(
+            eq(cashMovements.merchantId, merchantId),
+            eq(cashMovements.cashSessionId, sessionId)
+          )
+        ),
+    ]);
+
+    const hasOpeningMovement = movements.some(
+      (m) => m.movementType === 'OPENING_BALANCE'
+    );
+    const initialBalance =
+      !hasOpeningMovement && sessionRow[0]?.openingBalance
+        ? Money.fromDecimal(sessionRow[0].openingBalance)
+        : Money.zero();
 
     return movements.reduce(
-      (total, mov) => applyCashMovement(total, mov.movementType as CashMovementType, Money.fromDecimal(mov.amount)),
-      Money.zero()
+      (total, mov) =>
+        applyCashMovement(
+          total,
+          mov.movementType as CashMovementType,
+          Money.fromDecimal(mov.amount)
+        ),
+      initialBalance
     );
   }
 }

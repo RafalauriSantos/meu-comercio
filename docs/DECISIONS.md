@@ -193,28 +193,47 @@ Este documento registra formalmente as decisões de arquitetura e de produto do 
 
 ---
 
-## ADR-011: Sangria, Suprimento de Caixa, Impressão Térmica Não-Fiscal e Estorno de Vendas
+## ADR-011: Operações de Balcão do Mundo Real & Gestão Financeira Essencial (Slice 11)
 
 - **Data**: 2026-10-31
 - **Status**: Aprovado
-- **Contexto**: A rotina real de um mercado de bairro exige flexibilidade operacional para pagamentos avulsos em dinheiro físico (sangrias), entrada de troco/moedas durante o expediente (suprimentos), impressão imediata de cupom para o cliente e canhoto assinado para compras no fiado, além de cancelamento de vendas com devolução de itens ao estoque. Sem sangria e suprimento, o fechamento cego de caixa acusa falsas divergências financeiras. Sem estorno, desistências ou erros de digitação corrompem o saldo de estoque e caixa.
+- **Contexto**: A rotina real de um mercado de bairro exige flexibilidade operacional para pagamentos avulsos em dinheiro físico (sangrias), entrada de troco/moedas durante o expediente (suprimentos), impressão imediata de cupom para o cliente e canhoto assinado para compras no fiado, métricas globais de fiado na praça e cancelamento seguro de vendas com devolução de itens ao estoque. Sem sangria e suprimento, o fechamento cego de caixa acusa falsas divergências financeiras. Sem estorno controlado por PIN, desistências ou erros de digitação corrompem o saldo de estoque e caixa.
 - **Decisão**:
-  1. **Movimentações Avulsas de Caixa (`CASH_IN` / `CASH_OUT`)**:
-     - Implementar casos de uso para Sangria (`WITHDRAWAL`) e Suprimento (`DEPOSIT`) vinculados obrigatoriamente a uma sessão de caixa aberta.
-     - Toda movimentação avulsa exige motivo textual explícito (ex: "Pagamento fornecedor de pão", "Reforço de moedas de R$ 0,50"), identificador do operador autenticado e autorização por PIN caso ultrapasse limite parametrizado.
-     - O valor esperado na conferência cega passa a ser calculado rigorosamente como:
-       $$\text{Dinheiro Esperado} = \text{Fundo Inicial} + \sum \text{Vendas em Dinheiro} + \sum \text{Quitações Fiado} + \sum \text{Suprimentos} - \sum \text{Sangrias}$$
-  2. **Impressão Térmica Não-Fiscal (58mm e 80mm)**:
-     - Adotar folha de estilos `@media print` otimizada para impressoras térmicas padrão ESC/POS sem necessidade de drivers proprietários ou softwares intermediários.
-     - Disponibilizar dois modelos de comprovante:
-       - **Cupom de Venda**: Itens, quantidades, valores unitários, subtotal, descontos, formas de pagamento, troco e data/hora.
-       - **Canhoto de Fiado**: Total da compra fiado, saldo devedor atualizado do cliente e linha pontilhada para assinatura física de reconhecimento de débito.
-  3. **Estorno e Cancelamento de Venda**:
-     - Vendas finalizadas podem ser canceladas exclusivamente mediante validação do PIN da proprietária (`ROLE_OWNER`).
-     - A operação de cancelamento é atômica: reverte as baixas de estoque (adicionando de volta a quantidade em `inventory_movements` do tipo `RETURN`), estorna a entrada de dinheiro da gaveta se houver (`CASH_CANCEL`), remove o lançamento no fiado e grava auditoria imutável (`SALE_CANCELLED`).
+  1. **Sangria (`WITHDRAWAL`) e Suprimento (`DEPOSIT`) de Caixa**:
+     - Estender `CashMovementType` para suportar explicitamente `'WITHDRAWAL'`, `'DEPOSIT'` e `'CASH_CANCEL'`.
+     - Invariantes estritas de domínio:
+       - Caixa precisa estar em status `'OPEN'`.
+       - Motivo textual (`reason`) obrigatório com tamanho mínimo de 3 caracteres.
+       - Sangria (`WITHDRAWAL`): valor estritamente positivo e limitado ao dinheiro disponível em caixa (`amount <= expectedCash`). Lança `InsufficientCashForWithdrawalError` se exceder.
+       - Suprimento (`DEPOSIT`): valor estritamente positivo.
+       - Auditoria compulsória via `AuditPort` gravando `CASH_WITHDRAWAL_RECORDED` e `CASH_DEPOSIT_RECORDED`.
+     - Fórmula exata da conferência cega:
+       $$\text{Dinheiro Esperado} = \text{Fundo Inicial} + \sum \text{SALE\_RECEIPT} + \sum \text{DEBT\_PAYMENT} + \sum \text{DEPOSIT} - \sum \text{WITHDRAWAL} - \sum \text{CASH\_CANCEL}$$
+  2. **Cancelamento e Estorno Atômico de Venda (`CancelSaleUseCase`)**:
+     - Exclusivamente autorizado mediante validação de PIN da proprietária (`OwnerPinVerifier`).
+     - Apenas vendas no status `'CONFIRMED'` podem ser canceladas; tentativa em venda já cancelada resulta em `SaleAlreadyCancelledError`.
+     - Reversão atômica de múltiplos agregados:
+       - Venda: transiciona status para `'CANCELLED'`.
+       - Estoque: para cada item, restabelece a quantidade disponível em `InventoryItem` e grava movimentação em `inventory_movements` do tipo `'RETURN'`.
+       - Caixa (Dinheiro): se `sale.cashPaid.isPositive()`, valida se há sessão de caixa aberta e dinheiro suficiente na gaveta, gravando movimentação `'CASH_CANCEL'`.
+       - Fiado (Caderneta): se a venda originou lançamento em débito em `customer_credit_ledger`, emite movimento compensatório do tipo `'CREDIT'` amortizando integralmente o débito daquela venda no extrato do cliente.
+       - Trilha de auditoria: gravação compulsória do evento `'SALE_CANCELLED'`.
+  3. **Métricas de Fiado na Rua (`GetCreditMetricsUseCase`)**:
+     - Agregação por comerciante calculando:
+       - `totalOutstandingCredit`: soma de `greatest(0, sum(DEBIT) - sum(CREDIT))` agrupada por cliente (montante total que o comércio tem a receber na praça).
+       - `totalSettledCredit`: soma de todos os pagamentos e amortizações (`CREDIT`) históricos.
+       - `activeDebtorsCount`: total de clientes distintos com saldo devedor positivo.
+  4. **Estrutura de Impressão Térmica (58mm e 80mm)**:
+     - Adotar folha de estilos `@media print` sem dependência de drivers proprietários ou serviços externos.
+     - Suporte responsivo a larguras térmicas padrão:
+       - **58mm**: ~32 colunas monoespaçadas, largura útil ~48mm / ~190-210px.
+       - **80mm**: ~48 colunas monoespaçadas, largura útil ~72mm / ~280-300px.
+     - Dois formatos padronizados:
+       - **Cupom Não-Fiscal de Venda**: Cabeçalho do comércio, itens detalhados (qtd x unitário), subtotal, descontos, total líquido, formas de pagamento, troco e rodapé institucional.
+       - **Canhoto de Fiado**: Identificação do cliente, débito contraído, histórico financeiro (dívida anterior e novo saldo devedor total) e linha pontilhada com declaração de reconhecimento de dívida para assinatura manual.
 - **Trade-offs / Consequências**:
-  - *Positivo*: Fidelidade total à rotina física do comércio; precisão absoluta na conferência cega do caixa; redução drástica de atrito com clientes em erros de balcão e no controle de fiado.
-  - *Negativo*: Aumenta o volume de transações e movimentações na tabela `cash_movements`.
+  - *Positivo*: Fidelidade total à rotina física do comércio; precisão absoluta na conferência cega do caixa; proteção contra fraudes via PIN da dona; visibilidade gerencial do fiado na praça.
+  - *Negativo*: Cancelamento exige orquestração de múltiplos agregados de domínio (`sales`, `inventory`, `cash`, `customers`), demandando atomicidade e validações defensivas.
 
 ---
 

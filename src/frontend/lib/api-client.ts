@@ -74,13 +74,19 @@ export interface CurrentCashResponse {
   session: CashSessionData | null;
 }
 
+export interface CreditMetricsData {
+  totalOutstandingCredit: string;
+  totalSettledCredit: string;
+  activeDebtorsCount: number;
+}
+
 export interface CreateSaleItem {
   productId: string;
   quantity: number;
 }
 
 export interface CreateSalePayment {
-  method: 'CASH' | 'PIX' | 'DEBIT_CARD' | 'CREDIT_CARD';
+  method: 'CASH' | 'PIX' | 'DEBIT_CARD' | 'CREDIT_CARD' | 'TAB';
   amount: string | number;
   receivedAmount?: string | number | null;
   installments?: number;
@@ -208,6 +214,30 @@ export const apiClient = {
       method: 'POST',
       body: JSON.stringify(payload),
     }),
+  recordWithdrawal: (payload: { amount: number | string; reason: string }) =>
+    apiRequest<{
+      success: boolean;
+      sessionId: string;
+      movementType: string;
+      amount: string;
+      expectedCash: string;
+      reason: string;
+    }>('/api/cash/withdrawal', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }),
+  recordDeposit: (payload: { amount: number | string; reason: string }) =>
+    apiRequest<{
+      success: boolean;
+      sessionId: string;
+      movementType: string;
+      amount: string;
+      expectedCash: string;
+      reason: string;
+    }>('/api/cash/deposit', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }),
 
   // Products & Inventory
   findProductByBarcode: (barcode: string) =>
@@ -284,6 +314,8 @@ export const apiClient = {
       method: 'POST',
       body: JSON.stringify(payload),
     }),
+  getCreditMetrics: () =>
+    apiRequest<CreditMetricsData>('/api/customers/metrics'),
 
   // Sales
   createSale: (payload: CreateSalePayload, idempotencyKey?: string) => {
@@ -302,6 +334,14 @@ export const apiClient = {
   },
   getSaleById: (saleId: string) =>
     apiRequest<SaleResponse>(`/api/sales/${encodeURIComponent(saleId)}`),
+  cancelSale: (saleId: string, payload: { ownerPin: string; reason: string }) =>
+    apiRequest<{ success: boolean; sale: SaleResponse }>(
+      `/api/sales/${encodeURIComponent(saleId)}/cancel`,
+      {
+        method: 'POST',
+        body: JSON.stringify(payload),
+      }
+    ),
 
   // Operators
   listOperators: () =>

@@ -11,6 +11,7 @@ import {
   CustomerBalance,
   CashSessionData,
   OperatorItem,
+  CreditMetricsData,
 } from '@/frontend/lib/api-client';
 import { formatMoney, parseCurrencyInput, getErrorMessage } from '@/frontend/lib/formatters';
 import '@/frontend/styles/management.css';
@@ -48,6 +49,9 @@ export default function GestaoPage() {
   const [settleAmount, setSettleAmount] = useState('');
   const [settleNote, setSettleNote] = useState('');
 
+  // Métricas de Fiado na Rua
+  const [creditMetrics, setCreditMetrics] = useState<CreditMetricsData | null>(null);
+
   // Estados de Caixa
   const [cashSession, setCashSession] = useState<CashSessionData | null>(null);
   const [cashOpen, setCashOpen] = useState(false);
@@ -55,6 +59,18 @@ export default function GestaoPage() {
   const [discrepancyReason, setDiscrepancyReason] = useState('');
   const [openingBalance, setOpeningBalance] = useState('100.00');
   const [processing, setProcessing] = useState(false);
+
+  // Sangria e Suprimento
+  const [isCashOpModalOpen, setIsCashOpModalOpen] = useState(false);
+  const [cashOpType, setCashOpType] = useState<'WITHDRAWAL' | 'DEPOSIT'>('WITHDRAWAL');
+  const [cashOpAmount, setCashOpAmount] = useState('');
+  const [cashOpReason, setCashOpReason] = useState('');
+
+  // Cancelamento de Venda
+  const [isCancelSaleModalOpen, setIsCancelSaleModalOpen] = useState(false);
+  const [cancelSaleId, setCancelSaleId] = useState('');
+  const [cancelOwnerPin, setCancelOwnerPin] = useState('');
+  const [cancelReason, setCancelReason] = useState('');
 
   // Estados de Operadores (Equipe)
   const [operators, setOperators] = useState<OperatorItem[]>([]);
@@ -116,12 +132,26 @@ export default function GestaoPage() {
     }
   }, []);
 
+  const loadCreditMetrics = useCallback(async () => {
+    try {
+      const data = await apiClient.getCreditMetrics();
+      setCreditMetrics(data);
+    } catch (err) {
+      console.error('Erro ao carregar métricas de fiado:', err);
+    }
+  }, []);
+
   useEffect(() => {
     async function init() {
       try {
         const me = await apiClient.me();
         setUser(me);
-        const tasks: Promise<unknown>[] = [loadProducts(), loadCustomers(), loadCash()];
+        const tasks: Promise<unknown>[] = [
+          loadProducts(),
+          loadCustomers(),
+          loadCash(),
+          loadCreditMetrics(),
+        ];
         if (me.isOwner) {
           tasks.push(loadOperators());
         }
@@ -133,7 +163,7 @@ export default function GestaoPage() {
       }
     }
     init();
-  }, [router, loadProducts, loadCustomers, loadCash, loadOperators]);
+  }, [router, loadProducts, loadCustomers, loadCash, loadCreditMetrics, loadOperators]);
 
   // --- Handlers de Produtos ---
   async function handleCreateProduct(e: React.FormEvent) {
@@ -222,7 +252,7 @@ export default function GestaoPage() {
       setSettlingCustomer(null);
       setSettleAmount('');
       setSettleNote('');
-      await Promise.all([loadCustomers(), loadCash()]);
+      await Promise.all([loadCustomers(), loadCash(), loadCreditMetrics()]);
     } catch (err) {
       setFeedback({ text: getErrorMessage(err, 'Erro ao quitar débito de fiado.'), isError: true });
     } finally {
@@ -292,6 +322,92 @@ export default function GestaoPage() {
     }
   }
 
+  async function handleCashOperation(e: React.FormEvent) {
+    e.preventDefault();
+    setProcessing(true);
+    setFeedback(null);
+    try {
+      const val = parseCurrencyInput(cashOpAmount);
+      if (val <= 0) {
+        setFeedback({ text: 'O valor da operação deve ser maior que zero.', isError: true });
+        return;
+      }
+      if (cashOpReason.trim().length < 3) {
+        setFeedback({ text: 'O motivo deve conter no mínimo 3 caracteres.', isError: true });
+        return;
+      }
+      if (cashOpType === 'WITHDRAWAL') {
+        const res = await apiClient.recordWithdrawal({
+          amount: val,
+          reason: cashOpReason.trim(),
+        });
+        setFeedback({
+          text: `Sangria de ${formatMoney(res.amount)} realizada com sucesso! Novo saldo esperado: ${formatMoney(res.expectedCash)}.`,
+        });
+      } else {
+        const res = await apiClient.recordDeposit({
+          amount: val,
+          reason: cashOpReason.trim(),
+        });
+        setFeedback({
+          text: `Suprimento de ${formatMoney(res.amount)} registrado com sucesso! Novo saldo esperado: ${formatMoney(res.expectedCash)}.`,
+        });
+      }
+      setIsCashOpModalOpen(false);
+      setCashOpAmount('');
+      setCashOpReason('');
+      await loadCash();
+    } catch (err) {
+      setFeedback({
+        text: getErrorMessage(err, 'Erro ao registrar operação de caixa.'),
+        isError: true,
+      });
+    } finally {
+      setProcessing(false);
+    }
+  }
+
+  async function handleCancelSale(e: React.FormEvent) {
+    e.preventDefault();
+    setProcessing(true);
+    setFeedback(null);
+    try {
+      if (!cancelSaleId.trim()) {
+        setFeedback({ text: 'Informe o ID da venda a ser cancelada.', isError: true });
+        return;
+      }
+      if (cancelOwnerPin.trim().length < 4) {
+        setFeedback({ text: 'O PIN da proprietária deve conter entre 4 e 6 dígitos numéricos.', isError: true });
+        return;
+      }
+      if (cancelReason.trim().length < 3) {
+        setFeedback({ text: 'O motivo do cancelamento deve conter no mínimo 3 caracteres.', isError: true });
+        return;
+      }
+
+      await apiClient.cancelSale(cancelSaleId.trim(), {
+        ownerPin: cancelOwnerPin.trim(),
+        reason: cancelReason.trim(),
+      });
+
+      setFeedback({
+        text: `Venda ${cancelSaleId.trim().slice(0, 8)} cancelada com sucesso! Produtos retornados ao estoque e valores estornados.`,
+      });
+      setIsCancelSaleModalOpen(false);
+      setCancelSaleId('');
+      setCancelOwnerPin('');
+      setCancelReason('');
+      await Promise.all([loadProducts(), loadCash(), loadCreditMetrics()]);
+    } catch (err) {
+      setFeedback({
+        text: getErrorMessage(err, 'Erro ao cancelar venda.'),
+        isError: true,
+      });
+    } finally {
+      setProcessing(false);
+    }
+  }
+
 
   const expectedCashNum = cashSession ? parseCurrencyInput(cashSession.expectedCash) : 0;
   const countedNum = parseCurrencyInput(closingCounted);
@@ -319,6 +435,14 @@ export default function GestaoPage() {
           <h1>Painel de Gestão do Comércio</h1>
         </div>
         <div style={{ display: 'flex', gap: '10px' }}>
+          <button
+            type="button"
+            className="soft"
+            style={{ color: '#ad2819', borderColor: '#e0b4b4' }}
+            onClick={() => setIsCancelSaleModalOpen(true)}
+          >
+            Cancelar Venda
+          </button>
           <Link href="/" className="primary" style={{ display: 'inline-flex', alignItems: 'center', textDecoration: 'none' }}>
             Voltar ao PDV Balcão
           </Link>
@@ -524,6 +648,47 @@ export default function GestaoPage() {
       {/* TAB 2: CLIENTES & FIADO */}
       {activeTab === 'fiado' && (
         <section>
+          {/* Card em destaque: Total de Fiado na Rua */}
+          <div
+            className="card"
+            style={{
+              marginBottom: '16px',
+              background: 'var(--pdv-green-soft)',
+              border: '2px solid var(--pdv-green)',
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              flexWrap: 'wrap',
+              gap: '12px',
+            }}
+          >
+            <div>
+              <span className="eyebrow" style={{ color: 'var(--pdv-green)' }}>
+                Gestão Financeira Essencial · Fiado
+              </span>
+              <h2 style={{ margin: '4px 0 6px', fontSize: '26px', color: 'var(--pdv-ink)' }}>
+                Total de Fiado na Rua:{' '}
+                <span className="mono" style={{ color: 'var(--pdv-green)' }}>
+                  {formatMoney(creditMetrics ? creditMetrics.totalOutstandingCredit : 0)}
+                </span>
+              </h2>
+              <span className="muted">
+                {creditMetrics?.activeDebtorsCount ?? 0} cliente(s) com dívida ativa na caderneta
+                {creditMetrics && (
+                  <> · Total já liquidado/recebido: {formatMoney(creditMetrics.totalSettledCredit)}</>
+                )}
+              </span>
+            </div>
+            <button
+              className="soft"
+              type="button"
+              onClick={loadCreditMetrics}
+              style={{ fontSize: '13px' }}
+            >
+              ↻ Atualizar Indicadores
+            </button>
+          </div>
+
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
             <div className="toolbar" style={{ flex: 1, margin: 0 }}>
               <input
@@ -726,6 +891,39 @@ export default function GestaoPage() {
                   </div>
                 </dl>
 
+                <div style={{ display: 'flex', gap: '10px', marginTop: '16px', marginBottom: '16px', flexWrap: 'wrap' }}>
+                  <button
+                    type="button"
+                    className="soft"
+                    style={{ flex: 1, minWidth: '160px', padding: '10px' }}
+                    onClick={() => {
+                      setCashOpType('WITHDRAWAL');
+                      setIsCashOpModalOpen(true);
+                    }}
+                  >
+                    - Registrar Sangria (Retirada)
+                  </button>
+                  <button
+                    type="button"
+                    className="soft"
+                    style={{ flex: 1, minWidth: '160px', padding: '10px' }}
+                    onClick={() => {
+                      setCashOpType('DEPOSIT');
+                      setIsCashOpModalOpen(true);
+                    }}
+                  >
+                    + Registrar Suprimento (Entrada)
+                  </button>
+                  <button
+                    type="button"
+                    className="soft"
+                    style={{ color: '#ad2819', borderColor: '#e0b4b4', padding: '10px' }}
+                    onClick={() => setIsCancelSaleModalOpen(true)}
+                  >
+                    Cancelar Venda (PIN)
+                  </button>
+                </div>
+
                 <form onSubmit={handleCloseCash} style={{ marginTop: '20px' }}>
                   <label className="eyebrow" htmlFor="cash-closing">
                     Conferência Cega: Dinheiro Contado na Gaveta (R$)
@@ -917,6 +1115,175 @@ export default function GestaoPage() {
             </table>
           </div>
         </section>
+      )}
+
+      {/* MODAL DE SANGRIA E SUPRIMENTO DE CAIXA */}
+      {isCashOpModalOpen && (
+        <div className="dialog-backdrop">
+          <form onSubmit={handleCashOperation} className="dialog-card" style={{ maxWidth: '420px' }}>
+            <span className="eyebrow">Gestão de Caixa</span>
+            <h2>{cashOpType === 'WITHDRAWAL' ? 'Registrar Sangria' : 'Registrar Suprimento'}</h2>
+            <p className="muted">
+              {cashOpType === 'WITHDRAWAL'
+                ? 'Retirada de dinheiro da gaveta para cofre ou pagamentos.'
+                : 'Aporte de dinheiro na gaveta para troco ou moedas.'}
+            </p>
+
+            <div style={{ display: 'flex', gap: '8px', marginBottom: '8px' }}>
+              <button
+                type="button"
+                className={cashOpType === 'WITHDRAWAL' ? 'primary' : 'soft'}
+                style={{ flex: 1, padding: '8px' }}
+                onClick={() => setCashOpType('WITHDRAWAL')}
+              >
+                Sangria (Saída)
+              </button>
+              <button
+                type="button"
+                className={cashOpType === 'DEPOSIT' ? 'primary' : 'soft'}
+                style={{ flex: 1, padding: '8px' }}
+                onClick={() => setCashOpType('DEPOSIT')}
+              >
+                Suprimento (Entrada)
+              </button>
+            </div>
+
+            <div>
+              <label className="eyebrow" htmlFor="gestao-cash-amount">Valor (R$)</label>
+              <input
+                id="gestao-cash-amount"
+                className="barcode-row mono"
+                style={{ width: '100%', fontSize: '20px', fontWeight: 'bold' }}
+                type="number"
+                step="0.01"
+                min="0.01"
+                required
+                autoFocus
+                value={cashOpAmount}
+                onChange={(e) => setCashOpAmount(e.target.value)}
+                placeholder="0.00"
+              />
+            </div>
+
+            <div>
+              <label className="eyebrow" htmlFor="gestao-cash-reason">Motivo (mínimo 3 caracteres)</label>
+              <input
+                id="gestao-cash-reason"
+                className="barcode-row"
+                style={{ width: '100%' }}
+                required
+                value={cashOpReason}
+                onChange={(e) => setCashOpReason(e.target.value)}
+                placeholder={cashOpType === 'WITHDRAWAL' ? 'Ex: Pagamento fornecedor pão' : 'Ex: Troco de moedas'}
+              />
+            </div>
+
+            <div className="dialog-actions">
+              <button
+                className="soft"
+                type="button"
+                onClick={() => {
+                  setIsCashOpModalOpen(false);
+                  setCashOpAmount('');
+                  setCashOpReason('');
+                }}
+              >
+                Cancelar
+              </button>
+              <button
+                className="primary"
+                type="submit"
+                disabled={processing || !cashOpAmount || cashOpReason.trim().length < 3}
+              >
+                {processing ? 'Processando...' : cashOpType === 'WITHDRAWAL' ? 'Confirmar Sangria' : 'Confirmar Suprimento'}
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
+
+      {/* MODAL DE CANCELAMENTO DE VENDA COM PIN DA PROPRIETÁRIA */}
+      {isCancelSaleModalOpen && (
+        <div className="dialog-backdrop">
+          <form onSubmit={handleCancelSale} className="dialog-card" style={{ maxWidth: '440px' }}>
+            <span className="eyebrow" style={{ color: '#ad2819' }}>Segurança & Auditoria</span>
+            <h2>Cancelar Venda</h2>
+            <p className="muted">
+              O cancelamento de venda devolve integralmente os itens ao estoque, estorna o valor em dinheiro do caixa e anula o fiado (se houver).
+            </p>
+
+            <div>
+              <label className="eyebrow" htmlFor="cancel-sale-id">ID ou Código da Venda (UUID)</label>
+              <input
+                id="cancel-sale-id"
+                className="barcode-row mono"
+                style={{ width: '100%' }}
+                required
+                autoFocus
+                value={cancelSaleId}
+                onChange={(e) => setCancelSaleId(e.target.value)}
+                placeholder="Ex: 550e8400-e29b-41d4-a716-446655440000"
+              />
+            </div>
+
+            <div>
+              <label className="eyebrow" htmlFor="cancel-owner-pin">PIN da Proprietária (4 a 6 dígitos)</label>
+              <input
+                id="cancel-owner-pin"
+                className="barcode-row mono"
+                style={{ width: '100%', fontSize: '20px', letterSpacing: '4px', textAlign: 'center' }}
+                type="password"
+                inputMode="numeric"
+                maxLength={6}
+                required
+                value={cancelOwnerPin}
+                onChange={(e) => setCancelOwnerPin(e.target.value)}
+                placeholder="••••"
+              />
+            </div>
+
+            <div>
+              <label className="eyebrow" htmlFor="cancel-reason">Motivo Obrigatório do Cancelamento</label>
+              <input
+                id="cancel-reason"
+                className="barcode-row"
+                style={{ width: '100%' }}
+                required
+                value={cancelReason}
+                onChange={(e) => setCancelReason(e.target.value)}
+                placeholder="Ex: Cliente desistiu da compra / erro no registro"
+              />
+            </div>
+
+            <div className="dialog-actions">
+              <button
+                className="soft"
+                type="button"
+                onClick={() => {
+                  setIsCancelSaleModalOpen(false);
+                  setCancelSaleId('');
+                  setCancelOwnerPin('');
+                  setCancelReason('');
+                }}
+              >
+                Voltar
+              </button>
+              <button
+                className="primary"
+                type="submit"
+                style={{ background: '#ad2819' }}
+                disabled={
+                  processing ||
+                  !cancelSaleId.trim() ||
+                  cancelOwnerPin.trim().length < 4 ||
+                  cancelReason.trim().length < 3
+                }
+              >
+                {processing ? 'Processando Cancelamento...' : 'Confirmar Cancelamento'}
+              </button>
+            </div>
+          </form>
+        </div>
       )}
     </div>
   );

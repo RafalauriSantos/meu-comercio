@@ -27,6 +27,10 @@ import {
   parseCurrencyInput,
   getErrorMessage,
 } from '@/frontend/lib/formatters';
+import {
+  formatSaleReceipt,
+  formatCreditNote,
+} from '@/frontend/lib/thermal-printer';
 import '@/frontend/styles/pdv.css';
 
 interface CartLine {
@@ -82,6 +86,19 @@ export default function PdvTerminalPage() {
   // Modal PIN Proprietária (quando fiado ultrapassa limite)
   const [isPinModalOpen, setIsPinModalOpen] = useState(false);
   const [ownerPin, setOwnerPin] = useState('');
+
+  // Sangria e Suprimento
+  const [isCashOpModalOpen, setIsCashOpModalOpen] = useState(false);
+  const [cashOpType, setCashOpType] = useState<'WITHDRAWAL' | 'DEPOSIT'>('WITHDRAWAL');
+  const [cashOpAmount, setCashOpAmount] = useState('');
+  const [cashOpReason, setCashOpReason] = useState('');
+
+  // Impressão Térmica pós-venda
+  const [printModalData, setPrintModalData] = useState<{
+    receiptText: string;
+    creditNoteText?: string;
+    activeTab: 'receipt' | 'creditNote';
+  } | null>(null);
 
   // Notificações e Feedback
   const [message, setMessage] = useState<{ text: string; isError?: boolean } | null>(null);
@@ -474,11 +491,32 @@ export default function PdvTerminalPage() {
         }
 
         try {
-          await apiClient.authorizeCreditSale(selectedCustomerId, {
+          const creditRes = await apiClient.authorizeCreditSale(selectedCustomerId, {
             saleAmount: totalMoney.toDecimal(),
             ownerPin: pinToUse || ownerPin || undefined,
             ownerUsername: user?.username,
             note: 'Venda a fiado no balcão',
+          });
+
+          const selectedCustomer = customers.find((c) => c.id === selectedCustomerId);
+          const creditNoteText = formatCreditNote({
+            store: { name: 'Meu Comércio' },
+            saleId: creditRes.movementId.slice(0, 8),
+            date: new Date(),
+            customer: {
+              name: selectedCustomer?.name ?? 'Cliente Caderneta',
+              phone: selectedCustomer?.phone ?? '',
+            },
+            previousDebt: '0.00',
+            amount: totalMoney.toDecimal(),
+            newDebt: totalMoney.toDecimal(),
+            operatorName: user?.username,
+          });
+
+          setPrintModalData({
+            receiptText: creditNoteText,
+            creditNoteText,
+            activeTab: 'creditNote',
           });
 
           setMessage({
@@ -524,9 +562,10 @@ export default function PdvTerminalPage() {
           quantity: line.quantity,
         })),
         payments: paymentInputs.map((p) => ({
-          method: p.method as 'CASH' | 'PIX' | 'DEBIT_CARD' | 'CREDIT_CARD',
+          method: p.method as 'CASH' | 'PIX' | 'DEBIT_CARD' | 'CREDIT_CARD' | 'TAB',
           amount: p.amount.toDecimal(),
           receivedAmount: p.receivedAmount ? p.receivedAmount.toDecimal() : undefined,
+          externalReference: p.method === 'TAB' ? selectedCustomerId || undefined : undefined,
         })),
       };
 
@@ -536,6 +575,39 @@ export default function PdvTerminalPage() {
         paymentMethod === 'CASH' && cartSummary.changeAmount.isPositive()
           ? ` Troco: ${cartSummary.changeAmount.formatBrl()}`
           : '';
+
+      const receiptText = formatSaleReceipt({
+        store: { name: 'Meu Comércio' },
+        saleId: saleRes.id.slice(0, 8),
+        date: new Date(),
+        items: cart.map((line) => {
+          const unit = Money.fromDecimal(line.product.salePrice);
+          const lineSubtotal = unit.multiply(line.quantity);
+          return {
+            name: line.product.name,
+            quantity: line.quantity,
+            unitPrice: unit.toDecimal(),
+            subtotal: lineSubtotal.toDecimal(),
+          };
+        }),
+        subtotal: cartSummary.subtotal.toDecimal(),
+        total: cartSummary.total.toDecimal(),
+        payments: paymentInputs.map((p) => ({
+          method: p.method === 'CASH' ? 'DINHEIRO' : p.method === 'TAB' ? 'FIADO' : p.method,
+          amount: p.amount.toDecimal(),
+          receivedAmount: p.receivedAmount ? p.receivedAmount.toDecimal() : undefined,
+          changeAmount:
+            p.method === 'CASH' && cartSummary.changeAmount.isPositive()
+              ? cartSummary.changeAmount.toDecimal()
+              : undefined,
+        })),
+        operatorName: user?.username,
+      });
+
+      setPrintModalData({
+        receiptText,
+        activeTab: 'receipt',
+      });
 
       setMessage({
         text: `Venda #${saleRes.id.slice(0, 8)} confirmada com sucesso!${changeMsg}`,
@@ -555,6 +627,53 @@ export default function PdvTerminalPage() {
 
       setMessage({
         text: getErrorMessage(err, 'Não foi possível concluir a venda.'),
+        isError: true,
+      });
+    } finally {
+      setProcessing(false);
+    }
+  }
+
+  async function handleCashOperation(e: React.FormEvent) {
+    e.preventDefault();
+    setProcessing(true);
+    try {
+      const val = parseCurrencyInput(cashOpAmount);
+      if (val <= 0) {
+        setMessage({ text: 'O valor da operação deve ser maior que zero.', isError: true });
+        return;
+      }
+      if (cashOpReason.trim().length < 3) {
+        setMessage({ text: 'O motivo deve conter no mínimo 3 caracteres.', isError: true });
+        return;
+      }
+
+      if (cashOpType === 'WITHDRAWAL') {
+        const res = await apiClient.recordWithdrawal({
+          amount: val,
+          reason: cashOpReason.trim(),
+        });
+        setMessage({
+          text: `Sangria de ${formatMoney(res.amount)} realizada com sucesso! Saldo em caixa: ${formatMoney(res.expectedCash)}.`,
+        });
+      } else {
+        const res = await apiClient.recordDeposit({
+          amount: val,
+          reason: cashOpReason.trim(),
+        });
+        setMessage({
+          text: `Suprimento de ${formatMoney(res.amount)} realizado com sucesso! Saldo em caixa: ${formatMoney(res.expectedCash)}.`,
+        });
+      }
+
+      const updatedCash = await apiClient.getCurrentCash();
+      setCashSession(updatedCash.session);
+      setIsCashOpModalOpen(false);
+      setCashOpAmount('');
+      setCashOpReason('');
+    } catch (err) {
+      setMessage({
+        text: getErrorMessage(err, 'Erro ao registrar operação de caixa.'),
         isError: true,
       });
     } finally {
@@ -699,6 +818,33 @@ export default function PdvTerminalPage() {
                     </button>
                   )}
                 </div>
+              </div>
+
+              <div style={{ display: 'flex', gap: '8px', marginTop: '10px' }}>
+                <button
+                  type="button"
+                  className="soft"
+                  style={{ flex: 1, padding: '6px 8px', fontSize: '12px' }}
+                  disabled={!cashOpen}
+                  onClick={() => {
+                    setCashOpType('WITHDRAWAL');
+                    setIsCashOpModalOpen(true);
+                  }}
+                >
+                  - Sangria
+                </button>
+                <button
+                  type="button"
+                  className="soft"
+                  style={{ flex: 1, padding: '6px 8px', fontSize: '12px' }}
+                  disabled={!cashOpen}
+                  onClick={() => {
+                    setCashOpType('DEPOSIT');
+                    setIsCashOpModalOpen(true);
+                  }}
+                >
+                  + Suprimento
+                </button>
               </div>
             </div>
 
@@ -1096,6 +1242,167 @@ export default function PdvTerminalPage() {
               </button>
             </div>
           </div>
+        </div>
+      )}
+
+      {/* MODAL DE SANGRIA E SUPRIMENTO DE CAIXA */}
+      {isCashOpModalOpen && (
+        <div className="dialog-backdrop">
+          <form onSubmit={handleCashOperation} className="dialog-card" style={{ maxWidth: '420px' }}>
+            <span className="eyebrow">Operação de Balcão</span>
+            <h2>{cashOpType === 'WITHDRAWAL' ? 'Sangria de Caixa' : 'Suprimento de Caixa'}</h2>
+            <p className="muted">
+              {cashOpType === 'WITHDRAWAL'
+                ? 'Retirada de dinheiro da gaveta para cofre, pagamento de despesa ou recolhimento de segurança.'
+                : 'Entrada de dinheiro na gaveta para reforço de troco ou moeda inicial.'}
+            </p>
+
+            <div style={{ display: 'flex', gap: '8px', marginBottom: '8px' }}>
+              <button
+                type="button"
+                className={cashOpType === 'WITHDRAWAL' ? 'primary' : 'soft'}
+                style={{ flex: 1, padding: '8px' }}
+                onClick={() => setCashOpType('WITHDRAWAL')}
+              >
+                Sangria (Saída)
+              </button>
+              <button
+                type="button"
+                className={cashOpType === 'DEPOSIT' ? 'primary' : 'soft'}
+                style={{ flex: 1, padding: '8px' }}
+                onClick={() => setCashOpType('DEPOSIT')}
+              >
+                Suprimento (Entrada)
+              </button>
+            </div>
+
+            <div>
+              <label className="eyebrow" htmlFor="cash-op-amount">Valor (R$)</label>
+              <input
+                id="cash-op-amount"
+                className="barcode-row mono"
+                style={{ width: '100%', fontSize: '20px', fontWeight: 'bold' }}
+                type="number"
+                step="0.01"
+                min="0.01"
+                required
+                autoFocus
+                value={cashOpAmount}
+                onChange={(e) => setCashOpAmount(e.target.value)}
+                placeholder="0.00"
+              />
+            </div>
+
+            <div>
+              <label className="eyebrow" htmlFor="cash-op-reason">Motivo Obrigatório (mínimo 3 caracteres)</label>
+              <input
+                id="cash-op-reason"
+                className="barcode-row"
+                style={{ width: '100%' }}
+                required
+                value={cashOpReason}
+                onChange={(e) => setCashOpReason(e.target.value)}
+                placeholder={cashOpType === 'WITHDRAWAL' ? 'Ex: Recolhimento para cofre' : 'Ex: Moedas de troco'}
+              />
+            </div>
+
+            <div className="dialog-actions">
+              <button
+                className="soft"
+                type="button"
+                onClick={() => {
+                  setIsCashOpModalOpen(false);
+                  setCashOpAmount('');
+                  setCashOpReason('');
+                }}
+              >
+                Cancelar
+              </button>
+              <button
+                className="primary"
+                type="submit"
+                disabled={processing || !cashOpAmount || cashOpReason.trim().length < 3}
+              >
+                {processing ? 'Registrando...' : cashOpType === 'WITHDRAWAL' ? 'Confirmar Sangria' : 'Confirmar Suprimento'}
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
+
+      {/* MODAL DE IMPRESSÃO TÉRMICA PÓS-VENDA */}
+      {printModalData && (
+        <div className="dialog-backdrop no-print">
+          <div className="dialog-card" style={{ maxWidth: '460px' }}>
+            <span className="eyebrow">Pós-Venda · Impressão Térmica</span>
+            <h2>Comprovante da Venda</h2>
+
+            {printModalData.creditNoteText && (
+              <div style={{ display: 'flex', gap: '8px', marginBottom: '8px' }}>
+                <button
+                  type="button"
+                  className={printModalData.activeTab === 'receipt' ? 'primary' : 'soft'}
+                  style={{ flex: 1, padding: '8px' }}
+                  onClick={() => setPrintModalData({ ...printModalData, activeTab: 'receipt' })}
+                >
+                  Cupom Não-Fiscal
+                </button>
+                <button
+                  type="button"
+                  className={printModalData.activeTab === 'creditNote' ? 'primary' : 'soft'}
+                  style={{ flex: 1, padding: '8px' }}
+                  onClick={() => setPrintModalData({ ...printModalData, activeTab: 'creditNote' })}
+                >
+                  Canhoto Fiado (Assinatura)
+                </button>
+              </div>
+            )}
+
+            <pre
+              className="mono"
+              style={{
+                background: 'var(--pdv-surface)',
+                padding: '12px',
+                borderRadius: '8px',
+                fontSize: '12px',
+                lineHeight: '1.3',
+                maxHeight: '320px',
+                overflowY: 'auto',
+                whiteSpace: 'pre-wrap',
+                border: '1px solid var(--pdv-line-soft)',
+              }}
+            >
+              {printModalData.activeTab === 'receipt'
+                ? printModalData.receiptText
+                : printModalData.creditNoteText}
+            </pre>
+
+            <div className="dialog-actions">
+              <button
+                className="soft"
+                type="button"
+                onClick={() => setPrintModalData(null)}
+              >
+                Fechar
+              </button>
+              <button
+                className="primary"
+                type="button"
+                onClick={() => window.print()}
+              >
+                Imprimir (Ctrl+P)
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Elemento de impressão térmica invisível em tela e renderizado no print */}
+      {printModalData && (
+        <div className="thermal-print-area" aria-hidden="true">
+          {printModalData.activeTab === 'receipt'
+            ? printModalData.receiptText
+            : printModalData.creditNoteText}
         </div>
       )}
     </div>

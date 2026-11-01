@@ -1,10 +1,11 @@
-import { eq, and, sql, desc } from 'drizzle-orm';
+import { eq, and, sql, desc, or, like } from 'drizzle-orm';
 import { db } from '@/shared/infrastructure/db/connection';
 import { customerCreditLedger } from './customers.schema';
 import { CreditMovement, CreditMovementType } from '../domain/credit-movement';
 import {
   CustomerCreditRepository,
   CustomerCreditBalance,
+  CreditMetrics,
 } from '../domain/customer-credit-repository.port';
 import { Money } from '@/shared/domain/money';
 
@@ -63,21 +64,75 @@ export class DrizzleCustomerCreditRepository implements CustomerCreditRepository
       )
       .orderBy(desc(customerCreditLedger.createdAt));
 
-    return rows.map(
-      (row) =>
-        new CreditMovement({
-          id: row.id,
-          merchantId: row.merchantId,
-          customerId: row.customerId,
-          type: row.type as CreditMovementType,
-          amount: Money.fromDecimal(row.amount),
-          operatorId: row.operatorId,
-          authorizedBy: row.authorizedBy,
-          saleId: row.saleId,
-          cashSessionId: row.cashSessionId,
-          note: row.note,
-          createdAt: row.createdAt,
-        })
-    );
+    return rows.map((row) => this.mapRowToCreditMovement(row));
+  }
+
+  async findMovementsBySaleId(merchantId: string, saleId: string): Promise<CreditMovement[]> {
+    const rows = await db
+      .select()
+      .from(customerCreditLedger)
+      .where(
+        and(
+          eq(customerCreditLedger.merchantId, merchantId),
+          or(
+            eq(customerCreditLedger.saleId, saleId),
+            like(customerCreditLedger.note, `%${saleId}%`)
+          )
+        )
+      )
+      .orderBy(desc(customerCreditLedger.createdAt));
+
+    return rows.map((row) => this.mapRowToCreditMovement(row));
+  }
+
+  private mapRowToCreditMovement(row: typeof customerCreditLedger.$inferSelect): CreditMovement {
+    return new CreditMovement({
+      id: row.id,
+      merchantId: row.merchantId,
+      customerId: row.customerId,
+      type: row.type as CreditMovementType,
+      amount: Money.fromDecimal(row.amount),
+      operatorId: row.operatorId,
+      authorizedBy: row.authorizedBy,
+      saleId: row.saleId,
+      cashSessionId: row.cashSessionId,
+      note: row.note,
+      createdAt: row.createdAt,
+    });
+  }
+
+  async getCreditMetrics(merchantId: string): Promise<CreditMetrics> {
+    const rows = await db
+      .select({
+        customerId: customerCreditLedger.customerId,
+        totalDebits: sql<string>`coalesce(sum(case when ${customerCreditLedger.type} = 'DEBIT' then ${customerCreditLedger.amount} else 0 end), 0)`,
+        totalCredits: sql<string>`coalesce(sum(case when ${customerCreditLedger.type} = 'CREDIT' then ${customerCreditLedger.amount} else 0 end), 0)`,
+      })
+      .from(customerCreditLedger)
+      .where(eq(customerCreditLedger.merchantId, merchantId))
+      .groupBy(customerCreditLedger.customerId);
+
+    let totalOutstandingCredit = Money.zero();
+    let totalSettledCredit = Money.zero();
+    let activeDebtorsCount = 0;
+
+    for (const row of rows) {
+      const debits = Money.fromDecimal(row.totalDebits);
+      const credits = Money.fromDecimal(row.totalCredits);
+      const rawDebt = debits.subtract(credits);
+
+      if (rawDebt.isPositive()) {
+        totalOutstandingCredit = totalOutstandingCredit.add(rawDebt);
+        activeDebtorsCount += 1;
+      }
+
+      totalSettledCredit = totalSettledCredit.add(credits);
+    }
+
+    return {
+      totalOutstandingCredit,
+      totalSettledCredit,
+      activeDebtorsCount,
+    };
   }
 }

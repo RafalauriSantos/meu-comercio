@@ -21,7 +21,9 @@ export interface CashSessionRepository {
     sessionId: string,
     movementType: CashMovementType,
     amount: Money,
-    saleId?: string | null
+    saleId?: string | null,
+    reason?: string | null,
+    operatorId?: string | null
   ): Promise<void>;
   getExpectedCash(merchantId: string, sessionId: string): Promise<Money>;
 }

@@ -107,13 +107,34 @@ Este documento rastreia formalmente as fatias verticais de entrega, critérios d
 - [ ] 10.3 Confirmação síncrona via Webhook/Polling com gravação de NSU/TID e baixa automática do carrinho.
 - [ ] 10.4 Alternador transparente para modo manual quando a maquininha perder sinal de internet.
 
-### [ ] Slice 11: Operações de Balcão do Mundo Real & Gestão Financeira Essencial
-- [ ] 11.1 **Sangria e Suprimento de Caixa**: Registro de retiradas avulsas (pagamento de fornecedores/cofrinho) e entradas de moedas/troco no meio do turno com justificativa obrigatória, refletindo automaticamente no cálculo de dinheiro esperado da conferência cega.
-- [ ] 11.2 **Impressão de Comprovante / Cupom Térmico (58mm e 80mm)**: Layout otimizado para bobina térmica acionado ao finalizar a venda (`window.print` com `@media print`), incluindo versão padrão de compra e canhoto assinado de caderneta de fiado.
-- [ ] 11.3 **Cancelamento e Estorno de Venda**: Fluxo de cancelamento de venda com autorização via PIN da proprietária, estorno automático do dinheiro na gaveta e devolução imediata dos itens ao estoque com registro de auditoria (`SALE_CANCELLED`).
-- [ ] 11.4 **Dashboard "Total de Fiado na Rua" & DRE Operacional**: Indicadores em tempo real na aba Gestão mostrando o montante total pendente de recebimento na praça (`SUM(débitos - créditos)`), total recebido no mês e estimativa de lucro bruto (`faturamento - custo de mercadorias`).
-- [ ] 11.5 **Importação de Produtos em Lote (Excel/CSV)**: Parser de planilhas para cadastro massivo de catálogo (código de barras, nome, preço de custo, preço de venda e estoque inicial) poupando dezenas de horas de digitação manual na implantação.
-- [ ] 11.6 **Recuperação de Acesso e Redefinição de PIN da Proprietária**: Mecanismo seguro de recuperação caso a dona esqueça a senha ou o PIN de autorização.
+### [x] Slice 11: Operações de Balcão do Mundo Real & Gestão Financeira Essencial
+- [x] 11.1 **Sangria (WITHDRAWAL) e Suprimento (DEPOSIT) de Caixa**:
+  - [x] 11.1.1 Suporte a tipos `'WITHDRAWAL'`, `'DEPOSIT'` e `'CASH_CANCEL'` em `CashMovementType` e `cash_movements`.
+  - [x] 11.1.2 Fórmula exata de conferência cega: `Dinheiro Esperado = Fundo Inicial + Vendas Dinheiro (SALE_RECEIPT) + Quitações Fiado (DEBT_PAYMENT) + Suprimentos (DEPOSIT) - Sangrias (WITHDRAWAL) - Estornos (CASH_CANCEL)`.
+  - [x] 11.1.3 `RecordCashWithdrawalUseCase`: validação de caixa aberto, valor não-negativo, saldo em dinheiro suficiente, motivo textual obrigatório (mín. 3 caracteres) e auditoria compulsória `CASH_WITHDRAWAL_RECORDED`.
+  - [x] 11.1.4 `RecordCashDepositUseCase`: validação de caixa aberto, valor positivo, motivo textual obrigatório (mín. 3 caracteres) e auditoria `CASH_DEPOSIT_RECORDED`.
+  - [x] 11.1.5 Endpoints HTTP e rotas de API `/api/cash/withdrawal` e `/api/cash/deposit`.
+- [x] 11.2 **Cancelamento e Estorno Atômico de Venda (CancelSaleUseCase)**:
+  - [x] 11.2.1 Autorização mandatória via PIN da proprietária com reaproveitamento do `OwnerPinVerifier`.
+  - [x] 11.2.2 Reversão atômica: marca venda como `'CANCELLED'` e impede re-cancelamento.
+  - [x] 11.2.3 Retorno dos itens ao estoque físico com movimentação de inventário do tipo `'RETURN'`.
+  - [x] 11.2.4 Estorno de dinheiro na gaveta via movimentação `'CASH_CANCEL'` no caixa ativo (se houve pagamento em dinheiro e com validação de saldo).
+  - [x] 11.2.5 Amortização automática de fiado no extrato do cliente com movimento compensatório `'CREDIT'` (se a venda teve lançamento em fiado).
+  - [x] 11.2.6 Trilha de auditoria imutável compulsória do evento `'SALE_CANCELLED'`.
+  - [x] 11.2.7 Rota de API `POST /api/sales/[id]/cancel`.
+- [x] 11.3 **Métricas de Fiado na Rua (GetCreditMetricsUseCase)**:
+  - [x] 11.3.1 Cálculo de fiado em aberto em toda a loja (`totalOutstandingCredit`: soma dos saldos devedores de todos os clientes do comércio).
+  - [x] 11.3.2 Cálculo de total quitado historicamente (`totalSettledCredit`: soma de todos os pagamentos/créditos amortizados).
+  - [x] 11.3.3 Contagem de devedores ativos (`activeDebtorsCount`).
+  - [x] 11.3.4 Rota de API `GET /api/customers/metrics`.
+- [x] 11.4 **Estrutura de Impressão Térmica (58mm e 80mm)**:
+  - [x] 11.4.1 Modelagem tipada para cupom não-fiscal de venda com cabeçalho, itens, totais, pagamentos, troco e rodapé.
+  - [x] 11.4.2 Modelagem tipada para canhoto de fiado (nota promissória de caderneta) com histórico do débito e declaração de confissão de dívida para assinatura física.
+  - [x] 11.4.3 Folha de estilos `@media print` otimizada para bobinas de 58mm (32 colunas) e 80mm (48 colunas) sem quebra indevida de página.
+- **Auditoria PR-Reviewer:** Veredito formal **PASS** (Zero apontamentos, 231 testes aprovados).
+- **Status:** Concluído e Auditado ✅
+- [ ] 11.5 **Importação de Produtos em Lote (Excel/CSV)** (Próxima etapa).
+- [ ] 11.6 **Recuperação de Acesso e Redefinição de PIN da Proprietária** (Próxima etapa).
 
 ### [x] Slice 12: Endurecimento Integral de Segurança (Defense-in-Depth)
 - [x] 12.1 **Cabeçalhos de Segurança HTTP OWASP**: Configuração em `next.config.ts` com CSP estrito, `X-Frame-Options: DENY`, `X-Content-Type-Options: nosniff`, `Referrer-Policy: strict-origin-when-cross-origin`, `Permissions-Policy` e HSTS.

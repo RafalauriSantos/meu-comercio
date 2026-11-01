@@ -1,6 +1,6 @@
 import { Money } from '@/shared/domain/money';
 
-export type PaymentMethod = 'CASH' | 'PIX' | 'DEBIT_CARD' | 'CREDIT_CARD';
+export type PaymentMethod = 'CASH' | 'PIX' | 'DEBIT_CARD' | 'CREDIT_CARD' | 'TAB';
 
 export type PaymentStatus =
   | 'PENDING'
@@ -96,6 +96,10 @@ export class Payment {
 
   public isCash(): boolean {
     return this.method === 'CASH';
+  }
+
+  public isTab(): boolean {
+    return this.method === 'TAB';
   }
 
   public isApproved(): boolean {

@@ -159,10 +159,21 @@ export async function apiRequest<T>(
 }
 
 export const apiClient = {
-  // Setup
+  // Setup & Registration
   getSetupStatus: () => apiRequest<SetupStatus>('/api/setup/status'),
-  setupOwner: (payload: { username: string; password: string; authorizationPin: string }) =>
+  setupOwner: (payload: { username: string; password: string; authorizationPin: string; merchantName?: string }) =>
     apiRequest<AuthUser>('/api/setup/owner', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }),
+  registerMerchant: (payload: {
+    merchantName: string;
+    username: string;
+    password: string;
+    authorizationPin: string;
+    email?: string | null;
+  }) =>
+    apiRequest<AuthUser>('/api/auth/register', {
       method: 'POST',
       body: JSON.stringify(payload),
     }),

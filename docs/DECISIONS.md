@@ -191,5 +191,31 @@ Este documento registra formalmente as decisões de arquitetura e de produto do 
   - *Positivo*: O sistema torna-se um SaaS comercializável completo; dados de testes e dados de produção reais coexistem com isolamento matemático garantido; roteiro de evolução claro baseado em componentes já validados nos outros projetos.
   - *Negativo*: Requer governança de nomes de usuário globais únicos no sistema para evitar colisões no login simples.
 
+---
+
+## ADR-011: Sangria, Suprimento de Caixa, Impressão Térmica Não-Fiscal e Estorno de Vendas
+
+- **Data**: 2026-10-31
+- **Status**: Aprovado
+- **Contexto**: A rotina real de um mercado de bairro exige flexibilidade operacional para pagamentos avulsos em dinheiro físico (sangrias), entrada de troco/moedas durante o expediente (suprimentos), impressão imediata de cupom para o cliente e canhoto assinado para compras no fiado, além de cancelamento de vendas com devolução de itens ao estoque. Sem sangria e suprimento, o fechamento cego de caixa acusa falsas divergências financeiras. Sem estorno, desistências ou erros de digitação corrompem o saldo de estoque e caixa.
+- **Decisão**:
+  1. **Movimentações Avulsas de Caixa (`CASH_IN` / `CASH_OUT`)**:
+     - Implementar casos de uso para Sangria (`WITHDRAWAL`) e Suprimento (`DEPOSIT`) vinculados obrigatoriamente a uma sessão de caixa aberta.
+     - Toda movimentação avulsa exige motivo textual explícito (ex: "Pagamento fornecedor de pão", "Reforço de moedas de R$ 0,50"), identificador do operador autenticado e autorização por PIN caso ultrapasse limite parametrizado.
+     - O valor esperado na conferência cega passa a ser calculado rigorosamente como:
+       $$\text{Dinheiro Esperado} = \text{Fundo Inicial} + \sum \text{Vendas em Dinheiro} + \sum \text{Quitações Fiado} + \sum \text{Suprimentos} - \sum \text{Sangrias}$$
+  2. **Impressão Térmica Não-Fiscal (58mm e 80mm)**:
+     - Adotar folha de estilos `@media print` otimizada para impressoras térmicas padrão ESC/POS sem necessidade de drivers proprietários ou softwares intermediários.
+     - Disponibilizar dois modelos de comprovante:
+       - **Cupom de Venda**: Itens, quantidades, valores unitários, subtotal, descontos, formas de pagamento, troco e data/hora.
+       - **Canhoto de Fiado**: Total da compra fiado, saldo devedor atualizado do cliente e linha pontilhada para assinatura física de reconhecimento de débito.
+  3. **Estorno e Cancelamento de Venda**:
+     - Vendas finalizadas podem ser canceladas exclusivamente mediante validação do PIN da proprietária (`ROLE_OWNER`).
+     - A operação de cancelamento é atômica: reverte as baixas de estoque (adicionando de volta a quantidade em `inventory_movements` do tipo `RETURN`), estorna a entrada de dinheiro da gaveta se houver (`CASH_CANCEL`), remove o lançamento no fiado e grava auditoria imutável (`SALE_CANCELLED`).
+- **Trade-offs / Consequências**:
+  - *Positivo*: Fidelidade total à rotina física do comércio; precisão absoluta na conferência cega do caixa; redução drástica de atrito com clientes em erros de balcão e no controle de fiado.
+  - *Negativo*: Aumenta o volume de transações e movimentações na tabela `cash_movements`.
+
+
 
 

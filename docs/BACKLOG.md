@@ -107,4 +107,13 @@ Este documento rastreia formalmente as fatias verticais de entrega, critérios d
 - [ ] 10.3 Confirmação síncrona via Webhook/Polling com gravação de NSU/TID e baixa automática do carrinho.
 - [ ] 10.4 Alternador transparente para modo manual quando a maquininha perder sinal de internet.
 
+### [ ] Slice 11: Operações de Balcão do Mundo Real & Gestão Financeira Essencial
+- [ ] 11.1 **Sangria e Suprimento de Caixa**: Registro de retiradas avulsas (pagamento de fornecedores/cofrinho) e entradas de moedas/troco no meio do turno com justificativa obrigatória, refletindo automaticamente no cálculo de dinheiro esperado da conferência cega.
+- [ ] 11.2 **Impressão de Comprovante / Cupom Térmico (58mm e 80mm)**: Layout otimizado para bobina térmica acionado ao finalizar a venda (`window.print` com `@media print`), incluindo versão padrão de compra e canhoto assinado de caderneta de fiado.
+- [ ] 11.3 **Cancelamento e Estorno de Venda**: Fluxo de cancelamento de venda com autorização via PIN da proprietária, estorno automático do dinheiro na gaveta e devolução imediata dos itens ao estoque com registro de auditoria (`SALE_CANCELLED`).
+- [ ] 11.4 **Dashboard "Total de Fiado na Rua" & DRE Operacional**: Indicadores em tempo real na aba Gestão mostrando o montante total pendente de recebimento na praça (`SUM(débitos - créditos)`), total recebido no mês e estimativa de lucro bruto (`faturamento - custo de mercadorias`).
+- [ ] 11.5 **Importação de Produtos em Lote (Excel/CSV)**: Parser de planilhas para cadastro massivo de catálogo (código de barras, nome, preço de custo, preço de venda e estoque inicial) poupando dezenas de horas de digitação manual na implantação.
+- [ ] 11.6 **Recuperação de Acesso e Redefinição de PIN da Proprietária**: Mecanismo seguro de recuperação caso a dona esqueça a senha ou o PIN de autorização.
+
+
 

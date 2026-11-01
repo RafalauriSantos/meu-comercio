@@ -102,5 +102,6 @@ Decisões técnicas documentadas em Architecture Decision Records (ADRs):
   - **ADR-008**: Modelo de Fiado, Override por PIN da Proprietária e Quitação em Caixa Aberto
   - **ADR-009**: Adaptação da Interface do PDV no Next.js App Router e Fila Offline
   - **ADR-010**: Modelo SaaS Multi-Tenant Autônomo e Integração Planejada de Observabilidade e Perímetro
+  - **ADR-011**: Sangria, Suprimento de Caixa, Impressão Térmica Não-Fiscal e Estorno de Vendas
 - [docs/TRACEABILITY.md](docs/TRACEABILITY.md): Matriz vinculando regras de negócio aos 167 testes automatizados.
 

@@ -1,7 +1,7 @@
 # Meu Comércio
 
 [![CI](https://github.com/RafalauriSantos/meu-comercio/actions/workflows/ci.yml/badge.svg)](https://github.com/RafalauriSantos/meu-comercio/actions)
-[![Tests](https://img.shields.io/badge/Vitest-157%20passed%20(100%25)-brightgreen)](./docs/TRACEABILITY.md)
+[![Tests](https://img.shields.io/badge/Vitest-160%20passed%20(100%25)-brightgreen)](./docs/TRACEABILITY.md)
 [![TypeScript](https://img.shields.io/badge/TypeScript-Strict-blue)](https://www.typescriptlang.org/)
 [![Next.js](https://img.shields.io/badge/Next.js-16%20Turbopack-black)](https://nextjs.org/)
 [![Database](https://img.shields.io/badge/Neon-PostgreSQL%20Serverless-00e599)](https://neon.tech/)
@@ -13,10 +13,10 @@ Sistema de Ponto de Venda (PDV) e gestão comercial para mini-mercados e pequeno
 - **Aplicação no ar:** [https://meu-comercio-rho.vercel.app](https://meu-comercio-rho.vercel.app)
 - **Rotas principais:**
   - `/` — Terminal de PDV com leitura contínua, atalhos de teclado, split checkout e fila offline.
-  - `/gestao` — Painel de retaguarda: catálogo de produtos, reposição de estoque, extrato de fiado e fechamento de caixa.
+  - `/gestao` — Painel de retaguarda: catálogo de produtos, reposição de estoque, extrato de fiado, controle de equipe/operadores e fechamento de caixa.
   - `/login` — Autenticação de operador e dona, setup inicial e abertura de caixa.
 - **Contas de demonstração** (senha `demo-comercio-2026`):
-  - **Proprietária:** `dona@demo.example` (PIN de liberação: `1234`) — acesso total, liberação de excesso de fiado e fechamento de qualquer caixa.
+  - **Proprietária:** `dona@demo.example` (PIN de liberação: `1234`) — acesso total, cadastro de operadores, liberação de excesso de fiado e fechamento de qualquer caixa.
   - **Operador de caixa:** `operador@demo.example` — abertura de caixa, vendas e fechamento do seu próprio turno.
 - Em ambiente sem lojistas cadastrados, o sistema abre o assistente de provisionamento da primeira proprietária em `/login`.
 
@@ -28,13 +28,13 @@ Requisitos: Node.js 22, PostgreSQL (instância Neon ou local) e npm.
 npm ci
 cp .env.example .env.local  # configure DATABASE_URL e SESSION_SECRET
 npm run dev                 # aplicação em http://localhost:3000
-npm test                    # executa a suíte de 157 testes (Vitest)
+npm test                    # executa a suíte de 160 testes (Vitest)
 npm run build               # compila o build de produção (Turbopack)
 ```
 
 ## Testes e Qualidade
 
-- **157 testes automatizados aprovados (Vitest, 15 arquivos):** cobertura para cálculo monetário com centavos inteiros, conferência cega de caixa, baixa atômica de estoque, idempotência de checkout, limite de fiado com PIN, quitação de dívidas e fila offline.
+- **160 testes automatizados aprovados (Vitest, 16 arquivos):** cobertura para cálculo monetário com centavos inteiros, conferência cega de caixa, baixa atômica de estoque, idempotência de checkout, limite de fiado com PIN, quitação de dívidas, fila offline e gestão de operadores.
 - **ESLint com 0 erros e 0 avisos:** checagem estrita sem violações.
 - **TypeScript em modo estrito (`strict: true`):** validado com `npx tsc --noEmit`.
 - **CI Pipeline no GitHub Actions (`.github/workflows/ci.yml`):** executado a cada push na `main` e em pull requests, com jobs para lint, tipos, testes e build.

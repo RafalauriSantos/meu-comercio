@@ -170,25 +170,20 @@ export default function PdvTerminalPage() {
     };
   }, []);
 
-  // Carrega Usuário, Caixa e Clientes
+  // Carrega Usuário, Caixa e Clientes em paralelo para inicialização rápida
   useEffect(() => {
     async function init() {
       try {
-        const me = await apiClient.me();
-        setUser(me);
+        const [me, cash, custResult] = await Promise.all([
+          apiClient.me(),
+          apiClient.getCurrentCash(),
+          apiClient.listCustomers().catch(() => ({ items: [] })),
+        ]);
 
-        // Status do Caixa
-        const cash = await apiClient.getCurrentCash();
+        setUser(me);
         setCashOpen(cash.open);
         setCashSession(cash.session);
-
-        // Clientes para fiado
-        try {
-          const cust = await apiClient.listCustomers();
-          setCustomers(cust.items || []);
-        } catch {
-          // Clientes opcionais no startup
-        }
+        setCustomers(custResult.items || []);
 
         if (offlineManagerRef.current) {
           const count = offlineManagerRef.current.getQueue(me.merchantId, me.username).length;

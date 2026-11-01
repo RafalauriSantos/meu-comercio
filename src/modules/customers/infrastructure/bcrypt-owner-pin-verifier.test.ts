@@ -14,6 +14,8 @@ describe('BcryptOwnerPinVerifier', () => {
       hasAnyUser: vi.fn(),
       findByUsername: vi.fn(),
       createInitialMerchantWithOwner: vi.fn(),
+      createOperator: vi.fn(),
+      listOperators: vi.fn(),
       updateFailedLoginAttempts: vi.fn(),
       resetFailedLoginAttempts: vi.fn(),
     };

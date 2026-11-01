@@ -71,6 +71,53 @@ export class DrizzleUserRepository implements UserRepository {
     });
   }
 
+  async createOperator(params: import('../domain/user-repository.port').CreateOperatorParams): Promise<User> {
+    return db.transaction(async (tx) => {
+      const normalizedUsername = params.username.trim().toLowerCase();
+
+      const [userRow] = await tx
+        .insert(appUsers)
+        .values({
+          username: normalizedUsername,
+          merchantId: params.merchantId,
+          passwordHash: params.passwordHash,
+          enabled: true,
+          failedLoginAttempts: 0,
+        })
+        .returning();
+
+      if (params.authorities.length > 0) {
+        await tx.insert(userAuthorities).values(
+          params.authorities.map((auth) => ({
+            merchantId: params.merchantId,
+            username: normalizedUsername,
+            authority: auth,
+          }))
+        );
+      }
+
+      return this.toUserDomain(userRow, params.authorities);
+    });
+  }
+
+  async listOperators(merchantId: string): Promise<User[]> {
+    const userRows = await db
+      .select()
+      .from(appUsers)
+      .where(eq(appUsers.merchantId, merchantId));
+
+    const users: User[] = [];
+    for (const row of userRows) {
+      const authRows = await db
+        .select({ authority: userAuthorities.authority })
+        .from(userAuthorities)
+        .where(eq(userAuthorities.username, row.username));
+      users.push(this.toUserDomain(row, authRows.map((r) => r.authority as UserAuthority)));
+    }
+    return users;
+  }
+
+
   private toUserDomain(row: typeof appUsers.$inferSelect, authorities: UserAuthority[]): User {
     return new User({
       username: row.username,

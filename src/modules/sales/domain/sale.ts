@@ -99,6 +99,21 @@ export class Sale {
     return this._status === 'PENDING_PAYMENT';
   }
 
+  public isCancelled(): boolean {
+    return this._status === 'CANCELLED';
+  }
+
+  public cancel(): void {
+    if (this._status === 'CANCELLED') {
+      throw new Error('Venda já se encontra cancelada.');
+    }
+    if (this._status !== 'CONFIRMED') {
+      throw new Error('Apenas vendas confirmadas podem ser canceladas.');
+    }
+    this._status = 'CANCELLED';
+    this.updatedAt = new Date();
+  }
+
   public get items(): ReadonlyArray<SaleItem> {
     return Object.freeze([...this._items]);
   }
@@ -138,6 +153,14 @@ export class Sale {
     return this._payments
       .filter((p) => p.isCash())
       .reduce((sum, p) => sum.add(p.amount), Money.zero());
+  }
+
+  public get tabPayment(): Payment | undefined {
+    return this._payments.find((p) => p.isTab());
+  }
+
+  public getTabPayment(): Payment | undefined {
+    return this.tabPayment;
   }
 
   public addItem(item: SaleItem): void {

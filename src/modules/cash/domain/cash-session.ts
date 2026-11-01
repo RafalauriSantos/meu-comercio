@@ -10,7 +10,10 @@ export type CashMovementType =
   | 'CREDIT_PAYMENT'
   | 'DEBT_PAYMENT'
   | 'SUPPLY'
-  | 'BLEED';
+  | 'BLEED'
+  | 'WITHDRAWAL'
+  | 'DEPOSIT'
+  | 'CASH_CANCEL';
 
 const CASH_INFLOW_TYPES: ReadonlySet<CashMovementType> = new Set([
   'OPENING_BALANCE',
@@ -18,11 +21,14 @@ const CASH_INFLOW_TYPES: ReadonlySet<CashMovementType> = new Set([
   'CREDIT_PAYMENT',
   'DEBT_PAYMENT',
   'SUPPLY',
+  'DEPOSIT',
 ]);
 
 const CASH_OUTFLOW_TYPES: ReadonlySet<CashMovementType> = new Set([
   'SALE_REFUND',
   'BLEED',
+  'WITHDRAWAL',
+  'CASH_CANCEL',
 ]);
 
 export function applyCashMovement(currentTotal: Money, type: CashMovementType, amount: Money): Money {
@@ -106,6 +112,10 @@ export class CashSession {
 
   public isOpen(): boolean {
     return this._status === 'OPEN';
+  }
+
+  public isClosed(): boolean {
+    return this._status === 'CLOSED';
   }
 
   public close(operatorId: string, closingBalance: Money, closedAt = new Date()): void {

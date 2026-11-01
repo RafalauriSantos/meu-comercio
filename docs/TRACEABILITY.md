@@ -60,8 +60,20 @@ Mapeamento entre os critérios de negócio aprovados em `DECISIONS.md` e a suít
 | Rate Limiting por IP em rotas críticas com HTTP 429 | `security` | `src/shared/infrastructure/security/rate-limiter.test.ts` | Aprovado (5 testes) |
 | Validação de origem estrita anti-CSRF (Origin/Host) | `security` | `src/shared/infrastructure/security/origin-guard.test.ts` | Aprovado (6 testes) |
 | Middleware integrado Next.js com limitação granular e headers | `security` | `src/middleware.test.ts` | Aprovado (3 testes) |
+| Sangria e Suprimento de caixa com validação de saldo, motivo e auditoria | `cash` | `src/modules/cash/application/cash-operations.use-case.test.ts` | Aprovado (13 testes) |
+| Conferência cega com fórmula completa (abertura + vendas + fiado + suprimentos - sangrias - estornos) | `cash` | `src/modules/cash/application/cash-operations.use-case.test.ts` | Aprovado |
+| Cancelamento de venda autenticado por PIN da dona e estorno atômico de estoque (RETURN) e caixa (CASH_CANCEL) | `sales` | `src/modules/sales/application/cancel-sale.use-case.test.ts` | Aprovado (8 testes) |
+| Estorno de fiado com crédito compensatório (CREDIT) no extrato do cliente | `sales` / `customers` | `src/modules/sales/application/cancel-sale.use-case.test.ts` | Aprovado |
+| Rejeição de cancelamento para vendas já canceladas, pendentes ou caixa insuficiente | `sales` | `src/modules/sales/application/cancel-sale.use-case.test.ts` | Aprovado |
+| Métricas globais de fiado na praça com total em aberto, quitado histórico e devedores | `customers` | `src/modules/customers/application/get-credit-metrics.use-case.test.ts` | Aprovado (3 testes) |
+| Isolamento multi-tenant absoluto nas métricas financeiras de fiado | `customers` | `src/modules/customers/application/get-credit-metrics.use-case.test.ts` | Aprovado |
+| Formatação de cupom térmico e canhoto de fiado (58mm e 80mm) com confissão de dívida | `frontend` | `src/frontend/lib/thermal-printer.test.ts` | Aprovado (5 testes) |
+| Rota HTTP POST /api/cash/withdrawal com Zod, autenticação e erros de gaveta | `cash` / `api` | `src/app/api/cash/withdrawal/route.test.ts` | Aprovado (6 testes) |
+| Rota HTTP POST /api/cash/deposit com Zod, autenticação e cálculo de saldo esperado | `cash` / `api` | `src/app/api/cash/deposit/route.test.ts` | Aprovado (5 testes) |
+| Rota HTTP POST /api/sales/[id]/cancel com PIN da dona, estorno e Zod | `sales` / `api` | `src/app/api/sales/[id]/cancel/route.test.ts` | Aprovado (8 testes) |
+| Rota HTTP GET /api/customers/metrics com consolidação de fiado na praça | `customers` / `api` | `src/app/api/customers/metrics/route.test.ts` | Aprovado (2 testes) |
 
-**Total de Testes Automatizados:** 181 testes aprovados (21 suítes no Vitest, 0 falhas).
+**Total de Testes Automatizados:** 231 testes aprovados (29 suítes no Vitest, 0 falhas).
 
 
 

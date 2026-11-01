@@ -605,3 +605,32 @@ h2 {
     overflow: auto;
   }
 }
+
+/* Impressão Térmica de Comprovante Não-Fiscal e Canhoto */
+@media print {
+  body * {
+    visibility: hidden !important;
+  }
+  .thermal-print-area,
+  .thermal-print-area * {
+    visibility: visible !important;
+  }
+  .thermal-print-area {
+    position: fixed;
+    left: 0;
+    top: 0;
+    width: 58mm;
+    margin: 0;
+    padding: 4mm;
+    background: #fff;
+    color: #000;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    font-size: 11px;
+    line-height: 1.25;
+    white-space: pre-wrap;
+    word-break: break-all;
+  }
+  .no-print {
+    display: none !important;
+  }
+}

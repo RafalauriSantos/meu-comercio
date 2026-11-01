@@ -7,8 +7,16 @@ export interface CustomerCreditBalance {
   totalCredits: Money;
 }
 
+export interface CreditMetrics {
+  totalOutstandingCredit: Money;
+  totalSettledCredit: Money;
+  activeDebtorsCount: number;
+}
+
 export interface CustomerCreditRepository {
   saveMovement(movement: CreditMovement): Promise<void>;
   getBalance(merchantId: string, customerId: string): Promise<CustomerCreditBalance>;
   getMovementsByCustomerId(merchantId: string, customerId: string): Promise<CreditMovement[]>;
+  getCreditMetrics?(merchantId: string): Promise<CreditMetrics>;
+  findMovementsBySaleId?(merchantId: string, saleId: string): Promise<CreditMovement[]>;
 }

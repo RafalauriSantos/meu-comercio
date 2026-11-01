@@ -49,5 +49,16 @@ Mapeamento entre os critérios de negócio aprovados em `DECISIONS.md` e a suít
 | Detecção de inconsistência de preço/estoque na sincronização | `frontend` | `src/frontend/lib/offline-sync.test.ts` | Aprovado |
 | Cálculo de carrinho, desconto autorizado e troco no frontend | `frontend` | `src/frontend/lib/cart-calculator.test.ts` | Aprovado (23 testes) |
 | Validação de split payment somando total exato da venda | `frontend` | `src/frontend/lib/cart-calculator.test.ts` | Aprovado |
+| Formatação monetária BRL e conversão de input | `frontend` | `src/frontend/lib/formatters.test.ts` | Aprovado (10 testes) |
+| Cadastro de operadores pela dona do comércio | `users` | `src/modules/users/application/create-operator.use-case.test.ts` | Aprovado (3 testes) |
+| Verificação de PIN da proprietária com bcrypt e papel ROLE_OWNER | `customers` / `users` | `src/modules/customers/infrastructure/bcrypt-owner-pin-verifier.test.ts` | Aprovado (6 testes) |
+| Consulta e recuperação de venda por ID | `sales` | `src/modules/sales/application/get-sale-by-id.use-case.test.ts` | Aprovado (3 testes) |
+| Rotas de API integradas de vendas e detalhes | `sales` / `api` | `src/app/api/sales/route.test.ts` | Aprovado (9 testes) |
+| Rotas de API integradas de clientes, saldo e quitação | `customers` / `api` | `src/app/api/customers/route.test.ts` | Aprovado (15 testes) |
+| Auto-cadastro SaaS de múltiplos comércios com isolamento | `users` | `src/modules/users/application/register-merchant.use-case.test.ts` | Aprovado (4 testes) |
+| Rota de auto-cadastro SaaS POST /api/auth/register | `users` / `api` | `src/app/api/auth/register/route.test.ts` | Aprovado (3 testes) |
+
+**Total de Testes Automatizados:** 167 testes aprovados (18 suítes no Vitest, 0 falhas).
+
 
 

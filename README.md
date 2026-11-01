@@ -1,12 +1,12 @@
 # Meu Comércio
 
 [![CI](https://github.com/RafalauriSantos/meu-comercio/actions/workflows/ci.yml/badge.svg)](https://github.com/RafalauriSantos/meu-comercio/actions)
-[![Tests](https://img.shields.io/badge/Vitest-160%20passed%20(100%25)-brightgreen)](./docs/TRACEABILITY.md)
+[![Tests](https://img.shields.io/badge/Vitest-167%20passed%20(100%25)-brightgreen)](./docs/TRACEABILITY.md)
 [![TypeScript](https://img.shields.io/badge/TypeScript-Strict-blue)](https://www.typescriptlang.org/)
 [![Next.js](https://img.shields.io/badge/Next.js-16%20Turbopack-black)](https://nextjs.org/)
 [![Database](https://img.shields.io/badge/Neon-PostgreSQL%20Serverless-00e599)](https://neon.tech/)
 
-Sistema de Ponto de Venda (PDV) e gestão comercial para mini-mercados e pequeno varejo. Operadores realizam vendas com leitor de código de barras ou atalhos de teclado, registram pagamentos únicos ou divididos (dinheiro, Pix, cartões e fiado) e fecham o caixa com conferência cega. O sistema impede estoque negativo, calcula troco em centavos sem ponto flutuante, exige PIN da dona para compras que excedam o limite de fiado e mantém fila local de vendas em dinheiro caso a conexão caia. Construído em monólito modular com Next.js 16, Drizzle ORM e Neon PostgreSQL.
+Sistema de Ponto de Venda (PDV) e gestão comercial para mini-mercados e pequeno varejo em modelo SaaS multi-tenant. Operadores realizam vendas com leitor de código de barras ou atalhos de teclado, registram pagamentos únicos ou divididos (dinheiro, Pix, cartões e fiado) e fecham o caixa com conferência cega. O sistema impede estoque negativo, calcula troco em centavos sem ponto flutuante, exige PIN da dona para compras que excedam o limite de fiado e mantém fila local de vendas em dinheiro caso a conexão caia. Construído em monólito modular com Next.js 16, Drizzle ORM e Neon PostgreSQL.
 
 ## Acesse
 
@@ -14,11 +14,11 @@ Sistema de Ponto de Venda (PDV) e gestão comercial para mini-mercados e pequeno
 - **Rotas principais:**
   - `/` — Terminal de PDV com leitura contínua, atalhos de teclado, split checkout e fila offline.
   - `/gestao` — Painel de retaguarda: catálogo de produtos, reposição de estoque, extrato de fiado, controle de equipe/operadores e fechamento de caixa.
-  - `/login` — Autenticação de operador e dona, setup inicial e abertura de caixa.
+  - `/login` — Autenticação de operador e dona, auto-cadastro de novos comércios SaaS e abertura de caixa.
 - **Contas de demonstração** (senha `demo-comercio-2026`):
   - **Proprietária:** `dona@demo.example` (PIN de liberação: `1234`) — acesso total, cadastro de operadores, liberação de excesso de fiado e fechamento de qualquer caixa.
   - **Operador de caixa:** `operador@demo.example` — abertura de caixa, vendas e fechamento do seu próprio turno.
-- Em ambiente sem lojistas cadastrados, o sistema abre o assistente de provisionamento da primeira proprietária em `/login`.
+- Novos comércios podem se cadastrar de forma autônoma e imediata na aba **Cadastrar Nova Loja** em `/login`.
 
 ## Rodar localmente
 
@@ -28,16 +28,16 @@ Requisitos: Node.js 22, PostgreSQL (instância Neon ou local) e npm.
 npm ci
 cp .env.example .env.local  # configure DATABASE_URL e SESSION_SECRET
 npm run dev                 # aplicação em http://localhost:3000
-npm test                    # executa a suíte de 160 testes (Vitest)
+npm test                    # executa a suíte de 167 testes (Vitest)
 npm run build               # compila o build de produção (Turbopack)
 ```
 
 ## Testes e Qualidade
 
-- **160 testes automatizados aprovados (Vitest, 16 arquivos):** cobertura para cálculo monetário com centavos inteiros, conferência cega de caixa, baixa atômica de estoque, idempotência de checkout, limite de fiado com PIN, quitação de dívidas, fila offline e gestão de operadores.
+- **167 testes automatizados aprovados (Vitest, 18 arquivos):** cobertura para cálculo monetário com centavos inteiros, conferência cega de caixa, baixa atômica de estoque, idempotência de checkout, limite de fiado com PIN, quitação de dívidas, fila offline, gestão de operadores e auto-cadastro multi-tenant SaaS.
 - **ESLint com 0 erros e 0 avisos:** checagem estrita sem violações.
 - **TypeScript em modo estrito (`strict: true`):** validado com `npx tsc --noEmit`.
-- **CI Pipeline no GitHub Actions (`.github/workflows/ci.yml`):** executado a cada push na `main` e em pull requests, com jobs para lint, tipos, testes e build.
+- **CI Pipeline no GitHub Actions (`.github/workflows/ci.yml`):** executado a cada push na `main` e em pull requests, com jobs para lint, tipos, testes, build e deploy de produção como etapa final.
 
 ## O que foi feito
 
@@ -64,6 +64,8 @@ npm run build               # compila o build de produção (Turbopack)
 | Fila offline para vendas em dinheiro com sincronização automática | Feito |
 | Trilha de auditoria imutável (`audit_events`) para ações sensíveis | Feito |
 | Painel de retaguarda (`/gestao`) com produtos, fiado e fechamento de caixa | Feito |
+| Gestão de operadores com controle de equipe pela proprietária | Feito |
+| Auto-cadastro SaaS multi-tenant com isolamento estrito por loja | Feito |
 
 ## Regras de negócio e comportamentos do sistema
 
@@ -99,4 +101,6 @@ Decisões técnicas documentadas em Architecture Decision Records (ADRs):
   - **ADR-007**: Vendas no PDV, Split Payments e Idempotência Transacional
   - **ADR-008**: Modelo de Fiado, Override por PIN da Proprietária e Quitação em Caixa Aberto
   - **ADR-009**: Adaptação da Interface do PDV no Next.js App Router e Fila Offline
-- [docs/TRACEABILITY.md](docs/TRACEABILITY.md): Matriz vinculando regras de negócio aos 157 testes automatizados.
+  - **ADR-010**: Modelo SaaS Multi-Tenant Autônomo e Integração Planejada de Observabilidade e Perímetro
+- [docs/TRACEABILITY.md](docs/TRACEABILITY.md): Matriz vinculando regras de negócio aos 167 testes automatizados.
+

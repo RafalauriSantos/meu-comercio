@@ -1,0 +1,30 @@
+name: Database Migration
+
+# Applies committed migrations to production. Runs only when started by hand,
+# and the `production-db` environment requires the owner's approval before the job starts.
+on:
+  workflow_dispatch:
+
+jobs:
+  migrate:
+    name: Apply migrations (production)
+    runs-on: ubuntu-latest
+    environment: production-db
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Apply migrations
+        run: npm run db:migrate
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}

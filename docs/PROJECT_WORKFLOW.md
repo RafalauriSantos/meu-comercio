@@ -6,7 +6,7 @@ This document defines how changes move from a branch to production. It is the so
 
 - One short-lived branch per change, created from the current `origin/main`.
 - Branch names: `<type>/<short-scope>`, for example `fix/cash-close-audit` or `docs/project-workflow`.
-- Every change reaches `main` through a pull request. Direct pushes to `main` are blocked for admins (`enforce_admins` is on). GitHub does not yet require a pull request for non-admin users; the repo's current writers are the owner and the agent.
+- Every change reaches `main` through a pull request. This is a process rule, not an enforced one: GitHub does not block direct pushes to `main`, because no pull request rule is configured. The required status checks still gate merges through pull requests.
 - A branch built on an unmerged branch is stacked: its PR base is that branch. CI runs only on PRs whose base is `main`, so a stacked PR has no required checks until it is retargeted to `main`. Never merge a stacked PR. After the base merges, rebase onto `origin/main` and retarget the PR.
 - Before creating a branch, run `git fetch origin` and start from `origin/main`.
 
@@ -36,7 +36,7 @@ Known behaviour of the `Lint & Security` job:
 | Database schema, migration or data change | Own PR, never bundled with other changes. Do not merge to `main` until the build-script gap below is closed; after that, only with the owner's approval |
 | Money, authentication, authorization, permissions | Stops for the owner's approval on GitHub, even when green |
 
-The owner reviews a PR only when it falls in the second or third row. Other PRs do not wait for the owner. If a change matches more than one row, the stricter row applies.
+The owner reviews a PR only when it falls in the second or third row. Other PRs do not wait for the owner. Rows are ordered from least to most strict. If a change matches more than one row, the stricter row applies.
 
 Auto-merge is enabled with `gh pr merge --auto` after the PR is opened. GitHub merges it once the required checks pass.
 
@@ -46,7 +46,7 @@ Auto-merge is enabled with `gh pr merge --auto` after the PR is opened. GitHub m
 
 Merging to `main` deploys to production. `.github/workflows/ci.yml` runs the four checks and then `vercel --prod` on the push. Merge is therefore a release. Do not describe merge as "no deploy".
 
-Known gap: the `build` script in `package.json` runs `drizzle-kit push --force` when `DATABASE_URL` is set and does not contain `[SENSITIVE]`, before `next build`. Vercel runs that build on deploy, so a merge can change the production schema without a migration file or owner approval. Until this gap is closed, a PR that changes the schema must not be merged to `main`.
+Known gap: the `build` script in `package.json` runs `drizzle-kit push --force` when `DATABASE_URL` is set and does not contain `[SENSITIVE]`, before `next build`. Vercel runs that build on deploy, so a merge can change the production schema without a migration file or owner approval. Until this gap is closed, a PR that changes the schema must not be merged to `main`. After it is closed, a schema PR still needs the owner's approval, as in the table above.
 
 ## Stop gates (always, regardless of the rules above)
 

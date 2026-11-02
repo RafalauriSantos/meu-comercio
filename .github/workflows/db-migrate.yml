@@ -5,11 +5,17 @@ name: Database Migration
 on:
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 jobs:
   migrate:
     name: Apply migrations (production)
     runs-on: ubuntu-latest
     environment: production-db
+    concurrency:
+      group: db-migrate
+      cancel-in-progress: false
 
     steps:
       - name: Checkout

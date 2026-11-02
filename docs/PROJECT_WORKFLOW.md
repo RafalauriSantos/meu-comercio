@@ -33,7 +33,7 @@ Known behaviour of the `Lint & Security` job:
 | Change type | Merge |
 | --- | --- |
 | Docs, tests, UI text, refactors, non-financial features | Automatic: auto-merge once the local gate and the remote gate are green and `pr-reviewer` has no open findings |
-| Database schema, migration or data change | Own PR, never bundled with other changes. Do not merge to `main` until the build-script gap below is closed; after that, only with the owner's approval |
+| Database schema, migration or data change | Own PR, never bundled with other changes. Only with the owner's approval |
 | Money, authentication, authorization, permissions | Stops for the owner's approval on GitHub, even when green |
 
 The owner reviews a PR only when it falls in the second or third row. Other PRs do not wait for the owner. Rows are ordered from least to most strict. If a change matches more than one row, the stricter row applies.
@@ -50,12 +50,14 @@ The build does not touch the database. Schema changes reach production only thro
 
 ## Database baseline (one-time, owner-approved)
 
-Migration `0000` creates tables that already exist in production, so the first `db-migrate` run would fail. Do not start `db-migrate` until this baseline is done:
+Migration `0000` creates tables that already exist in production, so the first `db-migrate` run would fail. Before this baseline, the repository secret `DATABASE_URL` must exist in the `production-db` environment; the workflow reads it from there. Do not start `db-migrate` until the baseline is done:
 
 1. The owner confirms that production matches the baseline, for example by comparing `pg_dump --schema-only` output against an empty database with `0000` applied.
-2. The owner records `0000` as applied, once:
+2. The owner records `0000` as applied, once. The first two statements create the tracking table if the migrator has never run; they are the same as the migrator's own (`drizzle-orm/pg-core/dialect.js`):
 
    ```sql
+   CREATE SCHEMA IF NOT EXISTS drizzle;
+   CREATE TABLE IF NOT EXISTS drizzle.__drizzle_migrations (id SERIAL PRIMARY KEY, hash text NOT NULL, created_at bigint);
    INSERT INTO drizzle.__drizzle_migrations (hash, created_at)
    VALUES ('d76c5cfbf56456ad8153d725b76fe0af476cfbd03a5870e7b4eeebc7c561f1cf', 1793626557420);
    ```

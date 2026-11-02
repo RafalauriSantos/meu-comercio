@@ -131,7 +131,7 @@ Este documento rastreia formalmente as fatias verticais de entrega, critérios d
   - [x] 11.4.1 Modelagem tipada para cupom não-fiscal de venda com cabeçalho, itens, totais, pagamentos, troco e rodapé.
   - [x] 11.4.2 Modelagem tipada para canhoto de fiado (nota promissória de caderneta) com histórico do débito e declaração de confissão de dívida para assinatura física.
   - [x] 11.4.3 Folha de estilos `@media print` otimizada para bobinas de 58mm (32 colunas) e 80mm (48 colunas) sem quebra indevida de página.
-- **Auditoria PR-Reviewer (items 11.1–11.4, historical):** Veredito formal **PASS** (Zero apontamentos, 231 testes aprovados).
+- **PR-Reviewer audit (items 11.1–11.4, historical):** Formal verdict **PASS** (zero findings, 231 tests passing).
 - **Status:** In progress. 11.5 and 11.6 are open.
 - [ ] 11.5 **Importação de Produtos em Lote (Excel/CSV)** (Próxima etapa).
 - [ ] 11.6 **Recuperação de Acesso e Redefinição de PIN da Proprietária** (Próxima etapa).

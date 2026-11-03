@@ -107,7 +107,7 @@ Este documento rastreia formalmente as fatias verticais de entrega, critérios d
 - [ ] 10.3 Confirmação síncrona via Webhook/Polling com gravação de NSU/TID e baixa automática do carrinho.
 - [ ] 10.4 Alternador transparente para modo manual quando a maquininha perder sinal de internet.
 
-### [ ] Slice 11: Operações de Balcão do Mundo Real & Gestão Financeira Essencial
+### [ ] Slice 11: Real-World Counter Operations & Essential Financial Management
 - [x] 11.1 **Sangria (WITHDRAWAL) e Suprimento (DEPOSIT) de Caixa**:
   - [x] 11.1.1 Suporte a tipos `'WITHDRAWAL'`, `'DEPOSIT'` e `'CASH_CANCEL'` em `CashMovementType` e `cash_movements`.
   - [x] 11.1.2 Fórmula exata de conferência cega: `Dinheiro Esperado = Fundo Inicial + Vendas Dinheiro (SALE_RECEIPT) + Quitações Fiado (DEBT_PAYMENT) + Suprimentos (DEPOSIT) - Sangrias (WITHDRAWAL) - Estornos (CASH_CANCEL)`.

@@ -1,15 +1,15 @@
 name: Staging Preview
 
 # Deploys the `staging` branch as a Vercel preview that uses the Preview
-# environment variables, including the staging database. The `staging` branch
-# is only updated from `main` after `main` passes CI.
+# environment variables. Pushes to `staging` are not gated by CI, so update
+# `staging` only from `main` after `main` has passed CI.
 on:
   push:
     branches: [staging]
 
 concurrency:
   group: staging-preview
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 permissions:
   contents: read
@@ -18,6 +18,7 @@ jobs:
   preview:
     name: Deploy staging preview
     runs-on: ubuntu-latest
+    timeout-minutes: 20
 
     steps:
       - name: Checkout

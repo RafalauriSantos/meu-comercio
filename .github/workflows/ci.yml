@@ -8,7 +8,7 @@ on:
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
 
 permissions:
   contents: read
@@ -115,17 +115,6 @@ jobs:
         env:
           NEXT_TELEMETRY_DISABLED: 1
 
-      - name: Summary
-        if: always()
-        run: |
-          echo "### CI Summary" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "| Check | Status |" >> $GITHUB_STEP_SUMMARY
-          echo "|---|---|" >> $GITHUB_STEP_SUMMARY
-          echo "| Lint & Security | Passed |" >> $GITHUB_STEP_SUMMARY
-          echo "| TypeScript | Passed |" >> $GITHUB_STEP_SUMMARY
-          echo "| Tests (160 passing) | Passed |" >> $GITHUB_STEP_SUMMARY
-          echo "| Production Build | Passed |" >> $GITHUB_STEP_SUMMARY
 
   deploy:
     name: Deploy to Vercel (Production)
@@ -143,11 +132,12 @@ jobs:
           node-version: 22
 
       - name: Install Vercel CLI
-        run: npm install --global vercel@latest
+        run: npm install --global vercel@64.7.0
 
       - name: Deploy to Vercel Production
-        run: vercel --prod --token=${{ secrets.VERCEL_TOKEN }} --yes
+        run: vercel --prod --yes
         env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
           VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
           VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
 

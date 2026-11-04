@@ -107,7 +107,7 @@ Este documento rastreia formalmente as fatias verticais de entrega, critérios d
 - [ ] 10.3 Confirmação síncrona via Webhook/Polling com gravação de NSU/TID e baixa automática do carrinho.
 - [ ] 10.4 Alternador transparente para modo manual quando a maquininha perder sinal de internet.
 
-### [x] Slice 11: Operações de Balcão do Mundo Real & Gestão Financeira Essencial
+### [ ] Slice 11: Real-World Counter Operations & Essential Financial Management
 - [x] 11.1 **Sangria (WITHDRAWAL) e Suprimento (DEPOSIT) de Caixa**:
   - [x] 11.1.1 Suporte a tipos `'WITHDRAWAL'`, `'DEPOSIT'` e `'CASH_CANCEL'` em `CashMovementType` e `cash_movements`.
   - [x] 11.1.2 Fórmula exata de conferência cega: `Dinheiro Esperado = Fundo Inicial + Vendas Dinheiro (SALE_RECEIPT) + Quitações Fiado (DEBT_PAYMENT) + Suprimentos (DEPOSIT) - Sangrias (WITHDRAWAL) - Estornos (CASH_CANCEL)`.
@@ -131,8 +131,8 @@ Este documento rastreia formalmente as fatias verticais de entrega, critérios d
   - [x] 11.4.1 Modelagem tipada para cupom não-fiscal de venda com cabeçalho, itens, totais, pagamentos, troco e rodapé.
   - [x] 11.4.2 Modelagem tipada para canhoto de fiado (nota promissória de caderneta) com histórico do débito e declaração de confissão de dívida para assinatura física.
   - [x] 11.4.3 Folha de estilos `@media print` otimizada para bobinas de 58mm (32 colunas) e 80mm (48 colunas) sem quebra indevida de página.
-- **Auditoria PR-Reviewer:** Veredito formal **PASS** (Zero apontamentos, 231 testes aprovados).
-- **Status:** Concluído e Auditado ✅
+- **PR-Reviewer audit (items 11.1–11.4, historical):** Formal verdict **PASS** (zero findings, 231 tests passing).
+- **Status:** In progress. 11.5 and 11.6 are open.
 - [ ] 11.5 **Importação de Produtos em Lote (Excel/CSV)** (Próxima etapa).
 - [ ] 11.6 **Recuperação de Acesso e Redefinição de PIN da Proprietária** (Próxima etapa).
 

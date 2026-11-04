@@ -1,0 +1,7 @@
+# Owner review is required for these paths once required approvals are enabled on main.
+# Database schema and migrations, CI/CD and secrets handling.
+/drizzle/ @RafalauriSantos
+/drizzle.config.ts @RafalauriSantos
+/src/shared/infrastructure/db/ @RafalauriSantos
+/vercel.json @RafalauriSantos
+/.github/ @RafalauriSantos

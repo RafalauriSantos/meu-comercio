@@ -1,0 +1,40 @@
+name: Staging Preview
+
+# Deploys the `staging` branch as a Vercel preview that uses the Preview
+# environment variables. Pushes to `staging` are not gated by CI, so update
+# `staging` only from `main` after `main` has passed CI.
+on:
+  push:
+    branches: [staging]
+
+concurrency:
+  group: staging-preview
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  preview:
+    name: Deploy staging preview
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+
+      - name: Set up Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: 22
+
+      - name: Install Vercel CLI
+        run: npm install --global vercel@64.7.0
+
+      - name: Deploy preview to Vercel
+        run: vercel deploy --yes
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}

@@ -33,7 +33,7 @@ Known behaviour of the `Lint & Security` job:
 | Change type | Merge |
 | --- | --- |
 | Docs, tests, UI text, refactors, non-financial features | Automatic: auto-merge once the local gate and the remote gate are green and `pr-reviewer` has no open findings |
-| Database schema, migration or data change | Own PR, never bundled with other changes. Do not merge to `main` until the build-script gap below is closed; after that, only with the owner's approval |
+| Database schema, migration or data change | Own PR, never bundled with other changes. Only with the owner's approval |
 | Money, authentication, authorization, permissions | Stops for the owner's approval on GitHub, even when green |
 
 The owner reviews a PR only when it falls in the second or third row. Other PRs do not wait for the owner. Rows are ordered from least to most strict. If a change matches more than one row, the stricter row applies.
@@ -46,7 +46,25 @@ Auto-merge is enabled with `gh pr merge --auto` after the PR is opened. GitHub m
 
 Merging to `main` deploys to production. `.github/workflows/ci.yml` runs the four checks and then `vercel --prod` on the push. Merge is therefore a release. Do not describe merge as "no deploy".
 
-Known gap: the `build` script in `package.json` runs `drizzle-kit push --force` when `DATABASE_URL` is set and does not contain `[SENSITIVE]`, before `next build`. Vercel runs that build on deploy, so a merge can change the production schema without a migration file or owner approval. Until this gap is closed, a PR that changes the schema must not be merged to `main`. After it is closed, a schema PR still needs the owner's approval, as in the table above.
+The build does not touch the database. Schema changes reach production only through the `db-migrate` workflow, which is started by hand and waits for the owner's approval on the `production-db` environment.
+
+## Database baseline (one-time, owner-approved)
+
+Migration `0000` creates tables that already exist in production, so the first `db-migrate` run would fail. Before this baseline, the repository secret `DATABASE_URL` must exist in the `production-db` environment; the workflow reads it from there. Do not start `db-migrate` until the baseline is done:
+
+1. The owner confirms that production matches the baseline, for example by comparing `pg_dump --schema-only` output against an empty database with `0000` applied.
+2. The owner records `0000` as applied, once. The first two statements create the tracking table if the migrator has never run; they are the same as the migrator's own (`drizzle-orm/pg-core/dialect.js`):
+
+   ```sql
+   CREATE SCHEMA IF NOT EXISTS drizzle;
+   CREATE TABLE IF NOT EXISTS drizzle.__drizzle_migrations (id SERIAL PRIMARY KEY, hash text NOT NULL, created_at bigint);
+   INSERT INTO drizzle.__drizzle_migrations (hash, created_at)
+   VALUES ('d76c5cfbf56456ad8153d725b76fe0af476cfbd03a5870e7b4eeebc7c561f1cf', 1793626557420);
+   ```
+
+3. Rollback: `DELETE FROM drizzle.__drizzle_migrations WHERE created_at = 1793626557420;`. This removes only the record and touches no tables.
+
+The hash is the SHA-256 of `drizzle/migrations/0000_right_edwin_jarvis.sql`. The timestamp is its `when` value in `drizzle/migrations/meta/_journal.json`.
 
 ## Stop gates (always, regardless of the rules above)
 

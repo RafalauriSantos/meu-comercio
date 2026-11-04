@@ -11,6 +11,11 @@ updates:
         update-types:
           - minor
           - patch
+    ignore:
+      # typescript-eslint does not support TypeScript 7 yet (typescript-eslint#10940),
+      # so `npm run lint` fails on it. Remove this rule once it is supported.
+      - dependency-name: "typescript"
+        versions: [">= 7"]
 
   - package-ecosystem: github-actions
     directory: /

@@ -176,7 +176,7 @@ Este documento registra formalmente as decisões de arquitetura e de produto do 
 ## ADR-010: Modelo SaaS Multi-Tenant Autônomo e Integração Planejada de Observabilidade e Perímetro
 
 - **Data**: 2026-10-31
-- **Status**: Aprovado e Implementado
+- **Status**: Aprovado; auto-cadastro SaaS implementado. Observabilidade e perímetro (Slices 7–9) pendentes.
 - **Contexto**: O sistema originalmente possuía um "Setup Inicial" concebido para appliances on-premise de lojista único (`InitialOwnerSetupUseCase`), travando novos cadastros caso qualquer usuário existisse no banco. Para permitir que a dona do comércio e novos lojistas possam criar suas contas de forma independente, sem colisão de dados com contas de teste ou de desenvolvimento, fez-se necessária a evolução para um modelo SaaS com auto-cadastro. Adicionalmente, identificaram-se padrões de excelência nos projetos de referência do desenvolvedor (`argus`, `casa-de-leiloes` e `barbearia.js`) para guiar a evolução do sistema.
 - **Decisão**:
   1. **Auto-Cadastro SaaS Multi-Tenant (`RegisterMerchantUseCase`)**:

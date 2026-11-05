@@ -40,7 +40,7 @@ Este documento é a **fonte oficial da verdade** para as **regras de negócio** 
 ### 5. Usuários e Autorizações
 - Dois papéis iniciais: **Proprietária** e **Operador**.
 - Cada operador possui usuário individual, senha e um PIN de 4 dígitos para autorizações rápidas no balcão.
-- A proprietária possui PIN de autorização de **6 dígitos** (D-02, 2026-11-05).
+- A proprietária possui PIN de autorização de **6 dígitos** (D-02, 2026-11-05). *Pendente de implementação: os validadores de `RegisterMerchantSchema` e `InitialOwnerSetupSchema` ainda aceitam de 4 a 6 dígitos.*
 - Operadores não possuem e-mail; recuperação de senha de operadores é realizada diretamente pela proprietária.
 - A proprietária informa e-mail no setup inicial para recuperação de senha única via token criptográfico com expiração de 15 minutos.
 - Bloqueio temporário de conta após tentativas consecutivas de login inválidas.

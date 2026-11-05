@@ -1,6 +1,6 @@
 # Registro de Decisões — Meu Comércio
 
-Este documento é a **fonte oficial da verdade** para as decisões de negócio e arquitetura aprovadas no projeto **Meu Comércio**. Qualquer alteração de comportamento deve ser documentada aqui antes de ser refletida no código.
+Este documento é a **fonte oficial da verdade** para as **regras de negócio** do projeto **Meu Comércio**. Qualquer alteração de comportamento deve ser documentada aqui antes de ser refletida no código. Os registros de arquitetura (ADRs) ficam em `docs/DECISIONS.md`. Os ADRs explicam decisões técnicas e não definem regras de negócio. Se houver conflito, esta regra prevalece.
 
 ---
 
@@ -40,6 +40,7 @@ Este documento é a **fonte oficial da verdade** para as decisões de negócio e
 ### 5. Usuários e Autorizações
 - Dois papéis iniciais: **Proprietária** e **Operador**.
 - Cada operador possui usuário individual, senha e um PIN de 4 dígitos para autorizações rápidas no balcão.
+- A proprietária possui PIN de autorização de **6 dígitos** (D-02, 2026-11-05).
 - Operadores não possuem e-mail; recuperação de senha de operadores é realizada diretamente pela proprietária.
 - A proprietária informa e-mail no setup inicial para recuperação de senha única via token criptográfico com expiração de 15 minutos.
 - Bloqueio temporário de conta após tentativas consecutivas de login inválidas.
@@ -51,3 +52,28 @@ Este documento é a **fonte oficial da verdade** para as decisões de negócio e
 
 ### 7. Idempotência
 - Endpoints de finalização de venda e recebimento de webhooks exigem chave de idempotência (`Idempotency-Key` ou identificador único do evento), impedindo cobrança ou baixa duplicada por retentativas de rede.
+- Toda escrita que movimenta dinheiro exige `Idempotency-Key` (venda, cancelamento, sangria, suprimento, fiado, quitação) (D-05, 2026-11-05).
+
+---
+
+## Decisões de produto registradas em 2026-11-05
+
+Respostas do dono às perguntas da auditoria. Estas decisões prevalecem sobre texto anterior deste arquivo.
+
+- **D-01** Desconto exige usuário e PIN da proprietária, validados no servidor.
+- **D-02** PIN da proprietária: 6 dígitos. Operador: 4 dígitos (D-03).
+- **D-03** Operadores têm PIN de 4 dígitos.
+- **D-04** Operador com caixa aberto pode fazer sangria e suprimento, com motivo, sem PIN da dona.
+- **D-05** `Idempotency-Key` obrigatória em toda escrita que movimenta dinheiro. Pareceres de revisão ficam em `docs/reviews/`.
+- **D-06** Permissões individuais por operador ficam fora do MVP.
+- **D-07** Contas de demonstração são removidas da produção.
+- **D-08** O Brevo envia o e-mail de recuperação de PIN e senha da proprietária.
+- **D-09** A sessão de login dura até o caixa ser fechado, com revalidação do usuário em cada escrita sensível. Limite máximo pela D-16.
+- **D-10** Os contadores de rate limit ficam em uma tabela do Neon.
+- **D-11** Pagamentos divididos não entram na fila offline. A limitação fica documentada.
+- **D-12** Interface em pt-BR. Código, comentários, erros de desenvolvimento, documentação e commits em inglês.
+- **D-13** Relatórios e fechamento diário usam `America/Sao_Paulo`.
+- **D-14** Fiado no PDV gera uma venda do tipo `TAB`.
+- **D-15** Aviso persistente quando o caixa está aberto há 8 horas. Fica até o fechamento.
+- **D-16** Tempo máximo de sessão: 12 horas por padrão, mesmo com caixa aberto. A dona pode alterar entre 1 e 24 horas.
+- **D-17** O aviso de 8 horas apenas avisa. Nunca bloqueia vendas.

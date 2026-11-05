@@ -43,37 +43,37 @@ Este documento rastreia formalmente as fatias verticais de entrega, critérios d
 - [x] Reposição de estoque (`/api/inventory/restock`) com rastreamento e registro de auditoria.
 - **Status:** Concluído e Auditado ✅
 
-### [x] Slice 4: Vendas, Checkout e Split Payments
+### [ ] Slice 4: Vendas, Checkout e Split Payments
 - [x] 4.1 Schemas relacionais Drizzle `sales`, `sale_items` e `payments` com multi-tenancy estrito (`merchant_id`), chaves estrangeiras e integridade referencial.
 - [x] 4.2 Restrição única parcial para chave de idempotência (`merchant_id, idempotency_key WHERE idempotency_key IS NOT NULL`).
 - [x] 4.3 Entidades puras de domínio (`Sale`, `SaleItem`, `Payment`) com invariantes estritas e cálculos imutáveis via Value Object `Money`.
 - [x] 4.4 Validação compulsória de sessão de caixa aberta (`findCurrentOpenSession`) antes de autorizar qualquer venda.
-- [x] 4.5 Verificação de estoque disponível e dedução atômica por produto vendido com lançamento de movimentação `'SALE'`.
+- [ ] 4.5 Verificação de estoque disponível e dedução atômica por produto vendido com lançamento de movimentação `'SALE'`. *Reaberto: a dedução não é atômica nem tem lock (`create-sale.use-case.ts`); ver AC-08.*
 - [x] 4.6 Suporte a pagamentos múltiplos/divididos (Split Payments) em Dinheiro (`CASH`), PIX (`PIX`), Débito (`DEBIT_CARD`) e Crédito (`CREDIT_CARD`), garantindo soma exata do valor da venda.
 - [x] 4.7 Cálculo exato de troco para pagamentos em dinheiro com validação de valor recebido >= valor pago.
 - [x] 4.8 Registro automático de entrada de dinheiro (`SALE_RECEIPT`) no caixa aberto ativo quando houver componente em dinheiro.
 - [x] 4.9 Registro em trilha de auditoria imutável (`audit_events`) do evento `SALE_CONFIRMED`.
-- **Status:** Concluído e Auditado ✅ (PR Reviewer: PASS)
+- **Status:** Reaberto. 4.5 não é atômico. A alegação de PR Reviewer PASS não tem artefato em `docs/reviews/`.
 
-### [x] Slice 5: Clientes e Fiado / Crediário com PIN da Proprietária (customers)
+### [ ] Slice 5: Clientes e Fiado / Crediário com PIN da Proprietária (customers)
 - [x] 5.1 Schemas relacionais Drizzle `customers` e `customer_credit_ledger` com multi-tenancy estrito (`merchant_id`), chaves estrangeiras e integridade referencial.
 - [x] 5.2 Restrição de unicidade composta por `(merchant_id, phone)` impedindo cadastro duplicado de cliente por comércio.
 - [x] 5.3 Entidades de domínio puras `Customer` e `CreditMovement` com cálculos exatos baseados no Value Object `Money`.
 - [x] 5.4 `CreateCustomerUseCase`: cadastro de clientes com telefone obrigatório, limite inicial de crédito e emissão do evento de auditoria `CUSTOMER_CREATED`.
 - [x] 5.5 `GetCustomerBalanceUseCase`: consulta de saldo devedor consolidado (`SUM(DEBIT) - SUM(CREDIT)`) e crédito disponível em tempo real.
 - [x] 5.6 `AuthorizeCreditSaleUseCase`: verificação de limite disponível para compras a prazo; exigência e validação de PIN da proprietária (`ROLE_OWNER` via `bcrypt`) em caso de excesso de limite, com auditoria compulsória `CREDIT_SALE_LIMIT_AUTHORIZED`.
-- [x] 5.7 `SettleCustomerDebtUseCase`: quitação total ou parcial de dívida exigindo sessão de caixa aberta (`OPEN`), registrando entrada de dinheiro na gaveta (`DEBT_PAYMENT`), amortização no extrato e auditoria `CUSTOMER_DEBT_SETTLED`.
+- [ ] 5.7 `SettleCustomerDebtUseCase`: quitação total ou parcial de dívida exigindo sessão de caixa aberta (`OPEN`), registrando entrada de dinheiro na gaveta (`DEBT_PAYMENT`), amortização no extrato e auditoria `CUSTOMER_DEBT_SETTLED`. *Reaberto: sem transação nem trava sobre o saldo; ver AC-12.*
 - [x] 5.8 Tratamento de invariantes de domínio e erros de negócio explícitos (`CustomerNotFoundError`, `CustomerAlreadyExistsError`, `CustomerInactiveError`, `CreditLimitExceededError`, `InvalidOwnerPinError`, `DebtSettlementExceedsBalanceError`, `NoOpenCashSessionError`).
-- **Status:** Concluído e Auditado ✅ (109 testes aprovados, Veredito PR-Reviewer PASS) — Commit 33d423c
+- **Status:** Reaberto (5.7). Sem artefato de PR Reviewer em `docs/reviews/`. Commit 33d423c.
 
-### [x] Slice 6: Interface de PDV, Painel de Gestão e Modo Offline
+### [ ] Slice 6: Interface de PDV, Painel de Gestão e Modo Offline
 - [x] 6.1 Adaptação de Estilos Visuais (`src/frontend/styles/`): migração de `pdv.css` e `management.css` preservando tema de alto contraste, responsividade e layout em grid do terminal PDV.
 - [x] 6.2 Cliente HTTP Tipado (`src/frontend/lib/api-client.ts`): cliente `fetch` com `credentials: 'include'` conectado aos endpoints dos Slices 1 a 5 (`/api/auth/*`, `/api/cash/*`, `/api/products/*`, `/api/sales/*`, `/api/customers/*`).
-- [x] 6.3 Mecanismo de Contingência Offline (`src/frontend/lib/offline-sync.ts`): adaptação do `offlineStore.ts` com fila de vendas em dinheiro no `localStorage`, cache de produtos, chaves de idempotência e sincronização automática ao restabelecer conexão.
+- [ ] 6.3 Mecanismo de Contingência Offline (`src/frontend/lib/offline-sync.ts`): adaptação do `offlineStore.ts` com fila de vendas em dinheiro no `localStorage`, cache de produtos, chaves de idempotência e sincronização automática ao restabelecer conexão. *Reaberto: a interface gera nova chave a cada envio e o cache de produtos é sobrescrito; ver AC-50 e AC-51.*
 - [x] 6.4 Fluxo de Acesso e Abertura de Caixa (`src/app/login/page.tsx`): verificação de setup inicial (`/api/setup/status` e `/api/setup/owner`), autenticação de operador/dona (`/api/auth/login`) e abertura de caixa com saldo inicial (`/api/cash/open`).
-- [x] 6.5 Terminal de PDV e Checkout com Atalhos (`src/app/page.tsx`): leitura de código de barras ou busca por nome, controle do carrinho sem permitir estoque negativo, atalhos de teclado (`Enter`, `Esc`, `F2`–`F5`, `F7`, `F10`, `Ctrl+L`), split checkout e venda a fiado com PIN da proprietária.
+- [ ] 6.5 Terminal de PDV e Checkout com Atalhos (`src/app/page.tsx`): leitura de código de barras ou busca por nome, controle do carrinho sem permitir estoque negativo, atalhos de teclado (`Enter`, `Esc`, `F2`–`F5`, `F7`, `F10`, `Ctrl+L`), split checkout e venda a fiado com PIN da proprietária. *Reaberto: só `Esc`, `F2` e `F4` têm atalho; não há busca por nome na PDV; o carrinho não checa estoque; a venda fiado não cria venda. Ver AC-11, AC-52, AC-55, AC-59.*
 - [x] 6.6 Painel de Gestão (`src/app/gestao/page.tsx`): catálogo de produtos e reposição de estoque (`/api/inventory/restock`), clientes e extrato de fiado com quitação em caixa aberto (`/api/customers/[id]/settle`), e fechamento cego de caixa com justificativa de divergência (`/api/cash/close`).
-- [x] 6.7 Suíte de Testes Unitários de Frontend e Fila Offline: cobertura de testes para lógica de sincronização offline, cálculos do carrinho, regras de atalhos e split payment.
+- [ ] 6.7 Suíte de Testes Unitários de Frontend e Fila Offline: cobertura de testes para lógica de sincronização offline, cálculos do carrinho, regras de atalhos e split payment. *Reaberto: há testes de `src/frontend/lib` apenas; não há testes de atalhos, `page.tsx`, `gestao`, `login` ou `api-client`. Ver AC-56.*
 - [x] 6.8 Gestão e Cadastro de Operadores de Caixa: caso de uso `CreateOperatorUseCase`, endpoint `POST /api/users/operators` e aba dedicada em `/gestao` permitindo à proprietária criar acessos para funcionários do balcão (PR #5).
 - [x] 6.9 Paralelização e Otimização de Carregamento: consultas iniciais otimizadas via `Promise.all` em `/`, `/gestao` e `/login` reduzindo o tempo de carregamento perceptível.
 - [x] 6.10 Pipeline de CI/CD com Deploy Final na Vercel: automação com GitHub Actions executando o deploy em produção estritamente como 5ª etapa após Lint, Typecheck, 167 Testes e Build passarem verdes na `main` (PR #6 e PR #7).
@@ -116,10 +116,10 @@ Este documento rastreia formalmente as fatias verticais de entrega, critérios d
   - [x] 11.1.5 Endpoints HTTP e rotas de API `/api/cash/withdrawal` e `/api/cash/deposit`.
 - [x] 11.2 **Cancelamento e Estorno Atômico de Venda (CancelSaleUseCase)**:
   - [x] 11.2.1 Autorização mandatória via PIN da proprietária com reaproveitamento do `OwnerPinVerifier`.
-  - [x] 11.2.2 Reversão atômica: marca venda como `'CANCELLED'` e impede re-cancelamento.
+  - [ ] 11.2.2 Reversão atômica: marca venda como `'CANCELLED'` e impede re-cancelamento. *Reaberto: escritas sequenciais sem transação e sem update condicional (AC-10).*
   - [x] 11.2.3 Retorno dos itens ao estoque físico com movimentação de inventário do tipo `'RETURN'`.
   - [x] 11.2.4 Estorno de dinheiro na gaveta via movimentação `'CASH_CANCEL'` no caixa ativo (se houve pagamento em dinheiro e com validação de saldo).
-  - [x] 11.2.5 Amortização automática de fiado no extrato do cliente com movimento compensatório `'CREDIT'` (se a venda teve lançamento em fiado).
+  - [ ] 11.2.5 Amortização automática de fiado no extrato do cliente com movimento compensatório `'CREDIT'` (se a venda teve lançamento em fiado). *Reaberto: só roda com `externalReference`, que o PDV nunca envia; a venda fiado do PDV não cria venda (AC-11).*
   - [x] 11.2.6 Trilha de auditoria imutável compulsória do evento `'SALE_CANCELLED'`.
   - [x] 11.2.7 Rota de API `POST /api/sales/[id]/cancel`.
 - [x] 11.3 **Métricas de Fiado na Rua (GetCreditMetricsUseCase)**:
@@ -130,18 +130,18 @@ Este documento rastreia formalmente as fatias verticais de entrega, critérios d
 - [x] 11.4 **Estrutura de Impressão Térmica (58mm e 80mm)**:
   - [x] 11.4.1 Modelagem tipada para cupom não-fiscal de venda com cabeçalho, itens, totais, pagamentos, troco e rodapé.
   - [x] 11.4.2 Modelagem tipada para canhoto de fiado (nota promissória de caderneta) com histórico do débito e declaração de confissão de dívida para assinatura física.
-  - [x] 11.4.3 Folha de estilos `@media print` otimizada para bobinas de 58mm (32 colunas) e 80mm (48 colunas) sem quebra indevida de página.
+  - [ ] 11.4.3 Folha de estilos `@media print` otimizada para bobinas de 58mm (32 colunas) e 80mm (48 colunas) sem quebra indevida de página. *Reaberto: há `@media print`, mas nenhuma regra de 80mm (AC-62).*
 - **PR-Reviewer audit (items 11.1–11.4, historical):** Formal verdict **PASS** (zero findings, 231 tests passing).
 - **Status:** In progress. 11.5 and 11.6 are open.
 - [ ] 11.5 **Importação de Produtos em Lote (Excel/CSV)** (Próxima etapa).
 - [ ] 11.6 **Recuperação de Acesso e Redefinição de PIN da Proprietária** (Próxima etapa).
 
-### [x] Slice 12: Endurecimento Integral de Segurança (Defense-in-Depth)
-- [x] 12.1 **Cabeçalhos de Segurança HTTP OWASP**: Configuração em `next.config.ts` com CSP estrito, `X-Frame-Options: DENY`, `X-Content-Type-Options: nosniff`, `Referrer-Policy: strict-origin-when-cross-origin`, `Permissions-Policy` e HSTS.
-- [x] 12.2 **Rate Limiting Granular por IP**: Middleware de limitação de requisições com 5 req/min para autenticação (`/api/auth/*`), 20 req/min para checkout/venda (`POST /api/sales`), 30 req/min para caixa/fiado (`/api/cash/*`, `/api/customers/*`) e 60 req/min para catálogo (`/api/products/*`).
-- [x] 12.3 **Guardião de Origem Anti-CSRF**: Validação de cabeçalhos `Origin` e `Host` em todas as mutações (`POST`, `PUT`, `DELETE`).
-- [x] 12.4 **Honeypot Anti-Bot em Formulários**: Campo invisível para captura passiva de robôs de submissão automática em `/login`.
-- [x] 12.5 **Sanitização de Payloads e Limite de 1 MB**: Proteção estrita contra poluição de protótipo (`__proto__`, `constructor`) via Zod `strip`.
+### [ ] Slice 12: Endurecimento Integral de Segurança (Defense-in-Depth)
+- [ ] 12.1 **Cabeçalhos de Segurança HTTP OWASP**: Configuração em `next.config.ts` com `X-Frame-Options: DENY`, `X-Content-Type-Options: nosniff`, `Referrer-Policy`, `Permissions-Policy` e HSTS. *Reaberto: não há CSP em nenhum lugar do código (AC-32).*
+- [ ] 12.2 **Rate Limiting Granular por IP**: Middleware de limitação de requisições com 5 req/min para autenticação (`/api/auth/*`), 20 req/min para checkout/venda (`POST /api/sales`), 30 req/min para caixa/fiado (`/api/cash/*`, `/api/customers/*`) e 60 req/min para catálogo (`/api/products/*`). *Parcial: confia no primeiro `X-Forwarded-For` (AC-30); store em memória (AC-31); cancelamento com PIN cai no bucket de catálogo (AC-29).*
+- [ ] 12.3 **Guardião de Origem Anti-CSRF**: Validação de cabeçalhos `Origin` e `Host` em todas as mutações (`POST`, `PUT`, `DELETE`). *Reaberto: requisição sem `Origin` e sem `Referer` passa (AC-39).*
+- [ ] 12.4 **Honeypot Anti-Bot em Formulários**: Campo invisível para captura passiva de robôs de submissão automática em `/login`. *Reaberto: a checagem existe só no navegador; o servidor não valida (AC-34).*
+- [ ] 12.5 **Sanitização de Payloads e Limite de 1 MB**: Proteção contra poluição de protótipo via Zod `strip`. *Reaberto: não há limite de 1 MB nem resposta 413 (AC-33).*
 
 
 

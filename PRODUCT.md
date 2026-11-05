@@ -25,11 +25,11 @@ O sistema elimina retrabalho, previne furos de estoque e quebras de caixa, e per
 
 - [x] Fundação da arquitetura em Monólito Modular (Next.js + Neon + Vercel)
 - [x] Primitiva de precisão monetária (`Money` Value Object)
-- [ ] Autenticação, sessão de servidor segura e gestão de operadores
-- [ ] Catálogo de produtos com leitura de código de barras e precificação
-- [ ] Controle de estoque com bloqueio estrito de saldo negativo
-- [ ] Abertura e fechamento de turno de caixa com conferência cega
-- [ ] Fluxo de checkout com troco, split payments e chave de idempotência
-- [ ] Cadastro de clientes e gestão de limite de fiado
-- [ ] Trilha de auditoria imutável para ações sensíveis
+- [x] Autenticação, sessão de servidor segura e gestão de operadores
+- [x] Catálogo de produtos com leitura de código de barras e precificação
+- [x] Controle de estoque com bloqueio estrito de saldo negativo (no domínio; sem `CHECK` no banco)
+- [x] Abertura e fechamento de turno de caixa com conferência cega
+- [ ] Fluxo de checkout com troco, split payments e chave de idempotência (parcial: venda fiado no PDV e chave de idempotência da interface pendentes)
+- [x] Cadastro de clientes e gestão de limite de fiado
+- [x] Trilha de auditoria imutável para ações sensíveis
 - [ ] Relatórios de vendas e conciliação por método de pagamento

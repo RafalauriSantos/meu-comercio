@@ -482,63 +482,11 @@ export default function PdvTerminalPage() {
     setMessage(null);
 
     try {
-      // 1. Caso seja Venda Fiado
-      if (paymentMethod === 'TAB') {
-        if (!selectedCustomerId) {
-          setMessage({ text: 'Selecione o cliente para registrar o fiado.', isError: true });
-          setProcessing(false);
-          return;
-        }
-
-        try {
-          const creditRes = await apiClient.authorizeCreditSale(selectedCustomerId, {
-            saleAmount: totalMoney.toDecimal(),
-            ownerPin: pinToUse || ownerPin || undefined,
-            ownerUsername: user?.username,
-            note: 'Venda a fiado no balcão',
-          });
-
-          const selectedCustomer = customers.find((c) => c.id === selectedCustomerId);
-          const creditNoteText = formatCreditNote({
-            store: { name: 'Meu Comércio' },
-            saleId: creditRes.movementId.slice(0, 8),
-            date: new Date(),
-            customer: {
-              name: selectedCustomer?.name ?? 'Cliente Caderneta',
-              phone: selectedCustomer?.phone ?? '',
-            },
-            previousDebt: '0.00',
-            amount: totalMoney.toDecimal(),
-            newDebt: totalMoney.toDecimal(),
-            operatorName: user?.username,
-          });
-
-          setPrintModalData({
-            receiptText: creditNoteText,
-            creditNoteText,
-            activeTab: 'creditNote',
-          });
-
-          setMessage({
-            text: `Venda fiada de ${totalMoney.formatBrl()} registrada com sucesso na caderneta!`,
-          });
-          resetCartAndCheckout();
-          return;
-        } catch (creditErr) {
-          if (
-            creditErr instanceof ApiError &&
-            (creditErr.status === 403 || creditErr.message.includes('PIN') || creditErr.message.includes('limite'))
-          ) {
-            // Requer PIN da proprietária
-            setIsPinModalOpen(true);
-            setMessage({
-              text: 'Limite de fiado excedido ou necessária autorização da proprietária.',
-              isError: true,
-            });
-            return;
-          }
-          throw creditErr;
-        }
+      // Venda fiado: o cliente é obrigatório. A checagem de limite e o PIN
+      // da dona são feitos pelo servidor, em /api/sales.
+      if (paymentMethod === 'TAB' && !selectedCustomerId) {
+        setMessage({ text: 'Selecione o cliente para registrar o fiado.', isError: true });
+        return;
       }
 
       // 2. Venda Normal (Dinheiro, Cartão, PIX ou Dividida)
@@ -567,6 +515,7 @@ export default function PdvTerminalPage() {
           receivedAmount: p.receivedAmount ? p.receivedAmount.toDecimal() : undefined,
           externalReference: p.method === 'TAB' ? selectedCustomerId || undefined : undefined,
         })),
+        ownerPin: paymentMethod === 'TAB' ? (pinToUse || ownerPin || undefined) : undefined,
       };
 
       const idempotencyKey = crypto.randomUUID();
@@ -604,16 +553,47 @@ export default function PdvTerminalPage() {
         operatorName: user?.username,
       });
 
-      setPrintModalData({
-        receiptText,
-        activeTab: 'receipt',
-      });
+      if (paymentMethod === 'TAB') {
+        const selectedCustomer = customers.find((c) => c.id === selectedCustomerId);
+        const creditNoteText = formatCreditNote({
+          store: { name: 'Meu Comércio' },
+          saleId: saleRes.id.slice(0, 8),
+          date: new Date(),
+          customer: {
+            name: selectedCustomer?.name ?? 'Cliente Caderneta',
+            phone: selectedCustomer?.phone ?? '',
+          },
+          previousDebt: '0.00',
+          amount: cartSummary.total.toDecimal(),
+          newDebt: cartSummary.total.toDecimal(),
+          operatorName: user?.username,
+        });
+        setPrintModalData({
+          receiptText: creditNoteText,
+          creditNoteText,
+          activeTab: 'creditNote',
+        });
+      } else {
+        setPrintModalData({
+          receiptText,
+          activeTab: 'receipt',
+        });
+      }
 
       setMessage({
         text: `Venda #${saleRes.id.slice(0, 8)} confirmada com sucesso!${changeMsg}`,
       });
       resetCartAndCheckout();
     } catch (err) {
+      if (paymentMethod === 'TAB' && err instanceof ApiError && err.status === 403 && !pinToUse) {
+        setIsPinModalOpen(true);
+        setMessage({
+          text: 'Limite de fiado excedido ou necessária autorização da proprietária.',
+          isError: true,
+        });
+        return;
+      }
+
       if (
         paymentMethod === 'CASH' &&
         !isSplit &&

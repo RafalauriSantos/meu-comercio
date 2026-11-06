@@ -9,6 +9,15 @@ import { Product } from '@/modules/products/domain/product';
 import { InventoryItem, InsufficientStockError } from '@/modules/inventory/domain/inventory-item';
 import { CashSessionRepository } from '@/modules/cash/domain/cash-session-repository.port';
 import { AuditPort } from '@/modules/audit/domain/audit.port';
+import { CustomerRepository } from '@/modules/customers/domain/customer-repository.port';
+import { CustomerCreditRepository } from '@/modules/customers/domain/customer-credit-repository.port';
+import { OwnerPinVerifier } from '@/modules/customers/domain/owner-pin-verifier.port';
+import { CreditMovement } from '@/modules/customers/domain/credit-movement';
+import {
+  CustomerNotFoundError,
+  CreditLimitExceededError,
+  InvalidOwnerPinError,
+} from '@/modules/customers/domain/errors';
 
 export class DuplicateSaleRequestError extends Error {
   constructor(public readonly idempotencyKey: string) {
@@ -59,6 +68,14 @@ export interface CreateSaleDTO {
   discountAmount?: Money;
   discountReason?: string;
   idempotencyKey?: string | null;
+  ownerPin?: string;
+  ownerUsername?: string;
+}
+
+export interface CreditSaleDependencies {
+  customerRepository: CustomerRepository;
+  customerCreditRepository: CustomerCreditRepository;
+  ownerPinVerifier: OwnerPinVerifier;
 }
 
 interface ResolvedProduct {
@@ -73,7 +90,8 @@ export class CreateSaleUseCase {
     private readonly productRepository: ProductRepository,
     private readonly inventoryRepository: InventoryRepository,
     private readonly cashSessionRepository: CashSessionRepository,
-    private readonly auditPort: AuditPort
+    private readonly auditPort: AuditPort,
+    private readonly creditDeps?: CreditSaleDependencies
   ) {}
 
   public async execute(dto: CreateSaleDTO): Promise<Sale> {
@@ -91,6 +109,8 @@ export class CreateSaleUseCase {
       throw new Error('A venda deve conter pelo menos uma forma de pagamento.');
     }
 
+    const credit = await this.authorizeCreditPayment(dto);
+
     const resolvedProducts = await this.resolveAndValidateProducts(dto.merchantId, dto.items);
     const sale = this.buildSale(dto, openSession.id, resolvedProducts);
 
@@ -98,8 +118,92 @@ export class CreateSaleUseCase {
     await this.recordCashReceipt(dto.merchantId, openSession.id, sale);
     await this.saleRepository.save(sale);
     await this.recordAudit(dto, openSession.id, sale);
+    if (credit) {
+      await this.recordCreditDebit(dto, openSession.id, sale, credit);
+    }
 
     return sale;
+  }
+
+  private async authorizeCreditPayment(
+    dto: CreateSaleDTO
+  ): Promise<{ customerId: string; amount: Money; limitAuthorized: boolean } | null> {
+    const tabPayments = dto.payments.filter((p) => p.method === 'TAB');
+    if (tabPayments.length === 0) {
+      return null;
+    }
+    if (tabPayments.length > 1) {
+      throw new Error('A venda pode ter apenas um pagamento fiado.');
+    }
+    if (!this.creditDeps) {
+      throw new Error('Módulo de crédito não configurado.');
+    }
+
+    const tab = tabPayments[0];
+    const customerId = tab.externalReference;
+    if (!customerId) {
+      throw new Error('Cliente é obrigatório para venda fiado.');
+    }
+
+    const { customerRepository, customerCreditRepository, ownerPinVerifier } = this.creditDeps;
+    const customer = await customerRepository.findById(dto.merchantId, customerId);
+    if (!customer) {
+      throw new CustomerNotFoundError(customerId);
+    }
+    customer.ensureActive();
+
+    const balance = await customerCreditRepository.getBalance(dto.merchantId, customerId);
+    const exceedsLimit = customer.wouldExceedCreditLimit(balance.currentDebt, tab.amount);
+
+    if (exceedsLimit) {
+      if (!dto.ownerPin) {
+        throw new CreditLimitExceededError();
+      }
+      const isPinValid = await ownerPinVerifier.verifyOwnerPin(
+        dto.merchantId,
+        dto.ownerUsername ?? '',
+        dto.ownerPin
+      );
+      if (!isPinValid) {
+        throw new InvalidOwnerPinError();
+      }
+    }
+
+    return { customerId, amount: tab.amount, limitAuthorized: exceedsLimit };
+  }
+
+  private async recordCreditDebit(
+    dto: CreateSaleDTO,
+    cashSessionId: string,
+    sale: Sale,
+    credit: { customerId: string; amount: Money; limitAuthorized: boolean }
+  ): Promise<void> {
+    const movement = CreditMovement.create({
+      merchantId: dto.merchantId,
+      customerId: credit.customerId,
+      type: 'DEBIT',
+      amount: credit.amount,
+      operatorId: dto.operatorId,
+      saleId: sale.id,
+      cashSessionId,
+      note: 'Venda fiado',
+    });
+    await this.creditDeps!.customerCreditRepository.saveMovement(movement);
+
+    if (credit.limitAuthorized) {
+      await this.auditPort.record(
+        dto.merchantId,
+        'CREDIT_SALE_LIMIT_AUTHORIZED',
+        dto.operatorId,
+        'CUSTOMER',
+        credit.customerId,
+        {
+          saleAmount: credit.amount.toDecimal(),
+          saleId: sale.id,
+          authorizedBy: 'owner-pin',
+        }
+      );
+    }
   }
 
   private async checkIdempotency(merchantId: string, idempotencyKey?: string | null): Promise<void> {

@@ -16,6 +16,15 @@ import {
 import { InsufficientStockError } from '@/modules/inventory/domain/inventory-item';
 import { Money } from '@/shared/domain/money';
 import { PaymentMethod } from '@/modules/sales/domain/payment';
+import { DrizzleCustomerRepository } from '@/modules/customers/infrastructure/drizzle-customer-repository';
+import { DrizzleCustomerCreditRepository } from '@/modules/customers/infrastructure/drizzle-customer-credit-repository';
+import { BcryptOwnerPinVerifier } from '@/modules/customers/infrastructure/bcrypt-owner-pin-verifier';
+import {
+  CustomerNotFoundError,
+  CustomerInactiveError,
+  CreditLimitExceededError,
+  InvalidOwnerPinError,
+} from '@/modules/customers/domain/errors';
 
 const isValidMoney = (val: unknown, check: (m: Money) => boolean) => {
   if (val === undefined || val === null) return true;
@@ -35,7 +44,7 @@ const SaleItemSchema = z.object({
 });
 
 const PaymentSchema = z.object({
-  method: z.enum(['CASH', 'PIX', 'DEBIT_CARD', 'CREDIT_CARD'], {
+  method: z.enum(['CASH', 'PIX', 'DEBIT_CARD', 'CREDIT_CARD', 'TAB'], {
     message: 'Método de pagamento inválido.',
   }),
   amount: z.union([z.number(), z.string()]).refine(
@@ -59,6 +68,8 @@ const CreateSaleBodySchema = z.object({
   ),
   discountReason: z.string().trim().optional().nullable(),
   idempotencyKey: z.string().trim().optional().nullable(),
+  ownerPin: z.string().trim().optional(),
+  ownerUsername: z.string().trim().optional(),
 });
 
 export async function POST(request: NextRequest) {
@@ -76,7 +87,12 @@ export async function POST(request: NextRequest) {
       new DrizzleProductRepository(),
       new DrizzleInventoryRepository(),
       new DrizzleCashSessionRepository(),
-      new DrizzleAuditAdapter()
+      new DrizzleAuditAdapter(),
+      {
+        customerRepository: new DrizzleCustomerRepository(),
+        customerCreditRepository: new DrizzleCustomerCreditRepository(),
+        ownerPinVerifier: new BcryptOwnerPinVerifier(),
+      }
     );
 
     const sale = await useCase.execute({
@@ -93,6 +109,8 @@ export async function POST(request: NextRequest) {
       discountAmount: toMoneyOrUndefined(parsed.discountAmount),
       discountReason: parsed.discountReason ?? undefined,
       idempotencyKey,
+      ownerPin: parsed.ownerPin || undefined,
+      ownerUsername: parsed.ownerUsername || undefined,
     });
 
     return NextResponse.json(sale.toJSON(), { status: 201 });
@@ -115,6 +133,21 @@ export async function POST(request: NextRequest) {
       error instanceof ProductInactiveError
     ) {
       return NextResponse.json({ message: error.message }, { status: 400 });
+    }
+    if (error instanceof CreditLimitExceededError) {
+      return NextResponse.json(
+        { message: 'Limite de crédito excedido. Necessária autorização com PIN da dona.' },
+        { status: 403 }
+      );
+    }
+    if (error instanceof InvalidOwnerPinError) {
+      return NextResponse.json({ message: 'PIN de autorização da proprietária inválido.' }, { status: 403 });
+    }
+    if (error instanceof CustomerNotFoundError) {
+      return NextResponse.json({ message: 'Cliente não encontrado.' }, { status: 404 });
+    }
+    if (error instanceof CustomerInactiveError) {
+      return NextResponse.json({ message: 'Cliente inativo não pode comprar fiado.' }, { status: 400 });
     }
     if (error instanceof ZodError) {
       return NextResponse.json(

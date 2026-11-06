@@ -99,6 +99,7 @@ export interface CreateSalePayload {
   discountAmount?: string | number | null;
   discountReason?: string | null;
   idempotencyKey?: string | null;
+  ownerPin?: string;
 }
 
 export interface SaleResponse {

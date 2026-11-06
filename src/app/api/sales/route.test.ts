@@ -12,6 +12,12 @@ import {
   DuplicateSaleRequestError,
   ProductNotFoundError,
 } from '@/modules/sales/application/create-sale.use-case';
+import {
+  CreditLimitExceededError,
+  CustomerInactiveError,
+  CustomerNotFoundError,
+  InvalidOwnerPinError,
+} from '@/modules/customers/domain/errors';
 
 // Mocks
 const mockRequireAuthenticatedSession = vi.fn();
@@ -169,6 +175,37 @@ describe('Sales API Routes', () => {
 
       const response = await POST(request);
       expect(response.status).toBe(404);
+    });
+  });
+
+  describe('POST /api/sales — erros de fiado', () => {
+    const fiadoBody = JSON.stringify({
+      items: [{ productId: 'prod-1', quantity: 1 }],
+      payments: [{ method: 'TAB', amount: '25.50', externalReference: 'cust-1' }],
+    });
+
+    it('deve mapear CreditLimitExceededError para 403', async () => {
+      mockExecuteCreateSale.mockRejectedValue(new CreditLimitExceededError());
+      const response = await POST(new NextRequest('http://localhost:3000/api/sales', { method: 'POST', body: fiadoBody }));
+      expect(response.status).toBe(403);
+    });
+
+    it('deve mapear InvalidOwnerPinError para 403', async () => {
+      mockExecuteCreateSale.mockRejectedValue(new InvalidOwnerPinError());
+      const response = await POST(new NextRequest('http://localhost:3000/api/sales', { method: 'POST', body: fiadoBody }));
+      expect(response.status).toBe(403);
+    });
+
+    it('deve mapear CustomerNotFoundError para 404', async () => {
+      mockExecuteCreateSale.mockRejectedValue(new CustomerNotFoundError('cust-1'));
+      const response = await POST(new NextRequest('http://localhost:3000/api/sales', { method: 'POST', body: fiadoBody }));
+      expect(response.status).toBe(404);
+    });
+
+    it('deve mapear CustomerInactiveError para 400', async () => {
+      mockExecuteCreateSale.mockRejectedValue(new CustomerInactiveError('cust-1'));
+      const response = await POST(new NextRequest('http://localhost:3000/api/sales', { method: 'POST', body: fiadoBody }));
+      expect(response.status).toBe(400);
     });
   });
 

@@ -4,7 +4,6 @@ import { POST as createCustomerPost, GET as listCustomersGet } from './route';
 import { GET as searchCustomersGet } from './search/route';
 import { GET as getCustomerBalanceGet } from './[id]/balance/route';
 import { POST as settleCustomerDebtPost } from './[id]/settle/route';
-import { POST as authorizeCreditSalePost } from './[id]/authorize-credit/route';
 import { Money } from '@/shared/domain/money';
 import { Customer } from '@/modules/customers/domain/customer';
 import { CreditMovement } from '@/modules/customers/domain/credit-movement';
@@ -50,13 +49,6 @@ const mockExecuteSettleCustomerDebt = vi.fn();
 vi.mock('@/modules/customers/application/settle-customer-debt.use-case', () => ({
   SettleCustomerDebtUseCase: class MockSettleCustomerDebtUseCase {
     execute = mockExecuteSettleCustomerDebt;
-  },
-}));
-
-const mockExecuteAuthorizeCreditSale = vi.fn();
-vi.mock('@/modules/customers/application/authorize-credit-sale.use-case', () => ({
-  AuthorizeCreditSaleUseCase: class MockAuthorizeCreditSaleUseCase {
-    execute = mockExecuteAuthorizeCreditSale;
   },
 }));
 
@@ -308,77 +300,6 @@ describe('Customers API Routes', () => {
       expect(json.amount).toBe('50.00');
       expect(json.remainingDebt).toBe('25.00');
       expect(json.cashSessionId).toBe('session-123');
-    });
-  });
-
-  describe('POST /api/customers/[id]/authorize-credit', () => {
-    it('deve retornar 403 se limite for excedido e nenhum PIN for informado', async () => {
-      mockExecuteAuthorizeCreditSale.mockRejectedValue(new CreditLimitExceededError());
-
-      const request = new NextRequest('http://localhost:3000/api/customers/cust-1/authorize-credit', {
-        method: 'POST',
-        body: JSON.stringify({ saleAmount: '250.00' }),
-      });
-
-      const response = await authorizeCreditSalePost(request, {
-        params: Promise.resolve({ id: 'cust-1' }),
-      });
-
-      expect(response.status).toBe(403);
-      const json = await response.json();
-      expect(json.message).toContain('Limite de crédito excedido');
-    });
-
-    it('deve retornar 403 se PIN da dona informado for incorreto', async () => {
-      mockExecuteAuthorizeCreditSale.mockRejectedValue(new InvalidOwnerPinError());
-
-      const request = new NextRequest('http://localhost:3000/api/customers/cust-1/authorize-credit', {
-        method: 'POST',
-        body: JSON.stringify({ saleAmount: '250.00', ownerPin: '9999' }),
-      });
-
-      const response = await authorizeCreditSalePost(request, {
-        params: Promise.resolve({ id: 'cust-1' }),
-      });
-
-      expect(response.status).toBe(403);
-      const json = await response.json();
-      expect(json.message).toContain('PIN de autorização da proprietária inválido');
-    });
-
-    it('deve autorizar com sucesso com PIN da proprietária e retornar 200', async () => {
-      const movement = CreditMovement.create({
-        id: 'mov-debit-1',
-        merchantId,
-        customerId: 'cust-1',
-        type: 'DEBIT',
-        amount: Money.fromDecimal('250.00'),
-        operatorId: username,
-        authorizedBy: 'owner',
-      });
-
-      mockExecuteAuthorizeCreditSale.mockResolvedValue({
-        authorized: true,
-        movement,
-        requiresOwnerPin: true,
-        authorizedBy: 'owner',
-      });
-
-      const request = new NextRequest('http://localhost:3000/api/customers/cust-1/authorize-credit', {
-        method: 'POST',
-        body: JSON.stringify({ saleAmount: '250.00', ownerPin: '1234' }),
-      });
-
-      const response = await authorizeCreditSalePost(request, {
-        params: Promise.resolve({ id: 'cust-1' }),
-      });
-
-      expect(response.status).toBe(200);
-      const json = await response.json();
-      expect(json.authorized).toBe(true);
-      expect(json.requiresOwnerPin).toBe(true);
-      expect(json.authorizedBy).toBe('owner');
-      expect(json.saleAmount).toBe('250.00');
     });
   });
 });

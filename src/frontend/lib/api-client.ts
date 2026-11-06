@@ -99,6 +99,7 @@ export interface CreateSalePayload {
   discountAmount?: string | number | null;
   discountReason?: string | null;
   idempotencyKey?: string | null;
+  ownerPin?: string;
 }
 
 export interface SaleResponse {
@@ -273,28 +274,6 @@ export const apiClient = {
     }),
   getCustomerBalance: (customerId: string) =>
     apiRequest<CustomerBalance>(`/api/customers/${encodeURIComponent(customerId)}/balance`),
-  authorizeCreditSale: (
-    customerId: string,
-    payload: {
-      saleAmount: number | string;
-      ownerPin?: string;
-      ownerUsername?: string;
-      saleId?: string;
-      note?: string;
-    }
-  ) =>
-    apiRequest<{
-      authorized: boolean;
-      movementId: string;
-      requiresOwnerPin: boolean;
-      authorizedBy: string;
-      saleAmount: string;
-      customerId: string;
-      createdAt: string;
-    }>(`/api/customers/${encodeURIComponent(customerId)}/authorize-credit`, {
-      method: 'POST',
-      body: JSON.stringify(payload),
-    }),
   settleCustomerDebt: (
     customerId: string,
     payload: {

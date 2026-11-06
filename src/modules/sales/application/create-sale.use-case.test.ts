@@ -1,3 +1,9 @@
+import { Customer } from '@/modules/customers/domain/customer';
+import { CustomerRepository } from '@/modules/customers/domain/customer-repository.port';
+import { CustomerCreditRepository, CustomerCreditBalance, CreditMetrics } from '@/modules/customers/domain/customer-credit-repository.port';
+import { CreditMovement } from '@/modules/customers/domain/credit-movement';
+import { CustomerNotFoundError, CustomerInactiveError, CreditLimitExceededError, InvalidOwnerPinError } from '@/modules/customers/domain/errors';
+import { OwnerPinVerifier } from '@/modules/customers/domain/owner-pin-verifier.port';
 import { describe, it, expect, beforeEach } from 'vitest';
 import { Money } from '@/shared/domain/money';
 import { Sale } from '../domain/sale';
@@ -895,5 +901,313 @@ describe('CreateSaleUseCase — Slice 4: Vendas, Checkout e Split Payments', () 
         'Parcelamento só é permitido para pagamento com cartão de crédito.'
       );
     });
+  });
+});
+
+class InMemoryCustomerRepo implements CustomerRepository {
+  public customers: Map<string, Customer> = new Map();
+  async save(customer: Customer): Promise<void> {
+    this.customers.set(`${customer.merchantId}:${customer.id}`, customer);
+  }
+  async findById(merchantId: string, customerId: string): Promise<Customer | null> {
+    return this.customers.get(`${merchantId}:${customerId}`) ?? null;
+  }
+  async findByPhone(): Promise<Customer | null> {
+    return null;
+  }
+  async findAllActive(): Promise<Customer[]> {
+    return [];
+  }
+  async search(): Promise<Customer[]> {
+    return [];
+  }
+}
+
+class InMemoryCreditRepo implements CustomerCreditRepository {
+  public movements: CreditMovement[] = [];
+  async saveMovement(movement: CreditMovement): Promise<void> {
+    this.movements.push(movement);
+  }
+  async getBalance(merchantId: string, customerId: string): Promise<CustomerCreditBalance> {
+    let debits = Money.zero();
+    let credits = Money.zero();
+    for (const m of this.movements) {
+      if (m.merchantId !== merchantId || m.customerId !== customerId) continue;
+      if (m.type === 'DEBIT') debits = debits.add(m.amount);
+      else credits = credits.add(m.amount);
+    }
+    return { currentDebt: debits.subtract(credits), totalDebits: debits, totalCredits: credits };
+  }
+  async getMovementsByCustomerId(merchantId: string, customerId: string): Promise<CreditMovement[]> {
+    return this.movements.filter((m) => m.merchantId === merchantId && m.customerId === customerId);
+  }
+  async getCreditMetrics(): Promise<CreditMetrics> {
+    return { totalOutstandingCredit: Money.zero(), totalSettledCredit: Money.zero(), activeDebtorsCount: 0 };
+  }
+}
+
+class FakeOwnerPinVerifier implements OwnerPinVerifier {
+  constructor(private readonly validPin: string, private readonly ownerName = 'dona-maria') {}
+  async verifyOwnerPin(_merchantId: string, _ownerUsername: string, pin: string): Promise<boolean> {
+    return pin === this.validPin;
+  }
+  async authorizeOwnerPin(_merchantId: string, _ownerUsername: string, pin: string): Promise<string | null> {
+    return pin === this.validPin ? this.ownerName : null;
+  }
+}
+
+describe('CreateSaleUseCase — venda fiado (TAB)', () => {
+  const MERCHANT_ID = 'merch-fiado-01';
+  const OPERATOR_ID = 'op-fiado';
+  const SESSION_ID = 'cash-session-fiado';
+  const OWNER_PIN = '123456';
+
+  let saleRepo: InMemorySaleRepository;
+  let productRepo: InMemoryProductRepository;
+  let inventoryRepo: InMemoryInventoryRepository;
+  let cashRepo: InMemoryCashSessionRepository;
+  let auditPort: InMemoryAuditPort;
+  let customerRepo: InMemoryCustomerRepo;
+  let creditRepo: InMemoryCreditRepo;
+  let useCase: CreateSaleUseCase;
+  let rice: Product;
+  let customer: Customer;
+
+  beforeEach(async () => {
+    saleRepo = new InMemorySaleRepository();
+    productRepo = new InMemoryProductRepository();
+    inventoryRepo = new InMemoryInventoryRepository();
+    cashRepo = new InMemoryCashSessionRepository();
+    auditPort = new InMemoryAuditPort();
+    customerRepo = new InMemoryCustomerRepo();
+    creditRepo = new InMemoryCreditRepo();
+
+    useCase = new CreateSaleUseCase(saleRepo, productRepo, inventoryRepo, cashRepo, auditPort, {
+      customerRepository: customerRepo,
+      customerCreditRepository: creditRepo,
+      ownerPinVerifier: new FakeOwnerPinVerifier(OWNER_PIN),
+    });
+
+    await cashRepo.openSession(
+      CashSession.create(MERCHANT_ID, OPERATOR_ID, Money.fromDecimal('100.00'), SESSION_ID)
+    );
+
+    rice = Product.create(MERCHANT_ID, '789111100001', 'Arroz Branco 5kg', Money.fromDecimal('25.50'), 'prod-arroz');
+    await productRepo.save(rice);
+    await inventoryRepo.save(
+      new InventoryItem({ merchantId: MERCHANT_ID, productId: rice.id, availableQuantity: 50, updatedAt: new Date() })
+    );
+
+    customer = Customer.create({
+      merchantId: MERCHANT_ID,
+      name: 'Dona Maria',
+      phone: '11999990000',
+      creditLimit: Money.fromDecimal('100.00'),
+    });
+    await customerRepo.save(customer);
+  });
+
+  function tabSale(
+    tabAmount: string,
+    extra: Partial<CreateSaleDTO> & { customerId?: string | null } = {}
+  ): CreateSaleDTO {
+    const { customerId, ...rest } = extra;
+    return {
+      merchantId: MERCHANT_ID,
+      operatorId: OPERATOR_ID,
+      items: [{ productId: rice.id, quantity: 1 }],
+      payments: [
+        {
+          method: 'TAB',
+          amount: Money.fromDecimal(tabAmount),
+          externalReference: customerId === undefined ? customer.id : customerId,
+        },
+      ],
+      idempotencyKey: null,
+      ...rest,
+    };
+  }
+
+  it('registra venda fiado: venda confirmada, estoque baixado e débito no extrato do cliente, sem entrada no caixa', async () => {
+    const sale = await useCase.execute(tabSale('25.50'));
+
+    expect(sale.status).toBe('CONFIRMED');
+    expect(sale.payments[0].method).toBe('TAB');
+    expect((await inventoryRepo.findByProductId(MERCHANT_ID, rice.id))!.availableQuantity).toBe(49);
+    expect(creditRepo.movements).toHaveLength(1);
+    expect(creditRepo.movements[0].type).toBe('DEBIT');
+    expect(creditRepo.movements[0].amount.toDecimal()).toBe('25.50');
+    expect(creditRepo.movements[0].saleId).toBe(sale.id);
+    expect(cashRepo.movements.filter((m) => m.movementType === 'SALE_RECEIPT')).toHaveLength(0);
+  });
+
+  it('debita apenas a parte fiado quando a venda é dividida com PIX', async () => {
+    const dto = tabSale('20.00');
+    dto.payments.push({ method: 'PIX', amount: Money.fromDecimal('5.50') });
+    const sale = await useCase.execute(dto);
+
+    expect(sale.status).toBe('CONFIRMED');
+    expect(creditRepo.movements).toHaveLength(1);
+    expect(creditRepo.movements[0].amount.toDecimal()).toBe('20.00');
+  });
+
+  it('rejeita venda fiado sem cliente informado', async () => {
+    await expect(useCase.execute(tabSale('25.50', { customerId: null }))).rejects.toThrow(
+      'Cliente é obrigatório para venda fiado.'
+    );
+    expect(saleRepo.sales.size).toBe(0);
+  });
+
+  it('rejeita venda fiado para cliente inexistente', async () => {
+    await expect(useCase.execute(tabSale('25.50', { customerId: 'cliente-que-nao-existe' }))).rejects.toThrow(
+      CustomerNotFoundError
+    );
+    expect(saleRepo.sales.size).toBe(0);
+  });
+
+  it('rejeita venda fiado para cliente inativo', async () => {
+    const inactive = Customer.create({
+      merchantId: MERCHANT_ID,
+      name: 'Inativo',
+      phone: '11888880000',
+      creditLimit: Money.fromDecimal('100.00'),
+      active: false,
+    });
+    await customerRepo.save(inactive);
+    await expect(useCase.execute(tabSale('25.50', { customerId: inactive.id }))).rejects.toThrow(CustomerInactiveError);
+    expect(saleRepo.sales.size).toBe(0);
+  });
+
+  it('rejeita venda que estoura o limite de fiado sem PIN da dona, sem baixar estoque', async () => {
+    await creditRepo.saveMovement(
+      CreditMovement.create({
+        merchantId: MERCHANT_ID,
+        customerId: customer.id,
+        type: 'DEBIT',
+        amount: Money.fromDecimal('90.00'),
+        operatorId: OPERATOR_ID,
+      })
+    );
+
+    await expect(useCase.execute(tabSale('25.50'))).rejects.toThrow(CreditLimitExceededError);
+    expect(saleRepo.sales.size).toBe(0);
+    expect((await inventoryRepo.findByProductId(MERCHANT_ID, rice.id))!.availableQuantity).toBe(50);
+  });
+
+  it('aceita venda que estoura o limite com PIN válido da dona e registra autorização na auditoria', async () => {
+    await creditRepo.saveMovement(
+      CreditMovement.create({
+        merchantId: MERCHANT_ID,
+        customerId: customer.id,
+        type: 'DEBIT',
+        amount: Money.fromDecimal('90.00'),
+        operatorId: OPERATOR_ID,
+      })
+    );
+
+    const sale = await useCase.execute(tabSale('25.50', { ownerPin: OWNER_PIN }));
+
+    expect(sale.status).toBe('CONFIRMED');
+    expect(auditPort.records.some((r) => r.eventType === 'CREDIT_SALE_LIMIT_AUTHORIZED')).toBe(true);
+  });
+
+  it('registra no débito e na auditoria qual dona autorizou o estouro do limite', async () => {
+    await creditRepo.saveMovement(
+      CreditMovement.create({
+        merchantId: MERCHANT_ID,
+        customerId: customer.id,
+        type: 'DEBIT',
+        amount: Money.fromDecimal('90.00'),
+        operatorId: OPERATOR_ID,
+      })
+    );
+
+    const sale = await useCase.execute(tabSale('25.50', { ownerPin: OWNER_PIN }));
+
+    const debit = creditRepo.movements.find((m) => m.type === 'DEBIT' && m.saleId === sale.id)!;
+    expect(debit.authorizedBy).toBe('dona-maria');
+    const authorized = auditPort.records.find((r) => r.eventType === 'CREDIT_SALE_LIMIT_AUTHORIZED')!;
+    expect(authorized.details.authorizedBy).toBe('dona-maria');
+  });
+
+  it('rejeita venda que estoura o limite com PIN inválido da dona', async () => {
+    await creditRepo.saveMovement(
+      CreditMovement.create({
+        merchantId: MERCHANT_ID,
+        customerId: customer.id,
+        type: 'DEBIT',
+        amount: Money.fromDecimal('90.00'),
+        operatorId: OPERATOR_ID,
+      })
+    );
+
+    await expect(useCase.execute(tabSale('25.50', { ownerPin: '000000' }))).rejects.toThrow(InvalidOwnerPinError);
+    expect(saleRepo.sales.size).toBe(0);
+  });
+
+  it('rejeita venda fiado quando o caso de uso não tem o módulo de crédito configurado', async () => {
+    const bare = new CreateSaleUseCase(saleRepo, productRepo, inventoryRepo, cashRepo, auditPort);
+    await expect(bare.execute(tabSale('25.50'))).rejects.toThrow('Módulo de crédito não configurado.');
+  });
+
+  it('rejeita cliente de outra loja, mesmo com o mesmo id', async () => {
+    const otherMerchant = Customer.create({
+      merchantId: 'merch-outra-loja',
+      name: 'Outra loja',
+      phone: '11777770000',
+      creditLimit: Money.fromDecimal('100.00'),
+    });
+    await customerRepo.save(otherMerchant);
+    await expect(useCase.execute(tabSale('25.50', { customerId: otherMerchant.id }))).rejects.toThrow(
+      CustomerNotFoundError
+    );
+    expect(saleRepo.sales.size).toBe(0);
+  });
+
+  it('aceita venda que chega exatamente ao limite de fiado sem PIN da dona', async () => {
+    await creditRepo.saveMovement(
+      CreditMovement.create({
+        merchantId: MERCHANT_ID,
+        customerId: customer.id,
+        type: 'DEBIT',
+        amount: Money.fromDecimal('74.50'),
+        operatorId: OPERATOR_ID,
+      })
+    );
+
+    const sale = await useCase.execute(tabSale('25.50'));
+
+    expect(sale.status).toBe('CONFIRMED');
+    expect(creditRepo.movements).toHaveLength(2);
+    expect(auditPort.records.some((r) => r.eventType === 'CREDIT_SALE_LIMIT_AUTHORIZED')).toBe(false);
+  });
+
+  it('não grava segundo débito quando a mesma chave de idempotência é reenviada', async () => {
+    await useCase.execute(tabSale('25.50', { idempotencyKey: 'chave-fiado-1' }));
+
+    await expect(
+      useCase.execute(tabSale('25.50', { idempotencyKey: 'chave-fiado-1' }))
+    ).rejects.toThrow(DuplicateSaleRequestError);
+
+    expect(creditRepo.movements).toHaveLength(1);
+    expect(saleRepo.sales.size).toBe(1);
+  });
+
+  it('mantém estoque e extrato intactos quando o PIN da dona é inválido', async () => {
+    await creditRepo.saveMovement(
+      CreditMovement.create({
+        merchantId: MERCHANT_ID,
+        customerId: customer.id,
+        type: 'DEBIT',
+        amount: Money.fromDecimal('90.00'),
+        operatorId: OPERATOR_ID,
+      })
+    );
+
+    await expect(useCase.execute(tabSale('25.50', { ownerPin: '000000' }))).rejects.toThrow(InvalidOwnerPinError);
+
+    expect((await inventoryRepo.findByProductId(MERCHANT_ID, rice.id))!.availableQuantity).toBe(50);
+    expect(creditRepo.movements).toHaveLength(1);
+    expect(cashRepo.movements.filter((m) => m.movementType === 'SALE_RECEIPT')).toHaveLength(0);
   });
 });

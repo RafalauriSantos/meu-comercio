@@ -10,8 +10,8 @@ O sistema elimina retrabalho, previne furos de estoque e quebras de caixa, e per
 
 ### 1. Proprietária (Dona da Loja)
 - Possui controle irrestrito sobre o comércio.
-- Configura operadores e permissões individuais (`CREATE_SALE`, `OPEN_CASH`, `CLOSE_CASH`).
-- Autoriza operações críticas no balcão mediante confirmação de senha ou PIN rápido de 4 dígitos (descontos, estornos, quebras de caixa, fiado acima do limite).
+- Configura operadores. Permissões individuais estão fora do MVP (D-06).
+- Autoriza operações críticas no balcão mediante confirmação do PIN da proprietária de 6 dígitos (descontos, estornos, quebras de caixa, fiado acima do limite). Descontos exigem usuário e PIN da proprietária (D-01). *Pendente: quebras de caixa ainda não pedem PIN da dona.* Operadores usam PIN de 4 dígitos (ver `DECISIONS.md`, D-02 e D-03). *Pendente de implementação: os validadores ainda aceitam 4 a 6 dígitos para a proprietária, não há validador de PIN de operador, e descontos ainda não exigem o PIN da dona.*
 - Acessa relatórios diários de vendas, faturamento por forma de pagamento, conferência de caixa e estoque baixo.
 
 ### 2. Operador de Caixa
@@ -29,7 +29,7 @@ O sistema elimina retrabalho, previne furos de estoque e quebras de caixa, e per
 - [x] Catálogo de produtos com leitura de código de barras e precificação
 - [x] Controle de estoque com bloqueio estrito de saldo negativo (no domínio; sem `CHECK` no banco)
 - [x] Abertura e fechamento de turno de caixa com conferência cega
-- [ ] Fluxo de checkout com troco, split payments e chave de idempotência (parcial: venda fiado no PDV e chave de idempotência da interface pendentes)
+- [ ] Fluxo de checkout com troco, split payments e chave de idempotência (parcial: fiado simples no PDV não cria venda; a interface envia uma chave nova a cada envio, então um reenvio não é deduplicado)
 - [x] Cadastro de clientes e gestão de limite de fiado
-- [x] Trilha de auditoria imutável para ações sensíveis
+- [ ] Trilha de auditoria imutável para ações sensíveis (parcial: registros são gravados, mas não há bloqueio de UPDATE e DELETE em `audit_events`)
 - [ ] Relatórios de vendas e conciliação por método de pagamento

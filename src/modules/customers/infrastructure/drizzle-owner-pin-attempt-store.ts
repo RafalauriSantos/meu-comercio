@@ -1,12 +1,17 @@
-import { and, eq, isNull, lte, sql } from 'drizzle-orm';
-import { db } from '@/shared/infrastructure/db/connection';
+import { and, eq, sql } from 'drizzle-orm';
+import { db as defaultDb } from '@/shared/infrastructure/db/connection';
+import type { PgDatabase, PgQueryResultHKT } from 'drizzle-orm/pg-core';
 import { ownerPinAttempts } from './customers.schema';
 import { OwnerPinAttemptState, OwnerPinAttemptStore } from '../domain/owner-pin-attempt.port';
 import { NO_OWNER_PIN_ATTEMPTS, OWNER_PIN_LOCK_MINUTES, OWNER_PIN_MAX_FAILURES } from '../domain/owner-pin-lockout';
 
+export type OwnerPinDatabase = PgDatabase<PgQueryResultHKT, Record<string, unknown>, never>;
+
 export class DrizzleOwnerPinAttemptStore implements OwnerPinAttemptStore {
+  constructor(private readonly database: OwnerPinDatabase = defaultDb as unknown as OwnerPinDatabase) {}
+
   async getState(merchantId: string): Promise<OwnerPinAttemptState> {
-    const [row] = await db
+    const [row] = await this.database
       .select({ failedCount: ownerPinAttempts.failedCount, lockedUntil: ownerPinAttempts.lockedUntil })
       .from(ownerPinAttempts)
       .where(eq(ownerPinAttempts.merchantId, merchantId))
@@ -23,7 +28,7 @@ export class DrizzleOwnerPinAttemptStore implements OwnerPinAttemptStore {
       return true;
     }
 
-    const inserted = await db
+    const inserted = await this.database
       .insert(ownerPinAttempts)
       .values({ merchantId, failedCount: 1, lockedUntil: null, updatedAt: now })
       .onConflictDoNothing({ target: ownerPinAttempts.merchantId })
@@ -37,7 +42,7 @@ export class DrizzleOwnerPinAttemptStore implements OwnerPinAttemptStore {
   }
 
   private async updateOpenAttempt(merchantId: string, now: Date): Promise<boolean> {
-    const updated = await db
+    const updated = await this.database
       .update(ownerPinAttempts)
       .set({
         failedCount: sql`${ownerPinAttempts.failedCount} + 1`,
@@ -57,7 +62,7 @@ export class DrizzleOwnerPinAttemptStore implements OwnerPinAttemptStore {
   }
 
   async reset(merchantId: string): Promise<void> {
-    await db
+    await this.database
       .update(ownerPinAttempts)
       .set({ failedCount: 0, lockedUntil: null })
       .where(eq(ownerPinAttempts.merchantId, merchantId));

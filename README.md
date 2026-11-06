@@ -12,13 +12,10 @@ Sistema de Ponto de Venda (PDV) e gestão comercial para mini-mercados e pequeno
 
 - **Aplicação no ar:** [https://meu-comercio-rho.vercel.app](https://meu-comercio-rho.vercel.app)
 - **Rotas principais:**
-  - `/` — Terminal de PDV com leitura contínua, atalhos de teclado, split checkout, impressão térmica, estorno de vendas e fila offline.
+  - `/` — Terminal de PDV com leitura contínua, atalhos de teclado, split checkout, impressão térmica e fila offline.
   - `/gestao` — Painel de retaguarda: catálogo de produtos, reposição de estoque, extrato e total de fiado na rua, operações de caixa (sangria/suprimento), controle de equipe/operadores e fechamento de caixa.
   - `/login` — Autenticação de operador e dona, auto-cadastro de novos comércios SaaS e abertura de caixa.
-- **Contas de demonstração** (senha `demo-comercio-2026`):
-  - **Proprietária:** `dona@demo.example` (PIN de liberação: `1234`) — acesso total, cadastro de operadores, liberação de excesso de fiado e fechamento de qualquer caixa.
-  - **Operador de caixa:** `operador@demo.example` — abertura de caixa, vendas e fechamento do seu próprio turno.
-- Novos comércios podem se cadastrar de forma autônoma e imediata na aba **Cadastrar Nova Loja** em `/login`.
+- **Acesso:** novos comércios se cadastram na aba **Cadastrar Nova Loja** em `/login`. Credenciais de demonstração não são publicadas neste repositório.
 
 ## Rodar localmente
 
@@ -34,7 +31,7 @@ npm run build               # compila o build de produção (Turbopack)
 
 ## Testes e Qualidade
 
-- **231 testes automatizados aprovados (Vitest, 29 arquivos):** cobertura para cálculo monetário com centavos inteiros, conferência cega de caixa, baixa atômica de estoque, idempotência de checkout, limite de fiado com PIN, quitação de dívidas, fila offline, sangria e suprimento de caixa, impressão térmica (58mm/80mm), estorno de vendas com devolução atômica de estoque e gaveta, total de fiado na rua, gestão de operadores, auto-cadastro multi-tenant SaaS, rate limiting por IP e proteção anti-CSRF por cabeçalhos de origem.
+- **231 testes automatizados aprovados (Vitest, 29 arquivos):** cobertura para cálculo monetário com centavos inteiros, conferência cega de caixa, baixa de estoque, idempotência da API de checkout, limite de fiado com PIN, quitação de dívidas, fila offline, sangria e suprimento de caixa, impressão térmica (58mm), estorno de vendas com devolução de estoque e gaveta, total de fiado na rua, gestão de operadores, auto-cadastro multi-tenant SaaS, rate limiting por IP e proteção anti-CSRF por cabeçalhos de origem.
 - **ESLint com 0 erros e 0 avisos:** checagem estrita sem violações.
 - **TypeScript em modo estrito (`strict: true`):** validado com `npx tsc --noEmit`.
 - **CI Pipeline no GitHub Actions (`.github/workflows/ci.yml`):** executado a cada push na `main` e em pull requests, com jobs para lint, tipos, testes, build e deploy de produção como etapa final.
@@ -47,25 +44,25 @@ npm run build               # compila o build de produção (Turbopack)
 | Multi-tenancy por `merchant_id` em todas as tabelas e consultas | Feito |
 | Cálculos monetários com centavos inteiros via Value Object `Money` (sem float) | Feito |
 | Leitor contínuo de código de barras com autofoco | Feito |
-| Atalhos de teclado no balcão (`F2` Dinheiro, `F3` Pix, `F4` Débito, `F5` Crédito, `F7` Desconto, `F10` Finalizar, `Esc` Limpar) | Feito |
+| Atalhos de teclado no balcão (`F2` Dinheiro, `F3` Pix, `F4` Débito, `F5` Crédito, `F7` Desconto, `F10` Finalizar, `Esc` Limpar) | Parcial: `Esc`, `F2` e `F4` implementados; demais pendentes |
 | Split checkout (divisão de pagamento entre múltiplos métodos) | Feito |
 | Troco calculado no servidor para pagamentos em dinheiro | Feito |
-| Idempotência de venda via cabeçalho `Idempotency-Key` (UUID) | Feito |
-| Prevenção de estoque negativo com validação e baixa atômica | Feito |
-| Catálogo de produtos com busca por nome, código de barras e reposição | Feito |
+| Idempotência de venda via cabeçalho `Idempotency-Key` (UUID) | Parcial: a API aceita a chave; a interface gera uma chave nova a cada envio |
+| Prevenção de estoque negativo com validação e baixa atômica | Parcial: validação no domínio; baixa não é atômica; sem `CHECK` no banco |
+| Catálogo de produtos com busca por nome, código de barras e reposição | Parcial: busca por nome só na API, sem campo no PDV |
 | Sessão de caixa única por loja garantida por índice parcial no banco | Feito |
 | Fechamento de caixa com conferência cega e justificativa de divergência | Feito |
 | Entradas em dinheiro registradas automaticamente na gaveta do caixa ativo | Feito |
 | Sangria e Suprimento de caixa com justificativa e impacto auditado no saldo em dinheiro | Feito |
-| Impressão térmica de cupom não-fiscal e canhoto de fiado (58mm e 80mm) | Feito |
-| Estorno de venda no PDV com recomposição de estoque e gaveta | Feito |
+| Impressão térmica de cupom não-fiscal e canhoto de fiado (58mm e 80mm) | Parcial: 58mm; regra de 80mm pendente |
+| Estorno de venda com recomposição de estoque e gaveta | Parcial: disponível em `/gestao`, não no PDV; não é atômico |
 | Total de Fiado na Rua agregado em tempo real no painel de gestão | Feito |
 | Permissões: operador fecha apenas seu turno; dona fecha qualquer turno | Feito |
-| Lockout de autenticação após 5 tentativas incorretas por 15 minutos | Feito |
+| Lockout de autenticação após 5 tentativas incorretas por 15 minutos | Parcial: apenas no login; PIN sem contador de tentativas |
 | Cadastro de clientes com limite de crédito e extrato de fiado | Feito |
-| Venda fiado com bloqueio de excesso de limite, liberável por PIN da dona | Feito |
-| Quitação de fiado vinculada a caixa aberto com entrada na gaveta | Feito |
-| Fila offline para vendas em dinheiro com sincronização automática | Feito |
+| Venda fiado com bloqueio de excesso de limite, liberável por PIN da dona | Parcial: fiado no PDV não cria venda nem baixa estoque; PIN não autoriza operador logado |
+| Quitação de fiado vinculada a caixa aberto com entrada na gaveta | Parcial: sem transação nem trava; corrida possível |
+| Fila offline para vendas em dinheiro com sincronização automática | Parcial: só dinheiro; cache de produtos sobrescrito; chave nova a cada retry |
 | Trilha de auditoria imutável (`audit_events`) para ações sensíveis | Feito |
 | Painel de retaguarda (`/gestao`) com produtos, fiado, caixa e métricas financeiras | Feito |
 | Gestão de operadores com controle de equipe pela proprietária | Feito |
@@ -78,13 +75,13 @@ npm run build               # compila o build de produção (Turbopack)
 - **Conferência cega de caixa:** o operador digita o valor físico contado sem ver o total calculado pelo sistema. Se houver divergência (quebra ou sobra), o sistema exige justificativa textual e registra o evento em auditoria.
 - **Sangria e Suprimento de caixa:** retiradas (sangrias) exigem saldo suficiente em dinheiro na gaveta e justificativa obrigatória; aportes (suprimentos) aumentam a gaveta com motivo registrado.
 - **Vínculo com caixa aberto:** recebimentos em dinheiro de vendas (`SALE_RECEIPT`) ou quitações de fiado (`DEBT_PAYMENT`) exigem caixa com status `OPEN` e atualizam o saldo da gaveta no mesmo ciclo.
-- **Prevenção de estoque negativo:** o sistema valida todos os itens do carrinho antes da baixa. Falta de estoque em qualquer item cancela a operação inteira sem débitos parciais.
-- **Estorno seguro de venda:** cancelamento devolve integralmente o estoque movimentado e, caso tenha havido pagamento em dinheiro, deduz da gaveta do caixa ativo ou, se fiado, debita o crédito restaurando o limite.
-- **Idempotência em duas camadas:** checkout utiliza UUID gerado pelo cliente. Tentativas duplicadas são identificadas na aplicação e barradas pelo índice único parcial no banco.
-- **Fiado e autorização por PIN:** o saldo devedor é calculado pelo histórico de débitos e créditos. Compras que ultrapassem o limite exigem usuário e PIN da dona (validado contra hash `bcrypt`), gravando autorização na auditoria.
+- **Prevenção de estoque negativo:** o sistema valida todos os itens do carrinho antes da baixa. A baixa em si ainda é feita em escritas separadas, sem transação; a correção está pendente.
+- **Estorno de venda:** o cancelamento devolve o estoque movimentado e, se houve pagamento em dinheiro, deduz da gaveta do caixa ativo. A operação ainda não é atômica.
+- **Idempotência:** a API de venda aceita `Idempotency-Key`, mas a interface gera uma chave nova a cada envio, então um reenvio após falha de rede pode duplicar a venda.
+- **Fiado e autorização por PIN:** o saldo devedor é calculado pelo histórico de débitos e créditos. Compras que ultrapassem o limite exigem PIN da dona (validado contra hash `bcrypt`). Hoje o PDV envia o usuário logado, então um operador não consegue autorizar com o PIN da dona; a correção está pendente.
 - **Quitação de fiado:** o valor pago não pode exceder o saldo devedor. O montante entra diretamente como dinheiro no caixa aberto.
 - **Contingência offline:** quedas de conexão permitem registrar vendas em dinheiro físico, armazenadas localmente no navegador por operador e loja (`miniMarketOfflineSales:${merchantId}:${username}`). Na volta da rede, a sincronização envia os registros com a chave de idempotência preservada.
-- **Bloqueio por tentativas:** 5 falhas consecutivas de senha bloqueiam o usuário temporariamente por 15 minutos.
+- **Bloqueio por tentativas:** 5 falhas consecutivas de senha no login bloqueiam o usuário temporariamente por 15 minutos. O PIN de autorização ainda não tem limite de tentativas.
 
 ## Limitações conhecidas e escopo
 

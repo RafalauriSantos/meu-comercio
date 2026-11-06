@@ -1,8 +1,8 @@
-import { eq } from 'drizzle-orm';
+import { and, eq, isNull, lte, sql } from 'drizzle-orm';
 import { db } from '@/shared/infrastructure/db/connection';
 import { ownerPinAttempts } from './customers.schema';
 import { OwnerPinAttemptState, OwnerPinAttemptStore } from '../domain/owner-pin-attempt.port';
-import { NO_OWNER_PIN_ATTEMPTS } from '../domain/owner-pin-lockout';
+import { NO_OWNER_PIN_ATTEMPTS, OWNER_PIN_LOCK_MINUTES, OWNER_PIN_MAX_FAILURES } from '../domain/owner-pin-lockout';
 
 export class DrizzleOwnerPinAttemptStore implements OwnerPinAttemptStore {
   async getState(merchantId: string): Promise<OwnerPinAttemptState> {
@@ -14,18 +14,43 @@ export class DrizzleOwnerPinAttemptStore implements OwnerPinAttemptStore {
     return row ?? NO_OWNER_PIN_ATTEMPTS;
   }
 
-  async saveState(merchantId: string, state: OwnerPinAttemptState): Promise<void> {
-    await db
-      .insert(ownerPinAttempts)
-      .values({
-        merchantId,
-        failedCount: state.failedCount,
-        lockedUntil: state.lockedUntil,
-        updatedAt: new Date(),
+  /**
+   * One conditional UPDATE decides the attempt in the database, so concurrent
+   * requests cannot all pass the lock check. A missing row is created by INSERT.
+   */
+  async tryReserveAttempt(merchantId: string, now: Date): Promise<boolean> {
+    const updated = await db
+      .update(ownerPinAttempts)
+      .set({
+        failedCount: sql`${ownerPinAttempts.failedCount} + 1`,
+        lockedUntil: sql`CASE WHEN ${ownerPinAttempts.failedCount} + 1 >= ${OWNER_PIN_MAX_FAILURES}
+          THEN ${now}::timestamptz + (${OWNER_PIN_LOCK_MINUTES} * interval '1 minute')
+          ELSE NULL END`,
+        updatedAt: now,
       })
-      .onConflictDoUpdate({
-        target: ownerPinAttempts.merchantId,
-        set: { failedCount: state.failedCount, lockedUntil: state.lockedUntil, updatedAt: new Date() },
-      });
+      .where(
+        and(
+          eq(ownerPinAttempts.merchantId, merchantId),
+          sql`(${ownerPinAttempts.lockedUntil} IS NULL OR ${ownerPinAttempts.lockedUntil} <= ${now}::timestamptz)`
+        )
+      )
+      .returning({ failedCount: ownerPinAttempts.failedCount });
+    if (updated.length > 0) {
+      return true;
+    }
+
+    const inserted = await db
+      .insert(ownerPinAttempts)
+      .values({ merchantId, failedCount: 1, lockedUntil: null, updatedAt: now })
+      .onConflictDoNothing({ target: ownerPinAttempts.merchantId })
+      .returning({ failedCount: ownerPinAttempts.failedCount });
+    return inserted.length > 0;
+  }
+
+  async reset(merchantId: string): Promise<void> {
+    await db
+      .update(ownerPinAttempts)
+      .set({ failedCount: 0, lockedUntil: null })
+      .where(eq(ownerPinAttempts.merchantId, merchantId));
   }
 }

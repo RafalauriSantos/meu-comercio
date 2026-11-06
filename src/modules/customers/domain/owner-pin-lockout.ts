@@ -12,6 +12,8 @@ export function isOwnerPinLocked(state: OwnerPinAttemptState, now: Date): boolea
 /**
  * Counts one attempt before the PIN is compared. A locked merchant is refused
  * without counting. The attempt that reaches the limit is allowed, and it starts the lock.
+ * The counter is not reset when a lock expires: after expiry, a wrong PIN locks again
+ * at once, and only a correct PIN clears the count.
  */
 export function reserveOwnerPinAttempt(
   state: OwnerPinAttemptState,

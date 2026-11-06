@@ -204,6 +204,15 @@ describe('BcryptOwnerPinVerifier — bloqueio por tentativas de PIN', () => {
     expect((await attempts.getState(merchantId)).failedCount).toBe(1);
   });
 
+  it('bloqueia de novo na primeira tentativa errada depois que o bloqueio expira', async () => {
+    for (let i = 0; i < 5; i++) {
+      await verifier.verifyOwnerPin(merchantId, 'dona_lockout', '000000');
+    }
+    now = new Date(now.getTime() + 15 * 60 * 1000 + 1);
+    expect(await verifier.verifyOwnerPin(merchantId, 'dona_lockout', '000000')).toBe(false);
+    expect(await verifier.verifyOwnerPin(merchantId, 'dona_lockout', OWNER_PIN)).toBe(false);
+  });
+
   it('não bloqueia outra loja quando uma loja está bloqueada', async () => {
     for (let i = 0; i < 5; i++) {
       await verifier.verifyOwnerPin(merchantId, 'dona_lockout', '000000');

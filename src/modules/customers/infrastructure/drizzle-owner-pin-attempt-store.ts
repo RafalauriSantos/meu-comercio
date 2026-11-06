@@ -19,6 +19,24 @@ export class DrizzleOwnerPinAttemptStore implements OwnerPinAttemptStore {
    * requests cannot all pass the lock check. A missing row is created by INSERT.
    */
   async tryReserveAttempt(merchantId: string, now: Date): Promise<boolean> {
+    if (await this.updateOpenAttempt(merchantId, now)) {
+      return true;
+    }
+
+    const inserted = await db
+      .insert(ownerPinAttempts)
+      .values({ merchantId, failedCount: 1, lockedUntil: null, updatedAt: now })
+      .onConflictDoNothing({ target: ownerPinAttempts.merchantId })
+      .returning({ failedCount: ownerPinAttempts.failedCount });
+    if (inserted.length > 0) {
+      return true;
+    }
+
+    // Another request inserted the row first. Retry the conditional UPDATE once.
+    return this.updateOpenAttempt(merchantId, now);
+  }
+
+  private async updateOpenAttempt(merchantId: string, now: Date): Promise<boolean> {
     const updated = await db
       .update(ownerPinAttempts)
       .set({
@@ -35,16 +53,7 @@ export class DrizzleOwnerPinAttemptStore implements OwnerPinAttemptStore {
         )
       )
       .returning({ failedCount: ownerPinAttempts.failedCount });
-    if (updated.length > 0) {
-      return true;
-    }
-
-    const inserted = await db
-      .insert(ownerPinAttempts)
-      .values({ merchantId, failedCount: 1, lockedUntil: null, updatedAt: now })
-      .onConflictDoNothing({ target: ownerPinAttempts.merchantId })
-      .returning({ failedCount: ownerPinAttempts.failedCount });
-    return inserted.length > 0;
+    return updated.length > 0;
   }
 
   async reset(merchantId: string): Promise<void> {

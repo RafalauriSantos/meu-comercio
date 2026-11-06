@@ -1127,4 +1127,65 @@ describe('CreateSaleUseCase — venda fiado (TAB)', () => {
     const bare = new CreateSaleUseCase(saleRepo, productRepo, inventoryRepo, cashRepo, auditPort);
     await expect(bare.execute(tabSale('25.50'))).rejects.toThrow('Módulo de crédito não configurado.');
   });
+
+  it('rejeita cliente de outra loja, mesmo com o mesmo id', async () => {
+    const otherMerchant = Customer.create({
+      merchantId: 'merch-outra-loja',
+      name: 'Outra loja',
+      phone: '11777770000',
+      creditLimit: Money.fromDecimal('100.00'),
+    });
+    await customerRepo.save(otherMerchant);
+    await expect(useCase.execute(tabSale('25.50', { customerId: otherMerchant.id }))).rejects.toThrow(
+      CustomerNotFoundError
+    );
+    expect(saleRepo.sales.size).toBe(0);
+  });
+
+  it('aceita venda que chega exatamente ao limite de fiado sem PIN da dona', async () => {
+    await creditRepo.saveMovement(
+      CreditMovement.create({
+        merchantId: MERCHANT_ID,
+        customerId: customer.id,
+        type: 'DEBIT',
+        amount: Money.fromDecimal('74.50'),
+        operatorId: OPERATOR_ID,
+      })
+    );
+
+    const sale = await useCase.execute(tabSale('25.50'));
+
+    expect(sale.status).toBe('CONFIRMED');
+    expect(creditRepo.movements).toHaveLength(2);
+    expect(auditPort.records.some((r) => r.eventType === 'CREDIT_SALE_LIMIT_AUTHORIZED')).toBe(false);
+  });
+
+  it('não grava segundo débito quando a mesma chave de idempotência é reenviada', async () => {
+    await useCase.execute(tabSale('25.50', { idempotencyKey: 'chave-fiado-1' }));
+
+    await expect(
+      useCase.execute(tabSale('25.50', { idempotencyKey: 'chave-fiado-1' }))
+    ).rejects.toThrow(DuplicateSaleRequestError);
+
+    expect(creditRepo.movements).toHaveLength(1);
+    expect(saleRepo.sales.size).toBe(1);
+  });
+
+  it('mantém estoque e extrato intactos quando o PIN da dona é inválido', async () => {
+    await creditRepo.saveMovement(
+      CreditMovement.create({
+        merchantId: MERCHANT_ID,
+        customerId: customer.id,
+        type: 'DEBIT',
+        amount: Money.fromDecimal('90.00'),
+        operatorId: OPERATOR_ID,
+      })
+    );
+
+    await expect(useCase.execute(tabSale('25.50', { ownerPin: '000000' }))).rejects.toThrow(InvalidOwnerPinError);
+
+    expect((await inventoryRepo.findByProductId(MERCHANT_ID, rice.id))!.availableQuantity).toBe(50);
+    expect(creditRepo.movements).toHaveLength(1);
+    expect(cashRepo.movements.filter((m) => m.movementType === 'SALE_RECEIPT')).toHaveLength(0);
+  });
 });

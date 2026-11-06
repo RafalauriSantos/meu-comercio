@@ -1,15 +1,35 @@
 import bcrypt from 'bcryptjs';
 import { eq, and } from 'drizzle-orm';
-import { db } from '@/shared/infrastructure/db/connection';
 import { appUsers, userAuthorities } from '@/modules/users/infrastructure/users.schema';
 import { DrizzleUserRepository } from '@/modules/users/infrastructure/drizzle-user-repository';
 import { UserRepository } from '@/modules/users/domain/user-repository.port';
 import { OwnerPinVerifier } from '../domain/owner-pin-verifier.port';
+import { OwnerPinAttemptStore } from '../domain/owner-pin-attempt.port';
+import { DrizzleOwnerPinAttemptStore } from './drizzle-owner-pin-attempt-store';
+import { db } from '@/shared/infrastructure/db/connection';
 
 export class BcryptOwnerPinVerifier implements OwnerPinVerifier {
-  constructor(private readonly userRepository: UserRepository = new DrizzleUserRepository()) {}
+  constructor(
+    private readonly userRepository: UserRepository = new DrizzleUserRepository(),
+    private readonly attemptStore: OwnerPinAttemptStore = new DrizzleOwnerPinAttemptStore(db),
+    private readonly clock: () => Date = () => new Date()
+  ) {}
 
   async verifyOwnerPin(merchantId: string, ownerUsername: string, pin: string): Promise<boolean> {
+    const now = this.clock();
+    const allowed = await this.attemptStore.tryReserveAttempt(merchantId, now);
+    if (!allowed) {
+      return false;
+    }
+
+    const matched = await this.matchOwnerPin(merchantId, ownerUsername, pin, now);
+    if (matched) {
+      await this.attemptStore.reset(merchantId);
+    }
+    return matched;
+  }
+
+  private async matchOwnerPin(merchantId: string, ownerUsername: string, pin: string, now: Date): Promise<boolean> {
     if (!pin || typeof pin !== 'string') {
       return false;
     }
@@ -55,7 +75,7 @@ export class BcryptOwnerPinVerifier implements OwnerPinVerifier {
       );
 
     for (const owner of ownerRows) {
-      if (owner.lockedUntil && owner.lockedUntil.getTime() > Date.now()) {
+      if (owner.lockedUntil && owner.lockedUntil.getTime() > now.getTime()) {
         continue;
       }
       if (owner.authorizationPinHash) {

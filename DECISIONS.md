@@ -40,7 +40,7 @@ Este documento é a **fonte oficial da verdade** para as **regras de negócio** 
 ### 5. Usuários e Autorizações
 - Dois papéis iniciais: **Proprietária** e **Operador**.
 - Cada operador possui usuário individual, senha e um PIN de 4 dígitos para autorizações rápidas no balcão.
-- A proprietária possui PIN de autorização de **6 dígitos** (D-02, 2026-11-05). *Pendente de implementação: os validadores de `RegisterMerchantSchema` e `InitialOwnerSetupSchema` ainda aceitam de 4 a 6 dígitos.*
+- A proprietária possui PIN de autorização de **6 dígitos** (D-02, 2026-11-05). *Pendente de implementação: ainda aceitam de 4 a 6 dígitos o PIN da proprietária em `RegisterMerchantSchema`, `InitialOwnerSetupSchema`, na rota de cancelamento (`src/app/api/sales/[id]/cancel/route.ts`), no setup de `src/app/login/page.tsx` e no rótulo do PDV (`src/app/page.tsx`).*
 - Operadores não possuem e-mail; recuperação de senha de operadores é realizada diretamente pela proprietária.
 - A proprietária informa e-mail no setup inicial para recuperação de senha única via token criptográfico com expiração de 15 minutos.
 - Bloqueio temporário de conta após tentativas consecutivas de login inválidas.
@@ -51,7 +51,7 @@ Este documento é a **fonte oficial da verdade** para as **regras de negócio** 
 - Operações sensíveis gravam trilha de auditoria contendo autorizador, motivo, timestamp e referência da transação.
 
 ### 7. Idempotência
-- Endpoints de finalização de venda e recebimento de webhooks exigem chave de idempotência (`Idempotency-Key` ou identificador único do evento), impedindo cobrança ou baixa duplicada por retentativas de rede.
+- Endpoints de finalização de venda e recebimento de webhooks exigem chave de idempotência (`Idempotency-Key` ou identificador único do evento), impedindo cobrança ou baixa duplicada por retentativas de rede. *Pendente: não existe rota de webhook no código.*
 - Toda escrita que movimenta dinheiro exige `Idempotency-Key` (venda, cancelamento, sangria, suprimento, fiado, quitação) (D-05, 2026-11-05). *Pendente: a API de venda trata a chave como opcional; sangria, suprimento, cancelamento e quitação não têm chave.*
 
 ---

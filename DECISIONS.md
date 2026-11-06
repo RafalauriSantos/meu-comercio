@@ -39,8 +39,8 @@ Este documento é a **fonte oficial da verdade** para as **regras de negócio** 
 
 ### 5. Usuários e Autorizações
 - Dois papéis iniciais: **Proprietária** e **Operador**.
-- Cada operador possui usuário individual, senha e um PIN de 4 dígitos para autorizações rápidas no balcão.
-- A proprietária possui PIN de autorização de **6 dígitos** (D-02, 2026-11-05). *Pendente de implementação: ainda aceitam de 4 a 6 dígitos o PIN da proprietária em `RegisterMerchantSchema`, `InitialOwnerSetupSchema`, na rota de cancelamento (`src/app/api/sales/[id]/cancel/route.ts`), no setup de `src/app/login/page.tsx` e no rótulo do PDV (`src/app/page.tsx`).*
+- Cada operador possui usuário individual, senha e um PIN de 4 dígitos para autorizações rápidas no balcão. *Pendente de implementação: não há validador de PIN de operador no código.*
+- A proprietária possui PIN de autorização de **6 dígitos** (D-02, 2026-11-05). *Pendente de implementação: ainda aceitam de 4 a 6 dígitos o PIN da proprietária em `RegisterMerchantSchema`, `InitialOwnerSetupSchema`, na rota de cancelamento (`src/app/api/sales/[id]/cancel/route.ts`), no setup de `src/app/login/page.tsx`, no rótulo do PDV (`src/app/page.tsx`) e na validação e rótulo de cancelamento em `src/app/gestao/page.tsx`.*
 - Operadores não possuem e-mail; recuperação de senha de operadores é realizada diretamente pela proprietária.
 - A proprietária informa e-mail no setup inicial para recuperação de senha única via token criptográfico com expiração de 15 minutos.
 - Bloqueio temporário de conta após tentativas consecutivas de login inválidas.
@@ -62,7 +62,7 @@ Respostas do dono às perguntas da auditoria. Estas decisões prevalecem sobre t
 
 - **D-01** Desconto exige usuário e PIN da proprietária, validados no servidor.
 - **D-02** PIN da proprietária: 6 dígitos. Operador: 4 dígitos (D-03).
-- **D-03** Operadores têm PIN de 4 dígitos.
+- **D-03** Operadores têm PIN de 4 dígitos. *Pendente de implementação: não há validador de PIN de operador no código.*
 - **D-04** Operador com caixa aberto pode fazer sangria e suprimento, com motivo, sem PIN da dona.
 - **D-05** `Idempotency-Key` obrigatória em toda escrita que movimenta dinheiro. Pareceres de revisão ficam em `docs/reviews/`. *Pendente: chave opcional na venda e ausente nas demais escritas; a pasta `docs/reviews/` é criada pela primeira revisão.*
 - **D-06** Permissões individuais por operador ficam fora do MVP.

@@ -11,7 +11,7 @@ O sistema elimina retrabalho, previne furos de estoque e quebras de caixa, e per
 ### 1. Proprietária (Dona da Loja)
 - Possui controle irrestrito sobre o comércio.
 - Configura operadores. Permissões individuais estão fora do MVP (D-06).
-- Autoriza operações críticas no balcão mediante confirmação do PIN da proprietária de 6 dígitos (descontos, estornos, quebras de caixa, fiado acima do limite). Descontos exigem usuário e PIN da proprietária (D-01). Operadores usam PIN de 4 dígitos (ver `DECISIONS.md`, D-02 e D-03). *Pendente de implementação: os validadores ainda aceitam 4 a 6 dígitos para a proprietária, e descontos ainda não exigem o PIN da dona.*
+- Autoriza operações críticas no balcão mediante confirmação do PIN da proprietária de 6 dígitos (descontos, estornos, quebras de caixa, fiado acima do limite). Descontos exigem usuário e PIN da proprietária (D-01). Operadores usam PIN de 4 dígitos (ver `DECISIONS.md`, D-02 e D-03). *Pendente de implementação: os validadores ainda aceitam 4 a 6 dígitos para a proprietária, não há validador de PIN de operador, e descontos ainda não exigem o PIN da dona.*
 - Acessa relatórios diários de vendas, faturamento por forma de pagamento, conferência de caixa e estoque baixo.
 
 ### 2. Operador de Caixa

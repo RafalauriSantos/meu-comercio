@@ -47,11 +47,11 @@ Este documento é a **fonte oficial da verdade** para as **regras de negócio** 
 
 ### 6. Temporalidade e Auditoria
 - Todos os registros no banco de dados utilizam data/hora em **UTC (`TIMESTAMPTZ`)**.
-- Relatórios operacionais e fechamento diário consideram o fuso do comércio (`America/Sao_Paulo` por padrão).
+- Relatórios operacionais e fechamento diário consideram o fuso do comércio (`America/Sao_Paulo` por padrão). *Pendente de implementação; ver D-13.*
 - Operações sensíveis gravam trilha de auditoria contendo autorizador, motivo, timestamp e referência da transação.
 
 ### 7. Idempotência
-- Endpoints de finalização de venda e recebimento de webhooks exigem chave de idempotência (`Idempotency-Key` ou identificador único do evento), impedindo cobrança ou baixa duplicada por retentativas de rede. *Pendente: não existe rota de webhook no código.*
+- Endpoints de finalização de venda e recebimento de webhooks exigem chave de idempotência (`Idempotency-Key` ou identificador único do evento), impedindo cobrança ou baixa duplicada por retentativas de rede. *Pendente: a chave é opcional na venda, e webhooks não existem no código.* *Pendente: não existe rota de webhook no código.*
 - Toda escrita que movimenta dinheiro exige `Idempotency-Key` (venda, cancelamento, sangria, suprimento, fiado, quitação) (D-05, 2026-11-05). *Pendente: a API de venda trata a chave como opcional; sangria, suprimento, cancelamento e quitação não têm chave.*
 
 ---
@@ -70,7 +70,7 @@ Respostas do dono às perguntas da auditoria. Estas decisões prevalecem sobre t
 - **D-08** O Brevo envia o e-mail de recuperação de PIN e senha da proprietária. *Pendente de implementação.*
 - **D-09** A sessão de login dura até o caixa ser fechado, com revalidação do usuário em cada escrita sensível. Limite máximo pela D-16. *Pendente: a sessão hoje dura 30 minutos fixos (`src/shared/infrastructure/auth/auth-context.ts`); não há revalidação por escrita.*
 - **D-10** Os contadores de rate limit ficam em uma tabela do Neon. *Pendente: hoje ficam em memória.*
-- **D-11** Pagamentos divididos não entram na fila offline. A limitação fica documentada.
+- **D-11** Pagamentos divididos não entram na fila offline. A limitação deve ser documentada. *Pendente: o README ainda não a documenta.*
 - **D-12** Interface em pt-BR. Código, comentários, erros de desenvolvimento, documentação e commits em inglês.
 - **D-13** Relatórios e fechamento diário usam `America/Sao_Paulo`. *Pendente de implementação.*
 - **D-14** Fiado no PDV gera uma venda com pagamento do tipo `TAB`. *Pendente: o fiado simples do PDV não cria venda, e a API de vendas não aceita o método `TAB` (`src/app/api/sales/route.ts`). O método existe em `PaymentMethod`.*

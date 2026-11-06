@@ -98,9 +98,10 @@ jobs:
 
     services:
       postgres:
-        image: postgres:18
+        image: postgres:18@sha256:e923a22ac074261dd73970c57edf659475bf0497cb9456f17d98ed7cdd3ca913
         env:
           POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: meu_test
         ports:
           - 5432:5432
         options: >-
@@ -110,7 +111,7 @@ jobs:
           --health-retries 10
 
     env:
-      TEST_DATABASE_URL: postgres://postgres:postgres@localhost:5432/postgres
+      TEST_DATABASE_URL: postgres://postgres:postgres@localhost:5432/meu_test
 
     steps:
       - name: Checkout

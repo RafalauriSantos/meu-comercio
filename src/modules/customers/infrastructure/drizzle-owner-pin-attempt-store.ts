@@ -1,14 +1,18 @@
 import { and, eq, sql } from 'drizzle-orm';
-import { db as defaultDb } from '@/shared/infrastructure/db/connection';
 import type { PgDatabase, PgQueryResultHKT } from 'drizzle-orm/pg-core';
+import type { ExtractTablesWithRelations } from 'drizzle-orm';
 import { ownerPinAttempts } from './customers.schema';
 import { OwnerPinAttemptState, OwnerPinAttemptStore } from '../domain/owner-pin-attempt.port';
 import { NO_OWNER_PIN_ATTEMPTS, OWNER_PIN_LOCK_MINUTES, OWNER_PIN_MAX_FAILURES } from '../domain/owner-pin-lockout';
 
-export type OwnerPinDatabase = PgDatabase<PgQueryResultHKT, Record<string, unknown>, never>;
+export type OwnerPinDatabase<TSchema extends Record<string, unknown>> = PgDatabase<
+  PgQueryResultHKT,
+  TSchema,
+  ExtractTablesWithRelations<TSchema>
+>;
 
-export class DrizzleOwnerPinAttemptStore implements OwnerPinAttemptStore {
-  constructor(private readonly database: OwnerPinDatabase = defaultDb as unknown as OwnerPinDatabase) {}
+export class DrizzleOwnerPinAttemptStore<TSchema extends Record<string, unknown>> implements OwnerPinAttemptStore {
+  constructor(private readonly database: OwnerPinDatabase<TSchema>) {}
 
   async getState(merchantId: string): Promise<OwnerPinAttemptState> {
     const [row] = await this.database

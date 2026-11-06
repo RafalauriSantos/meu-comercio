@@ -1,17 +1,17 @@
 import bcrypt from 'bcryptjs';
 import { eq, and } from 'drizzle-orm';
-import { db } from '@/shared/infrastructure/db/connection';
 import { appUsers, userAuthorities } from '@/modules/users/infrastructure/users.schema';
 import { DrizzleUserRepository } from '@/modules/users/infrastructure/drizzle-user-repository';
 import { UserRepository } from '@/modules/users/domain/user-repository.port';
 import { OwnerPinVerifier } from '../domain/owner-pin-verifier.port';
 import { OwnerPinAttemptStore } from '../domain/owner-pin-attempt.port';
 import { DrizzleOwnerPinAttemptStore } from './drizzle-owner-pin-attempt-store';
+import { db } from '@/shared/infrastructure/db/connection';
 
 export class BcryptOwnerPinVerifier implements OwnerPinVerifier {
   constructor(
     private readonly userRepository: UserRepository = new DrizzleUserRepository(),
-    private readonly attemptStore: OwnerPinAttemptStore = new DrizzleOwnerPinAttemptStore(),
+    private readonly attemptStore: OwnerPinAttemptStore = new DrizzleOwnerPinAttemptStore(db),
     private readonly clock: () => Date = () => new Date()
   ) {}
 

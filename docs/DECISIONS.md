@@ -240,7 +240,7 @@ Este documento registra formalmente as decisões de arquitetura e de produto do 
 ## ADR-012: Endurecimento Integral de Segurança (Defense-in-Depth) em Todos os Níveis
 
 - **Data**: 2026-10-31
-- **Status**: Aprovado. Implementação parcial: CSP, limite de 1 MB, honeypot no servidor e origem sem cabeçalhos pendentes (ver `docs/BACKLOG.md`, Slice 12).
+- **Status**: Aprovado. Implementado: `X-Frame-Options`, `X-Content-Type-Options`, `Referrer-Policy`, `Permissions-Policy`, HSTS e rate limit por IP (em memória). Não implementado: Content-Security-Policy, limite de 1 MB no body, honeypot validado no servidor e bloqueio de requisição sem `Origin` e sem `Referer`. Ver `docs/BACKLOG.md`, Slice 12.
 - **Contexto**: Como aplicação SaaS multi-tenant que processa transações financeiras reais, dinheiro em caixa e estoque, o sistema precisa de proteção robusta contra ameaças cibernéticas da web aberta (ataques de força bruta, DoS em APIs de autenticação, Clickjacking, MIME sniffing, injeção de scripts XSS, CSRF e automações maliciosas de bots).
 - **Decisão**:
   1. **Camada Frontend & Borda do Navegador**:

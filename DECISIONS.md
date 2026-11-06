@@ -19,7 +19,7 @@ Este documento é a **fonte oficial da verdade** para as **regras de negócio** 
 
 ### 1. Dinheiro e Finanças
 - Dinheiro usa precisão exata. Registros financeiros (vendas, movimentações de caixa, pagamentos) **nunca são deletados fisicamente**.
-- Descontos só são permitidos com autorização explícita da proprietária informando usuário e PIN rápido.
+- Descontos só são permitidos com autorização explícita da proprietária informando usuário e PIN rápido. *Pendente de implementação: a API de vendas aceita desconto sem checar a dona (`src/app/api/sales/route.ts`).*
 - Pagamentos divididos (*split payments*) são permitidos, desde que a soma dos métodos cubra o valor total da venda.
 - Dinheiro recebido e troco são calculados e registrados explicitamente na venda.
 
@@ -52,7 +52,7 @@ Este documento é a **fonte oficial da verdade** para as **regras de negócio** 
 
 ### 7. Idempotência
 - Endpoints de finalização de venda e recebimento de webhooks exigem chave de idempotência (`Idempotency-Key` ou identificador único do evento), impedindo cobrança ou baixa duplicada por retentativas de rede.
-- Toda escrita que movimenta dinheiro exige `Idempotency-Key` (venda, cancelamento, sangria, suprimento, fiado, quitação) (D-05, 2026-11-05).
+- Toda escrita que movimenta dinheiro exige `Idempotency-Key` (venda, cancelamento, sangria, suprimento, fiado, quitação) (D-05, 2026-11-05). *Pendente: a API de venda trata a chave como opcional; sangria, suprimento, cancelamento e quitação não têm chave.*
 
 ---
 
@@ -64,16 +64,16 @@ Respostas do dono às perguntas da auditoria. Estas decisões prevalecem sobre t
 - **D-02** PIN da proprietária: 6 dígitos. Operador: 4 dígitos (D-03).
 - **D-03** Operadores têm PIN de 4 dígitos.
 - **D-04** Operador com caixa aberto pode fazer sangria e suprimento, com motivo, sem PIN da dona.
-- **D-05** `Idempotency-Key` obrigatória em toda escrita que movimenta dinheiro. Pareceres de revisão ficam em `docs/reviews/`.
+- **D-05** `Idempotency-Key` obrigatória em toda escrita que movimenta dinheiro. Pareceres de revisão ficam em `docs/reviews/`. *Pendente: chave opcional na venda e ausente nas demais escritas; a pasta `docs/reviews/` é criada pela primeira revisão.*
 - **D-06** Permissões individuais por operador ficam fora do MVP.
 - **D-07** Contas de demonstração são removidas da produção.
-- **D-08** O Brevo envia o e-mail de recuperação de PIN e senha da proprietária.
-- **D-09** A sessão de login dura até o caixa ser fechado, com revalidação do usuário em cada escrita sensível. Limite máximo pela D-16.
-- **D-10** Os contadores de rate limit ficam em uma tabela do Neon.
+- **D-08** O Brevo envia o e-mail de recuperação de PIN e senha da proprietária. *Pendente de implementação.*
+- **D-09** A sessão de login dura até o caixa ser fechado, com revalidação do usuário em cada escrita sensível. Limite máximo pela D-16. *Pendente: a sessão hoje dura 30 minutos fixos (`session.ts`); não há revalidação por escrita.*
+- **D-10** Os contadores de rate limit ficam em uma tabela do Neon. *Pendente: hoje ficam em memória.*
 - **D-11** Pagamentos divididos não entram na fila offline. A limitação fica documentada.
 - **D-12** Interface em pt-BR. Código, comentários, erros de desenvolvimento, documentação e commits em inglês.
-- **D-13** Relatórios e fechamento diário usam `America/Sao_Paulo`.
+- **D-13** Relatórios e fechamento diário usam `America/Sao_Paulo`. *Pendente de implementação.*
 - **D-14** Fiado no PDV gera uma venda do tipo `TAB`.
-- **D-15** Aviso persistente quando o caixa está aberto há 8 horas. Fica até o fechamento.
-- **D-16** Tempo máximo de sessão: 12 horas por padrão, mesmo com caixa aberto. A dona pode alterar entre 1 e 24 horas.
-- **D-17** O aviso de 8 horas apenas avisa. Nunca bloqueia vendas.
+- **D-15** Aviso persistente quando o caixa está aberto há 8 horas. Fica até o fechamento. *Pendente de implementação.*
+- **D-16** Tempo máximo de sessão: 12 horas por padrão, mesmo com caixa aberto. A dona pode alterar entre 1 e 24 horas. *Leitura consolidada com D-09: a sessão dura até o caixa fechar, com teto de 12 horas configurável pela dona. Pendente: não existe configuração da dona e o cookie dura 30 minutos (`auth-context.ts`).*
+- **D-17** O aviso de 8 horas apenas avisa. Nunca bloqueia vendas. *Pendente de implementação.*

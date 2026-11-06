@@ -19,7 +19,7 @@ describe('BcryptOwnerPinVerifier', () => {
       updateFailedLoginAttempts: vi.fn(),
       resetFailedLoginAttempts: vi.fn(),
     };
-    verifier = new BcryptOwnerPinVerifier(mockUserRepo);
+    verifier = new BcryptOwnerPinVerifier(mockUserRepo, new InMemoryOwnerPinAttemptStore());
   });
 
   it('deve retornar false se o PIN for vazio ou inválido', async () => {
@@ -128,3 +128,81 @@ describe('BcryptOwnerPinVerifier', () => {
     expect(result).toBe(false);
   });
 });
+
+describe('BcryptOwnerPinVerifier — bloqueio por tentativas de PIN', () => {
+  const merchantId = 'merchant-lockout-1';
+  const OWNER_PIN = '654321';
+  let attempts: InMemoryOwnerPinAttemptStore;
+  let now: Date;
+  let repo: UserRepository;
+  let verifier: BcryptOwnerPinVerifier;
+
+  beforeEach(async () => {
+    attempts = new InMemoryOwnerPinAttemptStore();
+    now = new Date('2026-11-06T12:00:00Z');
+    const ownerUser = new User({
+      username: 'dona_lockout',
+      merchantId,
+      passwordHash: 'dummy-pwd',
+      authorizationPinHash: await bcrypt.hash(OWNER_PIN, 4),
+      enabled: true,
+      failedLoginAttempts: 0,
+      authorities: ['ROLE_OWNER'],
+      createdAt: new Date(),
+    });
+    repo = {
+      hasAnyUser: vi.fn(),
+      findByUsername: vi.fn().mockResolvedValue(ownerUser),
+      createInitialMerchantWithOwner: vi.fn(),
+      createOperator: vi.fn(),
+      listOperators: vi.fn(),
+      updateFailedLoginAttempts: vi.fn(),
+      resetFailedLoginAttempts: vi.fn(),
+    };
+    verifier = new BcryptOwnerPinVerifier(repo, attempts, () => now);
+  });
+
+  it('bloqueia o PIN da dona depois de 5 tentativas erradas, mesmo com o PIN correto', async () => {
+    for (let i = 0; i < 5; i++) {
+      expect(await verifier.verifyOwnerPin(merchantId, 'dona_lockout', '000000')).toBe(false);
+    }
+    expect(await verifier.verifyOwnerPin(merchantId, 'dona_lockout', OWNER_PIN)).toBe(false);
+  });
+
+  it('zera o contador quando o PIN correto é informado antes do limite', async () => {
+    for (let i = 0; i < 4; i++) {
+      await verifier.verifyOwnerPin(merchantId, 'dona_lockout', '000000');
+    }
+    expect(await verifier.verifyOwnerPin(merchantId, 'dona_lockout', OWNER_PIN)).toBe(true);
+    for (let i = 0; i < 4; i++) {
+      await verifier.verifyOwnerPin(merchantId, 'dona_lockout', '000000');
+    }
+    expect(await verifier.verifyOwnerPin(merchantId, 'dona_lockout', OWNER_PIN)).toBe(true);
+  });
+
+  it('libera o PIN depois de 15 minutos de bloqueio', async () => {
+    for (let i = 0; i < 5; i++) {
+      await verifier.verifyOwnerPin(merchantId, 'dona_lockout', '000000');
+    }
+    now = new Date(now.getTime() + 15 * 60 * 1000 + 1);
+    expect(await verifier.verifyOwnerPin(merchantId, 'dona_lockout', OWNER_PIN)).toBe(true);
+  });
+
+  it('não bloqueia outra loja quando uma loja está bloqueada', async () => {
+    for (let i = 0; i < 5; i++) {
+      await verifier.verifyOwnerPin(merchantId, 'dona_lockout', '000000');
+    }
+    const otherMerchant = 'merchant-lockout-2';
+    expect(await attempts.getState(otherMerchant)).toEqual({ failedCount: 0, lockedUntil: null });
+  });
+});
+
+class InMemoryOwnerPinAttemptStore {
+  private readonly states = new Map<string, { failedCount: number; lockedUntil: Date | null }>();
+  async getState(merchantId: string) {
+    return this.states.get(merchantId) ?? { failedCount: 0, lockedUntil: null };
+  }
+  async saveState(merchantId: string, state: { failedCount: number; lockedUntil: Date | null }) {
+    this.states.set(merchantId, state);
+  }
+}

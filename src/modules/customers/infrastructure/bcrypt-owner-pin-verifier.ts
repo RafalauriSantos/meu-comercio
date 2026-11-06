@@ -5,11 +5,33 @@ import { appUsers, userAuthorities } from '@/modules/users/infrastructure/users.
 import { DrizzleUserRepository } from '@/modules/users/infrastructure/drizzle-user-repository';
 import { UserRepository } from '@/modules/users/domain/user-repository.port';
 import { OwnerPinVerifier } from '../domain/owner-pin-verifier.port';
+import { OwnerPinAttemptStore } from '../domain/owner-pin-attempt.port';
+import { afterOwnerPinFailure, afterOwnerPinSuccess, isOwnerPinLocked } from '../domain/owner-pin-lockout';
+import { DrizzleOwnerPinAttemptStore } from './drizzle-owner-pin-attempt-store';
 
 export class BcryptOwnerPinVerifier implements OwnerPinVerifier {
-  constructor(private readonly userRepository: UserRepository = new DrizzleUserRepository()) {}
+  constructor(
+    private readonly userRepository: UserRepository = new DrizzleUserRepository(),
+    private readonly attemptStore: OwnerPinAttemptStore = new DrizzleOwnerPinAttemptStore(),
+    private readonly clock: () => Date = () => new Date()
+  ) {}
 
   async verifyOwnerPin(merchantId: string, ownerUsername: string, pin: string): Promise<boolean> {
+    const state = await this.attemptStore.getState(merchantId);
+    const now = this.clock();
+    if (isOwnerPinLocked(state, now)) {
+      return false;
+    }
+
+    const matched = await this.matchOwnerPin(merchantId, ownerUsername, pin);
+    await this.attemptStore.saveState(
+      merchantId,
+      matched ? afterOwnerPinSuccess() : afterOwnerPinFailure(state, now)
+    );
+    return matched;
+  }
+
+  private async matchOwnerPin(merchantId: string, ownerUsername: string, pin: string): Promise<boolean> {
     if (!pin || typeof pin !== 'string') {
       return false;
     }

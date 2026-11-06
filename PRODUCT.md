@@ -29,7 +29,7 @@ O sistema elimina retrabalho, previne furos de estoque e quebras de caixa, e per
 - [x] Catálogo de produtos com leitura de código de barras e precificação
 - [x] Controle de estoque com bloqueio estrito de saldo negativo (no domínio; sem `CHECK` no banco)
 - [x] Abertura e fechamento de turno de caixa com conferência cega
-- [ ] Fluxo de checkout com troco, split payments e chave de idempotência (parcial: venda fiado no PDV e chave de idempotência da interface pendentes)
+- [ ] Fluxo de checkout com troco, split payments e chave de idempotência (parcial: fiado simples no PDV não cria venda; a interface envia uma chave nova a cada envio, então um reenvio não é deduplicado)
 - [x] Cadastro de clientes e gestão de limite de fiado
-- [x] Trilha de auditoria para ações sensíveis (*pendente: a imutabilidade não é garantida; não há bloqueio de UPDATE e DELETE em `audit_events`*)
+- [ ] Trilha de auditoria imutável para ações sensíveis (parcial: registros são gravados, mas não há bloqueio de UPDATE e DELETE em `audit_events`)
 - [ ] Relatórios de vendas e conciliação por método de pagamento

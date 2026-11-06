@@ -92,9 +92,46 @@ jobs:
       - name: Run test suite
         run: npm test
 
+  integration:
+    name: Postgres Integration Tests
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:18@sha256:e923a22ac074261dd73970c57edf659475bf0497cb9456f17d98ed7cdd3ca913
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: meu_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      TEST_DATABASE_URL: postgres://postgres:postgres@localhost:5432/meu_test
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Set up Node.js
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run Postgres integration tests
+        run: npx vitest run src/modules/customers/infrastructure/drizzle-owner-pin-attempt-store.integration.test.ts
+
   build:
     name: Production Build
-    needs: [lint, typecheck, test]
+    needs: [lint, typecheck, test, integration]
     runs-on: ubuntu-latest
 
     steps:

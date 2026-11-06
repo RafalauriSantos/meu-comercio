@@ -26,10 +26,12 @@
   "devDependencies": {
     "@types/bcryptjs": "^3.0.0",
     "@types/node": "^26.6.6",
+    "@types/pg": "^8.23.1",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "eslint": "^10",
     "eslint-config-next": "16.4.3",
+    "pg": "^8.23.1",
     "typescript": "^6",
     "vitest": "^5.0.5"
   }

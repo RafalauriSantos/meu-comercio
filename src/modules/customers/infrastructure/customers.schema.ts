@@ -1,4 +1,4 @@
-import { pgTable, varchar, uuid, timestamp, numeric, boolean, index, uniqueIndex } from 'drizzle-orm/pg-core';
+import { pgTable, varchar, uuid, timestamp, numeric, boolean, integer, index, uniqueIndex } from 'drizzle-orm/pg-core';
 import { sql } from 'drizzle-orm';
 import { merchants } from '@/modules/users/infrastructure/users.schema';
 import { sales } from '@/modules/sales/infrastructure/sales.schema';
@@ -36,3 +36,10 @@ export const customerCreditLedger = pgTable('customer_credit_ledger', {
   index('idx_customer_credit_ledger_sale').on(table.merchantId, table.saleId),
   index('idx_customer_credit_ledger_session').on(table.merchantId, table.cashSessionId),
 ]);
+
+export const ownerPinAttempts = pgTable('owner_pin_attempts', {
+  merchantId: uuid('merchant_id').primaryKey().references(() => merchants.id),
+  failedCount: integer('failed_count').notNull().default(0),
+  lockedUntil: timestamp('locked_until', { withTimezone: true }),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+});

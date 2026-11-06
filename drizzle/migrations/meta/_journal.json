@@ -8,6 +8,13 @@
       "when": 1793626557420,
       "tag": "0000_right_edwin_jarvis",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1793931400631,
+      "tag": "0001_narrow_wind_dancer",
+      "breakpoints": true
     }
   ]
 }

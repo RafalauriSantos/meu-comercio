@@ -4,22 +4,12 @@ import { drizzle } from 'drizzle-orm/node-postgres';
 import { migrate } from 'drizzle-orm/node-postgres/migrator';
 import { merchants } from '@/modules/users/infrastructure/users.schema';
 import * as schema from '@/shared/infrastructure/db/schema';
+import { assertDisposableTestDatabase } from '@/shared/infrastructure/db/test-database-guard';
 import { DrizzleOwnerPinAttemptStore } from './drizzle-owner-pin-attempt-store';
 
 // Runs only when TEST_DATABASE_URL points to a disposable Postgres database.
 // CI provides one in the integration job. Never point it at production.
 const TEST_DATABASE_URL = process.env.TEST_DATABASE_URL;
-
-// Refuse to run against anything that is not a local database named *_test.
-// This test migrates and inserts rows, so a production URL must never reach it.
-function assertDisposableDatabase(url: string): void {
-  const parsed = new URL(url);
-  const databaseName = parsed.pathname.replace(/^\//, '');
-  const isLocal = parsed.hostname === 'localhost' || parsed.hostname === '127.0.0.1';
-  if (!isLocal || !databaseName.endsWith('_test')) {
-    throw new Error('TEST_DATABASE_URL must point to a local database whose name ends with _test.');
-  }
-}
 
 describe.skipIf(!TEST_DATABASE_URL)('DrizzleOwnerPinAttemptStore (Postgres)', () => {
   let pool: Pool;
@@ -27,7 +17,7 @@ describe.skipIf(!TEST_DATABASE_URL)('DrizzleOwnerPinAttemptStore (Postgres)', ()
   const now = new Date('2026-11-06T12:00:00Z');
 
   beforeAll(async () => {
-    assertDisposableDatabase(TEST_DATABASE_URL!);
+    assertDisposableTestDatabase(TEST_DATABASE_URL!);
     pool = new Pool({ connectionString: TEST_DATABASE_URL });
     database = drizzle(pool, { schema });
     await migrate(database, { migrationsFolder: 'drizzle/migrations' });

@@ -271,3 +271,21 @@ Este documento registra formalmente as decisões de arquitetura e de produto do 
 
 
 
+
+---
+
+## ADR-013: Bloqueio por tentativas do PIN da proprietária por loja
+
+- **Data**: 2026-11-06
+- **Status**: Proposto. Implementado na PR #31; aguarda aprovação do dono para mergear, porque altera o banco.
+- **Contexto**: O PIN da proprietária autoriza descontos, estornos e vendas fiado acima do limite. Sem limite de tentativas, um operador logado pode testar PINs pela rota de vendas. O bloqueio de login (ADR-006) não cobre esse PIN.
+- **Decisão**:
+  1. Cada loja tem um contador de tentativas do PIN da proprietária, na tabela `owner_pin_attempts`.
+  2. Cada tentativa é contada antes da comparação, numa única operação atômica no banco. Assim, requisições concorrentes não ultrapassam o limite.
+  3. Na 5ª tentativa falha, o PIN fica bloqueado para todas as operações daquela loja por 15 minutos.
+  4. Um PIN correto zera o contador.
+  5. Ao expirar o bloqueio, o contador não zera. Um PIN errado bloqueia de novo na hora, e só um PIN correto limpa a contagem.
+  6. O bloqueio é por loja, não por usuário. Um operador pode, portanto, bloquear o PIN da dona por 15 minutos, mas não consegue burlá-lo. Essa troca precisa de aprovação do dono.
+- **Trade-offs / Consequências**:
+  - *Positivo*: impede teste de força bruta do PIN de 6 dígitos pela rota de vendas.
+  - *Negativo*: operador mal-intencionado pode atrasar vendas que dependem do PIN da dona por 15 minutos.

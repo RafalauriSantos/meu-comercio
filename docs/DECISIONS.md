@@ -176,7 +176,7 @@ Este documento registra formalmente as decisões de arquitetura e de produto do 
 ## ADR-010: Modelo SaaS Multi-Tenant Autônomo e Integração Planejada de Observabilidade e Perímetro
 
 - **Data**: 2026-10-31
-- **Status**: Aprovado e Implementado
+- **Status**: Aprovado; auto-cadastro SaaS implementado. Observabilidade e perímetro (Slices 7–9) pendentes.
 - **Contexto**: O sistema originalmente possuía um "Setup Inicial" concebido para appliances on-premise de lojista único (`InitialOwnerSetupUseCase`), travando novos cadastros caso qualquer usuário existisse no banco. Para permitir que a dona do comércio e novos lojistas possam criar suas contas de forma independente, sem colisão de dados com contas de teste ou de desenvolvimento, fez-se necessária a evolução para um modelo SaaS com auto-cadastro. Adicionalmente, identificaram-se padrões de excelência nos projetos de referência do desenvolvedor (`argus`, `casa-de-leiloes` e `barbearia.js`) para guiar a evolução do sistema.
 - **Decisão**:
   1. **Auto-Cadastro SaaS Multi-Tenant (`RegisterMerchantUseCase`)**:
@@ -240,7 +240,7 @@ Este documento registra formalmente as decisões de arquitetura e de produto do 
 ## ADR-012: Endurecimento Integral de Segurança (Defense-in-Depth) em Todos os Níveis
 
 - **Data**: 2026-10-31
-- **Status**: Aprovado
+- **Status**: Aprovado. Implementado: `X-Frame-Options`, `X-Content-Type-Options`, `Referrer-Policy`, `Permissions-Policy`, HSTS e rate limit por IP (em memória). Não implementado: Content-Security-Policy, limite de 1 MB no body, honeypot validado no servidor e bloqueio de requisição sem `Origin` e sem `Referer`. Ver `docs/BACKLOG.md`, Slice 12.
 - **Contexto**: Como aplicação SaaS multi-tenant que processa transações financeiras reais, dinheiro em caixa e estoque, o sistema precisa de proteção robusta contra ameaças cibernéticas da web aberta (ataques de força bruta, DoS em APIs de autenticação, Clickjacking, MIME sniffing, injeção de scripts XSS, CSRF e automações maliciosas de bots).
 - **Decisão**:
   1. **Camada Frontend & Borda do Navegador**:

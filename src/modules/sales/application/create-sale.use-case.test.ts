@@ -947,9 +947,12 @@ class InMemoryCreditRepo implements CustomerCreditRepository {
 }
 
 class FakeOwnerPinVerifier implements OwnerPinVerifier {
-  constructor(private readonly validPin: string) {}
+  constructor(private readonly validPin: string, private readonly ownerName = 'dona-maria') {}
   async verifyOwnerPin(_merchantId: string, _ownerUsername: string, pin: string): Promise<boolean> {
     return pin === this.validPin;
+  }
+  async authorizeOwnerPin(_merchantId: string, _ownerUsername: string, pin: string): Promise<string | null> {
+    return pin === this.validPin ? this.ownerName : null;
   }
 }
 
@@ -1106,6 +1109,25 @@ describe('CreateSaleUseCase — venda fiado (TAB)', () => {
 
     expect(sale.status).toBe('CONFIRMED');
     expect(auditPort.records.some((r) => r.eventType === 'CREDIT_SALE_LIMIT_AUTHORIZED')).toBe(true);
+  });
+
+  it('registra no débito e na auditoria qual dona autorizou o estouro do limite', async () => {
+    await creditRepo.saveMovement(
+      CreditMovement.create({
+        merchantId: MERCHANT_ID,
+        customerId: customer.id,
+        type: 'DEBIT',
+        amount: Money.fromDecimal('90.00'),
+        operatorId: OPERATOR_ID,
+      })
+    );
+
+    const sale = await useCase.execute(tabSale('25.50', { ownerPin: OWNER_PIN }));
+
+    const debit = creditRepo.movements.find((m) => m.type === 'DEBIT' && m.saleId === sale.id)!;
+    expect(debit.authorizedBy).toBe('dona-maria');
+    const authorized = auditPort.records.find((r) => r.eventType === 'CREDIT_SALE_LIMIT_AUTHORIZED')!;
+    expect(authorized.details.authorizedBy).toBe('dona-maria');
   });
 
   it('rejeita venda que estoura o limite com PIN inválido da dona', async () => {

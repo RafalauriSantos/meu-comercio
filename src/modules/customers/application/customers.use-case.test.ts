@@ -117,6 +117,10 @@ class InMemoryOwnerPinVerifier implements OwnerPinVerifier {
     const expected = this.validPins.get(`${merchantId}:${ownerUsername}`);
     return expected === pin;
   }
+
+  async authorizeOwnerPin(merchantId: string, ownerUsername: string, pin: string): Promise<string | null> {
+    return (await this.verifyOwnerPin(merchantId, ownerUsername, pin)) ? ownerUsername : null;
+  }
 }
 
 class InMemoryCashSessionRepository implements CashSessionRepository {

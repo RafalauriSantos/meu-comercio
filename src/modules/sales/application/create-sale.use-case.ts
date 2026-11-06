@@ -127,7 +127,7 @@ export class CreateSaleUseCase {
 
   private async authorizeCreditPayment(
     dto: CreateSaleDTO
-  ): Promise<{ customerId: string; amount: Money; limitAuthorized: boolean } | null> {
+  ): Promise<{ customerId: string; amount: Money; limitAuthorized: boolean; authorizedBy: string | null } | null> {
     const tabPayments = dto.payments.filter((p) => p.method === 'TAB');
     if (tabPayments.length === 0) {
       return null;
@@ -155,28 +155,29 @@ export class CreateSaleUseCase {
     const balance = await customerCreditRepository.getBalance(dto.merchantId, customerId);
     const exceedsLimit = customer.wouldExceedCreditLimit(balance.currentDebt, tab.amount);
 
+    let authorizedBy: string | null = null;
     if (exceedsLimit) {
       if (!dto.ownerPin) {
         throw new CreditLimitExceededError();
       }
-      const isPinValid = await ownerPinVerifier.verifyOwnerPin(
+      authorizedBy = await ownerPinVerifier.authorizeOwnerPin(
         dto.merchantId,
         dto.ownerUsername ?? '',
         dto.ownerPin
       );
-      if (!isPinValid) {
+      if (authorizedBy === null) {
         throw new InvalidOwnerPinError();
       }
     }
 
-    return { customerId, amount: tab.amount, limitAuthorized: exceedsLimit };
+    return { customerId, amount: tab.amount, limitAuthorized: exceedsLimit, authorizedBy };
   }
 
   private async recordCreditDebit(
     dto: CreateSaleDTO,
     cashSessionId: string,
     sale: Sale,
-    credit: { customerId: string; amount: Money; limitAuthorized: boolean }
+    credit: { customerId: string; amount: Money; limitAuthorized: boolean; authorizedBy: string | null }
   ): Promise<void> {
     const movement = CreditMovement.create({
       merchantId: dto.merchantId,
@@ -184,6 +185,7 @@ export class CreateSaleUseCase {
       type: 'DEBIT',
       amount: credit.amount,
       operatorId: dto.operatorId,
+      authorizedBy: credit.authorizedBy,
       saleId: sale.id,
       cashSessionId,
       note: 'Venda fiado',
@@ -200,7 +202,7 @@ export class CreateSaleUseCase {
         {
           saleAmount: credit.amount.toDecimal(),
           saleId: sale.id,
-          authorizedBy: 'owner-pin',
+          authorizedBy: credit.authorizedBy,
         }
       );
     }

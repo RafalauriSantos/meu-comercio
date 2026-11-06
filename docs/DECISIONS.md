@@ -126,7 +126,7 @@ Este documento registra formalmente as decisões de arquitetura e de produto do 
   2. **Domínio Rico com Value Object `Money`**:
      - Entidade `Customer`: armazena `creditLimit` e métodos puros `calculateAvailableCredit(currentDebt)` e `wouldExceedCreditLimit(currentDebt, saleAmount)`.
      - Invariantes monetárias: limite de crédito nunca negativo; valores de movimentação estritamente maiores que zero; pagamentos superiores à dívida total em aberto são sumariamente rejeitados no domínio (`DebtSettlementExceedsBalanceError`).
-  3. **Override por PIN da Proprietária (`AuthorizeCreditSaleUseCase`)**:
+  3. **Override por PIN da Proprietária (`CreateSaleUseCase`, pagamento `TAB`)**:
      - Vendas dentro do limite disponível de crédito são autorizadas diretamente pelo operador.
      - Vendas que excedam o limite disponível disparam a exigência de credenciais da dona (`ownerUsername` e `ownerPin`).
      - A validação consulta a autoridade do usuário (`isOwner()`) e compara o PIN fornecido contra o hash `authorization_pin_hash` armazenado no banco via `bcrypt`.

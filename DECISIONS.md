@@ -73,7 +73,7 @@ Respostas do dono às perguntas da auditoria. Estas decisões prevalecem sobre t
 - **D-11** Pagamentos divididos não entram na fila offline. A limitação fica documentada.
 - **D-12** Interface em pt-BR. Código, comentários, erros de desenvolvimento, documentação e commits em inglês.
 - **D-13** Relatórios e fechamento diário usam `America/Sao_Paulo`. *Pendente de implementação.*
-- **D-14** Fiado no PDV gera uma venda do tipo `TAB`.
+- **D-14** Fiado no PDV gera uma venda com pagamento do tipo `TAB`. *Pendente de implementação: o PDV não envia venda; `TAB` não existe em `PaymentMethod`.*
 - **D-15** Aviso persistente quando o caixa está aberto há 8 horas. Fica até o fechamento. *Pendente de implementação.*
 - **D-16** Tempo máximo de sessão: 12 horas por padrão, mesmo com caixa aberto. A dona pode alterar entre 1 e 24 horas. *Leitura consolidada com D-09: a sessão dura até o caixa fechar, com teto de 12 horas configurável pela dona. Pendente: não existe configuração da dona e o cookie dura 30 minutos (`auth-context.ts`).*
 - **D-17** O aviso de 8 horas apenas avisa. Nunca bloqueia vendas. *Pendente de implementação.*

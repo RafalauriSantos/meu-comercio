@@ -1,67 +1,266 @@
 {
   "schemaVersion": 2,
-  "generatedAt": "2026-11-07T00:00:00Z",
+  "generatedAt": "2026-11-07T12:00:00Z",
   "title": "Design System: Meu Comércio",
   "extensions": {
     "colorMeta": {
-      "ground": {"role": "neutral", "displayName": "Night Navy", "canonical": "#0b1220", "tonalRamp": ["#0b1220", "#111c31", "#243350", "#4b5d7c", "#b3bfd2", "#f1f5f9"]},
-      "green": {"role": "primary", "displayName": "Ledger Green", "canonical": "#34d399", "tonalRamp": ["#052e1f", "#34d399", "#5eead4"]}
+      "ground": {
+        "role": "neutral",
+        "displayName": "Night Navy",
+        "canonical": "#0b1220",
+        "tonalRamp": [
+          "#0b1220",
+          "#111c31",
+          "#243350",
+          "#4b5d7c",
+          "#b3bfd2",
+          "#f1f5f9"
+        ]
+      },
+      "green": {
+        "role": "primary",
+        "displayName": "Ledger Green",
+        "canonical": "#34d399",
+        "tonalRamp": [
+          "#052e1f",
+          "#34d399",
+          "#5eead4"
+        ]
+      },
+      "surface": {
+        "role": "neutral",
+        "displayName": "Lifted Navy",
+        "canonical": "#111c31",
+        "tonalRamp": [
+          "#0b1220",
+          "#111c31",
+          "#243350"
+        ]
+      },
+      "danger-text": {
+        "role": "error",
+        "displayName": "Danger Text on Wash",
+        "canonical": "#fecaca",
+        "tonalRamp": [
+          "#2a1215",
+          "#7f1d1d",
+          "#f87171",
+          "#fecaca"
+        ]
+      }
     },
     "typographyMeta": {
-      "display": {"displayName": "Display", "purpose": "One h1 per page, Bricolage Grotesque 800."},
-      "caption": {"displayName": "Caption", "purpose": "Screenshot caption, Geist 0.875rem muted; always starts with \"Exemplo:\"."}
+      "display": {
+        "displayName": "Display",
+        "purpose": "h1 of each landing page and auth state, brand headline and wordmark; Bricolage Grotesque 800. On auth it arrives through AuthShell's fontClassName prop."
+      },
+      "caption": {
+        "displayName": "Caption",
+        "purpose": "Screenshot caption, Geist 0.875rem muted; always starts with \"Exemplo:\"."
+      }
     },
     "shadows": [
-      {"name": "window-ground", "value": "0 48px 80px -40px rgba(0,0,0,0.85), 0 16px 32px -16px rgba(0,0,0,0.5)", "purpose": "Lifts the single raised application window off the navy ground."},
-      {"name": "button-glow", "value": "0 10px 24px -12px rgba(52,211,153,0.7)", "purpose": "Faint green glow under the primary button."}
+      {
+        "name": "window-ground",
+        "value": "0 48px 80px -40px rgba(0,0,0,0.85), 0 16px 32px -16px rgba(0,0,0,0.5)",
+        "purpose": "Lifts the single raised application window off the navy ground."
+      },
+      {
+        "name": "button-glow",
+        "value": "0 10px 24px -12px rgba(52,211,153,0.7)",
+        "purpose": "Faint green glow under the primary button."
+      },
+      {
+        "name": "auth-window",
+        "value": "0 32px 64px -32px rgba(0,0,0,0.8)",
+        "purpose": "Grounds the cropped capture on the auth brand side."
+      },
+      {
+        "name": "input-focus-ring",
+        "value": "0 0 0 3px rgba(52,211,153,0.35)",
+        "purpose": "Green ring on a focused auth input, with a green border."
+      }
     ],
     "motion": [
-      {"name": "button-transition", "value": "160ms ease-out", "purpose": "Background, border, 1px lift on buttons; the only motion on the page, removed under prefers-reduced-motion."}
+      {
+        "name": "button-transition",
+        "value": "160ms ease-out",
+        "purpose": "Background, border, 1px lift on landing buttons; removed under prefers-reduced-motion."
+      },
+      {
+        "name": "auth-transition",
+        "value": "160ms ease-out",
+        "purpose": "Tab, input and button colors on auth screens; removed under prefers-reduced-motion."
+      },
+      {
+        "name": "auth-spinner",
+        "value": "800ms linear infinite",
+        "purpose": "Loading ring; slows to 2.4s under prefers-reduced-motion."
+      }
     ],
     "breakpoints": [
-      {"name": "narrow", "value": "520px"},
-      {"name": "wide", "value": "900px"}
+      {
+        "name": "narrow",
+        "value": "520px"
+      },
+      {
+        "name": "wide",
+        "value": "900px"
+      },
+      {
+        "name": "auth-split",
+        "value": "960px"
+      }
     ]
   },
   "components": [
     {
-      "name": "Primary Button", "kind": "button", "refersTo": "button-primary",
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
       "description": "Main action, green fill.",
       "html": "<a class=\"ds-btn-primary\" href=\"#\">Criar minha conta grátis</a>",
       "css": ".ds-btn-primary{display:inline-flex;align-items:center;justify-content:center;min-height:52px;padding:0 24px;border-radius:12px;font-size:1.0625rem;font-weight:650;text-decoration:none;background:#34d399;color:#052e1f;box-shadow:0 10px 24px -12px rgba(52,211,153,.7);transition:background-color 160ms ease-out,transform 160ms ease-out}.ds-btn-primary:hover{background:#5eead4;transform:translateY(-1px)}.ds-btn-primary:focus-visible{outline:3px solid #34d399;outline-offset:3px;border-radius:6px}"
     },
     {
-      "name": "Secondary Button", "kind": "button", "refersTo": "button-secondary",
+      "name": "Secondary Button",
+      "kind": "button",
+      "refersTo": "button-secondary",
       "description": "Quiet alternative action.",
       "html": "<a class=\"ds-btn-secondary\" href=\"#\">Já tenho conta</a>",
       "css": ".ds-btn-secondary{display:inline-flex;align-items:center;justify-content:center;min-height:52px;padding:0 24px;border-radius:12px;font-size:1.0625rem;font-weight:650;text-decoration:none;border:1px solid #4b5d7c;color:#f1f5f9;transition:border-color 160ms ease-out}.ds-btn-secondary:hover{border-color:#34d399}.ds-btn-secondary:focus-visible{outline:3px solid #34d399;outline-offset:3px;border-radius:6px}"
     },
     {
-      "name": "Application Window", "kind": "custom", "refersTo": "application-window",
+      "name": "Application Window",
+      "kind": "custom",
+      "refersTo": "application-window",
       "description": "Frames a real capture of the app's /pdv screen (demo data) with an \"Exemplo:\" caption. The one raised surface. Real capture only, never a mock-up.",
       "html": "<figure class=\"ds-shot\"><div class=\"ds-shot-window\"><div class=\"ds-shot-img\">[real capture of /pdv, 1920x1140 WebP]</div></div><figcaption>Exemplo: a tela do PDV com produtos e valores de demonstração.</figcaption></figure>",
       "css": ".ds-shot{margin:0;max-width:1120px}.ds-shot-window{overflow:hidden;border:1px solid #4b5d7c;border-radius:14px;background:#ffffff;box-shadow:0 48px 80px -40px rgba(0,0,0,.85),0 16px 32px -16px rgba(0,0,0,.5)}.ds-shot-img{display:block;width:100%;aspect-ratio:1920/1140;background:#e6ebe8;color:#052e1f;font-size:.875rem;display:flex;align-items:center;justify-content:center}.ds-shot figcaption{margin-top:14px;font-size:.875rem;color:#b3bfd2}"
     },
     {
-      "name": "Question Row", "kind": "custom", "refersTo": "faq",
+      "name": "Question Row",
+      "kind": "custom",
+      "refersTo": "faq",
       "description": "Native details with green plus marker.",
       "html": "<details class=\"ds-faq\"><summary>É gratuito?</summary><p>Gratuito por enquanto.</p></details>",
       "css": ".ds-faq{border-bottom:1px solid #243350;color:#f1f5f9}.ds-faq summary{display:flex;align-items:center;justify-content:space-between;gap:16px;min-height:56px;padding:12px 0;font-size:1.125rem;font-weight:600;cursor:pointer;list-style:none}.ds-faq summary::-webkit-details-marker{display:none}.ds-faq summary::after{content:'+';font-size:1.5rem;color:#34d399}.ds-faq[open] summary::after{content:'\\2212'}.ds-faq summary:focus-visible{outline:3px solid #34d399;outline-offset:3px;border-radius:6px}.ds-faq p{margin:0 0 18px;max-width:52ch;color:#b3bfd2}"
+    },
+    {
+      "name": "Auth Tabs",
+      "kind": "nav",
+      "refersTo": "auth-tab",
+      "description": "Segmented Entrar / Criar conta switch (aria-pressed buttons, 44px).",
+      "html": "<div class=\"ds-tabs\"><button class=\"ds-tab active\" aria-pressed=\"true\">Entrar</button><button class=\"ds-tab\" aria-pressed=\"false\">Criar conta</button></div>",
+      "css": ".ds-tabs{display:grid;grid-template-columns:1fr 1fr;gap:4px;padding:4px;background:#0b1220;border:1px solid #243350;border-radius:12px;width:320px}.ds-tab{min-height:44px;border:1px solid transparent;border-radius:9px;background:transparent;color:#b3bfd2;font:inherit;font-size:.9375rem;font-weight:600;cursor:pointer;transition:background-color 160ms ease-out,color 160ms ease-out}.ds-tab:hover{color:#f1f5f9}.ds-tab.active{background:#111c31;border-color:#4b5d7c;color:#f1f5f9}.ds-tab:focus-visible{outline:3px solid #34d399;outline-offset:3px;border-radius:8px}"
+    },
+    {
+      "name": "Auth Text Input",
+      "kind": "input",
+      "refersTo": "auth-input",
+      "description": "48px field on ground with line-strong border; green border and ring on focus.",
+      "html": "<label class=\"ds-label\" for=\"ds-u\">Usuário</label><input id=\"ds-u\" class=\"ds-input\" type=\"text\" placeholder=\"Ex.: maria\">",
+      "css": ".ds-label{display:block;margin-bottom:8px;font-size:.9375rem;font-weight:600;color:#f1f5f9}.ds-input{box-sizing:border-box;width:320px;min-height:48px;padding:0 14px;border:1px solid #4b5d7c;border-radius:10px;background:#0b1220;color:#f1f5f9;font:inherit;font-size:1rem;transition:border-color 160ms ease-out,box-shadow 160ms ease-out}.ds-input::placeholder{color:#8593ad}.ds-input:focus{outline:none;border-color:#34d399;box-shadow:0 0 0 3px rgba(52,211,153,.35)}"
+    },
+    {
+      "name": "Password Field",
+      "kind": "input",
+      "refersTo": "auth-input",
+      "description": "Input with a green Mostrar/Ocultar button inside (44px, aria-pressed).",
+      "html": "<div class=\"ds-wrap\"><input class=\"ds-pw\" type=\"password\" value=\"segredo123\"><button class=\"ds-toggle\" type=\"button\" aria-pressed=\"false\">Mostrar</button></div>",
+      "css": ".ds-wrap{position:relative;width:320px}.ds-pw{box-sizing:border-box;width:100%;min-height:48px;padding:0 92px 0 14px;border:1px solid #4b5d7c;border-radius:10px;background:#0b1220;color:#f1f5f9;font:inherit;font-size:1rem}.ds-pw:focus{outline:none;border-color:#34d399;box-shadow:0 0 0 3px rgba(52,211,153,.35)}.ds-toggle{position:absolute;top:2px;right:2px;min-height:44px;min-width:72px;padding:0 12px;border:0;border-radius:8px;background:transparent;color:#34d399;font:inherit;font-size:.875rem;font-weight:600;cursor:pointer}.ds-toggle:hover{color:#5eead4}.ds-toggle:focus-visible{outline:3px solid #34d399;outline-offset:3px}"
+    },
+    {
+      "name": "Form Error Banner",
+      "kind": "custom",
+      "refersTo": "form-error",
+      "description": "role=alert banner for form-level errors; the only use of red.",
+      "html": "<div class=\"ds-error\" role=\"alert\"><svg width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><circle cx=\"12\" cy=\"12\" r=\"10\"/><line x1=\"12\" y1=\"8\" x2=\"12\" y2=\"12\"/><line x1=\"12\" y1=\"16\" x2=\"12.01\" y2=\"16\"/></svg><span>Usuário ou senha inválidos.</span></div>",
+      "css": ".ds-error{display:flex;align-items:flex-start;gap:10px;width:320px;box-sizing:border-box;padding:12px 14px;border:1px solid #7f1d1d;border-radius:10px;background:#2a1215;color:#fecaca;font-size:.9375rem}.ds-error svg{flex:none;margin-top:2px}"
+    },
+    {
+      "name": "Auth Primary Button",
+      "kind": "button",
+      "refersTo": "auth-button-primary",
+      "description": "Full-width 52px green submit; hover Green Hover, no lift or glow.",
+      "html": "<button class=\"ds-auth-btn\">Criar conta e entrar</button>",
+      "css": ".ds-auth-btn{display:inline-flex;align-items:center;justify-content:center;width:320px;min-height:52px;border:0;border-radius:12px;background:#34d399;color:#052e1f;font:inherit;font-size:1.0625rem;font-weight:650;cursor:pointer;transition:background-color 160ms ease-out}.ds-auth-btn:hover{background:#5eead4}.ds-auth-btn:focus-visible{outline:3px solid #34d399;outline-offset:3px;border-radius:8px}"
+    },
+    {
+      "name": "Auth Brand Claim List",
+      "kind": "custom",
+      "refersTo": "auth-claims",
+      "description": "Allowed claims with a short green dash marker; desktop brand side only.",
+      "html": "<ul class=\"ds-claims\"><li>Fiado com limite por cliente. Passou do limite, só a dona libera.</li><li>Fechamento do caixa que compara a contagem com o valor esperado.</li></ul>",
+      "css": ".ds-claims{display:grid;gap:14px;margin:0;padding:0;max-width:46ch;list-style:none;color:#b3bfd2;line-height:1.55}.ds-claims li{position:relative;padding-left:20px}.ds-claims li::before{content:'';position:absolute;left:0;top:.7em;width:8px;height:2px;background:#34d399}"
     }
   ],
   "narrative": {
     "northStar": "The Shop-Counter Ledger",
-    "overview": "A night-time bookkeeping page: deep navy ground, ruled lines instead of boxes, and one green that means action. The hero proves the product with a real capture of the /pdv screen in an application window. Desktop-first; mobile stacks the same single column.",
-    "keyCharacteristics": ["Flat tonal layering with hairline rules", "One green accent", "Ruled lists, not cards", "Real product capture in an application window as the one raised surface", "No authored motion; only a button hover transition"],
-    "rules": [
-      {"name": "The One Green Rule", "body": "Green marks an action or a confirmed state, never decoration.", "section": "colors"},
-      {"name": "The Tabular Rule", "body": "Every money figure and counter the landing sets uses tabular-nums.", "section": "typography"},
-      {"name": "The Measure Rule", "body": "Running text never exceeds 52ch.", "section": "typography"},
-      {"name": "The One Raised Surface Rule", "body": "Only the application window is raised.", "section": "elevation"},
-      {"name": "The Real Capture Rule", "body": "The product screen must be a real capture of the app with demo data, and always carries the \"Exemplo:\" caption. public/landing/pdv-desktop.webp: Playwright capture of the built app's /pdv at 1280x760, device scale 1.5, invented demo data via intercepted API responses, WebP, about 100 KB; nothing from production or real customers.", "section": "components"},
-      {"name": "The Desktop-First Review Rule", "body": "Review at 1440 and 1920 first, then 390.", "section": "layout"}
+    "overview": "A night-time bookkeeping page: deep navy ground, ruled lines instead of boxes, and one green that means action. The hero proves the product with a real capture of the /pdv screen in an application window. Desktop-first; mobile stacks the same single column. Login and sign up use the same world: two columns from 960px (brand side on ground with headline, three allowed claims and a cropped real capture; form side on lifted surface), one column on a phone.",
+    "keyCharacteristics": [
+      "Flat tonal layering with hairline rules",
+      "One green accent",
+      "Ruled lists, not cards",
+      "Real product capture in an application window as the one raised surface",
+      "No authored motion; only a button hover transition",
+      "Auth screens: ground brand side, lifted surface form side, segmented tabs, 48px fields, 44px minimum targets"
     ],
-    "dos": ["Do show the product through a real demo-data capture with the \"Exemplo:\" caption.", "Do review desktop-first (1440, 1920, then 390).", "Do honor prefers-reduced-motion for any motion added."],
-    "donts": ["Don't put an eyebrow above a heading.", "Don't use rows of same-size icon cards.", "Don't use gradient text.", "Don't invent claims or testimonials.", "Don't draw an imitation of the product screen or use real-customer data."]
+    "rules": [
+      {
+        "name": "The One Green Rule",
+        "body": "Green marks an action or a confirmed state, never decoration. Red appears only as the error state on forms.",
+        "section": "colors"
+      },
+      {
+        "name": "The Tabular Rule",
+        "body": "Every money figure and counter the landing sets uses tabular-nums.",
+        "section": "typography"
+      },
+      {
+        "name": "The Measure Rule",
+        "body": "Running text never exceeds 52ch.",
+        "section": "typography"
+      },
+      {
+        "name": "The One Raised Surface Rule",
+        "body": "Only the application window is raised.",
+        "section": "elevation"
+      },
+      {
+        "name": "The Real Capture Rule",
+        "body": "The product screen must be a real capture of the app with demo data, and always carries the \"Exemplo:\" caption. public/landing/pdv-desktop.webp: Playwright capture of the built app's /pdv at 1280x760, device scale 1.5, invented demo data via intercepted API responses, WebP, about 100 KB; nothing from production or real customers.",
+        "section": "components"
+      },
+      {
+        "name": "The Desktop-First Review Rule",
+        "body": "Review at 1440 and 1920 first, then 390.",
+        "section": "layout"
+      },
+      {
+        "name": "The Allowed Claims Rule",
+        "body": "Auth copy states only what the product does: owner PIN of 6 digits for estornos and fiado above the limit, fiado limit per customer, cash close comparing counted with expected, simple cash sales kept offline. No profit, reports, prices, customers, ratings or testimonials.",
+        "section": "components"
+      }
+    ],
+    "dos": [
+      "Do show the product through a real demo-data capture with the \"Exemplo:\" caption.",
+      "Do review desktop-first (1440, 1920, then 390).",
+      "Do honor prefers-reduced-motion for any motion added.",
+      "Do use surface only for the lifted auth form side and active tab; keep inputs on ground.",
+      "Do keep field labels as nouns, reuse the landing's words (\"Criar conta\"), and set autoComplete on every field.",
+      "Do pass fontClassName to AuthShell so the display face loads.",
+      "Do keep every control at least 44px."
+    ],
+    "donts": [
+      "Don't put an eyebrow above a heading.",
+      "Don't use rows of same-size icon cards.",
+      "Don't use gradient text.",
+      "Don't invent claims or testimonials.",
+      "Don't draw an imitation of the product screen or use real-customer data.",
+      "Don't put a pill, eyebrow or kicker above a heading on any screen.",
+      "Don't show the browser's number spin buttons on money inputs.",
+      "Don't use red for anything but form errors."
+    ]
   }
 }

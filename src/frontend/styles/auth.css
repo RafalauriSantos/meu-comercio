@@ -18,6 +18,8 @@ html:has(.auth) {
   --danger-text: #fecaca;
   --danger-bg: #2a1215;
   --danger-line: #7f1d1d;
+  --danger-border: #f87171;
+  --placeholder: #8593ad;
   --measure: 46ch;
 
   min-height: 100vh;
@@ -39,7 +41,7 @@ html:has(.auth) {
 .auth button:focus-visible {
   outline: 3px solid var(--green);
   outline-offset: 3px;
-  border-radius: 8px;
+  border-radius: 6px;
 }
 
 /* Brand side: on a phone it is only the wordmark and the promise */
@@ -180,7 +182,7 @@ html:has(.auth) {
 }
 
 .auth-input::placeholder {
-  color: #8593ad;
+  color: var(--placeholder);
 }
 
 .auth-input:focus {
@@ -190,7 +192,7 @@ html:has(.auth) {
 }
 
 .auth-input[aria-invalid='true'] {
-  border-color: #f87171;
+  border-color: var(--danger-border);
 }
 
 .auth-input-wrap {
@@ -209,7 +211,7 @@ html:has(.auth) {
   min-width: 72px;
   padding: 0 12px;
   border: 0;
-  border-radius: 8px;
+  border-radius: 6px;
   background: transparent;
   color: var(--green);
   font: inherit;
@@ -232,6 +234,15 @@ html:has(.auth) {
   font-size: 1.25rem;
   font-weight: 700;
   font-variant-numeric: tabular-nums;
+  -moz-appearance: textfield;
+  appearance: textfield;
+}
+
+/* The browser's own spin buttons belong to no design system. */
+.auth-input-amount::-webkit-inner-spin-button,
+.auth-input-amount::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
 }
 
 .auth-hint {
@@ -408,8 +419,9 @@ html:has(.auth) {
   }
 
   .auth-panel {
-    align-items: center;
-    padding: 48px 56px;
+    /* Top aligned, so the tabs and the title stay put when the state changes. */
+    align-items: flex-start;
+    padding: clamp(48px, 10vh, 112px) 56px 48px;
     background: var(--surface);
     border-left: 1px solid var(--line);
   }

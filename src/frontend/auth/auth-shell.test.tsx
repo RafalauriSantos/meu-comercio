@@ -3,11 +3,10 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { AuthShell } from './auth-shell';
 
 const FORBIDDEN = ['lucro', 'relatório', 'depoimento', 'http://', 'https://'];
-const MODES = ['login', 'register', 'setup', 'cash'] as const;
 
-function render(mode: (typeof MODES)[number]): string {
+function render(): string {
   return renderToStaticMarkup(
-    <AuthShell mode={mode}>
+    <AuthShell>
       <h1>Título do formulário</h1>
     </AuthShell>
   );
@@ -18,16 +17,16 @@ function count(markup: string, needle: string): number {
 }
 
 describe('AuthShell', () => {
-  it.each(MODES)('keeps the wordmark link, the form and one h1 in mode %s', (mode) => {
-    const markup = render(mode);
+  it('keeps the wordmark link, the form and one h1', () => {
+    const markup = render();
 
     expect(markup).toMatch(/<a[^>]*href="\/"[^>]*>Meu Comércio<\/a>/);
     expect(markup).toContain('<h1>Título do formulário</h1>');
     expect(count(markup, '<h1')).toBe(1);
   });
 
-  it.each(MODES)('shows the product image as a decorative example in mode %s', (mode) => {
-    const markup = render(mode);
+  it('shows the product image as a decorative example', () => {
+    const markup = render();
     const image = markup.match(/<img[^>]*>/)?.[0] ?? '';
 
     expect(image).toContain('src="/landing/pdv-desktop.webp"');
@@ -37,27 +36,19 @@ describe('AuthShell', () => {
     expect(markup).toContain('Exemplo');
   });
 
-  it.each(MODES)('makes no forbidden claim in mode %s', (mode) => {
-    const markup = render(mode).toLowerCase();
+  it('makes no forbidden claim', () => {
+    const markup = render().toLowerCase();
 
     for (const word of FORBIDDEN) {
       expect(markup).not.toContain(word);
     }
   });
 
-  it('states the allowed claims on the login', () => {
-    const markup = render('login');
-
-    expect(count(markup, '<li>')).toBe(3);
-    expect(markup).toContain('limite');
-    expect(markup).toContain('valor esperado');
-    expect(markup).toContain('venda simples em dinheiro');
-  });
-
-  it('states the 6 digit PIN claim on the sign up', () => {
-    const markup = render('register');
+  it('states the three allowed claims, including the 6 digit owner PIN', () => {
+    const markup = render();
 
     expect(count(markup, '<li>')).toBe(3);
     expect(markup).toContain('6 dígitos');
+    expect(markup).toContain('valor esperado');
   });
 });

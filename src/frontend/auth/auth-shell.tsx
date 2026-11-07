@@ -1,12 +1,10 @@
 import type { ReactNode } from 'react';
 import Link from 'next/link';
-import { AUTH_CONTENT, type AuthMode } from './auth-content';
+import { AUTH_CONTENT } from './auth-content';
 
-const { brand, image, imageCaption, modes } = AUTH_CONTENT;
+const { brand, image, imageCaption, copy } = AUTH_CONTENT;
 
-export function AuthShell({ mode, fontClassName, children }: { mode: AuthMode; fontClassName?: string; children: ReactNode }) {
-  const copy = modes[mode];
-
+export function AuthShell({ fontClassName, children }: { fontClassName?: string; children: ReactNode }) {
   return (
     <main className={fontClassName ? `auth ${fontClassName}` : 'auth'}>
       <aside className="auth-brand">

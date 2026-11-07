@@ -443,7 +443,7 @@ export default function GestaoPage() {
           >
             Cancelar Venda
           </button>
-          <Link href="/" className="primary" style={{ display: 'inline-flex', alignItems: 'center', textDecoration: 'none' }}>
+          <Link href="/pdv" className="primary" style={{ display: 'inline-flex', alignItems: 'center', textDecoration: 'none' }}>
             Voltar ao PDV Balcão
           </Link>
           <button

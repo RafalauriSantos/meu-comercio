@@ -4,6 +4,8 @@ import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { apiClient, AuthUser } from '@/frontend/lib/api-client';
 import { getErrorMessage, parseCurrencyInput } from '@/frontend/lib/formatters';
+import { parseAuthMode } from '@/frontend/lib/auth-mode';
+import { destinationForSession } from '@/frontend/lib/session-destination';
 import '@/frontend/styles/auth.css';
 
 export default function LoginPage() {
@@ -54,9 +56,15 @@ export default function LoginPage() {
           ]);
           setUser(me);
           setCashOpen(cash.open);
+          // An operator who is already working goes straight to the PDV, as the old root route did.
+          if (destinationForSession({ cashOpen: cash.open }) === 'pdv') {
+            router.replace('/pdv');
+            return;
+          }
         } catch {
-          // Não autenticado
+          // Not authenticated: the landing link (?modo=cadastro) opens the sign up form
           setUser(null);
+          setAuthMode(parseAuthMode(window.location.search));
         }
       } catch (err) {
         console.error('Erro ao verificar status:', err);
@@ -67,7 +75,7 @@ export default function LoginPage() {
     }
 
     checkStatus();
-  }, []);
+  }, [router]);
 
   async function handleLogin(e: React.FormEvent) {
     e.preventDefault();
@@ -86,7 +94,7 @@ export default function LoginPage() {
       setCashOpen(cash.open);
 
       if (cash.open) {
-        router.push('/');
+        router.push('/pdv');
       }
     } catch (err) {
       setError(getErrorMessage(err, 'Erro ao realizar login. Tente novamente.'));
@@ -141,7 +149,7 @@ export default function LoginPage() {
     try {
       await apiClient.openCash({ openingBalance: parseCurrencyInput(openingBalance) });
       setCashOpen(true);
-      router.push('/');
+      router.push('/pdv');
     } catch (err) {
       setError(getErrorMessage(err, 'Erro ao abrir caixa.'));
     } finally {

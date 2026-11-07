@@ -1,0 +1,67 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-11-07T00:00:00Z",
+  "title": "Design System: Meu Comércio",
+  "extensions": {
+    "colorMeta": {
+      "ground": {"role": "neutral", "displayName": "Night Navy", "canonical": "#0b1220", "tonalRamp": ["#0b1220", "#111c31", "#243350", "#4b5d7c", "#b3bfd2", "#f1f5f9"]},
+      "green": {"role": "primary", "displayName": "Ledger Green", "canonical": "#34d399", "tonalRamp": ["#052e1f", "#34d399", "#5eead4"]}
+    },
+    "typographyMeta": {
+      "display": {"displayName": "Display", "purpose": "One h1 per page, Bricolage Grotesque 800."},
+      "caption": {"displayName": "Caption", "purpose": "Screenshot caption, Geist 0.875rem muted; always starts with \"Exemplo:\"."}
+    },
+    "shadows": [
+      {"name": "window-ground", "value": "0 48px 80px -40px rgba(0,0,0,0.85), 0 16px 32px -16px rgba(0,0,0,0.5)", "purpose": "Lifts the single raised application window off the navy ground."},
+      {"name": "button-glow", "value": "0 10px 24px -12px rgba(52,211,153,0.7)", "purpose": "Faint green glow under the primary button."}
+    ],
+    "motion": [
+      {"name": "button-transition", "value": "160ms ease-out", "purpose": "Background, border, 1px lift on buttons; the only motion on the page, removed under prefers-reduced-motion."}
+    ],
+    "breakpoints": [
+      {"name": "narrow", "value": "520px"},
+      {"name": "wide", "value": "900px"}
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary Button", "kind": "button", "refersTo": "button-primary",
+      "description": "Main action, green fill.",
+      "html": "<a class=\"ds-btn-primary\" href=\"#\">Criar minha conta grátis</a>",
+      "css": ".ds-btn-primary{display:inline-flex;align-items:center;justify-content:center;min-height:52px;padding:0 24px;border-radius:12px;font-size:1.0625rem;font-weight:650;text-decoration:none;background:#34d399;color:#052e1f;box-shadow:0 10px 24px -12px rgba(52,211,153,.7);transition:background-color 160ms ease-out,transform 160ms ease-out}.ds-btn-primary:hover{background:#5eead4;transform:translateY(-1px)}.ds-btn-primary:focus-visible{outline:3px solid #34d399;outline-offset:3px;border-radius:6px}"
+    },
+    {
+      "name": "Secondary Button", "kind": "button", "refersTo": "button-secondary",
+      "description": "Quiet alternative action.",
+      "html": "<a class=\"ds-btn-secondary\" href=\"#\">Já tenho conta</a>",
+      "css": ".ds-btn-secondary{display:inline-flex;align-items:center;justify-content:center;min-height:52px;padding:0 24px;border-radius:12px;font-size:1.0625rem;font-weight:650;text-decoration:none;border:1px solid #4b5d7c;color:#f1f5f9;transition:border-color 160ms ease-out}.ds-btn-secondary:hover{border-color:#34d399}.ds-btn-secondary:focus-visible{outline:3px solid #34d399;outline-offset:3px;border-radius:6px}"
+    },
+    {
+      "name": "Application Window", "kind": "custom", "refersTo": "application-window",
+      "description": "Frames a real capture of the app's /pdv screen (demo data) with an \"Exemplo:\" caption. The one raised surface. Real capture only, never a mock-up.",
+      "html": "<figure class=\"ds-shot\"><div class=\"ds-shot-window\"><div class=\"ds-shot-img\">[real capture of /pdv, 1920x1140 WebP]</div></div><figcaption>Exemplo: a tela do PDV com produtos e valores de demonstração.</figcaption></figure>",
+      "css": ".ds-shot{margin:0;max-width:1120px}.ds-shot-window{overflow:hidden;border:1px solid #4b5d7c;border-radius:14px;background:#ffffff;box-shadow:0 48px 80px -40px rgba(0,0,0,.85),0 16px 32px -16px rgba(0,0,0,.5)}.ds-shot-img{display:block;width:100%;aspect-ratio:1920/1140;background:#e6ebe8;color:#052e1f;font-size:.875rem;display:flex;align-items:center;justify-content:center}.ds-shot figcaption{margin-top:14px;font-size:.875rem;color:#b3bfd2}"
+    },
+    {
+      "name": "Question Row", "kind": "custom", "refersTo": "faq",
+      "description": "Native details with green plus marker.",
+      "html": "<details class=\"ds-faq\"><summary>É gratuito?</summary><p>Gratuito por enquanto.</p></details>",
+      "css": ".ds-faq{border-bottom:1px solid #243350;color:#f1f5f9}.ds-faq summary{display:flex;align-items:center;justify-content:space-between;gap:16px;min-height:56px;padding:12px 0;font-size:1.125rem;font-weight:600;cursor:pointer;list-style:none}.ds-faq summary::-webkit-details-marker{display:none}.ds-faq summary::after{content:'+';font-size:1.5rem;color:#34d399}.ds-faq[open] summary::after{content:'\\2212'}.ds-faq summary:focus-visible{outline:3px solid #34d399;outline-offset:3px;border-radius:6px}.ds-faq p{margin:0 0 18px;max-width:52ch;color:#b3bfd2}"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Shop-Counter Ledger",
+    "overview": "A night-time bookkeeping page: deep navy ground, ruled lines instead of boxes, and one green that means action. The hero proves the product with a real capture of the /pdv screen in an application window. Desktop-first; mobile stacks the same single column.",
+    "keyCharacteristics": ["Flat tonal layering with hairline rules", "One green accent", "Ruled lists, not cards", "Real product capture in an application window as the one raised surface", "No authored motion; only a button hover transition"],
+    "rules": [
+      {"name": "The One Green Rule", "body": "Green marks an action or a confirmed state, never decoration.", "section": "colors"},
+      {"name": "The Tabular Rule", "body": "Every money figure and counter the landing sets uses tabular-nums.", "section": "typography"},
+      {"name": "The Measure Rule", "body": "Running text never exceeds 52ch.", "section": "typography"},
+      {"name": "The One Raised Surface Rule", "body": "Only the application window is raised.", "section": "elevation"},
+      {"name": "The Real Capture Rule", "body": "The product screen must be a real capture of the app with demo data, and always carries the \"Exemplo:\" caption. public/landing/pdv-desktop.webp: Playwright capture of the built app's /pdv at 1280x760, device scale 1.5, invented demo data via intercepted API responses, WebP, about 100 KB; nothing from production or real customers.", "section": "components"},
+      {"name": "The Desktop-First Review Rule", "body": "Review at 1440 and 1920 first, then 390.", "section": "layout"}
+    ],
+    "dos": ["Do show the product through a real demo-data capture with the \"Exemplo:\" caption.", "Do review desktop-first (1440, 1920, then 390).", "Do honor prefers-reduced-motion for any motion added."],
+    "donts": ["Don't put an eyebrow above a heading.", "Don't use rows of same-size icon cards.", "Don't use gradient text.", "Don't invent claims or testimonials.", "Don't draw an imitation of the product screen or use real-customer data."]
+  }
+}

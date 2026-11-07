@@ -148,7 +148,6 @@ export class DrizzleSaleRepository implements SaleRepository {
   }
 
   private async applyCreditDebit(tx: SaleDatabase, merchantId: string, credit: CreditDebitCommit): Promise<void> {
-
     // Lock the customer row so concurrent credit sales read the balance in order.
     await tx
       .select({ id: customers.id })
@@ -275,7 +274,7 @@ export class DrizzleSaleRepository implements SaleRepository {
   }
 
   async findById(merchantId: string, id: string): Promise<Sale | null> {
-    const [saleRow] = await db
+    const [saleRow] = await this.database
       .select()
       .from(sales)
       .where(and(eq(sales.merchantId, merchantId), eq(sales.id, id)))
@@ -289,7 +288,7 @@ export class DrizzleSaleRepository implements SaleRepository {
       return null;
     }
 
-    const [saleRow] = await db
+    const [saleRow] = await this.database
       .select()
       .from(sales)
       .where(
@@ -308,7 +307,7 @@ export class DrizzleSaleRepository implements SaleRepository {
     saleRow: typeof sales.$inferSelect
   ): Promise<Sale> {
     const [itemsRows, paymentRows] = await Promise.all([
-      db
+      this.database
         .select()
         .from(saleItems)
         .where(
@@ -317,7 +316,7 @@ export class DrizzleSaleRepository implements SaleRepository {
             eq(saleItems.saleId, saleRow.id)
           )
         ),
-      db
+      this.database
         .select()
         .from(payments)
         .where(

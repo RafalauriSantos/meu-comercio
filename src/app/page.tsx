@@ -32,6 +32,7 @@ import {
   formatCreditNote,
 } from '@/frontend/lib/thermal-printer';
 import { createCheckoutKeyStore } from '@/frontend/lib/checkout-idempotency';
+import { settleOfflineSale } from '@/frontend/lib/offline-sale-sender';
 import '@/frontend/styles/pdv.css';
 
 interface CartLine {
@@ -118,20 +119,21 @@ export default function PdvTerminalPage() {
       const result = await offlineManagerRef.current.syncQueue(
         userRef.current.merchantId,
         userRef.current.username,
-        async (sale: OfflineSale) => {
-          await apiClient.createSale(
-            {
-              items: sale.items.map((i) => ({ productId: i.productId, quantity: i.quantity })),
-              payments: sale.payments.map((p) => ({
-                method: p.method,
-                amount: p.amount,
-                receivedAmount: p.receivedAmount,
-              })),
-              idempotencyKey: sale.idempotencyKey,
-            },
-            sale.idempotencyKey
-          );
-        }
+        (sale: OfflineSale) =>
+          settleOfflineSale(() =>
+            apiClient.createSale(
+              {
+                items: sale.items.map((i) => ({ productId: i.productId, quantity: i.quantity })),
+                payments: sale.payments.map((p) => ({
+                  method: p.method,
+                  amount: p.amount,
+                  receivedAmount: p.receivedAmount,
+                })),
+                idempotencyKey: sale.idempotencyKey,
+              },
+              sale.idempotencyKey
+            )
+          )
       );
 
       if (result.syncedCount > 0) {

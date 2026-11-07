@@ -259,6 +259,28 @@ describe.skipIf(!TEST_DATABASE_URL)('DrizzleSaleRepository.commitSale (Postgres)
     expect(await database.select().from(cashMovements).where(eq(cashMovements.saleId, sale.id))).toHaveLength(0);
   });
 
+  it('lê a venda gravada pelo banco injetado, por id e por chave de idempotência', async () => {
+    const seed = await seedStore(5, '100.00');
+    const repo = new DrizzleSaleRepository(database);
+    const key = `key-${Math.random().toString(36).slice(2)}`;
+    const sale = Sale.create(seed.merchantId, seed.cashSessionId, 'op-1', { idempotencyKey: key });
+    sale.addItem(SaleItem.create(seed.productId, 'Pão', Money.fromDecimal('10.00'), 1));
+    sale.confirmPayments([Payment.create('CASH', Money.fromDecimal('10.00'))]);
+    await repo.commitSale({
+      sale,
+      actorId: 'op-1',
+      stockDeductions: [{ productId: seed.productId, quantity: 1 }],
+      audits: [],
+    });
+
+    const byKey = await repo.findByIdempotencyKey(seed.merchantId, key);
+    const byId = await repo.findById(seed.merchantId, sale.id);
+
+    expect(byKey?.id).toBe(sale.id);
+    expect(byId?.items).toHaveLength(1);
+    expect(byId?.payments).toHaveLength(1);
+  });
+
   it('recusa baixa de estoque com quantidade não positiva sem alterar o estoque', async () => {
     const seed = await seedStore(5, '100.00');
     const repo = new DrizzleSaleRepository(database);

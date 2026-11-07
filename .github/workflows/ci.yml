@@ -152,6 +152,9 @@ jobs:
         env:
           NEXT_TELEMETRY_DISABLED: 1
 
+      - name: Check no API route is prerendered at build time
+        run: npm run check:build
+
 
   deploy:
     name: Deploy to Vercel (Production)

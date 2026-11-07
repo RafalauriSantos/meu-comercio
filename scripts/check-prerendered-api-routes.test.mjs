@@ -13,6 +13,18 @@ describe('findPrerenderedApiRoutes', () => {
     expect(findPrerenderedApiRoutes(manifest)).toEqual(['/api/health', '/api/setup/status']);
   });
 
+  it('flags a route handler at the API root', () => {
+    const manifest = { routes: { '/api': { routeType: 'route', renderingMode: 'STATIC' } } };
+
+    expect(findPrerenderedApiRoutes(manifest)).toEqual(['/api']);
+  });
+
+  it('does not treat paths that only start with the letters api as API routes', () => {
+    const manifest = { routes: { '/apidocs': { routeType: 'route', renderingMode: 'STATIC' } } };
+
+    expect(findPrerenderedApiRoutes(manifest)).toEqual([]);
+  });
+
   it('ignores pages and static files such as the favicon', () => {
     const manifest = {
       routes: {

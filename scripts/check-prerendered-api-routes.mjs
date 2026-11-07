@@ -1,6 +1,8 @@
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 
+const isApiPath = (path) => path === '/api' || path.startsWith('/api/');
+
 /**
  * Returns the API route handlers that `next build` prerendered. A prerendered handler runs
  * during the build (and queries the database when DATABASE_URL is set) and its answer stays
@@ -8,7 +10,7 @@ import { fileURLToPath } from 'node:url';
  */
 export function findPrerenderedApiRoutes(manifest) {
   return Object.entries(manifest.routes ?? {})
-    .filter(([path, entry]) => path.startsWith('/api/') && entry.routeType === 'route')
+    .filter(([path, entry]) => isApiPath(path) && entry.routeType === 'route')
     .map(([path]) => path)
     .sort();
 }

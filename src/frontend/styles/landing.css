@@ -9,10 +9,12 @@ html:has(.landing) {
   --ground: #0b1220;
   --panel: #111c31;
   --line: #243350;
+  --line-strong: #4b5d7c;
   --text: #f1f5f9;
   --muted: #b3bfd2;
   --green: #34d399;
   --green-ink: #052e1f;
+  --green-hover: #5eead4;
   --measure: 52ch;
 
   min-height: 100vh;
@@ -122,12 +124,12 @@ html:has(.landing) {
 }
 
 .landing-button-primary:hover {
-  background: #5eead4;
+  background: var(--green-hover);
   transform: translateY(-1px);
 }
 
 .landing-button-secondary {
-  border: 1px solid #4b5d7c;
+  border: 1px solid var(--line-strong);
   color: var(--text);
 }
 
@@ -167,7 +169,7 @@ html:has(.landing) {
 
 .landing-badge {
   padding: 4px 10px;
-  border: 1px solid #4b5d7c;
+  border: 1px solid var(--line-strong);
   border-radius: 999px;
   font-size: 0.8125rem;
   font-weight: 600;
@@ -429,6 +431,16 @@ html:has(.landing) {
   border-top: 1px solid var(--line);
   font-size: 0.9375rem;
   color: var(--muted);
+}
+
+@media (max-width: 519px) {
+  .landing-actions .landing-button {
+    width: 100%;
+  }
+
+  .landing-final .landing-button {
+    width: 100%;
+  }
 }
 
 @media (min-width: 900px) {

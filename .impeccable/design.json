@@ -1,0 +1,68 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-11-07T00:00:00Z",
+  "title": "Design System: Meu Comércio",
+  "extensions": {
+    "colorMeta": {
+      "ground": {"role": "neutral", "displayName": "Night Navy", "canonical": "#0b1220", "tonalRamp": ["#0b1220", "#111c31", "#243350", "#4b5d7c", "#b3bfd2", "#f1f5f9"]},
+      "panel": {"role": "neutral", "displayName": "Ledger Panel", "canonical": "#111c31", "tonalRamp": ["#0b1220", "#111c31", "#243350", "#4b5d7c", "#b3bfd2", "#f1f5f9"]},
+      "green": {"role": "primary", "displayName": "Ledger Green", "canonical": "#34d399", "tonalRamp": ["#052e1f", "#34d399", "#5eead4"]}
+    },
+    "typographyMeta": {
+      "display": {"displayName": "Display", "purpose": "One h1 per page, Bricolage Grotesque 800."},
+      "figure": {"displayName": "Figure", "purpose": "Money values, tabular numerals."}
+    },
+    "shadows": [
+      {"name": "ledger-ground", "value": "0 28px 48px -28px rgba(0,0,0,0.7)", "purpose": "Grounds the single raised ledger panel."},
+      {"name": "button-glow", "value": "0 10px 24px -12px rgba(52,211,153,0.7)", "purpose": "Faint green glow under the primary button."}
+    ],
+    "motion": [
+      {"name": "button-transition", "value": "160ms ease-out", "purpose": "Background, border, 1px lift on buttons."},
+      {"name": "check-draw", "value": "700ms 300ms cubic-bezier(0.16, 1, 0.3, 1)", "purpose": "The one authored moment; off under prefers-reduced-motion."}
+    ],
+    "breakpoints": [
+      {"name": "narrow", "value": "520px"},
+      {"name": "wide", "value": "900px"}
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary Button", "kind": "button", "refersTo": "button-primary",
+      "description": "Main action, green fill.",
+      "html": "<a class=\"ds-btn-primary\" href=\"#\">Criar minha conta grátis</a>",
+      "css": ".ds-btn-primary{display:inline-flex;align-items:center;justify-content:center;min-height:52px;padding:0 24px;border-radius:12px;font-size:1.0625rem;font-weight:650;text-decoration:none;background:#34d399;color:#052e1f;box-shadow:0 10px 24px -12px rgba(52,211,153,.7);transition:background-color 160ms ease-out,transform 160ms ease-out}.ds-btn-primary:hover{background:#5eead4;transform:translateY(-1px)}.ds-btn-primary:focus-visible{outline:3px solid #34d399;outline-offset:3px;border-radius:6px}"
+    },
+    {
+      "name": "Secondary Button", "kind": "button", "refersTo": "button-secondary",
+      "description": "Quiet alternative action.",
+      "html": "<a class=\"ds-btn-secondary\" href=\"#\">Já tenho conta</a>",
+      "css": ".ds-btn-secondary{display:inline-flex;align-items:center;justify-content:center;min-height:52px;padding:0 24px;border-radius:12px;font-size:1.0625rem;font-weight:650;text-decoration:none;border:1px solid #4b5d7c;color:#f1f5f9;transition:border-color 160ms ease-out}.ds-btn-secondary:hover{border-color:#34d399}.ds-btn-secondary:focus-visible{outline:3px solid #34d399;outline-offset:3px;border-radius:6px}"
+    },
+    {
+      "name": "Ledger Panel", "kind": "card", "refersTo": "ledger-panel",
+      "description": "Ruled ledger page with dashed row rules.",
+      "html": "<aside class=\"ds-ledger\"><div class=\"ds-ledger-head\"><h2>Caixa de hoje</h2><span class=\"ds-badge\">Exemplo</span></div><dl><div class=\"ds-row\"><dt>Fiado em aberto</dt><dd>R$ 1.240,00</dd></div><div class=\"ds-row\"><dt>Dinheiro esperado no caixa</dt><dd>R$ 860,00</dd></div></dl><p>Valores de exemplo, não são dados reais.</p></aside>",
+      "css": ".ds-ledger{background:#111c31;color:#f1f5f9;border:1px solid #243350;border-radius:16px;padding:22px 22px 18px;box-shadow:0 28px 48px -28px rgba(0,0,0,.7);max-width:360px}.ds-ledger-head{display:flex;align-items:center;justify-content:space-between;gap:12px}.ds-ledger h2{margin:0;font-size:1.25rem;letter-spacing:-.01em}.ds-badge{padding:4px 10px;border:1px solid #4b5d7c;border-radius:999px;font-size:.8125rem;font-weight:600;color:#b3bfd2}.ds-ledger dl{margin:14px 0 0}.ds-row{padding:14px 0;border-bottom:1px dashed #243350}.ds-row dt{font-size:.9375rem;color:#b3bfd2}.ds-row dd{margin:2px 0 0;font-size:1.625rem;font-weight:700;font-variant-numeric:tabular-nums}.ds-ledger p{margin:14px 0 0;font-size:.8125rem;color:#b3bfd2}"
+    },
+    {
+      "name": "Question Row", "kind": "custom", "refersTo": "faq",
+      "description": "Native details with green plus marker.",
+      "html": "<details class=\"ds-faq\"><summary>É gratuito?</summary><p>Gratuito por enquanto.</p></details>",
+      "css": ".ds-faq{border-bottom:1px solid #243350;color:#f1f5f9}.ds-faq summary{display:flex;align-items:center;justify-content:space-between;gap:16px;min-height:56px;padding:12px 0;font-size:1.125rem;font-weight:600;cursor:pointer;list-style:none}.ds-faq summary::-webkit-details-marker{display:none}.ds-faq summary::after{content:'+';font-size:1.5rem;color:#34d399}.ds-faq[open] summary::after{content:'\\2212'}.ds-faq summary:focus-visible{outline:3px solid #34d399;outline-offset:3px;border-radius:6px}.ds-faq p{margin:0 0 18px;max-width:52ch;color:#b3bfd2}"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Shop-Counter Ledger",
+    "overview": "A night-time bookkeeping page: deep navy ground, ruled lines instead of boxes, large tabular figures, and one green that means action or confirmed state.",
+    "keyCharacteristics": ["Flat tonal layering with hairline rules", "One green accent", "Large tabular figures near the top", "Ruled lists, not cards", "Single authored motion"],
+    "rules": [
+      {"name": "The One Green Rule", "body": "Green marks an action or a confirmed state, never decoration.", "section": "colors"},
+      {"name": "The Token Rule", "body": "line-strong and green-hover are real tokens currently hard-coded; reference them by name.", "section": "colors"},
+      {"name": "The Tabular Rule", "body": "Every money figure and counter uses tabular-nums.", "section": "typography"},
+      {"name": "The Measure Rule", "body": "Running text never exceeds 52ch.", "section": "typography"},
+      {"name": "The One Raised Surface Rule", "body": "Only the ledger panel is raised.", "section": "elevation"}
+    ],
+    "dos": ["Do put figures near the top and set them in tabular numerals.", "Do label every example figure \"Exemplo\".", "Do honor prefers-reduced-motion for any motion added."],
+    "donts": ["Don't put an eyebrow above a heading.", "Don't use rows of same-size icon cards.", "Don't use gradient text.", "Don't invent claims or testimonials."]
+  }
+}

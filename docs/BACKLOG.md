@@ -146,3 +146,12 @@ Este documento rastreia formalmente as fatias verticais de entrega, critérios d
 
 
 
+
+### [ ] Slice 13: Landing Page, Login e Cadastro (Design: `docs/superpowers/specs/2026-11-07-landing-page-design.md`)
+- [x] 13.1 Landing em `/` (versão provisória, fase 1): topo com painel de exemplo rotulado, as quatro perdas, passos, segurança, perguntas e chamada final; estática, sem chamadas externas. Plano: `docs/superpowers/plans/2026-11-07-landing-page.md`.
+- [x] 13.2 PDV movido para `/pdv`; login e links apontam para `/pdv`. O link "Criar minha conta grátis" abre `/login?modo=cadastro`.
+- [x] 13.3 Metadados, `robots.txt` e `noindex` em `/login`, `/pdv` e `/gestao`.
+- [ ] 13.4 Redesenho visual de login e cadastro no mesmo mundo visual, com rota `/cadastro` (fase 2).
+- [ ] 13.5 Capturas reais do produto na landing, a partir de uma loja de demonstração criada pela dona (fase 2).
+- [ ] 13.6 Termos de uso e política de privacidade (LGPD), canal de ajuda e logo (fase 2). Primeiro item da fase 2: o cadastro já coleta nome, e-mail e senha sem aviso de privacidade.
+- [ ] 13.7 Rodar todos os `*.integration.test.ts` no job de Postgres do CI. Hoje o job roda só `drizzle-owner-pin-attempt-store.integration.test.ts`; os testes de integração de vendas rodam apenas localmente.

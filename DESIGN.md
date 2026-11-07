@@ -6,6 +6,7 @@ colors:
   surface: "#111c31"
   line: "#243350"
   line-strong: "#4b5d7c"
+  field-border: "#5f7293"
   text: "#f1f5f9"
   muted: "#b3bfd2"
   green: "#34d399"
@@ -143,7 +144,8 @@ A navy-and-slate neutral family with one mint-green accent. Contrast measured on
 ### Neutral
 - **Night Navy** (`ground`, #0b1220): page ground; also set on `html` so overscroll matches. `color-scheme: dark`.
 - **Hairline** (`line`, #243350): all section rules, row rules, header link underline.
-- **Strong Hairline** (`line-strong`, #4b5d7c): outlines of interactive elements and the application window (secondary button, window frame) so they meet non-text contrast.
+- **Strong Hairline** (`line-strong`, #4b5d7c): outlines of the application window and of controls that carry visible text (landing secondary button, auth tab and secondary button borders, auth brand capture window). It measures 2.81:1 on `ground` and 2.56:1 on `surface`, so it is not enough to mark an empty control on its own.
+- **Field Border** (`field-border`, #5f7293, auth only, custom property on `.auth`): the 1px boundary of text inputs (`.auth-input`). The input fill is the ground colour, so this border is the only thing that marks the control; it measures 3.85:1 on `ground` and 3.50:1 on `surface` (WCAG 1.4.11 non-text contrast, 3:1).
 - **Paper White** (`text`, #f1f5f9): headings, primary copy.
 - **Slate Muted** (`muted`, #b3bfd2): body copy, captions, notes.
 - **Window White** (`#ffffff`, hard-coded on `.landing-shot-window`): the backing behind the screenshot only, so the image never shows a navy seam. The greens and greys inside the capture belong to the app's own screen, not to this palette.
@@ -156,6 +158,8 @@ A navy-and-slate neutral family with one mint-green accent. Contrast measured on
 - **Danger Border** (`danger-border`, #f87171): border of an input with `aria-invalid`. Currently a literal in `auth.css`, not a custom property.
 
 ### Named Rules
+**The Field Boundary Rule.** A text input's boundary is `field-border`, never `line-strong`: the input has no fill to tell it apart, and `line-strong` is below 3:1 on `surface`. `line-strong` stays on borders of elements that carry visible text.
+
 **The One Green Rule.** Green marks an action or a confirmed state, never decoration. No second accent, no green body text. The short green dash before each auth claim and the in-field Mostrar/Ocultar button are the same signal (marker and action). Red appears only as the error state on forms, never as an accent.
 
 ## Typography
@@ -235,10 +239,10 @@ A `figure.landing-shot` holding `div.landing-shot-window` and a `figcaption`. Th
 **The Allowed Claims Rule.** Auth copy states only what the product does: owner PIN of 6 digits for estornos and fiado above the limit, fiado limit per customer, cash close that compares the counted amount with the expected one, simple cash sales kept offline. No profit, reports, prices, customers, ratings or testimonials.
 
 ### Auth form components
-- **Tabs:** a two-button segmented group (`role=group`, buttons with `aria-pressed`): "Entrar" and "Criar conta" (same words as the landing). Container `ground` with 1px `line` border, 12px radius, 4px padding; tab 44px high, 9px radius, muted text, hover Paper White; active tab fills `surface` with a `line-strong` border and Paper White text. Hidden in first-access setup and in the cash state.
+- **Tabs:** a two-button segmented group (`role=group`, buttons with `aria-pressed`, the only use of it on these screens): "Entrar" and "Criar conta" (same words as the landing). Container `ground` with 1px `line` border, 12px radius, 4px padding; tab 44px high, 9px radius, muted text, hover Paper White; active tab fills `surface` with a `line-strong` border and Paper White text. Hidden in first-access setup and in the cash state.
 - **Title and subtitle:** h1 in the display face, muted subtitle.
-- **Text input:** 48px, `ground` fill, 1px `line-strong` border, 10px radius, 14px side padding, 1rem. Focus: border turns green plus the 3px green ring (outline removed, the ring is the indicator). Invalid: `danger-border` border. Placeholder in `placeholder`. Transition 160ms ease-out.
-- **Password field:** an input with a Mostrar/Ocultar text button inside at the right (green, 0.875rem at 600, 44px high, at least 72px wide, 8px radius, `aria-pressed`, hover Green Hover); input right padding 92px. The sign-up form repeats it as "Repita a senha" with an inline mismatch message.
+- **Text input:** 48px, `ground` fill, 1px `field-border` border, 10px radius, 14px side padding, 1rem. Focus: border turns green plus the 3px green ring (outline removed, the ring is the indicator). Invalid: `danger-border` border. Placeholder in `placeholder`. Transition 160ms ease-out.
+- **Password field:** an input with a Mostrar/Ocultar text button inside at the right (green, 0.875rem at 600, 44px high, at least 72px wide, 8px radius, hover Green Hover); input right padding 92px. The button has no `aria-pressed`: its accessible name changes ("Mostrar senha" / "Ocultar senha") and contains the visible text ("Mostrar" / "Ocultar"). The sign-up form repeats it as "Repita a senha" with an inline mismatch message, "As senhas não conferem.", shown only when the repeated password is as long as the password and still differs, or longer (pure helper `passwordsMismatch` in `src/frontend/auth/passwords-mismatch.ts`), not on the first keystroke.
 - **PIN field:** numeric keypad, digits only, max 6, wide letter spacing, hint below in muted 0.875rem.
 - **Amount field:** the opening balance input is a number input with the browser spin buttons removed (`appearance: textfield` and the webkit spin buttons hidden); 1.25rem at 700, tabular.
 - **Inline field error:** 0.875rem `danger-text` under the field, tied by `aria-describedby`.

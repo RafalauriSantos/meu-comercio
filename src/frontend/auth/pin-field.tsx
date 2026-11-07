@@ -22,7 +22,6 @@ export function PinField({ id, label, hint, value, onChange }: PinFieldProps) {
         type="password"
         inputMode="numeric"
         pattern="[0-9]{6}"
-        maxLength={6}
         required
         autoComplete="off"
         value={value}

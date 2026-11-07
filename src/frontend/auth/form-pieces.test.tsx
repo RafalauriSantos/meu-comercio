@@ -15,7 +15,8 @@ describe('PasswordField', () => {
     expect(markup).toContain('type="password"');
     expect(markup).toMatch(/autocomplete="current-password"/i);
     expect(markup).toMatch(/<label[^>]*for="pw"[^>]*>Senha<\/label>/);
-    expect(markup).toMatch(/<button[^>]*type="button"[^>]*aria-label="Mostrar senha"[^>]*aria-pressed="false"/);
+    expect(markup).toMatch(/<button[^>]*type="button"[^>]*aria-label="Mostrar senha"/);
+    expect(markup).not.toContain('aria-pressed');
   });
 
   it('marks the input invalid and describes it when told so', () => {
@@ -35,7 +36,8 @@ describe('PinField', () => {
     );
 
     expect(markup).toMatch(/inputmode="numeric"/i);
-    expect(markup).toMatch(/maxlength="6"/i);
+    // No maxlength: the browser would cut a pasted "12a4-5678" before sanitizePin cleans it.
+    expect(markup).not.toMatch(/maxlength/i);
     expect(markup).toContain('pattern="[0-9]{6}"');
     expect(markup).toMatch(/autocomplete="off"/i);
     expect(markup).toContain('PIN da dona (6 dígitos)');

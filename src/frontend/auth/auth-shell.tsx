@@ -14,7 +14,7 @@ export function AuthShell({ mode, fontClassName, children }: { mode: AuthMode; f
           {brand}
         </Link>
 
-        <div className="auth-brand-copy">
+        <div>
           <p className="auth-brand-title">{copy.headline}</p>
           <ul className="auth-claims">
             {copy.claims.map((claim) => (

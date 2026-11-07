@@ -10,6 +10,7 @@ html:has(.auth) {
   --surface: #111c31;
   --line: #243350;
   --line-strong: #4b5d7c;
+  --field-border: #5f7293;
   --text: #f1f5f9;
   --muted: #b3bfd2;
   --green: #34d399;
@@ -172,7 +173,7 @@ html:has(.auth) {
   width: 100%;
   min-height: 48px;
   padding: 0 14px;
-  border: 1px solid var(--line-strong);
+  border: 1px solid var(--field-border);
   border-radius: 10px;
   background: var(--ground);
   color: var(--text);

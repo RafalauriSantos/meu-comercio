@@ -10,6 +10,7 @@ import { displayFont } from '@/frontend/landing/fonts';
 import { AuthShell } from '@/frontend/auth/auth-shell';
 import { PasswordField } from '@/frontend/auth/password-field';
 import { PinField } from '@/frontend/auth/pin-field';
+import { passwordsMismatch } from '@/frontend/auth/passwords-mismatch';
 import { FormError } from '@/frontend/auth/form-error';
 import '@/frontend/styles/auth.css';
 
@@ -162,7 +163,7 @@ export default function LoginPage() {
     }
   }
 
-  const confirmMismatch = setupConfirm.length > 0 && setupPassword !== setupConfirm;
+  const confirmMismatch = passwordsMismatch(setupPassword, setupConfirm);
 
   if (loading) {
     return (

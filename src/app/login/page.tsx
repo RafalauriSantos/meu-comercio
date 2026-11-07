@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { apiClient, AuthUser } from '@/frontend/lib/api-client';
 import { getErrorMessage, parseCurrencyInput } from '@/frontend/lib/formatters';
+import { parseAuthMode } from '@/frontend/lib/auth-mode';
 import '@/frontend/styles/auth.css';
 
 export default function LoginPage() {
@@ -55,8 +56,9 @@ export default function LoginPage() {
           setUser(me);
           setCashOpen(cash.open);
         } catch {
-          // Não autenticado
+          // Não autenticado: o link da landing (?modo=cadastro) abre direto o cadastro
           setUser(null);
+          setAuthMode(parseAuthMode(window.location.search));
         }
       } catch (err) {
         console.error('Erro ao verificar status:', err);

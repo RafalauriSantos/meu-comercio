@@ -48,12 +48,12 @@ Este documento rastreia formalmente as fatias verticais de entrega, critérios d
 - [x] 4.2 Restrição única parcial para chave de idempotência (`merchant_id, idempotency_key WHERE idempotency_key IS NOT NULL`).
 - [x] 4.3 Entidades puras de domínio (`Sale`, `SaleItem`, `Payment`) com invariantes estritas e cálculos imutáveis via Value Object `Money`.
 - [x] 4.4 Validação compulsória de sessão de caixa aberta (`findCurrentOpenSession`) antes de autorizar qualquer venda.
-- [ ] 4.5 Verificação de estoque disponível e dedução atômica por produto vendido com lançamento de movimentação `'SALE'`. *Reaberto: a dedução não é atômica nem tem lock (`create-sale.use-case.ts`); ver AC-08.*
+- [ ] 4.5 Verificação de estoque disponível e dedução atômica por produto vendido com lançamento de movimentação `'SALE'`. *Em revisão (PR #30): dedução com `FOR UPDATE` em ordem fixa, na mesma transação da venda (ADR-008); ver AC-08.*
 - [x] 4.6 Suporte a pagamentos múltiplos/divididos (Split Payments) em Dinheiro (`CASH`), PIX (`PIX`), Débito (`DEBIT_CARD`) e Crédito (`CREDIT_CARD`), garantindo soma exata do valor da venda.
 - [x] 4.7 Cálculo exato de troco para pagamentos em dinheiro com validação de valor recebido >= valor pago.
-- [x] 4.8 Registro automático de entrada de dinheiro (`SALE_RECEIPT`) no caixa aberto ativo quando houver componente em dinheiro.
+- [x] 4.8 Registro automático de entrada de dinheiro (`SALE_RECEIPT`) no caixa aberto ativo quando houver componente em dinheiro. *Na transação da venda desde o PR #30.*
 - [x] 4.9 Registro em trilha de auditoria imutável (`audit_events`) do evento `SALE_CONFIRMED`.
-- **Status:** Reaberto. 4.5 não é atômico. A alegação de PR Reviewer PASS não tem artefato em `docs/reviews/`.
+- **Status:** Em revisão no PR #30. A dedução e o recibo de caixa estão na transação da venda. O veredito do revisor fica em `docs/reviews/30.md`.
 
 ### [ ] Slice 5: Clientes e Fiado / Crediário com PIN da Proprietária (customers)
 - [x] 5.1 Schemas relacionais Drizzle `customers` e `customer_credit_ledger` com multi-tenancy estrito (`merchant_id`), chaves estrangeiras e integridade referencial.
@@ -119,7 +119,7 @@ Este documento rastreia formalmente as fatias verticais de entrega, critérios d
   - [ ] 11.2.2 Reversão atômica: marca venda como `'CANCELLED'` e impede re-cancelamento. *Reaberto: escritas sequenciais sem transação e sem update condicional (AC-10).*
   - [x] 11.2.3 Retorno dos itens ao estoque físico com movimentação de inventário do tipo `'RETURN'`.
   - [x] 11.2.4 Estorno de dinheiro na gaveta via movimentação `'CASH_CANCEL'` no caixa ativo (se houve pagamento em dinheiro e com validação de saldo).
-  - [ ] 11.2.5 Amortização automática de fiado no extrato do cliente com movimento compensatório `'CREDIT'` (se a venda teve lançamento em fiado). *Reaberto: só roda com `externalReference`, que o PDV nunca envia; a venda fiado do PDV não cria venda (AC-11).*
+  - [ ] 11.2.5 Amortização automática de fiado no extrato do cliente com movimento compensatório `'CREDIT'` (se a venda teve lançamento em fiado). *Reaberto: só roda com `externalReference`, que o PDV nunca envia. A venda fiado do PDV passa a criar venda no PR #30 (AC-11).*
   - [x] 11.2.6 Trilha de auditoria imutável compulsória do evento `'SALE_CANCELLED'`.
   - [x] 11.2.7 Rota de API `POST /api/sales/[id]/cancel`.
 - [x] 11.3 **Métricas de Fiado na Rua (GetCreditMetricsUseCase)**:

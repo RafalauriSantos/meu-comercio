@@ -7,7 +7,8 @@ import { sales, saleItems, payments } from './sales.schema';
 import { Sale, SaleStatus } from '../domain/sale';
 import { SaleItem } from '../domain/sale-item';
 import { Payment, PaymentMethod, PaymentStatus } from '../domain/payment';
-import { SaleCommit, SaleRepository } from '../domain/sale-repository.port';
+import { CreditDebitCommit, SaleCommit, SaleRepository } from '../domain/sale-repository.port';
+import { cashMovements } from '@/modules/cash/infrastructure/cash.schema';
 import { Money } from '@/shared/domain/money';
 import { inventoryItems, inventoryMovements } from '@/modules/inventory/infrastructure/inventory.schema';
 import { InsufficientStockError } from '@/modules/inventory/domain/inventory-item';
@@ -73,7 +74,16 @@ export class DrizzleSaleRepository implements SaleRepository {
       await this.writeSale(tx, commit.sale);
       await this.applyStockDeductions(tx, commit);
       if (commit.creditDebit) {
-        await this.applyCreditDebit(tx, commit);
+        await this.applyCreditDebit(tx, commit.sale.merchantId, commit.creditDebit);
+      }
+      if (commit.cashReceipt) {
+        await tx.insert(cashMovements).values({
+          merchantId: commit.sale.merchantId,
+          cashSessionId: commit.cashReceipt.cashSessionId,
+          movementType: 'SALE_RECEIPT',
+          amount: commit.cashReceipt.amount.toDecimal(),
+          saleId: commit.sale.id,
+        });
       }
       for (const audit of commit.audits) {
         await tx.insert(auditEvents).values({
@@ -90,7 +100,9 @@ export class DrizzleSaleRepository implements SaleRepository {
 
   private async applyStockDeductions(tx: SaleDatabase, commit: SaleCommit): Promise<void> {
     const { merchantId } = commit.sale;
-    for (const deduction of commit.stockDeductions) {
+    // Lock in a fixed order so concurrent sales with overlapping products cannot deadlock.
+    const ordered = [...commit.stockDeductions].sort((a, b) => a.productId.localeCompare(b.productId));
+    for (const deduction of ordered) {
       const [row] = await tx
         .select({ available: inventoryItems.availableQuantity })
         .from(inventoryItems)
@@ -117,9 +129,7 @@ export class DrizzleSaleRepository implements SaleRepository {
     }
   }
 
-  private async applyCreditDebit(tx: SaleDatabase, commit: SaleCommit): Promise<void> {
-    const credit = commit.creditDebit!;
-    const { merchantId } = commit.sale;
+  private async applyCreditDebit(tx: SaleDatabase, merchantId: string, credit: CreditDebitCommit): Promise<void> {
 
     // Lock the customer row so concurrent credit sales read the balance in order.
     await tx

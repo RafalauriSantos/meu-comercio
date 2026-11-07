@@ -143,6 +143,8 @@ Este documento registra formalmente as decisões de arquitetura e de produto do 
 
 ---
 
+**Atualização (PR #30): atomicidade da venda com fiado.** A venda, a baixa de estoque, o débito no extrato do cliente, o recibo de caixa (`SALE_RECEIPT`) e a auditoria são gravados em uma única transação (`SaleRepository.commitSale`). A dedução de estoque trava as linhas com `FOR UPDATE` em ordem fixa de `productId`, e o limite de crédito é reavaliado com a linha do cliente travada. Qualquer falha desfaz tudo.
+
 ## ADR-009: Adaptação da Interface do PDV no Next.js App Router, Fila Offline e Integração com Slices 1 a 5
 
 - **Data**: 2026-10-31

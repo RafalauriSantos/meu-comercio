@@ -133,9 +133,11 @@ export class CreateSaleUseCase {
       actorId: dto.operatorId,
       stockDeductions: resolvedProducts.map((r) => ({ productId: r.product.id, quantity: r.quantity })),
       creditDebit: credit ? this.creditDebitCommit(dto, openSession.id, sale, credit) : undefined,
+      cashReceipt: sale.cashPaid.isPositive()
+        ? { cashSessionId: openSession.id, amount: sale.cashPaid }
+        : undefined,
       audits,
     });
-    await this.recordCashReceipt(dto.merchantId, openSession.id, sale);
 
     return sale;
   }
@@ -302,22 +304,6 @@ export class CreateSaleUseCase {
 
     sale.confirmPayments(paymentEntities);
     return sale;
-  }
-
-  private async recordCashReceipt(
-    merchantId: string,
-    cashSessionId: string,
-    sale: Sale
-  ): Promise<void> {
-    if (sale.cashPaid.isPositive()) {
-      await this.cashSessionRepository.addMovement(
-        merchantId,
-        cashSessionId,
-        'SALE_RECEIPT',
-        sale.cashPaid,
-        sale.id
-      );
-    }
   }
 
   private saleConfirmedAudit(dto: CreateSaleDTO, cashSessionId: string, sale: Sale): AuditEntry {

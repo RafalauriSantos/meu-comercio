@@ -1,9 +1,9 @@
-import { and, eq, sql } from 'drizzle-orm';
+import { eq } from 'drizzle-orm';
 import type { PgDatabase, PgQueryResultHKT } from 'drizzle-orm/pg-core';
 import type { ExtractTablesWithRelations } from 'drizzle-orm';
 import { ownerPinAttempts } from './customers.schema';
 import { OwnerPinAttemptState, OwnerPinAttemptStore } from '../domain/owner-pin-attempt.port';
-import { NO_OWNER_PIN_ATTEMPTS, OWNER_PIN_LOCK_MINUTES, OWNER_PIN_MAX_FAILURES } from '../domain/owner-pin-lockout';
+import { NO_OWNER_PIN_ATTEMPTS, reserveOwnerPinAttempt } from '../domain/owner-pin-lockout';
 
 export type OwnerPinDatabase<TSchema extends Record<string, unknown>> = PgDatabase<
   PgQueryResultHKT,
@@ -24,45 +24,32 @@ export class DrizzleOwnerPinAttemptStore<TSchema extends Record<string, unknown>
   }
 
   /**
-   * One conditional UPDATE decides the attempt in the database, so concurrent
-   * requests cannot all pass the lock check. A missing row is created by INSERT.
+   * The lock rule lives in reserveOwnerPinAttempt. This method only makes the
+   * read-decide-write atomic by locking the merchant's row for the transaction.
    */
   async tryReserveAttempt(merchantId: string, now: Date): Promise<boolean> {
-    if (await this.updateOpenAttempt(merchantId, now)) {
-      return true;
-    }
+    return this.database.transaction(async (tx) => {
+      await tx
+        .insert(ownerPinAttempts)
+        .values({ merchantId, failedCount: 0, lockedUntil: null, updatedAt: now })
+        .onConflictDoNothing({ target: ownerPinAttempts.merchantId });
 
-    const inserted = await this.database
-      .insert(ownerPinAttempts)
-      .values({ merchantId, failedCount: 1, lockedUntil: null, updatedAt: now })
-      .onConflictDoNothing({ target: ownerPinAttempts.merchantId })
-      .returning({ failedCount: ownerPinAttempts.failedCount });
-    if (inserted.length > 0) {
-      return true;
-    }
+      const [row] = await tx
+        .select({ failedCount: ownerPinAttempts.failedCount, lockedUntil: ownerPinAttempts.lockedUntil })
+        .from(ownerPinAttempts)
+        .where(eq(ownerPinAttempts.merchantId, merchantId))
+        .limit(1)
+        .for('update');
 
-    // Another request inserted the row first. Retry the conditional UPDATE once.
-    return this.updateOpenAttempt(merchantId, now);
-  }
-
-  private async updateOpenAttempt(merchantId: string, now: Date): Promise<boolean> {
-    const updated = await this.database
-      .update(ownerPinAttempts)
-      .set({
-        failedCount: sql`${ownerPinAttempts.failedCount} + 1`,
-        lockedUntil: sql`CASE WHEN ${ownerPinAttempts.failedCount} + 1 >= ${OWNER_PIN_MAX_FAILURES}
-          THEN ${now}::timestamptz + (${OWNER_PIN_LOCK_MINUTES} * interval '1 minute')
-          ELSE NULL END`,
-        updatedAt: now,
-      })
-      .where(
-        and(
-          eq(ownerPinAttempts.merchantId, merchantId),
-          sql`(${ownerPinAttempts.lockedUntil} IS NULL OR ${ownerPinAttempts.lockedUntil} <= ${now}::timestamptz)`
-        )
-      )
-      .returning({ failedCount: ownerPinAttempts.failedCount });
-    return updated.length > 0;
+      const { allowed, next } = reserveOwnerPinAttempt(row ?? NO_OWNER_PIN_ATTEMPTS, now);
+      if (allowed) {
+        await tx
+          .update(ownerPinAttempts)
+          .set({ failedCount: next.failedCount, lockedUntil: next.lockedUntil, updatedAt: now })
+          .where(eq(ownerPinAttempts.merchantId, merchantId));
+      }
+      return allowed;
+    });
   }
 
   async reset(merchantId: string): Promise<void> {

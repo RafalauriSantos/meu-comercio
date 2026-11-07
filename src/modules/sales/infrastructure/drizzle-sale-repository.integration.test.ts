@@ -9,6 +9,7 @@ import { inventoryItems, inventoryMovements } from '@/modules/inventory/infrastr
 import { cashSessions } from '@/modules/cash/infrastructure/cash.schema';
 import { customers, customerCreditLedger } from '@/modules/customers/infrastructure/customers.schema';
 import { auditEvents } from '@/modules/audit/infrastructure/audit.schema';
+import { cashMovements } from '@/modules/cash/infrastructure/cash.schema';
 import { sales } from './sales.schema';
 import * as schema from '@/shared/infrastructure/db/schema';
 import { assertDisposableTestDatabase } from '@/shared/infrastructure/db/test-database-guard';
@@ -187,7 +188,7 @@ describe.skipIf(!TEST_DATABASE_URL)('DrizzleSaleRepository.commitSale (Postgres)
           },
         ],
       })
-    ).rejects.toThrow();
+    ).rejects.toThrow(/insert into "audit_events"/);
 
     const [stock] = await database
       .select({ qty: inventoryItems.availableQuantity })
@@ -198,6 +199,55 @@ describe.skipIf(!TEST_DATABASE_URL)('DrizzleSaleRepository.commitSale (Postgres)
     expect(
       await database.select().from(customerCreditLedger).where(eq(customerCreditLedger.customerId, seed.customerId))
     ).toHaveLength(0);
+  });
+
+  it('grava o recibo de caixa na mesma transação da venda', async () => {
+    const seed = await seedStore(5, '100.00');
+    const repo = new DrizzleSaleRepository(database);
+    const sale = Sale.create(seed.merchantId, seed.cashSessionId, 'op-1', { idempotencyKey: null });
+    sale.addItem(SaleItem.create(seed.productId, 'Pão', Money.fromDecimal('10.00'), 1));
+    sale.confirmPayments([Payment.create('CASH', Money.fromDecimal('10.00'))]);
+
+    await repo.commitSale({
+      sale,
+      actorId: 'op-1',
+      stockDeductions: [{ productId: seed.productId, quantity: 1 }],
+      cashReceipt: { cashSessionId: seed.cashSessionId, amount: Money.fromDecimal('10.00') },
+      audits: [],
+    });
+
+    const receipts = await database
+      .select()
+      .from(cashMovements)
+      .where(and(eq(cashMovements.saleId, sale.id), eq(cashMovements.movementType, 'SALE_RECEIPT')));
+    expect(receipts).toHaveLength(1);
+    expect(receipts[0].amount).toBe('10.0000');
+  });
+
+  it('não grava venda nem baixa de estoque quando o recibo de caixa falha', async () => {
+    const seed = await seedStore(5, '100.00');
+    const repo = new DrizzleSaleRepository(database);
+    const sale = Sale.create(seed.merchantId, seed.cashSessionId, 'op-1', { idempotencyKey: null });
+    sale.addItem(SaleItem.create(seed.productId, 'Pão', Money.fromDecimal('10.00'), 1));
+    sale.confirmPayments([Payment.create('CASH', Money.fromDecimal('10.00'))]);
+
+    await expect(
+      repo.commitSale({
+        sale,
+        actorId: 'op-1',
+        stockDeductions: [{ productId: seed.productId, quantity: 1 }],
+        cashReceipt: { cashSessionId: 'not-a-uuid', amount: Money.fromDecimal('10.00') },
+        audits: [],
+      })
+    ).rejects.toThrow(/insert into "cash_movements"/);
+
+    const [stock] = await database
+      .select({ qty: inventoryItems.availableQuantity })
+      .from(inventoryItems)
+      .where(eq(inventoryItems.productId, seed.productId));
+    expect(stock.qty).toBe(5);
+    expect(await database.select().from(sales).where(eq(sales.id, sale.id))).toHaveLength(0);
+    expect(await database.select().from(inventoryMovements).where(eq(inventoryMovements.reason, `Venda ${sale.id}`))).toHaveLength(0);
   });
 
   it('não deixa duas vendas fiado simultâneas passarem juntas do limite', async () => {

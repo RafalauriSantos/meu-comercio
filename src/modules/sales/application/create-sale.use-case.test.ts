@@ -30,7 +30,8 @@ class InMemorySaleRepository implements SaleRepository {
   constructor(
     private readonly inventory?: InMemoryInventoryRepository,
     private readonly audit?: InMemoryAuditPort,
-    private readonly credit?: InMemoryCreditRepo
+    private readonly credit?: InMemoryCreditRepo,
+    private readonly cash?: InMemoryCashSessionRepository
   ) {}
 
   async save(sale: Sale): Promise<void> {
@@ -60,6 +61,15 @@ class InMemorySaleRepository implements SaleRepository {
       const balance = await this.credit!.getBalance(sale.merchantId, commit.creditDebit.customerId);
       await commit.creditDebit.ensureWithinLimit(balance.currentDebt);
       await this.credit!.saveMovement(commit.creditDebit.movement);
+    }
+    if (commit.cashReceipt) {
+      this.cash!.movements.push({
+        merchantId: sale.merchantId,
+        sessionId: commit.cashReceipt.cashSessionId,
+        movementType: 'SALE_RECEIPT',
+        amount: commit.cashReceipt.amount,
+        saleId: sale.id,
+      });
     }
     for (const entry of commit.audits) {
       await this.audit!.record(
@@ -269,7 +279,7 @@ describe('CreateSaleUseCase — Slice 4: Vendas, Checkout e Split Payments', () 
     inventoryRepo = new InMemoryInventoryRepository();
     cashRepo = new InMemoryCashSessionRepository();
     auditPort = new InMemoryAuditPort();
-    saleRepo = new InMemorySaleRepository(inventoryRepo, auditPort);
+    saleRepo = new InMemorySaleRepository(inventoryRepo, auditPort, undefined, cashRepo);
 
     useCase = new CreateSaleUseCase(
       saleRepo,
@@ -1023,7 +1033,7 @@ describe('CreateSaleUseCase — venda fiado (TAB)', () => {
     auditPort = new InMemoryAuditPort();
     customerRepo = new InMemoryCustomerRepo();
     creditRepo = new InMemoryCreditRepo();
-    saleRepo = new InMemorySaleRepository(inventoryRepo, auditPort, creditRepo);
+    saleRepo = new InMemorySaleRepository(inventoryRepo, auditPort, creditRepo, cashRepo);
 
     useCase = new CreateSaleUseCase(saleRepo, productRepo, inventoryRepo, cashRepo, auditPort, {
       customerRepository: customerRepo,

@@ -1215,7 +1215,7 @@ export default function PdvTerminalPage() {
               <button
                 className="primary"
                 type="button"
-                disabled={processing || ownerPin.length < 4}
+                disabled={processing || !/^\d{6}$/.test(ownerPin)}
                 onClick={() => handleFinalizeSale(ownerPin)}
               >
                 {processing ? 'Autorizando...' : 'Autorizar e Registrar Fiado'}

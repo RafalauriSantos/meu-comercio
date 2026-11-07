@@ -40,7 +40,7 @@ Este documento é a **fonte oficial da verdade** para as **regras de negócio** 
 ### 5. Usuários e Autorizações
 - Dois papéis iniciais: **Proprietária** e **Operador**.
 - Cada operador possui usuário individual, senha e um PIN de 4 dígitos para autorizações rápidas no balcão. *Pendente de implementação: não há validador de PIN de operador no código.*
-- A proprietária possui PIN de autorização de **6 dígitos** (D-02, 2026-11-05). *Pendente de implementação: ainda aceitam de 4 a 6 dígitos o PIN da proprietária em `RegisterMerchantSchema`, `InitialOwnerSetupSchema`, na rota de cancelamento (`src/app/api/sales/[id]/cancel/route.ts`), no setup de `src/app/login/page.tsx`, no rótulo e na checagem `ownerPin.length < 4` do PDV (`src/app/page.tsx`), e na validação e rótulo de cancelamento em `src/app/gestao/page.tsx`.*
+- A proprietária possui PIN de autorização de **6 dígitos** (D-02, 2026-11-05). *Parcial: a API de vendas e o PDV validam 6 dígitos. Ainda aceitam de 4 a 6 dígitos em `RegisterMerchantSchema`, `InitialOwnerSetupSchema`, na rota de cancelamento (`src/app/api/sales/[id]/cancel/route.ts`), no setup de `src/app/login/page.tsx`, e na validação e rótulo de cancelamento em `src/app/gestao/page.tsx`.*
 - Operadores não possuem e-mail; recuperação de senha de operadores é realizada diretamente pela proprietária.
 - A proprietária informa e-mail no setup inicial para recuperação de senha única via token criptográfico com expiração de 15 minutos.
 - Bloqueio temporário de conta após tentativas consecutivas de login inválidas.
@@ -52,7 +52,7 @@ Este documento é a **fonte oficial da verdade** para as **regras de negócio** 
 
 ### 7. Idempotência
 - Endpoints de finalização de venda e recebimento de webhooks exigem chave de idempotência (`Idempotency-Key` ou identificador único do evento), impedindo cobrança ou baixa duplicada por retentativas de rede. *Pendente: a chave é opcional na venda, e webhooks não existem no código.* *Pendente: não existe rota de webhook no código.*
-- Toda escrita que movimenta dinheiro exige `Idempotency-Key` (venda, cancelamento, sangria, suprimento, fiado, quitação) (D-05, 2026-11-05). *Pendente: a API de venda trata a chave como opcional; sangria, suprimento, cancelamento e quitação não têm chave.*
+- Toda escrita que movimenta dinheiro exige `Idempotency-Key` (venda, cancelamento, sangria, suprimento, fiado, quitação) (D-05, 2026-11-05). *Parcial: a venda com fiado (`TAB`) exige a chave na API; a venda em dinheiro e as demais escritas (sangria, suprimento, cancelamento e quitação) ainda não exigem.*
 
 ---
 
@@ -73,7 +73,8 @@ Respostas do dono às perguntas da auditoria. Estas decisões prevalecem sobre t
 - **D-11** Pagamentos divididos não entram na fila offline. A limitação deve ser documentada. *Documentada no README, em "Limitações conhecidas".*
 - **D-12** Interface em pt-BR. Código, comentários, erros de desenvolvimento, documentação e commits em inglês.
 - **D-13** Relatórios e fechamento diário usam `America/Sao_Paulo`. *Pendente de implementação.*
-- **D-14** Fiado no PDV gera uma venda com pagamento do tipo `TAB`. *Pendente: o fiado simples do PDV não cria venda, e a API de vendas não aceita o método `TAB` (`src/app/api/sales/route.ts`). O método existe em `PaymentMethod`.*
+- **D-14** Fiado no PDV gera uma venda com pagamento do tipo `TAB`. *Implementado no PR #30: a API de vendas aceita `TAB` e grava venda, baixa de estoque, débito e recibo de caixa em uma única transação (ADR-008). Aguarda merge.*
 - **D-15** Aviso persistente quando o caixa está aberto há 8 horas. Fica até o fechamento. *Pendente de implementação.*
 - **D-16** Tempo máximo de sessão: 12 horas por padrão, mesmo com caixa aberto. A dona pode alterar entre 1 e 24 horas. *Leitura consolidada com D-09: a sessão dura até o caixa fechar, com teto de 12 horas configurável pela dona. Pendente: não existe configuração da dona e o cookie dura 30 minutos (`auth-context.ts`).*
 - **D-17** O aviso de 8 horas apenas avisa. Nunca bloqueia vendas. *Pendente de implementação.*
+- **D-18** Trava do PIN da proprietária: cinco tentativas erradas por comércio bloqueiam novas tentativas de autorização por 15 minutos. A contagem não zera ao expirar o bloqueio; só um PIN correto zera. Qualquer operador logado pode acionar o bloqueio, e isso atrasa autorizações da dona. *Registrado em ADR-013 (`docs/DECISIONS.md`). Aceite da proprietária pendente. A regra fica em `reserveOwnerPinAttempt` (`src/modules/customers/domain/owner-pin-lockout.ts`).*

@@ -26,6 +26,18 @@ import {
   InvalidOwnerPinError,
 } from '@/modules/customers/domain/errors';
 
+const UNIQUE_VIOLATION = '23505';
+
+// Drizzle wraps driver errors and keeps the Postgres SQLSTATE on `cause.code`.
+function sqlStateOf(error: unknown): string | null {
+  if (!(error instanceof Error)) return null;
+  const cause = (error as { cause?: unknown }).cause;
+  if (cause && typeof cause === 'object' && 'code' in cause && typeof cause.code === 'string') {
+    return cause.code;
+  }
+  return null;
+}
+
 const isValidMoney = (val: unknown, check: (m: Money) => boolean) => {
   if (val === undefined || val === null) return true;
   try {
@@ -68,7 +80,12 @@ const CreateSaleBodySchema = z.object({
   ),
   discountReason: z.string().trim().optional().nullable(),
   idempotencyKey: z.string().trim().optional().nullable(),
-  ownerPin: z.string().trim().optional(),
+  ownerPin: z
+    .string()
+    .trim()
+    .regex(/^\d{6}$/, 'PIN da proprietária deve ter 6 dígitos.')
+    .optional()
+    .or(z.literal('')),
   ownerUsername: z.string().trim().optional(),
 });
 
@@ -81,6 +98,12 @@ export async function POST(request: NextRequest) {
 
     const headerKey = request.headers.get('Idempotency-Key') || request.headers.get('idempotency-key');
     const idempotencyKey = headerKey?.trim() || parsed.idempotencyKey?.trim() || null;
+    if (!idempotencyKey && parsed.payments.some((p) => p.method === 'TAB')) {
+      return NextResponse.json(
+        { message: 'Chave de idempotência é obrigatória para venda fiado.' },
+        { status: 400 }
+      );
+    }
 
     const useCase = new CreateSaleUseCase(
       new DrizzleSaleRepository(),
@@ -157,6 +180,15 @@ export async function POST(request: NextRequest) {
         },
         { status: 400 }
       );
+    }
+    const sqlState = sqlStateOf(error);
+    if (sqlState === UNIQUE_VIOLATION) {
+      return NextResponse.json({ message: 'Venda duplicada para a chave de idempotência.' }, { status: 409 });
+    }
+    if (sqlState !== null) {
+      // Database failures carry SQL text and parameters in their message: log server-side only.
+      console.error('Database error creating sale, SQLSTATE', sqlState);
+      return NextResponse.json({ message: 'Erro interno ao processar venda.' }, { status: 500 });
     }
     if (error instanceof Error && !(error instanceof TypeError)) {
       return NextResponse.json({ message: error.message }, { status: 400 });

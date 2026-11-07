@@ -54,9 +54,11 @@ export class BcryptOwnerPinVerifier implements OwnerPinVerifier {
     if (normalizedUsername) {
       const user = await this.userRepository.findByUsername(normalizedUsername);
       if (user) {
+        const pinHash = user.authorizationPinHash;
         const ok =
-          user.canAuthorizePin(merchantId) &&
-          (await bcrypt.compare(trimmedPin, user.authorizationPinHash!));
+          user.canAuthorizePin(merchantId, now) &&
+          pinHash !== null &&
+          (await bcrypt.compare(trimmedPin, pinHash));
         return ok ? user.username : null;
       }
     }

@@ -22,11 +22,17 @@ export interface CreditDebitCommit {
   ensureWithinLimit: (currentDebt: Money) => void | Promise<void>;
 }
 
+export interface CashReceiptCommit {
+  cashSessionId: string;
+  amount: Money;
+}
+
 export interface SaleCommit {
   sale: Sale;
   actorId: string;
   stockDeductions: StockDeduction[];
   creditDebit?: CreditDebitCommit;
+  cashReceipt?: CashReceiptCommit;
   audits: AuditEntry[];
 }
 

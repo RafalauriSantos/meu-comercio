@@ -15,7 +15,7 @@
 - UI text in Brazilian Portuguese; code, comments, tests, commits and docs in English (D-12).
 - `export const dynamic` is NOT allowed in this project (`cacheComponents: true`). The landing must be prerendered: the build route table must show `○ /`.
 - The landing makes no session check and no API call. No external network requests at runtime, no third-party scripts, no analytics. Fonts only through the existing `next/font` setup in `src/app/layout.tsx`.
-- Allowed claims on the page, and only these: fiado in aberto per customer, expected cash in the drawer, blind cash close with divergence check, sales with stock deduction and no negative stock, owner PIN of exactly 6 digits for risky operations, fiado limit per customer, simple cash sales kept when the connection drops (a single cash payment only, never split, card, Pix or fiado).
+- Allowed claims on the page, and only these: fiado in aberto per customer, expected cash in the drawer, cash close that compares the counted amount with the expected one and asks for a justification when they differ, sales with stock deduction and no negative stock, owner PIN of exactly 6 digits for risky operations, fiado limit per customer, simple cash sales kept when the connection drops (a single cash payment only, never split, card, Pix or fiado).
 - Forbidden on the page: the words "lucro", "relatório", "depoimento", any price or plan, customer counts, logos, ratings or statistics. The example figures must carry the visible label "Exemplo".
 - Money is never a JavaScript number. Example amounts are fixed strings.
 - Accessibility: text contrast of at least 4.5:1, visible focus, real links and buttons, one `h1`, `lang="pt-BR"` (already on `<html>`), `prefers-reduced-motion` respected.

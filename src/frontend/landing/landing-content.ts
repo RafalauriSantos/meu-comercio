@@ -43,7 +43,7 @@ export const LANDING_CONTENT = {
       },
       {
         loss: 'Caixa que não bate',
-        control: 'Você conta a gaveta sem ver o valor esperado. O sistema compara e mostra a diferença.',
+        control: 'Você conta a gaveta e o sistema compara com o valor esperado. Se houver diferença, ele pede uma justificativa.',
       },
       {
         loss: 'Troco errado',

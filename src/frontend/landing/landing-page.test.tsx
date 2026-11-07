@@ -116,6 +116,14 @@ describe('LandingPage: the rest of the page', () => {
     expect(markup).not.toMatch(/<h4/);
   });
 
+  it('describes the cash close as it works today: compare, and ask for a justification', () => {
+    const markup = render();
+
+    expect(markup).not.toMatch(/sem ver/i);
+    expect(markup).not.toMatch(/cego/i);
+    expect(markup).toContain('justificativa');
+  });
+
   it('respects reduced motion in the styles', () => {
     const css = readFileSync(join(process.cwd(), 'src', 'frontend', 'styles', 'landing.css'), 'utf8');
 

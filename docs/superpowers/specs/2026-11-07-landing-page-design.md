@@ -46,7 +46,7 @@ The owner (the shop owner, "a dona") used to keep fiado, cash and stock in a pap
 
 ## Anti-goals (a failure even if it technically works)
 
-- Claiming a capability the product does not have. Profit and sales reports are NOT built yet, so the page never mentions "lucro" or reports. Allowed claims are only: fiado in aberto per customer, expected cash in the drawer, blind cash close with divergence check, sales with stock deduction, owner PIN for risky operations, limit per customer, cash sales that survive a lost connection.
+- Claiming a capability the product does not have. Profit and sales reports are NOT built yet, so the page never mentions "lucro" or reports. Allowed claims are only: fiado in aberto per customer, expected cash in the drawer, cash close that compares the counted amount with the expected one and asks for a justification when they differ, sales with stock deduction, owner PIN for risky operations, limit per customer, cash sales that survive a lost connection.
 - Invented testimonials, customer counts, logos, ratings or statistics. None exist yet.
 - Template look: stock gradient hero, three identical icon cards, stock photos of smiling shopkeepers.
 - Heavy page: anything that makes it slow on a phone on mobile data.
@@ -57,7 +57,7 @@ The owner (the shop owner, "a dona") used to keep fiado, cash and stock in a pap
 - Free for now; no price on the page.
 - No fake social proof. Proof is the real product: screenshots of the real PDV, fiado statement and cash close.
 - Landing at `/`, PDV at `/pdv`, login sends the user to `/pdv`.
-- A logged-in visitor on `/` sees the same landing; there is no automatic redirect. Builder check call (replaces the earlier idea of an "Ir para o caixa" button): the landing makes no session check. The header link "Entrar" goes to `/login`, which already recognizes an active session on load and offers the way to the cash register and management. This avoids an extra call per visit (the `/api/auth/*` rate limit is 5 requests per minute per IP), a button that swaps after load, and layout shift.
+- A logged-in visitor on `/` sees the same landing; there is no automatic redirect. Builder check call (replaces the earlier idea of an "Ir para o caixa" button): the landing makes no session check. The header link "Entrar" goes to `/login`, which recognizes an active session on load: with the cash register open it forwards to `/pdv`, with it closed it shows the open-cash panel. This avoids an extra call per visit (the `/api/auth/*` rate limit is 5 requests per minute per IP), a button that swaps after load, and layout shift.
 
 ## Constraints
 
@@ -76,7 +76,7 @@ Each section carries one idea. Copy below states intent; final wording is refine
 
 1. **Header:** wordmark "Meu Comércio" (no logo exists), link "Entrar".
 2. **Hero (the first viewport):** promise "Cada real que entra e sai, sob seu controle." with one supporting line, the primary and secondary actions, and a panel of three example figures labeled "Exemplo": fiado em aberto, dinheiro esperado no caixa, conferência do caixa. The figures are illustrative and visibly labeled as such.
-3. **The four losses:** the notebook problems the owner described, each paired with the control that stops it: fiado esquecido (customer statement and limit), caixa que não bate (blind close with divergence), troco errado (automatic change), estoque que some (stock deducted on every sale, no negative stock).
+3. **The four losses:** the notebook problems the owner described, each paired with the control that stops it: fiado esquecido (customer statement and limit), caixa que não bate (counted amount compared with the expected one, justification when they differ), troco errado (automatic change), estoque que some (stock deducted on every sale, no negative stock).
 4. **How it works, in three steps:** create the account, sell, close the day.
 5. **The real product:** screenshots of the real PDV, fiado statement and cash close, captured from the running app with test data only (never real customer data), with short captions.
 6. **Control and safety:** owner PIN (6 digits) for risky operations, fiado limit per customer, simple cash sales kept when the connection drops and synced afterwards (verified in code: only a single cash payment is accepted offline, never split, card, Pix or fiado; the copy must say exactly that). Nothing about encryption, certifications or uptime unless the system really provides it.

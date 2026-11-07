@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { apiClient, AuthUser } from '@/frontend/lib/api-client';
 import { getErrorMessage, parseCurrencyInput } from '@/frontend/lib/formatters';
 import { parseAuthMode } from '@/frontend/lib/auth-mode';
+import { destinationForSession } from '@/frontend/lib/session-destination';
 import '@/frontend/styles/auth.css';
 
 export default function LoginPage() {
@@ -55,8 +56,13 @@ export default function LoginPage() {
           ]);
           setUser(me);
           setCashOpen(cash.open);
+          // An operator who is already working goes straight to the PDV, as the old root route did.
+          if (destinationForSession({ cashOpen: cash.open }) === 'pdv') {
+            router.replace('/pdv');
+            return;
+          }
         } catch {
-          // Não autenticado: o link da landing (?modo=cadastro) abre direto o cadastro
+          // Not authenticated: the landing link (?modo=cadastro) opens the sign up form
           setUser(null);
           setAuthMode(parseAuthMode(window.location.search));
         }

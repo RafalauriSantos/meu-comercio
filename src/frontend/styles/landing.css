@@ -1,0 +1,262 @@
+/* Landing page: direction A (dark navy ground, green accent). Mobile first. */
+
+html:has(.landing) {
+  background: #0b1220;
+  color-scheme: dark;
+}
+
+.landing {
+  --ground: #0b1220;
+  --panel: #111c31;
+  --line: #243350;
+  --text: #f1f5f9;
+  --muted: #b3bfd2;
+  --green: #34d399;
+  --green-ink: #052e1f;
+  --measure: 52ch;
+
+  min-height: 100vh;
+  background: var(--ground);
+  color: var(--text);
+  font-family: var(--font-geist-sans), system-ui, sans-serif;
+  line-height: 1.55;
+  -webkit-font-smoothing: antialiased;
+}
+
+.landing ::selection {
+  background: var(--green);
+  color: var(--green-ink);
+}
+
+.landing a:focus-visible {
+  outline: 3px solid var(--green);
+  outline-offset: 3px;
+  border-radius: 6px;
+}
+
+/* Header */
+
+.landing-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  max-width: 1120px;
+  margin: 0 auto;
+  padding: 20px 20px 0;
+}
+
+.landing-wordmark {
+  font-family: var(--font-display), var(--font-geist-sans), system-ui, sans-serif;
+  font-size: 1.125rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+.landing-header-link {
+  color: var(--text);
+  text-decoration: underline;
+  text-decoration-color: var(--line);
+  text-underline-offset: 0.3em;
+  padding: 10px 4px;
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+}
+
+.landing-header-link:hover {
+  text-decoration-color: var(--green);
+}
+
+/* Hero */
+
+.landing-hero {
+  display: grid;
+  gap: 40px;
+  max-width: 1120px;
+  margin: 0 auto;
+  padding: 40px 20px 72px;
+}
+
+.landing-hero-copy h1 {
+  margin: 0;
+  font-family: var(--font-display), var(--font-geist-sans), system-ui, sans-serif;
+  font-size: clamp(2.25rem, 8.5vw, 4.5rem);
+  font-weight: 800;
+  line-height: 1.03;
+  letter-spacing: -0.03em;
+  text-wrap: balance;
+}
+
+.landing-lead {
+  margin: 20px 0 0;
+  max-width: var(--measure);
+  font-size: 1.1875rem;
+  color: var(--muted);
+}
+
+.landing-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 32px;
+}
+
+.landing-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 52px;
+  padding: 0 24px;
+  border-radius: 12px;
+  font-size: 1.0625rem;
+  font-weight: 650;
+  text-decoration: none;
+  transition: background-color 160ms ease-out, border-color 160ms ease-out, transform 160ms ease-out;
+}
+
+.landing-button-primary {
+  background: var(--green);
+  color: var(--green-ink);
+  box-shadow: 0 10px 24px -12px rgba(52, 211, 153, 0.7);
+}
+
+.landing-button-primary:hover {
+  background: #5eead4;
+  transform: translateY(-1px);
+}
+
+.landing-button-secondary {
+  border: 1px solid #4b5d7c;
+  color: var(--text);
+}
+
+.landing-button-secondary:hover {
+  border-color: var(--green);
+}
+
+.landing-note {
+  margin: 16px 0 0;
+  font-size: 0.9375rem;
+  color: var(--muted);
+}
+
+/* The "caixa de hoje" panel: a ledger page, not a metric card */
+
+.landing-ledger {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  padding: 22px 22px 18px;
+  box-shadow: 0 28px 48px -28px rgba(0, 0, 0, 0.7);
+}
+
+.landing-ledger-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.landing-ledger-head h2 {
+  margin: 0;
+  font-family: var(--font-display), var(--font-geist-sans), system-ui, sans-serif;
+  font-size: 1.25rem;
+  letter-spacing: -0.01em;
+}
+
+.landing-badge {
+  padding: 4px 10px;
+  border: 1px solid #4b5d7c;
+  border-radius: 999px;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--muted);
+}
+
+.landing-ledger-rows {
+  margin: 14px 0 0;
+}
+
+.landing-ledger-row {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 14px 0;
+  border-bottom: 1px dashed var(--line);
+}
+
+.landing-ledger-row dt {
+  font-size: 0.9375rem;
+  color: var(--muted);
+}
+
+.landing-ledger-row dd {
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 1.625rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.01em;
+}
+
+.landing-ledger-ok {
+  color: var(--green);
+}
+
+.landing-check path {
+  stroke-dasharray: 24;
+  stroke-dashoffset: 0;
+  animation: landing-check-draw 700ms 300ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+@keyframes landing-check-draw {
+  from {
+    stroke-dashoffset: 24;
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+.landing-ledger-caption {
+  margin: 14px 0 0;
+  font-size: 0.8125rem;
+  color: var(--muted);
+}
+
+@media (min-width: 900px) {
+  .landing-header {
+    padding-top: 28px;
+  }
+
+  .landing-hero {
+    grid-template-columns: minmax(0, 1.2fr) minmax(0, 0.8fr);
+    align-items: center;
+    gap: 64px;
+    padding-top: 88px;
+    padding-bottom: 112px;
+  }
+
+  .landing-ledger-row {
+    flex-direction: row;
+    align-items: baseline;
+    justify-content: space-between;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .landing-check path {
+    animation: none;
+  }
+
+  .landing-button {
+    transition: none;
+  }
+
+  .landing-button-primary:hover {
+    transform: none;
+  }
+}

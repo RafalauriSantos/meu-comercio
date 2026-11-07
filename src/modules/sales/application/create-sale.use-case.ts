@@ -8,7 +8,6 @@ import { InventoryRepository } from '@/modules/inventory/domain/inventory-reposi
 import { Product } from '@/modules/products/domain/product';
 import { InventoryItem, InsufficientStockError } from '@/modules/inventory/domain/inventory-item';
 import { CashSessionRepository } from '@/modules/cash/domain/cash-session-repository.port';
-import { AuditPort } from '@/modules/audit/domain/audit.port';
 import { CustomerRepository } from '@/modules/customers/domain/customer-repository.port';
 import { CustomerCreditRepository } from '@/modules/customers/domain/customer-credit-repository.port';
 import { OwnerPinVerifier } from '@/modules/customers/domain/owner-pin-verifier.port';
@@ -99,7 +98,6 @@ export class CreateSaleUseCase {
     private readonly productRepository: ProductRepository,
     private readonly inventoryRepository: InventoryRepository,
     private readonly cashSessionRepository: CashSessionRepository,
-    private readonly auditPort: AuditPort,
     private readonly creditDeps?: CreditSaleDependencies
   ) {}
 
@@ -118,9 +116,9 @@ export class CreateSaleUseCase {
       throw new Error('A venda deve conter pelo menos uma forma de pagamento.');
     }
 
-    const credit = await this.authorizeCreditPayment(dto);
-
+    // Products and stock are validated first, so an invalid sale never spends an owner PIN attempt.
     const resolvedProducts = await this.resolveAndValidateProducts(dto.merchantId, dto.items);
+    const credit = await this.authorizeCreditPayment(dto);
     const sale = this.buildSale(dto, openSession.id, resolvedProducts);
 
     const audits: AuditEntry[] = [this.saleConfirmedAudit(dto, openSession.id, sale)];

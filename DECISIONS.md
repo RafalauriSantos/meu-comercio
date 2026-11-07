@@ -52,7 +52,7 @@ Este documento é a **fonte oficial da verdade** para as **regras de negócio** 
 
 ### 7. Idempotência
 - Endpoints de finalização de venda e recebimento de webhooks exigem chave de idempotência (`Idempotency-Key` ou identificador único do evento), impedindo cobrança ou baixa duplicada por retentativas de rede. *Pendente: a chave é opcional na venda, e webhooks não existem no código.* *Pendente: não existe rota de webhook no código.*
-- Toda escrita que movimenta dinheiro exige `Idempotency-Key` (venda, cancelamento, sangria, suprimento, fiado, quitação) (D-05, 2026-11-05). *Parcial: a venda com fiado (`TAB`) exige a chave na API; a venda em dinheiro e as demais escritas (sangria, suprimento, cancelamento e quitação) ainda não exigem.*
+- Toda escrita que movimenta dinheiro exige `Idempotency-Key` (venda, cancelamento, sangria, suprimento, fiado, quitação) (D-05, 2026-11-05). *Parcial: a venda com fiado (`TAB`) exige a chave na API; a venda em dinheiro e as demais escritas (sangria, suprimento, cancelamento e quitação) ainda não exigem. A chave do PDV vive em memória: se a página for recarregada entre a venda gravada e o reenvio, uma nova chave é gerada e a venda pode se repetir.*
 
 ---
 

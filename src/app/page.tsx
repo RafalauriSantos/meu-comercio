@@ -590,6 +590,16 @@ export default function PdvTerminalPage() {
       });
       resetCartAndCheckout();
     } catch (err) {
+      // The server already recorded this checkout (for example, the first response was lost).
+      // Do not let the operator sell it again.
+      if (err instanceof ApiError && err.code === 'DUPLICATE_SALE') {
+        resetCartAndCheckout();
+        setMessage({
+          text: 'Esta venda já havia sido registrada. O carrinho foi limpo. Confira o histórico antes de repetir.',
+        });
+        return;
+      }
+
       if (paymentMethod === 'TAB' && err instanceof ApiError && err.status === 403 && !pinToUse) {
         setIsPinModalOpen(true);
         setMessage({

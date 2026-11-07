@@ -8,12 +8,14 @@ import { Sale, SaleStatus } from '../domain/sale';
 import { SaleItem } from '../domain/sale-item';
 import { Payment, PaymentMethod, PaymentStatus } from '../domain/payment';
 import { CreditDebitCommit, SaleCommit, SaleRepository } from '../domain/sale-repository.port';
-import { cashMovements } from '@/modules/cash/infrastructure/cash.schema';
+import { cashMovements, cashSessions } from '@/modules/cash/infrastructure/cash.schema';
+import { CashSessionNotOpenError } from '../domain/errors';
 import { Money } from '@/shared/domain/money';
 import { inventoryItems, inventoryMovements } from '@/modules/inventory/infrastructure/inventory.schema';
 import { InsufficientStockError } from '@/modules/inventory/domain/inventory-item';
 import { customers, customerCreditLedger } from '@/modules/customers/infrastructure/customers.schema';
 import { auditEvents } from '@/modules/audit/infrastructure/audit.schema';
+import { toAuditEventRow } from '@/modules/audit/infrastructure/audit-event-row';
 
 export type SaleDatabase = PgDatabase<PgQueryResultHKT, typeof schema, ExtractTablesWithRelations<typeof schema>>;
 
@@ -71,6 +73,7 @@ export class DrizzleSaleRepository implements SaleRepository {
 
   async commitSale(commit: SaleCommit): Promise<void> {
     await this.database.transaction(async (tx) => {
+      await this.ensureCashSessionOpen(tx, commit.sale.merchantId, commit.sale.cashSessionId);
       await this.writeSale(tx, commit.sale);
       await this.applyStockDeductions(tx, commit);
       if (commit.creditDebit) {
@@ -86,16 +89,25 @@ export class DrizzleSaleRepository implements SaleRepository {
         });
       }
       for (const audit of commit.audits) {
-        await tx.insert(auditEvents).values({
-          merchantId: commit.sale.merchantId,
-          eventType: audit.eventType,
-          actorId: audit.actorId,
-          aggregateType: audit.aggregateType,
-          aggregateId: audit.aggregateId,
-          details: audit.details,
-        });
+        await tx.insert(auditEvents).values(toAuditEventRow(commit.sale.merchantId, audit));
       }
     });
+  }
+
+  /**
+   * The session was open when the use case read it, but it may have been closed since.
+   * FOR SHARE makes a concurrent close wait until this sale commits, so a sale never lands
+   * in a closed session and the blind close sees every receipt.
+   */
+  private async ensureCashSessionOpen(tx: SaleDatabase, merchantId: string, cashSessionId: string): Promise<void> {
+    const [session] = await tx
+      .select({ status: cashSessions.status })
+      .from(cashSessions)
+      .where(and(eq(cashSessions.merchantId, merchantId), eq(cashSessions.id, cashSessionId)))
+      .for('share');
+    if (session?.status !== 'OPEN') {
+      throw new CashSessionNotOpenError(cashSessionId);
+    }
   }
 
   private async applyStockDeductions(tx: SaleDatabase, commit: SaleCommit): Promise<void> {
@@ -179,88 +191,86 @@ export class DrizzleSaleRepository implements SaleRepository {
   }
 
   private async writeSale(tx: SaleDatabase, sale: Sale): Promise<void> {
-    {
-      await tx
-        .insert(sales)
-        .values({
-          id: sale.id,
-          merchantId: sale.merchantId,
-          cashSessionId: sale.cashSessionId,
-          operatorId: sale.operatorId,
+    await tx
+      .insert(sales)
+      .values({
+        id: sale.id,
+        merchantId: sale.merchantId,
+        cashSessionId: sale.cashSessionId,
+        operatorId: sale.operatorId,
+        status: sale.status,
+        subtotal: sale.subtotal.toDecimal(),
+        discountAmount: sale.discountAmount.toDecimal(),
+        total: sale.total.toDecimal(),
+        cashReceived: sale.cashReceived.toDecimal(),
+        changeAmount: sale.changeAmount.toDecimal(),
+        idempotencyKey: sale.idempotencyKey,
+        createdAt: sale.createdAt,
+        updatedAt: sale.updatedAt,
+      })
+      .onConflictDoUpdate({
+        target: [sales.id],
+        set: {
           status: sale.status,
           subtotal: sale.subtotal.toDecimal(),
           discountAmount: sale.discountAmount.toDecimal(),
           total: sale.total.toDecimal(),
           cashReceived: sale.cashReceived.toDecimal(),
           changeAmount: sale.changeAmount.toDecimal(),
-          idempotencyKey: sale.idempotencyKey,
-          createdAt: sale.createdAt,
           updatedAt: sale.updatedAt,
-        })
-        .onConflictDoUpdate({
-          target: [sales.id],
-          set: {
-            status: sale.status,
-            subtotal: sale.subtotal.toDecimal(),
-            discountAmount: sale.discountAmount.toDecimal(),
-            total: sale.total.toDecimal(),
-            cashReceived: sale.cashReceived.toDecimal(),
-            changeAmount: sale.changeAmount.toDecimal(),
-            updatedAt: sale.updatedAt,
-          },
-        });
+        },
+      });
 
-      await tx
-        .delete(saleItems)
-        .where(
-          and(
-            eq(saleItems.merchantId, sale.merchantId),
-            eq(saleItems.saleId, sale.id)
-          )
-        );
+    await tx
+      .delete(saleItems)
+      .where(
+        and(
+          eq(saleItems.merchantId, sale.merchantId),
+          eq(saleItems.saleId, sale.id)
+        )
+      );
 
-      if (sale.items.length > 0) {
-        await tx.insert(saleItems).values(
-          sale.items.map((item) => ({
-            id: item.id,
-            merchantId: sale.merchantId,
-            saleId: sale.id,
-            productId: item.productId,
-            productName: item.productName,
-            unitPrice: item.unitPrice.toDecimal(),
-            quantity: item.quantity,
-            subtotal: item.subtotal.toDecimal(),
-            createdAt: sale.createdAt,
-          }))
-        );
-      }
+    if (sale.items.length > 0) {
+      await tx.insert(saleItems).values(
+        sale.items.map((item) => ({
+          id: item.id,
+          merchantId: sale.merchantId,
+          saleId: sale.id,
+          productId: item.productId,
+          productName: item.productName,
+          unitPrice: item.unitPrice.toDecimal(),
+          quantity: item.quantity,
+          subtotal: item.subtotal.toDecimal(),
+          createdAt: sale.createdAt,
+        }))
+      );
+    }
 
-      await tx
-        .delete(payments)
-        .where(
-          and(
-            eq(payments.merchantId, sale.merchantId),
-            eq(payments.saleId, sale.id)
-          )
-        );
+    await tx
+      .delete(payments)
+      .where(
+        and(
+          eq(payments.merchantId, sale.merchantId),
+          eq(payments.saleId, sale.id)
+        )
+      );
 
-      if (sale.payments.length > 0) {
-        await tx.insert(payments).values(
-          sale.payments.map((p) => ({
-            id: p.id,
-            merchantId: sale.merchantId,
-            saleId: sale.id,
-            method: p.method,
-            status: p.status,
-            amount: p.amount.toDecimal(),
-            receivedAmount: p.receivedAmount.toDecimal(),
-            changeAmount: p.changeAmount.toDecimal(),
-            installments: p.installments,
-            externalReference: p.externalReference,
-            createdAt: sale.createdAt,
-          }))
-        );
-      }
+    if (sale.payments.length > 0) {
+      await tx.insert(payments).values(
+        sale.payments.map((p) => ({
+          id: p.id,
+          merchantId: sale.merchantId,
+          saleId: sale.id,
+          method: p.method,
+          status: p.status,
+          amount: p.amount.toDecimal(),
+          receivedAmount: p.receivedAmount.toDecimal(),
+          changeAmount: p.changeAmount.toDecimal(),
+          installments: p.installments,
+          externalReference: p.externalReference,
+          createdAt: sale.createdAt,
+        }))
+      );
     }
   }
 

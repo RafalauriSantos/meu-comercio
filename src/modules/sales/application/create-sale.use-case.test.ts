@@ -4,7 +4,7 @@ import { CustomerCreditRepository, CustomerCreditBalance, CreditMetrics } from '
 import { CreditMovement } from '@/modules/customers/domain/credit-movement';
 import { CustomerNotFoundError, CustomerInactiveError, CreditLimitExceededError, InvalidOwnerPinError } from '@/modules/customers/domain/errors';
 import { OwnerPinVerifier } from '@/modules/customers/domain/owner-pin-verifier.port';
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { Money } from '@/shared/domain/money';
 import { Sale } from '../domain/sale';
 import { SaleCommit, SaleRepository } from '../domain/sale-repository.port';
@@ -285,8 +285,7 @@ describe('CreateSaleUseCase — Slice 4: Vendas, Checkout e Split Payments', () 
       saleRepo,
       productRepo,
       inventoryRepo,
-      cashRepo,
-      auditPort
+      cashRepo
     );
 
     // 1. Abrir sessão de caixa para o comerciante
@@ -1035,7 +1034,7 @@ describe('CreateSaleUseCase — venda fiado (TAB)', () => {
     creditRepo = new InMemoryCreditRepo();
     saleRepo = new InMemorySaleRepository(inventoryRepo, auditPort, creditRepo, cashRepo);
 
-    useCase = new CreateSaleUseCase(saleRepo, productRepo, inventoryRepo, cashRepo, auditPort, {
+    useCase = new CreateSaleUseCase(saleRepo, productRepo, inventoryRepo, cashRepo, {
       customerRepository: customerRepo,
       customerCreditRepository: creditRepo,
       ownerPinVerifier: new FakeOwnerPinVerifier(OWNER_PIN),
@@ -1080,6 +1079,40 @@ describe('CreateSaleUseCase — venda fiado (TAB)', () => {
       ...rest,
     };
   }
+
+  it('não consome tentativa do PIN da dona quando a venda é inválida por produto inexistente', async () => {
+    const verifier = new FakeOwnerPinVerifier(OWNER_PIN);
+    const authorize = vi.spyOn(verifier, 'authorizeOwnerPin');
+    const guarded = new CreateSaleUseCase(saleRepo, productRepo, inventoryRepo, cashRepo, {
+      customerRepository: customerRepo,
+      customerCreditRepository: creditRepo,
+      ownerPinVerifier: verifier,
+    });
+
+    await expect(
+      guarded.execute(
+        tabSale('200.00', { items: [{ productId: 'produto-inexistente', quantity: 1 }], ownerPin: OWNER_PIN })
+      )
+    ).rejects.toBeInstanceOf(ProductNotFoundError);
+
+    expect(authorize).not.toHaveBeenCalled();
+  });
+
+  it('não consome tentativa do PIN da dona quando não há estoque suficiente', async () => {
+    const verifier = new FakeOwnerPinVerifier(OWNER_PIN);
+    const authorize = vi.spyOn(verifier, 'authorizeOwnerPin');
+    const guarded = new CreateSaleUseCase(saleRepo, productRepo, inventoryRepo, cashRepo, {
+      customerRepository: customerRepo,
+      customerCreditRepository: creditRepo,
+      ownerPinVerifier: verifier,
+    });
+
+    await expect(
+      guarded.execute(tabSale('200.00', { items: [{ productId: rice.id, quantity: 60 }], ownerPin: OWNER_PIN }))
+    ).rejects.toBeInstanceOf(InsufficientStockError);
+
+    expect(authorize).not.toHaveBeenCalled();
+  });
 
   it('registra venda fiado: venda confirmada, estoque baixado e débito no extrato do cliente, sem entrada no caixa', async () => {
     const sale = await useCase.execute(tabSale('25.50'));
@@ -1199,7 +1232,7 @@ describe('CreateSaleUseCase — venda fiado (TAB)', () => {
   });
 
   it('rejeita venda fiado quando o caso de uso não tem o módulo de crédito configurado', async () => {
-    const bare = new CreateSaleUseCase(saleRepo, productRepo, inventoryRepo, cashRepo, auditPort);
+    const bare = new CreateSaleUseCase(saleRepo, productRepo, inventoryRepo, cashRepo);
     await expect(bare.execute(tabSale('25.50'))).rejects.toThrow('Módulo de crédito não configurado.');
   });
 

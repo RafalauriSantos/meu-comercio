@@ -5,7 +5,6 @@ import { DrizzleSaleRepository } from '@/modules/sales/infrastructure/drizzle-sa
 import { DrizzleProductRepository } from '@/modules/products/infrastructure/drizzle-product-repository';
 import { DrizzleInventoryRepository } from '@/modules/inventory/infrastructure/drizzle-inventory-repository';
 import { DrizzleCashSessionRepository } from '@/modules/cash/infrastructure/drizzle-cash-session-repository';
-import { DrizzleAuditAdapter } from '@/modules/audit/infrastructure/drizzle-audit-service';
 import {
   CreateSaleUseCase,
   DuplicateSaleRequestError,
@@ -14,6 +13,7 @@ import {
   ProductInactiveError,
 } from '@/modules/sales/application/create-sale.use-case';
 import { InsufficientStockError } from '@/modules/inventory/domain/inventory-item';
+import { CashSessionNotOpenError } from '@/modules/sales/domain/errors';
 import { Money } from '@/shared/domain/money';
 import { PaymentMethod } from '@/modules/sales/domain/payment';
 import { DrizzleCustomerRepository } from '@/modules/customers/infrastructure/drizzle-customer-repository';
@@ -27,6 +27,8 @@ import {
 } from '@/modules/customers/domain/errors';
 
 const UNIQUE_VIOLATION = '23505';
+// Matches the length of sales.idempotency_key.
+const MAX_IDEMPOTENCY_KEY_LENGTH = 128;
 
 // Drizzle wraps driver errors: the SQL and params are in the message, the driver error is in `cause`.
 function driverCauseOf(error: unknown): object | null {
@@ -102,6 +104,12 @@ export async function POST(request: NextRequest) {
 
     const headerKey = request.headers.get('Idempotency-Key') || request.headers.get('idempotency-key');
     const idempotencyKey = headerKey?.trim() || parsed.idempotencyKey?.trim() || null;
+    if (idempotencyKey && idempotencyKey.length > MAX_IDEMPOTENCY_KEY_LENGTH) {
+      return NextResponse.json(
+        { message: `Chave de idempotência deve ter no máximo ${MAX_IDEMPOTENCY_KEY_LENGTH} caracteres.` },
+        { status: 400 }
+      );
+    }
     if (!idempotencyKey && parsed.payments.some((p) => p.method === 'TAB')) {
       return NextResponse.json(
         { message: 'Chave de idempotência é obrigatória para venda fiado.' },
@@ -114,7 +122,6 @@ export async function POST(request: NextRequest) {
       new DrizzleProductRepository(),
       new DrizzleInventoryRepository(),
       new DrizzleCashSessionRepository(),
-      new DrizzleAuditAdapter(),
       {
         customerRepository: new DrizzleCustomerRepository(),
         customerCreditRepository: new DrizzleCustomerCreditRepository(),
@@ -149,7 +156,16 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ message: error.message }, { status: 401 });
     }
     if (error instanceof DuplicateSaleRequestError) {
-      return NextResponse.json({ message: error.message }, { status: 409 });
+      return NextResponse.json({ message: error.message, code: 'DUPLICATE_SALE' }, { status: 409 });
+    }
+    if (error instanceof CashSessionNotOpenError) {
+      return NextResponse.json(
+        {
+          message: 'O caixa foi fechado durante a venda. Abra um novo caixa e registre a venda novamente.',
+          code: 'CASH_SESSION_CLOSED',
+        },
+        { status: 409 }
+      );
     }
     if (error instanceof ProductNotFoundError) {
       return NextResponse.json({ message: error.message }, { status: 404 });
@@ -186,7 +202,10 @@ export async function POST(request: NextRequest) {
       );
     }
     if (sqlStateOf(error) === UNIQUE_VIOLATION) {
-      return NextResponse.json({ message: 'Venda duplicada para a chave de idempotência.' }, { status: 409 });
+      return NextResponse.json(
+        { message: 'Venda duplicada para a chave de idempotência.', code: 'DUPLICATE_SALE' },
+        { status: 409 }
+      );
     }
     if (driverCauseOf(error) !== null) {
       // Database failures carry SQL text and parameters in their message: log server-side only.

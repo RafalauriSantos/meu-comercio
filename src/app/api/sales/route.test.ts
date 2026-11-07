@@ -7,6 +7,7 @@ import { Sale } from '@/modules/sales/domain/sale';
 import { SaleItem } from '@/modules/sales/domain/sale-item';
 import { Payment } from '@/modules/sales/domain/payment';
 import { UnauthorizedError } from '@/shared/infrastructure/auth/auth-context';
+import { CashSessionNotOpenError } from '@/modules/sales/domain/errors';
 import {
   OpenCashSessionRequiredError,
   DuplicateSaleRequestError,
@@ -145,6 +146,7 @@ describe('Sales API Routes', () => {
 
       const response = await POST(request);
       expect(response.status).toBe(409);
+      expect((await response.json()).code).toBe('DUPLICATE_SALE');
     });
 
     it('deve mapear OpenCashSessionRequiredError para status 400', async () => {
@@ -175,6 +177,25 @@ describe('Sales API Routes', () => {
 
       const response = await POST(request);
       expect(response.status).toBe(404);
+    });
+  });
+
+  describe('POST /api/sales — caixa fechado durante a venda', () => {
+    it('deve responder 409 com mensagem clara quando o caixa foi fechado no meio da venda', async () => {
+      mockExecuteCreateSale.mockRejectedValue(new CashSessionNotOpenError('session-1'));
+      const response = await POST(
+        new NextRequest('http://localhost:3000/api/sales', {
+          method: 'POST',
+          body: JSON.stringify({
+            items: [{ productId: 'prod-1', quantity: 1 }],
+            payments: [{ method: 'PIX', amount: '20.00' }],
+          }),
+        })
+      );
+      expect(response.status).toBe(409);
+      const data = await response.json();
+      expect(data.message).toContain('caixa foi fechado');
+      expect(data.code).toBe('CASH_SESSION_CLOSED');
     });
   });
 
@@ -252,6 +273,7 @@ describe('Sales API Routes', () => {
         new NextRequest('http://localhost:3000/api/sales', { method: 'POST', body: fiadoBody, headers: fiadoHeaders })
       );
       expect(response.status).toBe(409);
+      expect((await response.json()).code).toBe('DUPLICATE_SALE');
     });
 
     it('deve rejeitar PIN do dono que não tenha 6 dígitos', async () => {
@@ -268,6 +290,31 @@ describe('Sales API Routes', () => {
       );
       expect(response.status).toBe(400);
       expect(mockExecuteCreateSale).not.toHaveBeenCalled();
+    });
+
+    it('deve rejeitar chave de idempotência maior que 128 caracteres com 400', async () => {
+      const response = await POST(
+        new NextRequest('http://localhost:3000/api/sales', {
+          method: 'POST',
+          body: fiadoBody,
+          headers: { 'Idempotency-Key': 'k'.repeat(129) },
+        })
+      );
+      expect(response.status).toBe(400);
+      expect(mockExecuteCreateSale).not.toHaveBeenCalled();
+    });
+
+    it('deve aceitar chave de idempotência de exatamente 128 caracteres', async () => {
+      mockExecuteCreateSale.mockRejectedValue(new CreditLimitExceededError());
+      const response = await POST(
+        new NextRequest('http://localhost:3000/api/sales', {
+          method: 'POST',
+          body: fiadoBody,
+          headers: { 'Idempotency-Key': 'k'.repeat(128) },
+        })
+      );
+      expect(response.status).toBe(403);
+      expect(mockExecuteCreateSale).toHaveBeenCalledTimes(1);
     });
 
     it('deve exigir chave de idempotência para venda fiado', async () => {

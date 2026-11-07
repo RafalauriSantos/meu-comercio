@@ -20,6 +20,7 @@ import { Payment } from '../domain/payment';
 import { CreditMovement } from '@/modules/customers/domain/credit-movement';
 import { CreditLimitExceededError } from '@/modules/customers/domain/errors';
 import { InsufficientStockError } from '@/modules/inventory/domain/inventory-item';
+import { CashSessionNotOpenError } from '../domain/errors';
 import { DrizzleSaleRepository } from './drizzle-sale-repository';
 
 // Runs only when TEST_DATABASE_URL points to a disposable Postgres database.
@@ -126,6 +127,33 @@ describe.skipIf(!TEST_DATABASE_URL)('DrizzleSaleRepository.commitSale (Postgres)
     };
   }
 
+  // Holds a row lock on an inventory row from a separate connection, to force concurrent sales to queue.
+  async function holdInventoryRowLock(productId: string) {
+    const client = await pool.connect();
+    await client.query('BEGIN');
+    await client.query('SELECT 1 FROM inventory_items WHERE product_id = $1 FOR UPDATE', [productId]);
+    return {
+      async release() {
+        await client.query('ROLLBACK');
+        client.release();
+      },
+    };
+  }
+
+  // Waits until `count` statements on inventory_items are blocked on a lock.
+  async function waitUntilBlocked(count: number) {
+    const deadline = Date.now() + 5000;
+    for (;;) {
+      const { rows } = await pool.query(
+        `SELECT count(*)::int AS n FROM pg_stat_activity
+         WHERE datname = current_database() AND wait_event_type = 'Lock' AND query ILIKE '%inventory_items%'`
+      );
+      if (rows[0].n >= count) return;
+      if (Date.now() > deadline) throw new Error(`Expected ${count} blocked statements, saw ${rows[0].n}`);
+      await new Promise((resolve) => setTimeout(resolve, 20));
+    }
+  }
+
   it('grava venda, baixa de estoque, débito e auditoria juntos', async () => {
     const seed = await seedStore(5, '100.00');
     const repo = new DrizzleSaleRepository(database);
@@ -199,6 +227,36 @@ describe.skipIf(!TEST_DATABASE_URL)('DrizzleSaleRepository.commitSale (Postgres)
     expect(
       await database.select().from(customerCreditLedger).where(eq(customerCreditLedger.customerId, seed.customerId))
     ).toHaveLength(0);
+  });
+
+  it('recusa a venda quando o caixa foi fechado no meio do atendimento e não grava nada', async () => {
+    const seed = await seedStore(5, '100.00');
+    const repo = new DrizzleSaleRepository(database);
+    const sale = Sale.create(seed.merchantId, seed.cashSessionId, 'op-1', { idempotencyKey: null });
+    sale.addItem(SaleItem.create(seed.productId, 'Pão', Money.fromDecimal('10.00'), 1));
+    sale.confirmPayments([Payment.create('CASH', Money.fromDecimal('10.00'))]);
+    await database
+      .update(cashSessions)
+      .set({ status: 'CLOSED', closedBy: 'op-1', closedAt: new Date(), closingBalance: '0' })
+      .where(eq(cashSessions.id, seed.cashSessionId));
+
+    await expect(
+      repo.commitSale({
+        sale,
+        actorId: 'op-1',
+        stockDeductions: [{ productId: seed.productId, quantity: 1 }],
+        cashReceipt: { cashSessionId: seed.cashSessionId, amount: Money.fromDecimal('10.00') },
+        audits: [],
+      })
+    ).rejects.toBeInstanceOf(CashSessionNotOpenError);
+
+    const [stock] = await database
+      .select({ qty: inventoryItems.availableQuantity })
+      .from(inventoryItems)
+      .where(eq(inventoryItems.productId, seed.productId));
+    expect(stock.qty).toBe(5);
+    expect(await database.select().from(sales).where(eq(sales.id, sale.id))).toHaveLength(0);
+    expect(await database.select().from(cashMovements).where(eq(cashMovements.saleId, sale.id))).toHaveLength(0);
   });
 
   it('recusa baixa de estoque com quantidade não positiva sem alterar o estoque', async () => {
@@ -319,10 +377,15 @@ describe.skipIf(!TEST_DATABASE_URL)('DrizzleSaleRepository.commitSale (Postgres)
       s.confirmPayments([Payment.create('CASH', Money.fromDecimal('10.00'))]);
     }
 
-    const results = await Promise.allSettled([
+    // Both sales are started while the row is locked from outside, so they truly overlap.
+    const held = await holdInventoryRowLock(seed.productId);
+    const pending = Promise.allSettled([
       repo.commitSale({ sale: saleA, actorId: 'op-1', stockDeductions: [{ productId: seed.productId, quantity: 1 }], audits: [] }),
       repo.commitSale({ sale: saleB, actorId: 'op-1', stockDeductions: [{ productId: seed.productId, quantity: 1 }], audits: [] }),
     ]);
+    await waitUntilBlocked(2);
+    await held.release();
+    const results = await pending;
 
     expect(results.filter((r) => r.status === 'fulfilled')).toHaveLength(1);
     const rejected = results.find((r) => r.status === 'rejected') as PromiseRejectedResult;
@@ -332,5 +395,47 @@ describe.skipIf(!TEST_DATABASE_URL)('DrizzleSaleRepository.commitSale (Postgres)
       .from(inventoryItems)
       .where(eq(inventoryItems.productId, seed.productId));
     expect(stock.qty).toBe(0);
+  });
+
+  it('trava as linhas de estoque em ordem fixa, qualquer que seja a ordem dos itens da venda', async () => {
+    const seed = await seedStore(5, '0.00');
+    const otherProductId = await addProduct(seed.merchantId, 5);
+    const [low, high] = [seed.productId, otherProductId].sort();
+    const repo = new DrizzleSaleRepository(database);
+    const sale = Sale.create(seed.merchantId, seed.cashSessionId, 'op-1', { idempotencyKey: null });
+    sale.addItem(SaleItem.create(high, 'Leite', Money.fromDecimal('10.00'), 1));
+    sale.addItem(SaleItem.create(low, 'Pão', Money.fromDecimal('10.00'), 1));
+    sale.confirmPayments([Payment.create('CASH', Money.fromDecimal('20.00'))]);
+
+    // The sale asks for the higher id first. A fixed order must still queue on the lower id first.
+    const held = await holdInventoryRowLock(low);
+    const pending = repo.commitSale({
+      sale,
+      actorId: 'op-1',
+      stockDeductions: [
+        { productId: high, quantity: 1 },
+        { productId: low, quantity: 1 },
+      ],
+      audits: [],
+    });
+    await waitUntilBlocked(1);
+
+    // If the sale had locked the higher id first, this NOWAIT lock would fail with 55P03.
+    const probe = await pool.connect();
+    try {
+      await probe.query('BEGIN');
+      await probe.query('SELECT 1 FROM inventory_items WHERE product_id = $1 FOR UPDATE NOWAIT', [high]);
+      await probe.query('ROLLBACK');
+    } finally {
+      probe.release();
+    }
+
+    await held.release();
+    await pending;
+    const rows = await database
+      .select({ id: inventoryItems.productId, qty: inventoryItems.availableQuantity })
+      .from(inventoryItems)
+      .where(eq(inventoryItems.merchantId, seed.merchantId));
+    expect(rows.map((r) => r.qty)).toEqual([4, 4]);
   });
 });

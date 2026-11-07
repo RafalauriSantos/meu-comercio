@@ -3,6 +3,8 @@
 html:has(.auth) {
   background: #0b1220;
   color-scheme: dark;
+  /* Reserve the scrollbar track, so a taller form does not shift the layout when it appears. */
+  scrollbar-gutter: stable;
 }
 
 .auth {
@@ -347,6 +349,23 @@ html:has(.auth) {
   }
 }
 
+/* The form enters softly when the user switches between sign in and sign up. */
+@keyframes auth-enter {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.auth-header,
+.auth-form {
+  animation: auth-enter 200ms ease-out both;
+}
+
 /* Desktop: brand side and form side */
 
 @media (min-width: 960px) {
@@ -429,6 +448,11 @@ html:has(.auth) {
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .auth-header,
+  .auth-form {
+    animation: none;
+  }
+
   .auth-tab,
   .auth-input,
   .auth-btn-primary,

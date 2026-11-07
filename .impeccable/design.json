@@ -10,15 +10,14 @@
     },
     "typographyMeta": {
       "display": {"displayName": "Display", "purpose": "One h1 per page, Bricolage Grotesque 800."},
-      "figure": {"displayName": "Figure", "purpose": "Money values, tabular numerals."}
+      "caption": {"displayName": "Caption", "purpose": "Screenshot caption, Geist 0.875rem muted; always starts with \"Exemplo:\"."}
     },
     "shadows": [
-      {"name": "ledger-ground", "value": "0 28px 48px -28px rgba(0,0,0,0.7)", "purpose": "Grounds the single raised ledger panel."},
+      {"name": "window-ground", "value": "0 48px 80px -40px rgba(0,0,0,0.85), 0 16px 32px -16px rgba(0,0,0,0.5)", "purpose": "Lifts the single raised application window off the navy ground."},
       {"name": "button-glow", "value": "0 10px 24px -12px rgba(52,211,153,0.7)", "purpose": "Faint green glow under the primary button."}
     ],
     "motion": [
-      {"name": "button-transition", "value": "160ms ease-out", "purpose": "Background, border, 1px lift on buttons."},
-      {"name": "check-draw", "value": "700ms 300ms cubic-bezier(0.16, 1, 0.3, 1)", "purpose": "The one authored moment; off under prefers-reduced-motion."}
+      {"name": "button-transition", "value": "160ms ease-out", "purpose": "Background, border, 1px lift on buttons; the only motion on the page, removed under prefers-reduced-motion."}
     ],
     "breakpoints": [
       {"name": "narrow", "value": "520px"},
@@ -39,10 +38,10 @@
       "css": ".ds-btn-secondary{display:inline-flex;align-items:center;justify-content:center;min-height:52px;padding:0 24px;border-radius:12px;font-size:1.0625rem;font-weight:650;text-decoration:none;border:1px solid #4b5d7c;color:#f1f5f9;transition:border-color 160ms ease-out}.ds-btn-secondary:hover{border-color:#34d399}.ds-btn-secondary:focus-visible{outline:3px solid #34d399;outline-offset:3px;border-radius:6px}"
     },
     {
-      "name": "Ledger Panel", "kind": "card", "refersTo": "ledger-panel",
-      "description": "Ruled ledger page with dashed row rules.",
-      "html": "<aside class=\"ds-ledger\"><div class=\"ds-ledger-head\"><h2>Caixa de hoje</h2><span class=\"ds-badge\">Exemplo</span></div><dl><div class=\"ds-row\"><dt>Fiado em aberto</dt><dd>R$ 1.240,00</dd></div><div class=\"ds-row\"><dt>Dinheiro esperado no caixa</dt><dd>R$ 860,00</dd></div></dl><p>Valores de exemplo, não são dados reais.</p></aside>",
-      "css": ".ds-ledger{background:#111c31;color:#f1f5f9;border:1px solid #243350;border-radius:16px;padding:22px 22px 18px;box-shadow:0 28px 48px -28px rgba(0,0,0,.7);max-width:360px}.ds-ledger-head{display:flex;align-items:center;justify-content:space-between;gap:12px}.ds-ledger h2{margin:0;font-size:1.25rem;letter-spacing:-.01em}.ds-badge{padding:4px 10px;border:1px solid #4b5d7c;border-radius:999px;font-size:.8125rem;font-weight:600;color:#b3bfd2}.ds-ledger dl{margin:14px 0 0}.ds-row{padding:14px 0;border-bottom:1px dashed #243350}.ds-row dt{font-size:.9375rem;color:#b3bfd2}.ds-row dd{margin:2px 0 0;font-size:1.625rem;font-weight:700;font-variant-numeric:tabular-nums}.ds-ledger p{margin:14px 0 0;font-size:.8125rem;color:#b3bfd2}"
+      "name": "Application Window", "kind": "custom", "refersTo": "application-window",
+      "description": "Frames a real capture of the app's /pdv screen (demo data) with an \"Exemplo:\" caption. The one raised surface. Real capture only, never a mock-up.",
+      "html": "<figure class=\"ds-shot\"><div class=\"ds-shot-window\"><div class=\"ds-shot-img\">[real capture of /pdv, 1920x1140 WebP]</div></div><figcaption>Exemplo: a tela do PDV com produtos e valores de demonstração.</figcaption></figure>",
+      "css": ".ds-shot{margin:0;max-width:1120px}.ds-shot-window{overflow:hidden;border:1px solid #4b5d7c;border-radius:14px;background:#ffffff;box-shadow:0 48px 80px -40px rgba(0,0,0,.85),0 16px 32px -16px rgba(0,0,0,.5)}.ds-shot-img{display:block;width:100%;aspect-ratio:1920/1140;background:#e6ebe8;color:#052e1f;font-size:.875rem;display:flex;align-items:center;justify-content:center}.ds-shot figcaption{margin-top:14px;font-size:.875rem;color:#b3bfd2}"
     },
     {
       "name": "Question Row", "kind": "custom", "refersTo": "faq",
@@ -53,16 +52,17 @@
   ],
   "narrative": {
     "northStar": "The Shop-Counter Ledger",
-    "overview": "A night-time bookkeeping page: deep navy ground, ruled lines instead of boxes, large tabular figures, and one green that means action or confirmed state.",
-    "keyCharacteristics": ["Flat tonal layering with hairline rules", "One green accent", "Large tabular figures near the top", "Ruled lists, not cards", "Single authored motion"],
+    "overview": "A night-time bookkeeping page: deep navy ground, ruled lines instead of boxes, and one green that means action. The hero proves the product with a real capture of the /pdv screen in an application window. Desktop-first; mobile stacks the same single column.",
+    "keyCharacteristics": ["Flat tonal layering with hairline rules", "One green accent", "Ruled lists, not cards", "Real product capture in an application window as the one raised surface", "No authored motion; only a button hover transition"],
     "rules": [
       {"name": "The One Green Rule", "body": "Green marks an action or a confirmed state, never decoration.", "section": "colors"},
-      {"name": "The Token Rule", "body": "line-strong and green-hover are real tokens currently hard-coded; reference them by name.", "section": "colors"},
-      {"name": "The Tabular Rule", "body": "Every money figure and counter uses tabular-nums.", "section": "typography"},
+      {"name": "The Tabular Rule", "body": "Every money figure and counter the landing sets uses tabular-nums.", "section": "typography"},
       {"name": "The Measure Rule", "body": "Running text never exceeds 52ch.", "section": "typography"},
-      {"name": "The One Raised Surface Rule", "body": "Only the ledger panel is raised.", "section": "elevation"}
+      {"name": "The One Raised Surface Rule", "body": "Only the application window is raised.", "section": "elevation"},
+      {"name": "The Real Capture Rule", "body": "The product screen must be a real capture of the app with demo data, and always carries the \"Exemplo:\" caption. public/landing/pdv-desktop.webp: Playwright capture of the built app's /pdv at 1280x760, device scale 1.5, invented demo data via intercepted API responses, WebP, about 100 KB; nothing from production or real customers.", "section": "components"},
+      {"name": "The Desktop-First Review Rule", "body": "Review at 1440 and 1920 first, then 390.", "section": "layout"}
     ],
-    "dos": ["Do put figures near the top and set them in tabular numerals.", "Do label every example figure \"Exemplo\".", "Do honor prefers-reduced-motion for any motion added."],
-    "donts": ["Don't put an eyebrow above a heading.", "Don't use rows of same-size icon cards.", "Don't use gradient text.", "Don't invent claims or testimonials."]
+    "dos": ["Do show the product through a real demo-data capture with the \"Exemplo:\" caption.", "Do review desktop-first (1440, 1920, then 390).", "Do honor prefers-reduced-motion for any motion added."],
+    "donts": ["Don't put an eyebrow above a heading.", "Don't use rows of same-size icon cards.", "Don't use gradient text.", "Don't invent claims or testimonials.", "Don't draw an imitation of the product screen or use real-customer data."]
   }
 }

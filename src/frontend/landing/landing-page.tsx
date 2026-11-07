@@ -3,14 +3,6 @@ import { LANDING_CONTENT } from './landing-content';
 
 const { brand, header, hero, losses, steps, safety, faq, finalCall, footer } = LANDING_CONTENT;
 
-function CheckMark() {
-  return (
-    <svg className="landing-check" viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" focusable="false">
-      <path d="M5 12.5l4.5 4.5L19 7" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
-  );
-}
-
 export function LandingPage() {
   return (
     <div className="landing">
@@ -37,24 +29,20 @@ export function LandingPage() {
             <p className="landing-note">{hero.note}</p>
           </div>
 
-          <aside className="landing-ledger" aria-label={hero.panel.label}>
-            <div className="landing-ledger-head">
-              <h2>{hero.panel.title}</h2>
-              <span className="landing-badge">{hero.panel.badge}</span>
+          <figure className="landing-shot">
+            <div className="landing-shot-window">
+              {/* A fixed, already optimized WebP with explicit size: next/image adds nothing here. */}
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={hero.shot.src}
+                width={hero.shot.width}
+                height={hero.shot.height}
+                alt={hero.shot.alt}
+                decoding="async"
+              />
             </div>
-            <dl className="landing-ledger-rows">
-              {hero.panel.figures.map((figure) => (
-                <div className="landing-ledger-row" key={figure.label}>
-                  <dt>{figure.label}</dt>
-                  <dd className={figure.value === 'confere' ? 'landing-ledger-ok' : undefined}>
-                    {figure.value === 'confere' ? <CheckMark /> : null}
-                    {figure.value}
-                  </dd>
-                </div>
-              ))}
-            </dl>
-            <p className="landing-ledger-caption">{hero.panel.caption}</p>
-          </aside>
+            <figcaption>{hero.shot.caption}</figcaption>
+          </figure>
         </section>
 
         <section className="landing-section" aria-labelledby="landing-losses-title">

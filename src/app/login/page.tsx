@@ -75,7 +75,7 @@ export default function LoginPage() {
     }
 
     checkStatus();
-  }, []);
+  }, [router]);
 
   async function handleLogin(e: React.FormEvent) {
     e.preventDefault();

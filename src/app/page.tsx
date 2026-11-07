@@ -314,7 +314,8 @@ export default function PdvTerminalPage() {
     if (!offlineManagerRef.current || !user) return;
 
     offlineManagerRef.current.enqueueSale(user.merchantId, user.username, {
-      idempotencyKey: crypto.randomUUID(),
+      // Same key as the failed online attempt: if the server already recorded it, the sync gets 409 and treats it as done.
+      idempotencyKey: checkoutKeys.current.current(),
       merchantId: user.merchantId,
       operatorId: user.username,
       items: cart.map((line) => ({

@@ -86,7 +86,7 @@ export default function LoginPage() {
       setCashOpen(cash.open);
 
       if (cash.open) {
-        router.push('/');
+        router.push('/pdv');
       }
     } catch (err) {
       setError(getErrorMessage(err, 'Erro ao realizar login. Tente novamente.'));
@@ -141,7 +141,7 @@ export default function LoginPage() {
     try {
       await apiClient.openCash({ openingBalance: parseCurrencyInput(openingBalance) });
       setCashOpen(true);
-      router.push('/');
+      router.push('/pdv');
     } catch (err) {
       setError(getErrorMessage(err, 'Erro ao abrir caixa.'));
     } finally {

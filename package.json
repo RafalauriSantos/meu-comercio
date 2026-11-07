@@ -5,6 +5,8 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
+    "build:safe": "env -u DATABASE_URL next build && npm run check:build",
+    "check:build": "node scripts/check-prerendered-api-routes.mjs",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
     "start": "next start",

@@ -126,7 +126,7 @@ Este documento registra formalmente as decisões de arquitetura e de produto do 
   2. **Domínio Rico com Value Object `Money`**:
      - Entidade `Customer`: armazena `creditLimit` e métodos puros `calculateAvailableCredit(currentDebt)` e `wouldExceedCreditLimit(currentDebt, saleAmount)`.
      - Invariantes monetárias: limite de crédito nunca negativo; valores de movimentação estritamente maiores que zero; pagamentos superiores à dívida total em aberto são sumariamente rejeitados no domínio (`DebtSettlementExceedsBalanceError`).
-  3. **Override por PIN da Proprietária (`AuthorizeCreditSaleUseCase`)**:
+  3. **Override por PIN da Proprietária (`CreateSaleUseCase`, pagamento `TAB`)**:
      - Vendas dentro do limite disponível de crédito são autorizadas diretamente pelo operador.
      - Vendas que excedam o limite disponível disparam a exigência de credenciais da dona (`ownerUsername` e `ownerPin`).
      - A validação consulta a autoridade do usuário (`isOwner()`) e compara o PIN fornecido contra o hash `authorization_pin_hash` armazenado no banco via `bcrypt`.
@@ -142,6 +142,8 @@ Este documento registra formalmente as decisões de arquitetura e de produto do 
   - *Negativo*: Requer presença ou digitação explícita do PIN da dona para transações que estourem o teto; exige caixa aberto mesmo que o pagamento do cliente seja feito fora de uma venda convencional.
 
 ---
+
+**Atualização (PR #30): atomicidade da venda com fiado.** A venda, a baixa de estoque, o débito no extrato do cliente, o recibo de caixa (`SALE_RECEIPT`) e a auditoria são gravados em uma única transação (`SaleRepository.commitSale`). A dedução de estoque trava as linhas com `FOR UPDATE` em ordem fixa de `productId`, e o limite de crédito é reavaliado com a linha do cliente travada. Qualquer falha desfaz tudo.
 
 ## ADR-009: Adaptação da Interface do PDV no Next.js App Router, Fila Offline e Integração com Slices 1 a 5
 
@@ -281,7 +283,7 @@ Este documento registra formalmente as decisões de arquitetura e de produto do 
 - **Contexto**: O PIN da proprietária autoriza descontos, estornos e vendas fiado acima do limite. Sem limite de tentativas, um operador logado pode testar PINs pela rota de vendas. O bloqueio de login (ADR-006) não cobre esse PIN.
 - **Decisão**:
   1. Cada loja tem um contador de tentativas do PIN da proprietária, na tabela `owner_pin_attempts`.
-  2. Cada tentativa é contada antes da comparação, com uma reserva atômica por statement no banco (UPDATE condicionado ao bloqueio, depois INSERT com ON CONFLICT e, se preciso, um novo UPDATE). Assim, requisições concorrentes não ultrapassam o limite.
+  2. Cada tentativa é contada antes da comparação. A regra de bloqueio fica só em `reserveOwnerPinAttempt` (domínio). O store trava a linha da loja com `SELECT ... FOR UPDATE` dentro de uma transação, aplica a regra e grava o resultado. Assim, requisições concorrentes não ultrapassam o limite.
   3. A 5ª tentativa ativa o bloqueio de 15 minutos para todas as operações daquela loja. Se a 5ª tentativa estiver correta, ela ainda é aceita, e a contagem é zerada.
   4. Um PIN correto zera o contador.
   5. Ao expirar o bloqueio, o contador não zera. Um PIN errado bloqueia de novo na hora, e só um PIN correto limpa a contagem.

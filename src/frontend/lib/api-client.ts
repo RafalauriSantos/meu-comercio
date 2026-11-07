@@ -2,7 +2,8 @@ export class ApiError extends Error {
   constructor(
     public readonly status: number,
     message: string,
-    public readonly errors?: Array<{ field: string; message: string }>
+    public readonly errors?: Array<{ field: string; message: string }>,
+    public readonly code?: string
   ) {
     super(message);
     this.name = 'ApiError';
@@ -99,6 +100,7 @@ export interface CreateSalePayload {
   discountAmount?: string | number | null;
   discountReason?: string | null;
   idempotencyKey?: string | null;
+  ownerPin?: string;
 }
 
 export interface SaleResponse {
@@ -147,14 +149,16 @@ export async function apiRequest<T>(
   if (!response.ok) {
     let message = 'Falha ao processar solicitação.';
     let errors: Array<{ field: string; message: string }> | undefined;
+    let code: string | undefined;
     try {
       const data = await response.json();
       if (data.message) message = data.message;
       if (data.errors) errors = data.errors;
+      if (typeof data.code === 'string') code = data.code;
     } catch {
       // Body not JSON
     }
-    throw new ApiError(response.status, message, errors);
+    throw new ApiError(response.status, message, errors, code);
   }
 
   if (response.status === 204) {
@@ -273,28 +277,6 @@ export const apiClient = {
     }),
   getCustomerBalance: (customerId: string) =>
     apiRequest<CustomerBalance>(`/api/customers/${encodeURIComponent(customerId)}/balance`),
-  authorizeCreditSale: (
-    customerId: string,
-    payload: {
-      saleAmount: number | string;
-      ownerPin?: string;
-      ownerUsername?: string;
-      saleId?: string;
-      note?: string;
-    }
-  ) =>
-    apiRequest<{
-      authorized: boolean;
-      movementId: string;
-      requiresOwnerPin: boolean;
-      authorizedBy: string;
-      saleAmount: string;
-      customerId: string;
-      createdAt: string;
-    }>(`/api/customers/${encodeURIComponent(customerId)}/authorize-credit`, {
-      method: 'POST',
-      body: JSON.stringify(payload),
-    }),
   settleCustomerDebt: (
     customerId: string,
     payload: {

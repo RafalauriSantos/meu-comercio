@@ -68,7 +68,7 @@ describe('InitialOwnerSetupUseCase', () => {
       merchantName: 'Mercado da Vila',
       username: 'tatiane',
       password: 'super-secret-password-123',
-      authorizationPin: '1234',
+      authorizationPin: '123456',
       email: 'tatiane@exemplo.com',
     });
 
@@ -81,7 +81,20 @@ describe('InitialOwnerSetupUseCase', () => {
 
     // Verify hash protection
     expect(await verifySecret('super-secret-password-123', result.passwordHash)).toBe(true);
-    expect(await verifySecret('1234', result.authorizationPinHash!)).toBe(true);
+    expect(await verifySecret('123456', result.authorizationPinHash!)).toBe(true);
+  });
+
+  it('should reject an authorization PIN that does not have exactly 6 digits', async () => {
+    for (const authorizationPin of ['1234', '12345', '1234567', 'abcdef']) {
+      await expect(
+        useCase.execute({
+          merchantName: 'Mercado da Vila',
+          username: 'tatiane',
+          password: 'super-secret-password-123',
+          authorizationPin,
+        })
+      ).rejects.toThrow(/6 dígitos/);
+    }
   });
 
   it('should reject setup if an owner already exists', async () => {
@@ -89,7 +102,7 @@ describe('InitialOwnerSetupUseCase', () => {
       merchantName: 'Mercado da Vila',
       username: 'tatiane',
       password: 'super-secret-password-123',
-      authorizationPin: '1234',
+      authorizationPin: '123456',
     });
 
     await expect(
@@ -97,7 +110,7 @@ describe('InitialOwnerSetupUseCase', () => {
         merchantName: 'Outro Mercado',
         username: 'outro',
         password: 'outra-senha-segura',
-        authorizationPin: '5678',
+        authorizationPin: '567890',
       })
     ).rejects.toThrow(SetupAlreadyCompletedError);
   });
@@ -107,7 +120,7 @@ describe('InitialOwnerSetupUseCase', () => {
       useCase.execute({
         username: 'tatiane',
         password: '123', // Less than 8 characters
-        authorizationPin: '1234',
+        authorizationPin: '123456',
       })
     ).rejects.toThrow('A senha deve ter no mínimo 8 caracteres');
 
@@ -117,6 +130,6 @@ describe('InitialOwnerSetupUseCase', () => {
         password: 'valid-password-123',
         authorizationPin: 'abc', // Not 4-6 digits
       })
-    ).rejects.toThrow('O PIN de autorização deve conter de 4 a 6 dígitos numéricos');
+    ).rejects.toThrow('O PIN de autorização deve conter exatamente 6 dígitos numéricos');
   });
 });

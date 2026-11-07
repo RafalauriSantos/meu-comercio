@@ -107,8 +107,8 @@ export default function LoginPage() {
       return;
     }
 
-    if (setupPin.length < 4 || setupPin.length > 6) {
-      setError('O PIN da proprietária deve ter entre 4 e 6 números.');
+    if (!/^\d{6}$/.test(setupPin)) {
+      setError('O PIN da proprietária deve ter exatamente 6 números.');
       return;
     }
 
@@ -458,7 +458,7 @@ export default function LoginPage() {
 
               <div className="auth-field">
                 <label className="auth-label" htmlFor="setup-pin">
-                  PIN de Autorização (4 a 6 dígitos)
+                  PIN de Autorização (6 dígitos)
                   <span style={{ display: 'block', fontSize: '11px', color: '#64748b', fontWeight: 'normal', marginTop: '2px' }}>
                     Usado para autorizar vendas fiado acima do limite e fechamento de caixa.
                   </span>
@@ -473,7 +473,7 @@ export default function LoginPage() {
                   required
                   value={setupPin}
                   onChange={(e) => setSetupPin(e.target.value)}
-                  placeholder="••••"
+                  placeholder="••••••"
                 />
               </div>
 

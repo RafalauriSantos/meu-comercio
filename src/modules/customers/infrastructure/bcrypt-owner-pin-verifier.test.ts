@@ -164,6 +164,11 @@ describe('BcryptOwnerPinVerifier — bloqueio por tentativas de PIN', () => {
     verifier = new BcryptOwnerPinVerifier(repo, attempts, () => now);
   });
 
+  it('devolve o usuário da proprietária que autorizou, ou null quando o PIN não confere', async () => {
+    expect(await verifier.authorizeOwnerPin(merchantId, 'dona_lockout', OWNER_PIN)).toBe('dona_lockout');
+    expect(await verifier.authorizeOwnerPin(merchantId, 'dona_lockout', '000000')).toBeNull();
+  });
+
   it('bloqueia o PIN da dona depois de 5 tentativas erradas, mesmo com o PIN correto', async () => {
     for (let i = 0; i < 5; i++) {
       expect(await verifier.verifyOwnerPin(merchantId, 'dona_lockout', '000000')).toBe(false);

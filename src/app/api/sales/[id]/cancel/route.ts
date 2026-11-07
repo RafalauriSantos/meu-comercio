@@ -16,7 +16,7 @@ import {
 import { InvalidOwnerPinError, NoOpenCashSessionError } from '@/modules/customers/domain/errors';
 
 const CancelSaleSchema = z.object({
-  ownerPin: z.string().trim().regex(/^\d{4,6}$/, 'O PIN da proprietária deve conter entre 4 e 6 dígitos.'),
+  ownerPin: z.string().trim().regex(/^\d{6}$/, 'O PIN da proprietária deve conter exatamente 6 dígitos.'),
   reason: z.string().trim().min(3, 'O motivo do cancelamento deve conter no mínimo 3 caracteres.'),
 });
 

@@ -38,6 +38,10 @@ class InMemorySaleRepository implements SaleRepository {
   async save(sale: Sale): Promise<void> {
     this.sales.set(sale.id, sale);
   }
+
+  async commitSale(commit: { sale: Sale }): Promise<void> {
+    await this.save(commit.sale);
+  }
 }
 
 class InMemoryInventoryRepository implements InventoryRepository {
@@ -152,6 +156,10 @@ class InMemoryOwnerPinVerifier implements OwnerPinVerifier {
 
   async verifyOwnerPin(merchantId: string, _ownerUsername: string, pin: string): Promise<boolean> {
     return this.validPins.get(merchantId) === pin;
+  }
+
+  async authorizeOwnerPin(merchantId: string, ownerUsername: string, pin: string): Promise<string | null> {
+    return (await this.verifyOwnerPin(merchantId, ownerUsername, pin)) ? ownerUsername || 'owner' : null;
   }
 }
 

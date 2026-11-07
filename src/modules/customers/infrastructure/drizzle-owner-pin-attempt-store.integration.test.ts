@@ -57,6 +57,8 @@ describe.skipIf(!TEST_DATABASE_URL)('DrizzleOwnerPinAttemptStore (Postgres)', ()
     expect(await store.tryReserveAttempt(merchantId, now)).toBe(false);
     const later = new Date(now.getTime() + 15 * 60 * 1000 + 1);
     expect(await store.tryReserveAttempt(merchantId, later)).toBe(true);
+    // The counter is not reset by expiry: one more wrong PIN locks again at once.
+    expect(await store.tryReserveAttempt(merchantId, later)).toBe(false);
   });
 
   it('zera o contador depois de um PIN correto', async () => {

@@ -7,11 +7,18 @@ import { Sale } from '@/modules/sales/domain/sale';
 import { SaleItem } from '@/modules/sales/domain/sale-item';
 import { Payment } from '@/modules/sales/domain/payment';
 import { UnauthorizedError } from '@/shared/infrastructure/auth/auth-context';
+import { CashSessionNotOpenError } from '@/modules/sales/domain/errors';
 import {
   OpenCashSessionRequiredError,
   DuplicateSaleRequestError,
   ProductNotFoundError,
 } from '@/modules/sales/application/create-sale.use-case';
+import {
+  CreditLimitExceededError,
+  CustomerInactiveError,
+  CustomerNotFoundError,
+  InvalidOwnerPinError,
+} from '@/modules/customers/domain/errors';
 
 // Mocks
 const mockRequireAuthenticatedSession = vi.fn();
@@ -139,6 +146,7 @@ describe('Sales API Routes', () => {
 
       const response = await POST(request);
       expect(response.status).toBe(409);
+      expect((await response.json()).code).toBe('DUPLICATE_SALE');
     });
 
     it('deve mapear OpenCashSessionRequiredError para status 400', async () => {
@@ -169,6 +177,150 @@ describe('Sales API Routes', () => {
 
       const response = await POST(request);
       expect(response.status).toBe(404);
+    });
+  });
+
+  describe('POST /api/sales — caixa fechado durante a venda', () => {
+    it('deve responder 409 com mensagem clara quando o caixa foi fechado no meio da venda', async () => {
+      mockExecuteCreateSale.mockRejectedValue(new CashSessionNotOpenError('session-1'));
+      const response = await POST(
+        new NextRequest('http://localhost:3000/api/sales', {
+          method: 'POST',
+          body: JSON.stringify({
+            items: [{ productId: 'prod-1', quantity: 1 }],
+            payments: [{ method: 'PIX', amount: '20.00' }],
+          }),
+        })
+      );
+      expect(response.status).toBe(409);
+      const data = await response.json();
+      expect(data.message).toContain('caixa foi fechado');
+      expect(data.code).toBe('CASH_SESSION_CLOSED');
+    });
+  });
+
+  describe('POST /api/sales — erros de fiado', () => {
+    const fiadoBody = JSON.stringify({
+      items: [{ productId: 'prod-1', quantity: 1 }],
+      payments: [{ method: 'TAB', amount: '25.50', externalReference: 'cust-1' }],
+    });
+
+    it('deve mapear CreditLimitExceededError para 403', async () => {
+      mockExecuteCreateSale.mockRejectedValue(new CreditLimitExceededError());
+      const response = await POST(new NextRequest('http://localhost:3000/api/sales', { method: 'POST', body: fiadoBody, headers: { 'Idempotency-Key': 'fiado-key-1' } }));
+      expect(response.status).toBe(403);
+    });
+
+    it('deve mapear InvalidOwnerPinError para 403', async () => {
+      mockExecuteCreateSale.mockRejectedValue(new InvalidOwnerPinError());
+      const response = await POST(new NextRequest('http://localhost:3000/api/sales', { method: 'POST', body: fiadoBody, headers: { 'Idempotency-Key': 'fiado-key-1' } }));
+      expect(response.status).toBe(403);
+    });
+
+    it('deve mapear CustomerNotFoundError para 404', async () => {
+      mockExecuteCreateSale.mockRejectedValue(new CustomerNotFoundError('cust-1'));
+      const response = await POST(new NextRequest('http://localhost:3000/api/sales', { method: 'POST', body: fiadoBody, headers: { 'Idempotency-Key': 'fiado-key-1' } }));
+      expect(response.status).toBe(404);
+    });
+
+    it('deve mapear CustomerInactiveError para 400', async () => {
+      mockExecuteCreateSale.mockRejectedValue(new CustomerInactiveError('cust-1'));
+      const response = await POST(new NextRequest('http://localhost:3000/api/sales', { method: 'POST', body: fiadoBody, headers: { 'Idempotency-Key': 'fiado-key-1' } }));
+      expect(response.status).toBe(400);
+    });
+  });
+
+  describe('POST /api/sales — falhas de banco e validações de fiado', () => {
+    const fiadoBody = JSON.stringify({
+      items: [{ productId: 'prod-1', quantity: 1 }],
+      payments: [{ method: 'TAB', amount: '25.50', externalReference: 'cust-1' }],
+    });
+    const fiadoHeaders = { 'Idempotency-Key': 'fiado-key-1' };
+
+    function dbError(code: string) {
+      return Object.assign(
+        new Error('Failed query: insert into "cash_movements" params: secret-sql-params'),
+        { cause: { code } }
+      );
+    }
+
+    it('deve responder 500 sem vazar SQL quando o banco falha', async () => {
+      mockExecuteCreateSale.mockRejectedValue(dbError('40P01'));
+      const response = await POST(
+        new NextRequest('http://localhost:3000/api/sales', { method: 'POST', body: fiadoBody, headers: fiadoHeaders })
+      );
+      expect(response.status).toBe(500);
+      const data = await response.json();
+      expect(JSON.stringify(data)).not.toContain('secret-sql-params');
+    });
+
+    it('deve responder 500 sem vazar SQL quando o erro do driver não tem código', async () => {
+      mockExecuteCreateSale.mockRejectedValue(
+        Object.assign(new Error('Failed query: insert into "sales" params: secret-sql-params'), {
+          cause: { message: 'connection terminated unexpectedly' },
+        })
+      );
+      const response = await POST(
+        new NextRequest('http://localhost:3000/api/sales', { method: 'POST', body: fiadoBody, headers: fiadoHeaders })
+      );
+      expect(response.status).toBe(500);
+      expect(JSON.stringify(await response.json())).not.toContain('secret-sql-params');
+    });
+
+    it('deve mapear violação de unicidade do banco para 409', async () => {
+      mockExecuteCreateSale.mockRejectedValue(dbError('23505'));
+      const response = await POST(
+        new NextRequest('http://localhost:3000/api/sales', { method: 'POST', body: fiadoBody, headers: fiadoHeaders })
+      );
+      expect(response.status).toBe(409);
+      expect((await response.json()).code).toBe('DUPLICATE_SALE');
+    });
+
+    it('deve rejeitar PIN do dono que não tenha 6 dígitos', async () => {
+      const response = await POST(
+        new NextRequest('http://localhost:3000/api/sales', {
+          method: 'POST',
+          body: JSON.stringify({
+            items: [{ productId: 'prod-1', quantity: 1 }],
+            payments: [{ method: 'TAB', amount: '25.50', externalReference: 'cust-1' }],
+            ownerPin: '12',
+          }),
+          headers: fiadoHeaders,
+        })
+      );
+      expect(response.status).toBe(400);
+      expect(mockExecuteCreateSale).not.toHaveBeenCalled();
+    });
+
+    it('deve rejeitar chave de idempotência maior que 128 caracteres com 400', async () => {
+      const response = await POST(
+        new NextRequest('http://localhost:3000/api/sales', {
+          method: 'POST',
+          body: fiadoBody,
+          headers: { 'Idempotency-Key': 'k'.repeat(129) },
+        })
+      );
+      expect(response.status).toBe(400);
+      expect(mockExecuteCreateSale).not.toHaveBeenCalled();
+    });
+
+    it('deve aceitar chave de idempotência de exatamente 128 caracteres', async () => {
+      mockExecuteCreateSale.mockRejectedValue(new CreditLimitExceededError());
+      const response = await POST(
+        new NextRequest('http://localhost:3000/api/sales', {
+          method: 'POST',
+          body: fiadoBody,
+          headers: { 'Idempotency-Key': 'k'.repeat(128) },
+        })
+      );
+      expect(response.status).toBe(403);
+      expect(mockExecuteCreateSale).toHaveBeenCalledTimes(1);
+    });
+
+    it('deve exigir chave de idempotência para venda fiado', async () => {
+      const response = await POST(new NextRequest('http://localhost:3000/api/sales', { method: 'POST', body: fiadoBody }));
+      expect(response.status).toBe(400);
+      expect(mockExecuteCreateSale).not.toHaveBeenCalled();
     });
   });
 

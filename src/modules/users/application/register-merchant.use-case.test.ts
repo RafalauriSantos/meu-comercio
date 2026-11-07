@@ -70,7 +70,7 @@ describe('RegisterMerchantUseCase (SaaS Self-Service Registration)', () => {
       merchantName: 'Mercadinho da Maria',
       username: 'maria',
       password: 'senha-segura-maria-123',
-      authorizationPin: '9876',
+      authorizationPin: '987654',
       email: 'maria@mercadinho.com',
     });
 
@@ -82,7 +82,20 @@ describe('RegisterMerchantUseCase (SaaS Self-Service Registration)', () => {
     expect(result.hasAuthority('CLOSE_CASH')).toBe(true);
 
     expect(await verifySecret('senha-segura-maria-123', result.passwordHash)).toBe(true);
-    expect(await verifySecret('9876', result.authorizationPinHash!)).toBe(true);
+    expect(await verifySecret('987654', result.authorizationPinHash!)).toBe(true);
+  });
+
+  it('should reject an authorization PIN that does not have exactly 6 digits', async () => {
+    for (const authorizationPin of ['1234', '12345', '1234567', 'abcdef']) {
+      await expect(
+        useCase.execute({
+          merchantName: 'Loja do Rafael',
+          username: 'rafael',
+          password: 'password-12345',
+          authorizationPin,
+        })
+      ).rejects.toThrow(/6 dígitos/);
+    }
   });
 
   it('should allow multiple different merchants to register independently in SaaS model', async () => {
@@ -90,14 +103,14 @@ describe('RegisterMerchantUseCase (SaaS Self-Service Registration)', () => {
       merchantName: 'Loja do Rafael',
       username: 'rafael',
       password: 'password-12345',
-      authorizationPin: '1111',
+      authorizationPin: '111111',
     });
 
     const store2 = await useCase.execute({
       merchantName: 'Mercadinho da Maria',
       username: 'maria',
       password: 'password-67890',
-      authorizationPin: '2222',
+      authorizationPin: '222222',
     });
 
     expect(store1.merchantId).not.toBe(store2.merchantId);
@@ -110,7 +123,7 @@ describe('RegisterMerchantUseCase (SaaS Self-Service Registration)', () => {
       merchantName: 'Primeira Loja',
       username: 'dono_comum',
       password: 'password-12345',
-      authorizationPin: '1234',
+      authorizationPin: '123456',
     });
 
     await expect(
@@ -118,7 +131,7 @@ describe('RegisterMerchantUseCase (SaaS Self-Service Registration)', () => {
         merchantName: 'Segunda Loja',
         username: 'dono_comum',
         password: 'password-67890',
-        authorizationPin: '5678',
+        authorizationPin: '567890',
       })
     ).rejects.toThrow(UsernameAlreadyTakenError);
   });
@@ -129,7 +142,7 @@ describe('RegisterMerchantUseCase (SaaS Self-Service Registration)', () => {
         merchantName: 'Mercado',
         username: 'usuario',
         password: '123',
-        authorizationPin: '1234',
+        authorizationPin: '123456',
       })
     ).rejects.toThrow('A senha deve ter no mínimo 8 caracteres');
 
@@ -140,6 +153,6 @@ describe('RegisterMerchantUseCase (SaaS Self-Service Registration)', () => {
         password: 'valid-password-123',
         authorizationPin: 'abc',
       })
-    ).rejects.toThrow('O PIN de autorização deve conter de 4 a 6 dígitos numéricos');
+    ).rejects.toThrow('O PIN de autorização deve conter exatamente 6 dígitos numéricos');
   });
 });

@@ -7,7 +7,7 @@ export const InitialOwnerSetupSchema = z.object({
   merchantName: z.string().trim().min(2).max(160).default('Meu Comércio'),
   username: z.string().trim().regex(/^[a-zA-Z0-9._-]{3,120}$/, 'Nome de usuário inválido (3 a 120 caracteres alfanuméricos, ponto, traço ou underline)'),
   password: z.string().min(8, 'A senha deve ter no mínimo 8 caracteres'),
-  authorizationPin: z.string().regex(/^\d{4,6}$/, 'O PIN de autorização deve conter de 4 a 6 dígitos numéricos'),
+  authorizationPin: z.string().regex(/^\d{6}$/, 'O PIN de autorização deve conter exatamente 6 dígitos numéricos'),
   email: z.string().trim().email('E-mail inválido').max(254).optional().nullable(),
 });
 

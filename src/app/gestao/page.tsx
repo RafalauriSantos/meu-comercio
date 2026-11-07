@@ -376,8 +376,8 @@ export default function GestaoPage() {
         setFeedback({ text: 'Informe o ID da venda a ser cancelada.', isError: true });
         return;
       }
-      if (cancelOwnerPin.trim().length < 4) {
-        setFeedback({ text: 'O PIN da proprietária deve conter entre 4 e 6 dígitos numéricos.', isError: true });
+      if (!/^\d{6}$/.test(cancelOwnerPin.trim())) {
+        setFeedback({ text: 'O PIN da proprietária deve conter exatamente 6 dígitos numéricos.', isError: true });
         return;
       }
       if (cancelReason.trim().length < 3) {
@@ -1227,7 +1227,7 @@ export default function GestaoPage() {
             </div>
 
             <div>
-              <label className="eyebrow" htmlFor="cancel-owner-pin">PIN da Proprietária (4 a 6 dígitos)</label>
+              <label className="eyebrow" htmlFor="cancel-owner-pin">PIN da Proprietária (6 dígitos)</label>
               <input
                 id="cancel-owner-pin"
                 className="barcode-row mono"
@@ -1238,7 +1238,7 @@ export default function GestaoPage() {
                 required
                 value={cancelOwnerPin}
                 onChange={(e) => setCancelOwnerPin(e.target.value)}
-                placeholder="••••"
+                placeholder="••••••"
               />
             </div>
 
@@ -1275,7 +1275,7 @@ export default function GestaoPage() {
                 disabled={
                   processing ||
                   !cancelSaleId.trim() ||
-                  cancelOwnerPin.trim().length < 4 ||
+                  !/^\d{6}$/.test(cancelOwnerPin.trim()) ||
                   cancelReason.trim().length < 3
                 }
               >

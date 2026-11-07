@@ -31,6 +31,8 @@ import {
   formatSaleReceipt,
   formatCreditNote,
 } from '@/frontend/lib/thermal-printer';
+import { createCheckoutKeyStore } from '@/frontend/lib/checkout-idempotency';
+import { settleOfflineSale } from '@/frontend/lib/offline-sale-sender';
 import '@/frontend/styles/pdv.css';
 
 interface CartLine {
@@ -52,6 +54,7 @@ export default function PdvTerminalPage() {
   const offlineManagerRef = useRef<OfflineSyncManager | null>(null);
   const userRef = useRef<AuthUser | null>(null);
   const syncingOfflineRef = useRef(false);
+  const checkoutKeys = useRef(createCheckoutKeyStore());
 
   useEffect(() => {
     userRef.current = user;
@@ -116,20 +119,21 @@ export default function PdvTerminalPage() {
       const result = await offlineManagerRef.current.syncQueue(
         userRef.current.merchantId,
         userRef.current.username,
-        async (sale: OfflineSale) => {
-          await apiClient.createSale(
-            {
-              items: sale.items.map((i) => ({ productId: i.productId, quantity: i.quantity })),
-              payments: sale.payments.map((p) => ({
-                method: p.method,
-                amount: p.amount,
-                receivedAmount: p.receivedAmount,
-              })),
-              idempotencyKey: sale.idempotencyKey,
-            },
-            sale.idempotencyKey
-          );
-        }
+        (sale: OfflineSale) =>
+          settleOfflineSale(() =>
+            apiClient.createSale(
+              {
+                items: sale.items.map((i) => ({ productId: i.productId, quantity: i.quantity })),
+                payments: sale.payments.map((p) => ({
+                  method: p.method,
+                  amount: p.amount,
+                  receivedAmount: p.receivedAmount,
+                })),
+                idempotencyKey: sale.idempotencyKey,
+              },
+              sale.idempotencyKey
+            )
+          )
       );
 
       if (result.syncedCount > 0) {
@@ -297,6 +301,7 @@ export default function PdvTerminalPage() {
   }, [calculatorItems, paymentInputs]);
 
   function resetCartAndCheckout() {
+    checkoutKeys.current.reset();
     setCart([]);
     setLastItem(null);
     setIsCheckoutOpen(false);
@@ -311,7 +316,8 @@ export default function PdvTerminalPage() {
     if (!offlineManagerRef.current || !user) return;
 
     offlineManagerRef.current.enqueueSale(user.merchantId, user.username, {
-      idempotencyKey: crypto.randomUUID(),
+      // Same key as the failed online attempt: if the server already recorded it, the sync gets 409 and treats it as done.
+      idempotencyKey: checkoutKeys.current.current(),
       merchantId: user.merchantId,
       operatorId: user.username,
       items: cart.map((line) => ({
@@ -482,63 +488,11 @@ export default function PdvTerminalPage() {
     setMessage(null);
 
     try {
-      // 1. Caso seja Venda Fiado
-      if (paymentMethod === 'TAB') {
-        if (!selectedCustomerId) {
-          setMessage({ text: 'Selecione o cliente para registrar o fiado.', isError: true });
-          setProcessing(false);
-          return;
-        }
-
-        try {
-          const creditRes = await apiClient.authorizeCreditSale(selectedCustomerId, {
-            saleAmount: totalMoney.toDecimal(),
-            ownerPin: pinToUse || ownerPin || undefined,
-            ownerUsername: user?.username,
-            note: 'Venda a fiado no balcão',
-          });
-
-          const selectedCustomer = customers.find((c) => c.id === selectedCustomerId);
-          const creditNoteText = formatCreditNote({
-            store: { name: 'Meu Comércio' },
-            saleId: creditRes.movementId.slice(0, 8),
-            date: new Date(),
-            customer: {
-              name: selectedCustomer?.name ?? 'Cliente Caderneta',
-              phone: selectedCustomer?.phone ?? '',
-            },
-            previousDebt: '0.00',
-            amount: totalMoney.toDecimal(),
-            newDebt: totalMoney.toDecimal(),
-            operatorName: user?.username,
-          });
-
-          setPrintModalData({
-            receiptText: creditNoteText,
-            creditNoteText,
-            activeTab: 'creditNote',
-          });
-
-          setMessage({
-            text: `Venda fiada de ${totalMoney.formatBrl()} registrada com sucesso na caderneta!`,
-          });
-          resetCartAndCheckout();
-          return;
-        } catch (creditErr) {
-          if (
-            creditErr instanceof ApiError &&
-            (creditErr.status === 403 || creditErr.message.includes('PIN') || creditErr.message.includes('limite'))
-          ) {
-            // Requer PIN da proprietária
-            setIsPinModalOpen(true);
-            setMessage({
-              text: 'Limite de fiado excedido ou necessária autorização da proprietária.',
-              isError: true,
-            });
-            return;
-          }
-          throw creditErr;
-        }
+      // Venda fiado: o cliente é obrigatório. A checagem de limite e o PIN
+      // da dona são feitos pelo servidor, em /api/sales.
+      if (paymentMethod === 'TAB' && !selectedCustomerId) {
+        setMessage({ text: 'Selecione o cliente para registrar o fiado.', isError: true });
+        return;
       }
 
       // 2. Venda Normal (Dinheiro, Cartão, PIX ou Dividida)
@@ -567,9 +521,11 @@ export default function PdvTerminalPage() {
           receivedAmount: p.receivedAmount ? p.receivedAmount.toDecimal() : undefined,
           externalReference: p.method === 'TAB' ? selectedCustomerId || undefined : undefined,
         })),
+        ownerPin: paymentMethod === 'TAB' ? (pinToUse || ownerPin || undefined) : undefined,
       };
 
-      const idempotencyKey = crypto.randomUUID();
+      // Same key on every retry of this checkout, so the server records the sale once.
+      const idempotencyKey = checkoutKeys.current.current();
       const saleRes = await apiClient.createSale(salePayload, idempotencyKey);
       const changeMsg =
         paymentMethod === 'CASH' && cartSummary.changeAmount.isPositive()
@@ -604,16 +560,57 @@ export default function PdvTerminalPage() {
         operatorName: user?.username,
       });
 
-      setPrintModalData({
-        receiptText,
-        activeTab: 'receipt',
-      });
+      if (paymentMethod === 'TAB') {
+        const selectedCustomer = customers.find((c) => c.id === selectedCustomerId);
+        const creditNoteText = formatCreditNote({
+          store: { name: 'Meu Comércio' },
+          saleId: saleRes.id.slice(0, 8),
+          date: new Date(),
+          customer: {
+            name: selectedCustomer?.name ?? 'Cliente Caderneta',
+            phone: selectedCustomer?.phone ?? '',
+          },
+          previousDebt: '0.00',
+          amount: cartSummary.total.toDecimal(),
+          newDebt: cartSummary.total.toDecimal(),
+          operatorName: user?.username,
+        });
+        setPrintModalData({
+          receiptText: creditNoteText,
+          creditNoteText,
+          activeTab: 'creditNote',
+        });
+      } else {
+        setPrintModalData({
+          receiptText,
+          activeTab: 'receipt',
+        });
+      }
 
       setMessage({
         text: `Venda #${saleRes.id.slice(0, 8)} confirmada com sucesso!${changeMsg}`,
       });
       resetCartAndCheckout();
     } catch (err) {
+      // The server already recorded this checkout (for example, the first response was lost).
+      // Do not let the operator sell it again.
+      if (err instanceof ApiError && err.code === 'DUPLICATE_SALE') {
+        resetCartAndCheckout();
+        setMessage({
+          text: 'Esta venda já havia sido registrada. O carrinho foi limpo. Confira o histórico antes de repetir.',
+        });
+        return;
+      }
+
+      if (paymentMethod === 'TAB' && err instanceof ApiError && err.status === 403 && !pinToUse) {
+        setIsPinModalOpen(true);
+        setMessage({
+          text: 'Limite de fiado excedido ou necessária autorização da proprietária.',
+          isError: true,
+        });
+        return;
+      }
+
       if (
         paymentMethod === 'CASH' &&
         !isSplit &&
@@ -1206,7 +1203,7 @@ export default function PdvTerminalPage() {
             </p>
 
             <div>
-              <label className="eyebrow" htmlFor="owner-pin-input">PIN da Proprietária (4 a 6 dígitos)</label>
+              <label className="eyebrow" htmlFor="owner-pin-input">PIN da Proprietária (6 dígitos)</label>
               <input
                 id="owner-pin-input"
                 className="barcode-row mono"
@@ -1217,7 +1214,7 @@ export default function PdvTerminalPage() {
                 autoFocus
                 value={ownerPin}
                 onChange={(e) => setOwnerPin(e.target.value)}
-                placeholder="••••"
+                placeholder="••••••"
               />
             </div>
 
@@ -1235,7 +1232,7 @@ export default function PdvTerminalPage() {
               <button
                 className="primary"
                 type="button"
-                disabled={processing || ownerPin.length < 4}
+                disabled={processing || !/^\d{6}$/.test(ownerPin)}
                 onClick={() => handleFinalizeSale(ownerPin)}
               >
                 {processing ? 'Autorizando...' : 'Autorizar e Registrar Fiado'}

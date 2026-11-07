@@ -13,6 +13,10 @@ class InMemorySaleRepository implements SaleRepository {
     this.sales.set(`${sale.merchantId}:${sale.id}`, sale);
   }
 
+  async commitSale(commit: { sale: Sale }): Promise<void> {
+    await this.save(commit.sale);
+  }
+
   async findById(merchantId: string, id: string): Promise<Sale | null> {
     return this.sales.get(`${merchantId}:${id}`) ?? null;
   }

@@ -17,15 +17,11 @@ import { AuditPort } from '@/modules/audit/domain/audit.port';
 import {
   CustomerNotFoundError,
   CustomerAlreadyExistsError,
-  CustomerInactiveError,
-  CreditLimitExceededError,
-  InvalidOwnerPinError,
   DebtSettlementExceedsBalanceError,
   NoOpenCashSessionError,
 } from '../domain/errors';
 import { CreateCustomerUseCase } from './create-customer.use-case';
 import { GetCustomerBalanceUseCase } from './get-customer-balance.use-case';
-import { AuthorizeCreditSaleUseCase } from './authorize-credit-sale.use-case';
 import { SettleCustomerDebtUseCase } from './settle-customer-debt.use-case';
 
 class InMemoryCustomerRepository implements CustomerRepository {
@@ -118,6 +114,10 @@ class InMemoryOwnerPinVerifier implements OwnerPinVerifier {
     const expected = this.validPins.get(`${merchantId}:${ownerUsername}`);
     return expected === pin;
   }
+
+  async authorizeOwnerPin(merchantId: string, ownerUsername: string, pin: string): Promise<string | null> {
+    return (await this.verifyOwnerPin(merchantId, ownerUsername, pin)) ? ownerUsername : null;
+  }
 }
 
 class InMemoryCashSessionRepository implements CashSessionRepository {
@@ -198,7 +198,6 @@ describe('Slice 5: Customers & Credit / Fiado Use Cases', () => {
 
   let createCustomerUseCase: CreateCustomerUseCase;
   let getCustomerBalanceUseCase: GetCustomerBalanceUseCase;
-  let authorizeCreditSaleUseCase: AuthorizeCreditSaleUseCase;
   let settleCustomerDebtUseCase: SettleCustomerDebtUseCase;
 
   const MERCHANT_ID = 'merchant-test-123';
@@ -218,12 +217,6 @@ describe('Slice 5: Customers & Credit / Fiado Use Cases', () => {
 
     createCustomerUseCase = new CreateCustomerUseCase(customerRepo, audit);
     getCustomerBalanceUseCase = new GetCustomerBalanceUseCase(customerRepo, creditRepo);
-    authorizeCreditSaleUseCase = new AuthorizeCreditSaleUseCase(
-      customerRepo,
-      creditRepo,
-      pinVerifier,
-      audit
-    );
     settleCustomerDebtUseCase = new SettleCustomerDebtUseCase(
       customerRepo,
       creditRepo,
@@ -373,138 +366,6 @@ describe('Slice 5: Customers & Credit / Fiado Use Cases', () => {
           customerId: 'non-existing-id',
         })
       ).rejects.toThrow(CustomerNotFoundError);
-    });
-  });
-
-  describe('AuthorizeCreditSaleUseCase (Critérios 5.3, 5.6)', () => {
-    it('should automatically authorize credit sale within limit without requiring owner PIN', async () => {
-      const customer = await createCustomerUseCase.execute({
-        merchantId: MERCHANT_ID,
-        name: 'Ana Souza',
-        phone: '11955554444',
-        creditLimit: Money.fromDecimal('100.00'),
-        operatorId: OPERATOR_ID,
-      });
-
-      const result = await authorizeCreditSaleUseCase.execute({
-        merchantId: MERCHANT_ID,
-        customerId: customer.id,
-        saleAmount: Money.fromDecimal('80.00'),
-        operatorId: OPERATOR_ID,
-        saleId: 'sale-1',
-      });
-
-      expect(result.authorized).toBe(true);
-      expect(result.requiresOwnerPin).toBe(false);
-      expect(result.authorizedBy).toBeNull();
-      expect(result.movement.type).toBe('DEBIT');
-      expect(result.movement.amount.toDecimal()).toBe('80.00');
-
-      const movements = await creditRepo.getMovementsByCustomerId(MERCHANT_ID, customer.id);
-      expect(movements).toHaveLength(1);
-      expect(movements[0].amount.toDecimal()).toBe('80.00');
-    });
-
-    it('should block credit sale with CreditLimitExceededError when exceeding limit without owner PIN', async () => {
-      const customer = await createCustomerUseCase.execute({
-        merchantId: MERCHANT_ID,
-        name: 'Ana Souza',
-        phone: '11955554444',
-        creditLimit: Money.fromDecimal('100.00'),
-        operatorId: OPERATOR_ID,
-      });
-
-      await expect(
-        authorizeCreditSaleUseCase.execute({
-          merchantId: MERCHANT_ID,
-          customerId: customer.id,
-          saleAmount: Money.fromDecimal('150.00'),
-          operatorId: OPERATOR_ID,
-        })
-      ).rejects.toThrow(CreditLimitExceededError);
-
-      const movements = await creditRepo.getMovementsByCustomerId(MERCHANT_ID, customer.id);
-      expect(movements).toHaveLength(0);
-    });
-
-    it('should block credit sale with InvalidOwnerPinError when incorrect PIN is provided', async () => {
-      const customer = await createCustomerUseCase.execute({
-        merchantId: MERCHANT_ID,
-        name: 'Ana Souza',
-        phone: '11955554444',
-        creditLimit: Money.fromDecimal('100.00'),
-        operatorId: OPERATOR_ID,
-      });
-
-      await expect(
-        authorizeCreditSaleUseCase.execute({
-          merchantId: MERCHANT_ID,
-          customerId: customer.id,
-          saleAmount: Money.fromDecimal('150.00'),
-          operatorId: OPERATOR_ID,
-          ownerUsername: OWNER_USERNAME,
-          ownerPin: '9999', // wrong pin
-        })
-      ).rejects.toThrow(InvalidOwnerPinError);
-
-      const movements = await creditRepo.getMovementsByCustomerId(MERCHANT_ID, customer.id);
-      expect(movements).toHaveLength(0);
-    });
-
-    it('should authorize sale exceeding limit when valid owner PIN is provided and record audit', async () => {
-      const customer = await createCustomerUseCase.execute({
-        merchantId: MERCHANT_ID,
-        name: 'Ana Souza',
-        phone: '11955554444',
-        creditLimit: Money.fromDecimal('100.00'),
-        operatorId: OPERATOR_ID,
-      });
-
-      const result = await authorizeCreditSaleUseCase.execute({
-        merchantId: MERCHANT_ID,
-        customerId: customer.id,
-        saleAmount: Money.fromDecimal('150.00'),
-        operatorId: OPERATOR_ID,
-        ownerUsername: OWNER_USERNAME,
-        ownerPin: OWNER_PIN,
-        saleId: 'sale-limit-override',
-      });
-
-      expect(result.authorized).toBe(true);
-      expect(result.requiresOwnerPin).toBe(true);
-      expect(result.authorizedBy).toBe(OWNER_USERNAME);
-      expect(result.movement.amount.toDecimal()).toBe('150.00');
-      expect(result.movement.authorizedBy).toBe(OWNER_USERNAME);
-
-      const overrideAudit = audit.records.find(
-        (r) => r.eventType === 'CREDIT_SALE_LIMIT_AUTHORIZED'
-      );
-      expect(overrideAudit).toBeDefined();
-      expect(overrideAudit?.actorId).toBe(OPERATOR_ID);
-      expect(overrideAudit?.details.authorizedBy).toBe(OWNER_USERNAME);
-      expect(overrideAudit?.details.saleAmount).toBe('150.00');
-    });
-
-    it('should reject credit sale if customer is inactive', async () => {
-      const customer = await createCustomerUseCase.execute({
-        merchantId: MERCHANT_ID,
-        name: 'Inativo Silva',
-        phone: '11944443333',
-        creditLimit: Money.fromDecimal('100.00'),
-        operatorId: OPERATOR_ID,
-      });
-
-      const deactivated = customer.deactivate();
-      await customerRepo.save(deactivated);
-
-      await expect(
-        authorizeCreditSaleUseCase.execute({
-          merchantId: MERCHANT_ID,
-          customerId: customer.id,
-          saleAmount: Money.fromDecimal('50.00'),
-          operatorId: OPERATOR_ID,
-        })
-      ).rejects.toThrow(CustomerInactiveError);
     });
   });
 

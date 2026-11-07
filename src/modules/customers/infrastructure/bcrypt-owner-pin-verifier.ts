@@ -16,27 +16,36 @@ export class BcryptOwnerPinVerifier implements OwnerPinVerifier {
   ) {}
 
   async verifyOwnerPin(merchantId: string, ownerUsername: string, pin: string): Promise<boolean> {
+    return (await this.authorizeOwnerPin(merchantId, ownerUsername, pin)) !== null;
+  }
+
+  async authorizeOwnerPin(merchantId: string, ownerUsername: string, pin: string): Promise<string | null> {
     const now = this.clock();
     const allowed = await this.attemptStore.tryReserveAttempt(merchantId, now);
     if (!allowed) {
-      return false;
+      return null;
     }
 
-    const matched = await this.matchOwnerPin(merchantId, ownerUsername, pin, now);
-    if (matched) {
+    const authorizer = await this.matchOwnerPin(merchantId, ownerUsername, pin, now);
+    if (authorizer !== null) {
       await this.attemptStore.reset(merchantId);
     }
-    return matched;
+    return authorizer;
   }
 
-  private async matchOwnerPin(merchantId: string, ownerUsername: string, pin: string, now: Date): Promise<boolean> {
+  private async matchOwnerPin(
+    merchantId: string,
+    ownerUsername: string,
+    pin: string,
+    now: Date
+  ): Promise<string | null> {
     if (!pin || typeof pin !== 'string') {
-      return false;
+      return null;
     }
 
     const trimmedPin = pin.trim();
     if (!trimmedPin) {
-      return false;
+      return null;
     }
 
     const normalizedUsername = ownerUsername?.trim().toLowerCase();
@@ -45,15 +54,19 @@ export class BcryptOwnerPinVerifier implements OwnerPinVerifier {
     if (normalizedUsername) {
       const user = await this.userRepository.findByUsername(normalizedUsername);
       if (user) {
-        return user.canAuthorizePin(merchantId)
-          ? bcrypt.compare(trimmedPin, user.authorizationPinHash!)
-          : false;
+        const pinHash = user.authorizationPinHash;
+        const ok =
+          user.canAuthorizePin(merchantId, now) &&
+          pinHash !== null &&
+          (await bcrypt.compare(trimmedPin, pinHash));
+        return ok ? user.username : null;
       }
     }
 
     // 2. Fallback: If no username or username was not found, find any active owner of the merchant with ROLE_OWNER
     const ownerRows = await db
       .select({
+        username: appUsers.username,
         authorizationPinHash: appUsers.authorizationPinHash,
         enabled: appUsers.enabled,
         lockedUntil: appUsers.lockedUntil,
@@ -81,11 +94,11 @@ export class BcryptOwnerPinVerifier implements OwnerPinVerifier {
       if (owner.authorizationPinHash) {
         const matches = await bcrypt.compare(trimmedPin, owner.authorizationPinHash);
         if (matches) {
-          return true;
+          return owner.username;
         }
       }
     }
 
-    return false;
+    return null;
   }
 }

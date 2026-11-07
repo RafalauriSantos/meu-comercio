@@ -1,4 +1,6 @@
 import { describe, it, expect } from 'vitest';
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { LandingPage } from './landing-page';
 
@@ -34,9 +36,10 @@ describe('LandingPage: header and hero', () => {
 
   it('shows three example figures and labels them as an example', () => {
     const markup = render();
+    const panel = markup.slice(markup.indexOf('<aside'), markup.indexOf('</aside>'));
 
-    expect(count(markup, '<dt')).toBe(3);
-    expect(markup).toContain('Exemplo');
+    expect(count(panel, '<dt')).toBe(3);
+    expect(panel).toContain('Exemplo');
     expect(markup).toContain('Fiado em aberto');
     expect(markup).toContain('Dinheiro esperado no caixa');
     expect(markup).toContain('Conferência do caixa');
@@ -55,5 +58,67 @@ describe('LandingPage: header and hero', () => {
     for (const word of FORBIDDEN) {
       expect(markup).not.toContain(word);
     }
+  });
+});
+
+describe('LandingPage: the rest of the page', () => {
+  it('pairs each of the four losses with the control that stops it', () => {
+    const markup = render();
+
+    for (const [loss, control] of [
+      ['Fiado esquecido', 'extrato'],
+      ['Caixa que não bate', 'diferença'],
+      ['Troco errado', 'troco'],
+      ['Estoque que some', 'baixa o estoque'],
+    ]) {
+      expect(markup).toContain(loss);
+      expect(markup.toLowerCase()).toContain(control);
+    }
+  });
+
+  it('explains how it works in three ordered steps', () => {
+    const markup = render();
+
+    expect(count(markup, '<ol')).toBe(1);
+    const order = ['Crie sua conta', 'Venda', 'Feche o dia'].map((title) => markup.indexOf(`>${title}<`));
+    expect(order.every((position) => position > -1)).toBe(true);
+    expect([...order].sort((a, b) => a - b)).toEqual(order);
+  });
+
+  it('states the safety claims exactly as the product delivers them', () => {
+    const markup = render();
+
+    expect(markup).toContain('6 dígitos');
+    expect(markup).toContain('venda simples em dinheiro');
+    expect(markup).toContain('Cartão, Pix e fiado precisam de internet');
+  });
+
+  it('answers the questions in plain language, free for now and without any price', () => {
+    const markup = render();
+
+    expect(markup).toContain('É gratuito?');
+    expect(count(markup, '<details')).toBeGreaterThanOrEqual(3);
+    expect(markup).not.toMatch(/R\$\s?\d+[,.]\d{2}\s*\/\s*mês/i);
+    expect(markup).not.toMatch(/\bplano\b/i);
+  });
+
+  it('repeats the sign up action at the end of the page', () => {
+    const markup = render();
+
+    expect(count(markup, 'href="/login?modo=cadastro"')).toBeGreaterThanOrEqual(2);
+  });
+
+  it('keeps a single h1 and the heading order', () => {
+    const markup = render();
+
+    expect(count(markup, '<h1')).toBe(1);
+    expect(count(markup, '<h2')).toBeGreaterThanOrEqual(5);
+    expect(markup).not.toMatch(/<h4/);
+  });
+
+  it('respects reduced motion in the styles', () => {
+    const css = readFileSync(join(process.cwd(), 'src', 'frontend', 'styles', 'landing.css'), 'utf8');
+
+    expect(css).toContain('prefers-reduced-motion');
   });
 });

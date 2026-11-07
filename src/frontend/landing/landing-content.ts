@@ -34,4 +34,64 @@ export const LANDING_CONTENT = {
       ] satisfies LandingFigure[],
     },
   },
+  losses: {
+    title: 'O que o caderno deixa escapar',
+    items: [
+      {
+        loss: 'Fiado esquecido',
+        control: 'Cada cliente tem seu extrato e um limite de fiado. Passou do limite, só a dona libera, com o PIN.',
+      },
+      {
+        loss: 'Caixa que não bate',
+        control: 'Você conta a gaveta sem ver o valor esperado. O sistema compara e mostra a diferença.',
+      },
+      {
+        loss: 'Troco errado',
+        control: 'O sistema calcula o troco na hora, a partir do valor que o cliente deu.',
+      },
+      {
+        loss: 'Estoque que some',
+        control: 'Cada venda baixa o estoque, e o sistema não deixa vender o que não tem.',
+      },
+    ],
+  },
+  steps: {
+    title: 'Como funciona',
+    items: [
+      { title: 'Crie sua conta', text: 'Cadastre sua loja e escolha o PIN da dona, com 6 dígitos.' },
+      { title: 'Venda', text: 'Passe os produtos e registre o pagamento: dinheiro, cartão, Pix ou fiado.' },
+      { title: 'Feche o dia', text: 'Conte a gaveta, e o sistema mostra se o caixa confere.' },
+    ],
+  },
+  safety: {
+    title: 'Quem manda é você',
+    items: [
+      {
+        title: 'PIN da dona',
+        text: 'Estornos e fiado acima do limite só passam com o PIN da dona, de 6 dígitos.',
+      },
+      {
+        title: 'Limite de fiado',
+        text: 'Você define quanto cada cliente pode dever.',
+      },
+      {
+        title: 'Internet caiu?',
+        text: 'A venda simples em dinheiro fica salva no navegador e segue para o sistema quando a conexão volta. Cartão, Pix e fiado precisam de internet.',
+      },
+    ],
+  },
+  faq: {
+    title: 'Perguntas rápidas',
+    items: [
+      { question: 'É gratuito?', answer: 'Gratuito por enquanto.' },
+      { question: 'Preciso instalar alguma coisa?', answer: 'Não. O Meu Comércio funciona no navegador.' },
+      { question: 'Quem pode autorizar o que é arriscado?', answer: 'Só a dona, com o PIN de 6 dígitos.' },
+    ],
+  },
+  finalCall: {
+    title: 'Pare de anotar no caderno.',
+    text: 'Crie sua conta e comece a registrar hoje.',
+    note: 'Gratuito por enquanto.',
+  },
+  footer: 'PDV e controle de caixa para pequenos comércios.',
 } as const;

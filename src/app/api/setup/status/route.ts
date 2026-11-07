@@ -1,7 +1,12 @@
-import { NextResponse } from 'next/server';
+import { NextResponse, connection } from 'next/server';
 import { DrizzleUserRepository } from '@/modules/users/infrastructure/drizzle-user-repository';
 
 export async function GET() {
+  // Cache Components prerenders a handler that touches no request-time data. Waiting for the
+  // request keeps `next build` from running this handler (and from querying the database with
+  // DATABASE_URL set) and from freezing its answer. `dynamic = 'force-dynamic'` is not allowed here.
+  await connection();
+
   if (!process.env.DATABASE_URL) {
     return NextResponse.json({ setupRequired: true, databaseConnected: false });
   }

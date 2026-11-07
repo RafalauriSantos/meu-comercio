@@ -12,8 +12,6 @@ import {
   CustomerAlreadyExistsError,
   CustomerNotFoundError,
   CustomerInactiveError,
-  CreditLimitExceededError,
-  InvalidOwnerPinError,
   DebtSettlementExceedsBalanceError,
   NoOpenCashSessionError,
 } from '@/modules/customers/domain/errors';

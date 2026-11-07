@@ -2,7 +2,7 @@ import { Money } from '@/shared/domain/money';
 import { Sale } from '../domain/sale';
 import { SaleItem } from '../domain/sale-item';
 import { Payment, PaymentMethod } from '../domain/payment';
-import { SaleRepository } from '../domain/sale-repository.port';
+import { AuditEntry, CreditDebitCommit, SaleRepository } from '../domain/sale-repository.port';
 import { ProductRepository } from '@/modules/products/domain/product-repository.port';
 import { InventoryRepository } from '@/modules/inventory/domain/inventory-repository.port';
 import { Product } from '@/modules/products/domain/product';
@@ -13,6 +13,7 @@ import { CustomerRepository } from '@/modules/customers/domain/customer-reposito
 import { CustomerCreditRepository } from '@/modules/customers/domain/customer-credit-repository.port';
 import { OwnerPinVerifier } from '@/modules/customers/domain/owner-pin-verifier.port';
 import { CreditMovement } from '@/modules/customers/domain/credit-movement';
+import { Customer } from '@/modules/customers/domain/customer';
 import {
   CustomerNotFoundError,
   CreditLimitExceededError,
@@ -78,6 +79,14 @@ export interface CreditSaleDependencies {
   ownerPinVerifier: OwnerPinVerifier;
 }
 
+interface CreditAuthorization {
+  customerId: string;
+  customer: Customer;
+  amount: Money;
+  limitAuthorized: boolean;
+  authorizedBy: string | null;
+}
+
 interface ResolvedProduct {
   product: Product;
   inventoryItem: InventoryItem;
@@ -114,20 +123,24 @@ export class CreateSaleUseCase {
     const resolvedProducts = await this.resolveAndValidateProducts(dto.merchantId, dto.items);
     const sale = this.buildSale(dto, openSession.id, resolvedProducts);
 
-    await this.deductStock(dto.merchantId, dto.operatorId, sale.id, resolvedProducts);
-    await this.recordCashReceipt(dto.merchantId, openSession.id, sale);
-    await this.saleRepository.save(sale);
-    await this.recordAudit(dto, openSession.id, sale);
-    if (credit) {
-      await this.recordCreditDebit(dto, openSession.id, sale, credit);
+    const audits: AuditEntry[] = [this.saleConfirmedAudit(dto, openSession.id, sale)];
+    if (credit?.limitAuthorized) {
+      audits.push(this.creditLimitAudit(dto, sale, credit));
     }
+
+    await this.saleRepository.commitSale({
+      sale,
+      actorId: dto.operatorId,
+      stockDeductions: resolvedProducts.map((r) => ({ productId: r.product.id, quantity: r.quantity })),
+      creditDebit: credit ? this.creditDebitCommit(dto, openSession.id, sale, credit) : undefined,
+      audits,
+    });
+    await this.recordCashReceipt(dto.merchantId, openSession.id, sale);
 
     return sale;
   }
 
-  private async authorizeCreditPayment(
-    dto: CreateSaleDTO
-  ): Promise<{ customerId: string; amount: Money; limitAuthorized: boolean; authorizedBy: string | null } | null> {
+  private async authorizeCreditPayment(dto: CreateSaleDTO): Promise<CreditAuthorization | null> {
     const tabPayments = dto.payments.filter((p) => p.method === 'TAB');
     if (tabPayments.length === 0) {
       return null;
@@ -170,15 +183,15 @@ export class CreateSaleUseCase {
       }
     }
 
-    return { customerId, amount: tab.amount, limitAuthorized: exceedsLimit, authorizedBy };
+    return { customerId, customer, amount: tab.amount, limitAuthorized: exceedsLimit, authorizedBy };
   }
 
-  private async recordCreditDebit(
+  private creditDebitCommit(
     dto: CreateSaleDTO,
     cashSessionId: string,
     sale: Sale,
-    credit: { customerId: string; amount: Money; limitAuthorized: boolean; authorizedBy: string | null }
-  ): Promise<void> {
+    credit: CreditAuthorization
+  ): CreditDebitCommit {
     const movement = CreditMovement.create({
       merchantId: dto.merchantId,
       customerId: credit.customerId,
@@ -190,22 +203,29 @@ export class CreateSaleUseCase {
       cashSessionId,
       note: 'Venda fiado',
     });
-    await this.creditDeps!.customerCreditRepository.saveMovement(movement);
-
-    if (credit.limitAuthorized) {
-      await this.auditPort.record(
-        dto.merchantId,
-        'CREDIT_SALE_LIMIT_AUTHORIZED',
-        dto.operatorId,
-        'CUSTOMER',
-        credit.customerId,
-        {
-          saleAmount: credit.amount.toDecimal(),
-          saleId: sale.id,
-          authorizedBy: credit.authorizedBy,
+    return {
+      customerId: credit.customerId,
+      movement,
+      ensureWithinLimit: (currentDebt) => {
+        if (!credit.limitAuthorized && credit.customer.wouldExceedCreditLimit(currentDebt, credit.amount)) {
+          throw new CreditLimitExceededError();
         }
-      );
-    }
+      },
+    };
+  }
+
+  private creditLimitAudit(dto: CreateSaleDTO, sale: Sale, credit: CreditAuthorization): AuditEntry {
+    return {
+      eventType: 'CREDIT_SALE_LIMIT_AUTHORIZED',
+      actorId: dto.operatorId,
+      aggregateType: 'CUSTOMER',
+      aggregateId: credit.customerId,
+      details: {
+        saleAmount: credit.amount.toDecimal(),
+        saleId: sale.id,
+        authorizedBy: credit.authorizedBy,
+      },
+    };
   }
 
   private async checkIdempotency(merchantId: string, idempotencyKey?: string | null): Promise<void> {
@@ -284,26 +304,6 @@ export class CreateSaleUseCase {
     return sale;
   }
 
-  private async deductStock(
-    merchantId: string,
-    operatorId: string,
-    saleId: string,
-    resolvedProducts: ResolvedProduct[]
-  ): Promise<void> {
-    for (const res of resolvedProducts) {
-      res.inventoryItem.deduct(res.quantity);
-      await this.inventoryRepository.save(res.inventoryItem);
-      await this.inventoryRepository.addMovement(
-        merchantId,
-        res.product.id,
-        'SALE',
-        res.quantity,
-        `Venda ${saleId}`,
-        operatorId
-      );
-    }
-  }
-
   private async recordCashReceipt(
     merchantId: string,
     cashSessionId: string,
@@ -320,18 +320,13 @@ export class CreateSaleUseCase {
     }
   }
 
-  private async recordAudit(
-    dto: CreateSaleDTO,
-    cashSessionId: string,
-    sale: Sale
-  ): Promise<void> {
-    await this.auditPort.record(
-      dto.merchantId,
-      'SALE_CONFIRMED',
-      dto.operatorId,
-      'SALE',
-      sale.id,
-      {
+  private saleConfirmedAudit(dto: CreateSaleDTO, cashSessionId: string, sale: Sale): AuditEntry {
+    return {
+      eventType: 'SALE_CONFIRMED',
+      actorId: dto.operatorId,
+      aggregateType: 'SALE',
+      aggregateId: sale.id,
+      details: {
         cashSessionId,
         subtotal: sale.subtotal.toDecimal(),
         discountAmount: sale.discountAmount.toDecimal(),
@@ -341,7 +336,7 @@ export class CreateSaleUseCase {
         discountReason: dto.discountReason ?? null,
         itemsCount: sale.items.length,
         payments: sale.payments.map((p) => p.toJSON()),
-      }
-    );
+      },
+    };
   }
 }

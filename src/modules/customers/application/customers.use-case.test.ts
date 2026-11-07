@@ -17,9 +17,6 @@ import { AuditPort } from '@/modules/audit/domain/audit.port';
 import {
   CustomerNotFoundError,
   CustomerAlreadyExistsError,
-  CustomerInactiveError,
-  CreditLimitExceededError,
-  InvalidOwnerPinError,
   DebtSettlementExceedsBalanceError,
   NoOpenCashSessionError,
 } from '../domain/errors';

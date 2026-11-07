@@ -7,7 +7,7 @@ import { OwnerPinVerifier } from '@/modules/customers/domain/owner-pin-verifier.
 import { describe, it, expect, beforeEach } from 'vitest';
 import { Money } from '@/shared/domain/money';
 import { Sale } from '../domain/sale';
-import { SaleRepository } from '../domain/sale-repository.port';
+import { SaleCommit, SaleRepository } from '../domain/sale-repository.port';
 import { Product } from '@/modules/products/domain/product';
 import { ProductRepository } from '@/modules/products/domain/product-repository.port';
 import { InventoryItem, InsufficientStockError } from '@/modules/inventory/domain/inventory-item';
@@ -27,8 +27,51 @@ import {
 class InMemorySaleRepository implements SaleRepository {
   public sales: Map<string, Sale> = new Map();
 
+  constructor(
+    private readonly inventory?: InMemoryInventoryRepository,
+    private readonly audit?: InMemoryAuditPort,
+    private readonly credit?: InMemoryCreditRepo
+  ) {}
+
   async save(sale: Sale): Promise<void> {
     this.sales.set(`${sale.merchantId}:${sale.id}`, sale);
+  }
+
+  // Applies the same effects the Drizzle repository writes in one transaction.
+  async commitSale(commit: SaleCommit): Promise<void> {
+    const { sale } = commit;
+    for (const deduction of commit.stockDeductions) {
+      const item = await this.inventory!.findByProductId(sale.merchantId, deduction.productId);
+      if (!item || !item.hasSufficientStock(deduction.quantity)) {
+        throw new InsufficientStockError(deduction.productId, item?.availableQuantity ?? 0, deduction.quantity);
+      }
+      item.deduct(deduction.quantity);
+      await this.inventory!.save(item);
+      await this.inventory!.addMovement(
+        sale.merchantId,
+        deduction.productId,
+        'SALE',
+        deduction.quantity,
+        `Venda ${sale.id}`,
+        commit.actorId
+      );
+    }
+    if (commit.creditDebit) {
+      const balance = await this.credit!.getBalance(sale.merchantId, commit.creditDebit.customerId);
+      await commit.creditDebit.ensureWithinLimit(balance.currentDebt);
+      await this.credit!.saveMovement(commit.creditDebit.movement);
+    }
+    for (const entry of commit.audits) {
+      await this.audit!.record(
+        sale.merchantId,
+        entry.eventType,
+        entry.actorId,
+        entry.aggregateType,
+        entry.aggregateId,
+        entry.details
+      );
+    }
+    await this.save(sale);
   }
 
   async findById(merchantId: string, id: string): Promise<Sale | null> {
@@ -222,11 +265,11 @@ describe('CreateSaleUseCase — Slice 4: Vendas, Checkout e Split Payments', () 
   let oilProduct: Product;
 
   beforeEach(async () => {
-    saleRepo = new InMemorySaleRepository();
     productRepo = new InMemoryProductRepository();
     inventoryRepo = new InMemoryInventoryRepository();
     cashRepo = new InMemoryCashSessionRepository();
     auditPort = new InMemoryAuditPort();
+    saleRepo = new InMemorySaleRepository(inventoryRepo, auditPort);
 
     useCase = new CreateSaleUseCase(
       saleRepo,
@@ -974,13 +1017,13 @@ describe('CreateSaleUseCase — venda fiado (TAB)', () => {
   let customer: Customer;
 
   beforeEach(async () => {
-    saleRepo = new InMemorySaleRepository();
     productRepo = new InMemoryProductRepository();
     inventoryRepo = new InMemoryInventoryRepository();
     cashRepo = new InMemoryCashSessionRepository();
     auditPort = new InMemoryAuditPort();
     customerRepo = new InMemoryCustomerRepo();
     creditRepo = new InMemoryCreditRepo();
+    saleRepo = new InMemorySaleRepository(inventoryRepo, auditPort, creditRepo);
 
     useCase = new CreateSaleUseCase(saleRepo, productRepo, inventoryRepo, cashRepo, auditPort, {
       customerRepository: customerRepo,

@@ -1,11 +1,20 @@
-import { eq, and } from 'drizzle-orm';
+import { eq, and, sql } from 'drizzle-orm';
+import type { PgDatabase, PgQueryResultHKT } from 'drizzle-orm/pg-core';
+import type { ExtractTablesWithRelations } from 'drizzle-orm';
 import { db } from '@/shared/infrastructure/db/connection';
+import * as schema from '@/shared/infrastructure/db/schema';
 import { sales, saleItems, payments } from './sales.schema';
 import { Sale, SaleStatus } from '../domain/sale';
 import { SaleItem } from '../domain/sale-item';
 import { Payment, PaymentMethod, PaymentStatus } from '../domain/payment';
-import { SaleRepository } from '../domain/sale-repository.port';
+import { SaleCommit, SaleRepository } from '../domain/sale-repository.port';
 import { Money } from '@/shared/domain/money';
+import { inventoryItems, inventoryMovements } from '@/modules/inventory/infrastructure/inventory.schema';
+import { InsufficientStockError } from '@/modules/inventory/domain/inventory-item';
+import { customers, customerCreditLedger } from '@/modules/customers/infrastructure/customers.schema';
+import { auditEvents } from '@/modules/audit/infrastructure/audit.schema';
+
+export type SaleDatabase = PgDatabase<PgQueryResultHKT, typeof schema, ExtractTablesWithRelations<typeof schema>>;
 
 function toDomain(
   saleRow: typeof sales.$inferSelect,
@@ -53,8 +62,108 @@ function toDomain(
 }
 
 export class DrizzleSaleRepository implements SaleRepository {
+  constructor(private readonly database: SaleDatabase = db) {}
+
   async save(sale: Sale): Promise<void> {
-    await db.transaction(async (tx) => {
+    await this.database.transaction((tx) => this.writeSale(tx, sale));
+  }
+
+  async commitSale(commit: SaleCommit): Promise<void> {
+    await this.database.transaction(async (tx) => {
+      await this.writeSale(tx, commit.sale);
+      await this.applyStockDeductions(tx, commit);
+      if (commit.creditDebit) {
+        await this.applyCreditDebit(tx, commit);
+      }
+      for (const audit of commit.audits) {
+        await tx.insert(auditEvents).values({
+          merchantId: commit.sale.merchantId,
+          eventType: audit.eventType,
+          actorId: audit.actorId,
+          aggregateType: audit.aggregateType,
+          aggregateId: audit.aggregateId,
+          details: audit.details,
+        });
+      }
+    });
+  }
+
+  private async applyStockDeductions(tx: SaleDatabase, commit: SaleCommit): Promise<void> {
+    const { merchantId } = commit.sale;
+    for (const deduction of commit.stockDeductions) {
+      const [row] = await tx
+        .select({ available: inventoryItems.availableQuantity })
+        .from(inventoryItems)
+        .where(and(eq(inventoryItems.merchantId, merchantId), eq(inventoryItems.productId, deduction.productId)))
+        .for('update');
+      const available = row?.available ?? 0;
+      if (available < deduction.quantity) {
+        throw new InsufficientStockError(deduction.productId, available, deduction.quantity);
+      }
+
+      await tx
+        .update(inventoryItems)
+        .set({ availableQuantity: available - deduction.quantity, updatedAt: new Date() })
+        .where(and(eq(inventoryItems.merchantId, merchantId), eq(inventoryItems.productId, deduction.productId)));
+
+      await tx.insert(inventoryMovements).values({
+        merchantId,
+        productId: deduction.productId,
+        movementType: 'SALE',
+        quantity: deduction.quantity,
+        reason: `Venda ${commit.sale.id}`,
+        actorId: commit.actorId,
+      });
+    }
+  }
+
+  private async applyCreditDebit(tx: SaleDatabase, commit: SaleCommit): Promise<void> {
+    const credit = commit.creditDebit!;
+    const { merchantId } = commit.sale;
+
+    // Lock the customer row so concurrent credit sales read the balance in order.
+    await tx
+      .select({ id: customers.id })
+      .from(customers)
+      .where(and(eq(customers.merchantId, merchantId), eq(customers.id, credit.customerId)))
+      .for('update');
+
+    const [totals] = await tx
+      .select({
+        totalDebits: sql<string>`coalesce(sum(case when ${customerCreditLedger.type} = 'DEBIT' then ${customerCreditLedger.amount} else 0 end), 0)`,
+        totalCredits: sql<string>`coalesce(sum(case when ${customerCreditLedger.type} = 'CREDIT' then ${customerCreditLedger.amount} else 0 end), 0)`,
+      })
+      .from(customerCreditLedger)
+      .where(
+        and(
+          eq(customerCreditLedger.merchantId, merchantId),
+          eq(customerCreditLedger.customerId, credit.customerId)
+        )
+      );
+
+    const rawDebt = Money.fromDecimal(totals?.totalDebits ?? '0').subtract(
+      Money.fromDecimal(totals?.totalCredits ?? '0')
+    );
+    await credit.ensureWithinLimit(rawDebt.isNegative() ? Money.zero() : rawDebt);
+
+    const movement = credit.movement;
+    await tx.insert(customerCreditLedger).values({
+      id: movement.id,
+      merchantId: movement.merchantId,
+      customerId: movement.customerId,
+      type: movement.type,
+      amount: movement.amount.toDecimal(),
+      saleId: movement.saleId ?? null,
+      cashSessionId: movement.cashSessionId ?? null,
+      operatorId: movement.operatorId,
+      authorizedBy: movement.authorizedBy ?? null,
+      note: movement.note ?? null,
+      createdAt: movement.createdAt,
+    });
+  }
+
+  private async writeSale(tx: SaleDatabase, sale: Sale): Promise<void> {
+    {
       await tx
         .insert(sales)
         .values({
@@ -136,7 +245,7 @@ export class DrizzleSaleRepository implements SaleRepository {
           }))
         );
       }
-    });
+    }
   }
 
   async findById(merchantId: string, id: string): Promise<Sale | null> {

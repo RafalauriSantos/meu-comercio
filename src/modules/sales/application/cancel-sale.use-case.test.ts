@@ -38,6 +38,10 @@ class InMemorySaleRepository implements SaleRepository {
   async save(sale: Sale): Promise<void> {
     this.sales.set(sale.id, sale);
   }
+
+  async commitSale(commit: { sale: Sale }): Promise<void> {
+    await this.save(commit.sale);
+  }
 }
 
 class InMemoryInventoryRepository implements InventoryRepository {

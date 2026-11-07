@@ -2,6 +2,10 @@
 
 Status: draft for owner approval. Date: 2026-11-07.
 
+## Amendment (2026-11-07, owner feedback: the product is used mostly on the desktop)
+
+The hero no longer has the "Caixa de hoje" example panel. It shows a real capture of the app's `/pdv` screen, with invented demo data, framed as an application window, with a caption that starts with "Exemplo:". Wherever this document says "example figures" or "example panel", read it as this captioned screenshot. The hero is a single column at every width. Review is desktop first: 1440 and 1920 px, then 390 px. See `DESIGN.md` (Real Capture Rule).
+
 ## Phase 1: provisional release (approved by the owner on 2026-11-07)
 
 The owner needs a provisional landing page as soon as possible and will improve it afterwards. Phase 1 is a smaller cut of this design. Where this section and the rest of the document disagree, this section wins for phase 1; the rest describes the target for phase 2.

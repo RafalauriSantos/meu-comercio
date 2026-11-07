@@ -5,7 +5,6 @@
   "extensions": {
     "colorMeta": {
       "ground": {"role": "neutral", "displayName": "Night Navy", "canonical": "#0b1220", "tonalRamp": ["#0b1220", "#111c31", "#243350", "#4b5d7c", "#b3bfd2", "#f1f5f9"]},
-      "panel": {"role": "neutral", "displayName": "Ledger Panel", "canonical": "#111c31", "tonalRamp": ["#0b1220", "#111c31", "#243350", "#4b5d7c", "#b3bfd2", "#f1f5f9"]},
       "green": {"role": "primary", "displayName": "Ledger Green", "canonical": "#34d399", "tonalRamp": ["#052e1f", "#34d399", "#5eead4"]}
     },
     "typographyMeta": {

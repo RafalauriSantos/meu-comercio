@@ -2,6 +2,8 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
+> **Amendment (2026-11-07):** after the owner's feedback the hero shows a real capture of `/pdv` (`public/landing/pdv-desktop.webp`) instead of the example panel; Task 3 below describes the original panel. See the spec amendment and `DESIGN.md`.
+
 **Goal:** Ship a provisional landing page at `/` and move the PDV to `/pdv`, with the login linked from both landing actions.
 
 **Architecture:** `/` becomes a statically prerendered server component built from a typed copy module and small section components. The PDV file moves to `src/app/pdv/page.tsx` and every reference to `/` as the PDV is updated. `/login` learns to open in register mode from `?modo=cadastro` through a pure helper read inside its existing mount effect. Metadata, `robots.ts` and `noindex` layouts keep the app pages out of search results.

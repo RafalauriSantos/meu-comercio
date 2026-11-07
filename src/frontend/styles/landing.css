@@ -7,7 +7,6 @@ html:has(.landing) {
 
 .landing {
   --ground: #0b1220;
-  --panel: #111c31;
   --line: #243350;
   --line-strong: #4b5d7c;
   --text: #f1f5f9;

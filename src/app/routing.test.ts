@@ -32,4 +32,11 @@ describe('routing: the PDV lives at /pdv', () => {
 
     expect(text.split("router.push('/pdv')")).toHaveLength(3);
   });
+
+  it('forwards an operator who already has a session and an open cash register to /pdv', () => {
+    const text = readFileSync(join(APP_DIR, 'login', 'page.tsx'), 'utf8');
+
+    expect(text).toContain("destinationForSession({ cashOpen: cash.open }) === 'pdv'");
+    expect(text).toContain("router.replace('/pdv')");
+  });
 });

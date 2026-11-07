@@ -3,7 +3,6 @@ name: Meu Comércio
 description: Dark navy ground, one green accent, ruled lists, and one real product screen in an application window as the hero proof, for small-retail cash and fiado control.
 colors:
   ground: "#0b1220"
-  panel: "#111c31"
   line: "#243350"
   line-strong: "#4b5d7c"
   text: "#f1f5f9"
@@ -104,7 +103,6 @@ A navy-and-slate neutral family with one mint-green accent. Contrast measured on
 
 ### Neutral
 - **Night Navy** (`ground`, #0b1220): page ground; also set on `html` so overscroll matches. `color-scheme: dark`.
-- **Ledger Panel** (`panel`, #111c31): declared on `.landing` but not used by any landing rule today; reserved as the tonal step above ground for app screens.
 - **Hairline** (`line`, #243350): all section rules, row rules, header link underline.
 - **Strong Hairline** (`line-strong`, #4b5d7c): outlines of interactive elements and the application window (secondary button, window frame) so they meet non-text contrast.
 - **Paper White** (`text`, #f1f5f9): headings, primary copy.

@@ -4,11 +4,11 @@ import { AUTH_CONTENT, type AuthMode } from './auth-content';
 
 const { brand, image, imageCaption, modes } = AUTH_CONTENT;
 
-export function AuthShell({ mode, children }: { mode: AuthMode; children: ReactNode }) {
+export function AuthShell({ mode, fontClassName, children }: { mode: AuthMode; fontClassName?: string; children: ReactNode }) {
   const copy = modes[mode];
 
   return (
-    <main className="auth">
+    <main className={fontClassName ? `auth ${fontClassName}` : 'auth'}>
       <aside className="auth-brand">
         <Link href="/" className="auth-wordmark">
           {brand}

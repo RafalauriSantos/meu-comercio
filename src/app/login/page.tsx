@@ -6,6 +6,7 @@ import { apiClient, AuthUser } from '@/frontend/lib/api-client';
 import { getErrorMessage, parseCurrencyInput } from '@/frontend/lib/formatters';
 import { parseAuthMode } from '@/frontend/lib/auth-mode';
 import { destinationForSession } from '@/frontend/lib/session-destination';
+import { displayFont } from '@/frontend/landing/fonts';
 import { AuthShell } from '@/frontend/auth/auth-shell';
 import { PasswordField } from '@/frontend/auth/password-field';
 import { PinField } from '@/frontend/auth/pin-field';
@@ -165,7 +166,7 @@ export default function LoginPage() {
 
   if (loading) {
     return (
-      <AuthShell mode="login">
+      <AuthShell mode="login" fontClassName={displayFont.variable}>
         <div className="auth-loading" role="status">
           <div className="auth-loading-spinner" />
           <span>Verificando o sistema…</span>
@@ -177,7 +178,7 @@ export default function LoginPage() {
   // Cash register screen: the operator is logged in and the cash register is closed
   if (user && cashOpen === false) {
     return (
-      <AuthShell mode="cash">
+      <AuthShell mode="cash" fontClassName={displayFont.variable}>
         <header className="auth-header">
           <h1 className="auth-title">Abrir o caixa</h1>
           <p className="auth-subtitle">
@@ -227,7 +228,7 @@ export default function LoginPage() {
 
   // Main screen: sign in or create an account
   return (
-    <AuthShell mode={setupRequired ? 'setup' : authMode}>
+    <AuthShell mode={setupRequired ? 'setup' : authMode} fontClassName={displayFont.variable}>
       {!setupRequired && (
         <div className="auth-tabs" role="group" aria-label="Escolha como continuar">
           <button

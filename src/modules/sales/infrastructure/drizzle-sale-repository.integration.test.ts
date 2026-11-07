@@ -201,6 +201,29 @@ describe.skipIf(!TEST_DATABASE_URL)('DrizzleSaleRepository.commitSale (Postgres)
     ).toHaveLength(0);
   });
 
+  it('recusa baixa de estoque com quantidade não positiva sem alterar o estoque', async () => {
+    const seed = await seedStore(5, '100.00');
+    const repo = new DrizzleSaleRepository(database);
+    const sale = Sale.create(seed.merchantId, seed.cashSessionId, 'op-1', { idempotencyKey: null });
+    sale.addItem(SaleItem.create(seed.productId, 'Pão', Money.fromDecimal('10.00'), 1));
+    sale.confirmPayments([Payment.create('CASH', Money.fromDecimal('10.00'))]);
+
+    await expect(
+      repo.commitSale({
+        sale,
+        actorId: 'op-1',
+        stockDeductions: [{ productId: seed.productId, quantity: -1 }],
+        audits: [],
+      })
+    ).rejects.toThrow(/positive integer/);
+
+    const [stock] = await database
+      .select({ qty: inventoryItems.availableQuantity })
+      .from(inventoryItems)
+      .where(eq(inventoryItems.productId, seed.productId));
+    expect(stock.qty).toBe(5);
+  });
+
   it('grava o recibo de caixa na mesma transação da venda', async () => {
     const seed = await seedStore(5, '100.00');
     const repo = new DrizzleSaleRepository(database);

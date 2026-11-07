@@ -233,6 +233,19 @@ describe('Sales API Routes', () => {
       expect(JSON.stringify(data)).not.toContain('secret-sql-params');
     });
 
+    it('deve responder 500 sem vazar SQL quando o erro do driver não tem código', async () => {
+      mockExecuteCreateSale.mockRejectedValue(
+        Object.assign(new Error('Failed query: insert into "sales" params: secret-sql-params'), {
+          cause: { message: 'connection terminated unexpectedly' },
+        })
+      );
+      const response = await POST(
+        new NextRequest('http://localhost:3000/api/sales', { method: 'POST', body: fiadoBody, headers: fiadoHeaders })
+      );
+      expect(response.status).toBe(500);
+      expect(JSON.stringify(await response.json())).not.toContain('secret-sql-params');
+    });
+
     it('deve mapear violação de unicidade do banco para 409', async () => {
       mockExecuteCreateSale.mockRejectedValue(dbError('23505'));
       const response = await POST(

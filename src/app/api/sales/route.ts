@@ -28,11 +28,15 @@ import {
 
 const UNIQUE_VIOLATION = '23505';
 
-// Drizzle wraps driver errors and keeps the Postgres SQLSTATE on `cause.code`.
+// Drizzle wraps driver errors: the SQL and params are in the message, the driver error is in `cause`.
+function driverCauseOf(error: unknown): object | null {
+  if (!(error instanceof Error) || !('cause' in error)) return null;
+  return typeof error.cause === 'object' && error.cause !== null ? error.cause : null;
+}
+
 function sqlStateOf(error: unknown): string | null {
-  if (!(error instanceof Error)) return null;
-  const cause = (error as { cause?: unknown }).cause;
-  if (cause && typeof cause === 'object' && 'code' in cause && typeof cause.code === 'string') {
+  const cause = driverCauseOf(error);
+  if (cause !== null && 'code' in cause && typeof cause.code === 'string') {
     return cause.code;
   }
   return null;
@@ -181,13 +185,12 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       );
     }
-    const sqlState = sqlStateOf(error);
-    if (sqlState === UNIQUE_VIOLATION) {
+    if (sqlStateOf(error) === UNIQUE_VIOLATION) {
       return NextResponse.json({ message: 'Venda duplicada para a chave de idempotência.' }, { status: 409 });
     }
-    if (sqlState !== null) {
+    if (driverCauseOf(error) !== null) {
       // Database failures carry SQL text and parameters in their message: log server-side only.
-      console.error('Database error creating sale, SQLSTATE', sqlState);
+      console.error('Database error creating sale, SQLSTATE', sqlStateOf(error) ?? 'unknown');
       return NextResponse.json({ message: 'Erro interno ao processar venda.' }, { status: 500 });
     }
     if (error instanceof Error && !(error instanceof TypeError)) {

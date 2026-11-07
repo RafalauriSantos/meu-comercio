@@ -100,9 +100,15 @@ export class DrizzleSaleRepository implements SaleRepository {
 
   private async applyStockDeductions(tx: SaleDatabase, commit: SaleCommit): Promise<void> {
     const { merchantId } = commit.sale;
-    // Lock in a fixed order so concurrent sales with overlapping products cannot deadlock.
-    const ordered = [...commit.stockDeductions].sort((a, b) => a.productId.localeCompare(b.productId));
+    // Lock in a fixed code-unit order so concurrent sales with overlapping products cannot deadlock.
+    // localeCompare is avoided: its order depends on the runtime locale.
+    const ordered = [...commit.stockDeductions].sort((a, b) =>
+      a.productId < b.productId ? -1 : a.productId > b.productId ? 1 : 0
+    );
     for (const deduction of ordered) {
+      if (!Number.isInteger(deduction.quantity) || deduction.quantity <= 0) {
+        throw new Error(`Stock deduction quantity must be a positive integer, got ${deduction.quantity}.`);
+      }
       const [row] = await tx
         .select({ available: inventoryItems.availableQuantity })
         .from(inventoryItems)

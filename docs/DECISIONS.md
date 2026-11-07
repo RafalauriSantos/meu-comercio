@@ -283,7 +283,7 @@ Este documento registra formalmente as decisões de arquitetura e de produto do 
 - **Contexto**: O PIN da proprietária autoriza descontos, estornos e vendas fiado acima do limite. Sem limite de tentativas, um operador logado pode testar PINs pela rota de vendas. O bloqueio de login (ADR-006) não cobre esse PIN.
 - **Decisão**:
   1. Cada loja tem um contador de tentativas do PIN da proprietária, na tabela `owner_pin_attempts`.
-  2. Cada tentativa é contada antes da comparação, com uma reserva atômica por statement no banco (UPDATE condicionado ao bloqueio, depois INSERT com ON CONFLICT e, se preciso, um novo UPDATE). Assim, requisições concorrentes não ultrapassam o limite.
+  2. Cada tentativa é contada antes da comparação. A regra de bloqueio fica só em `reserveOwnerPinAttempt` (domínio). O store trava a linha da loja com `SELECT ... FOR UPDATE` dentro de uma transação, aplica a regra e grava o resultado. Assim, requisições concorrentes não ultrapassam o limite.
   3. A 5ª tentativa ativa o bloqueio de 15 minutos para todas as operações daquela loja. Se a 5ª tentativa estiver correta, ela ainda é aceita, e a contagem é zerada.
   4. Um PIN correto zera o contador.
   5. Ao expirar o bloqueio, o contador não zera. Um PIN errado bloqueia de novo na hora, e só um PIN correto limpa a contagem.

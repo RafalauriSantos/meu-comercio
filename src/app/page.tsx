@@ -31,6 +31,7 @@ import {
   formatSaleReceipt,
   formatCreditNote,
 } from '@/frontend/lib/thermal-printer';
+import { createCheckoutKeyStore } from '@/frontend/lib/checkout-idempotency';
 import '@/frontend/styles/pdv.css';
 
 interface CartLine {
@@ -52,6 +53,7 @@ export default function PdvTerminalPage() {
   const offlineManagerRef = useRef<OfflineSyncManager | null>(null);
   const userRef = useRef<AuthUser | null>(null);
   const syncingOfflineRef = useRef(false);
+  const checkoutKeys = useRef(createCheckoutKeyStore());
 
   useEffect(() => {
     userRef.current = user;
@@ -297,6 +299,7 @@ export default function PdvTerminalPage() {
   }, [calculatorItems, paymentInputs]);
 
   function resetCartAndCheckout() {
+    checkoutKeys.current.reset();
     setCart([]);
     setLastItem(null);
     setIsCheckoutOpen(false);
@@ -518,7 +521,8 @@ export default function PdvTerminalPage() {
         ownerPin: paymentMethod === 'TAB' ? (pinToUse || ownerPin || undefined) : undefined,
       };
 
-      const idempotencyKey = crypto.randomUUID();
+      // Same key on every retry of this checkout, so the server records the sale once.
+      const idempotencyKey = checkoutKeys.current.current();
       const saleRes = await apiClient.createSale(salePayload, idempotencyKey);
       const changeMsg =
         paymentMethod === 'CASH' && cartSummary.changeAmount.isPositive()

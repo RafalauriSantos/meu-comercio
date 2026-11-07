@@ -1191,7 +1191,7 @@ export default function PdvTerminalPage() {
             </p>
 
             <div>
-              <label className="eyebrow" htmlFor="owner-pin-input">PIN da Proprietária (4 a 6 dígitos)</label>
+              <label className="eyebrow" htmlFor="owner-pin-input">PIN da Proprietária (6 dígitos)</label>
               <input
                 id="owner-pin-input"
                 className="barcode-row mono"
@@ -1202,7 +1202,7 @@ export default function PdvTerminalPage() {
                 autoFocus
                 value={ownerPin}
                 onChange={(e) => setOwnerPin(e.target.value)}
-                placeholder="••••"
+                placeholder="••••••"
               />
             </div>
 

@@ -48,7 +48,7 @@ describe('POST /api/auth/register', () => {
         merchantName: 'Mercadinho da Maria',
         username: 'maria',
         password: 'password-12345',
-        authorizationPin: '1234',
+        authorizationPin: '123456',
       }),
     });
 
@@ -71,7 +71,7 @@ describe('POST /api/auth/register', () => {
         merchantName: 'Outro Mercado',
         username: 'maria',
         password: 'password-12345',
-        authorizationPin: '1234',
+        authorizationPin: '123456',
       }),
     });
 

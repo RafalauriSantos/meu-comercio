@@ -51,7 +51,7 @@ describe('POST /api/sales/[id]/cancel', () => {
 
     const request = new NextRequest(`http://localhost:3000/api/sales/${saleId}/cancel`, {
       method: 'POST',
-      body: JSON.stringify({ ownerPin: '1234', reason: 'Cliente desistiu' }),
+      body: JSON.stringify({ ownerPin: '123456', reason: 'Cliente desistiu' }),
     });
 
     const response = await POST(request, { params: Promise.resolve({ id: saleId }) });
@@ -60,22 +60,25 @@ describe('POST /api/sales/[id]/cancel', () => {
     expect(data.message).toBe('Não autorizado.');
   });
 
-  it('deve retornar 400 se o PIN da dona não tiver de 4 a 6 dígitos', async () => {
-    const request = new NextRequest(`http://localhost:3000/api/sales/${saleId}/cancel`, {
-      method: 'POST',
-      body: JSON.stringify({ ownerPin: '12', reason: 'Motivo válido' }),
-    });
+  it('deve retornar 400 se o PIN da dona não tiver exatamente 6 dígitos', async () => {
+    for (const ownerPin of ['12', '1234', '12345', '1234567']) {
+      const request = new NextRequest(`http://localhost:3000/api/sales/${saleId}/cancel`, {
+        method: 'POST',
+        body: JSON.stringify({ ownerPin, reason: 'Motivo válido' }),
+      });
 
-    const response = await POST(request, { params: Promise.resolve({ id: saleId }) });
-    expect(response.status).toBe(400);
-    const data = await response.json();
-    expect(data.message).toContain('inválidos');
+      const response = await POST(request, { params: Promise.resolve({ id: saleId }) });
+      expect(response.status).toBe(400);
+      const data = await response.json();
+      expect(data.message).toContain('inválidos');
+    }
+    expect(mockExecuteCancelSale).not.toHaveBeenCalled();
   });
 
   it('deve retornar 400 se o motivo tiver menos de 3 caracteres', async () => {
     const request = new NextRequest(`http://localhost:3000/api/sales/${saleId}/cancel`, {
       method: 'POST',
-      body: JSON.stringify({ ownerPin: '1234', reason: 'ab' }),
+      body: JSON.stringify({ ownerPin: '123456', reason: 'ab' }),
     });
 
     const response = await POST(request, { params: Promise.resolve({ id: saleId }) });
@@ -89,7 +92,7 @@ describe('POST /api/sales/[id]/cancel', () => {
 
     const request = new NextRequest(`http://localhost:3000/api/sales/${saleId}/cancel`, {
       method: 'POST',
-      body: JSON.stringify({ ownerPin: '9999', reason: 'Cliente desistiu' }),
+      body: JSON.stringify({ ownerPin: '999999', reason: 'Cliente desistiu' }),
     });
 
     const response = await POST(request, { params: Promise.resolve({ id: saleId }) });
@@ -103,7 +106,7 @@ describe('POST /api/sales/[id]/cancel', () => {
 
     const request = new NextRequest(`http://localhost:3000/api/sales/${saleId}/cancel`, {
       method: 'POST',
-      body: JSON.stringify({ ownerPin: '1234', reason: 'Cliente desistiu' }),
+      body: JSON.stringify({ ownerPin: '123456', reason: 'Cliente desistiu' }),
     });
 
     const response = await POST(request, { params: Promise.resolve({ id: saleId }) });
@@ -117,7 +120,7 @@ describe('POST /api/sales/[id]/cancel', () => {
 
     const request = new NextRequest(`http://localhost:3000/api/sales/${saleId}/cancel`, {
       method: 'POST',
-      body: JSON.stringify({ ownerPin: '1234', reason: 'Tentativa duplicada' }),
+      body: JSON.stringify({ ownerPin: '123456', reason: 'Tentativa duplicada' }),
     });
 
     const response = await POST(request, { params: Promise.resolve({ id: saleId }) });
@@ -133,7 +136,7 @@ describe('POST /api/sales/[id]/cancel', () => {
 
     const request = new NextRequest(`http://localhost:3000/api/sales/${saleId}/cancel`, {
       method: 'POST',
-      body: JSON.stringify({ ownerPin: '1234', reason: 'Devolução em dinheiro' }),
+      body: JSON.stringify({ ownerPin: '123456', reason: 'Devolução em dinheiro' }),
     });
 
     const response = await POST(request, { params: Promise.resolve({ id: saleId }) });
@@ -155,7 +158,7 @@ describe('POST /api/sales/[id]/cancel', () => {
 
     const request = new NextRequest(`http://localhost:3000/api/sales/${saleId}/cancel`, {
       method: 'POST',
-      body: JSON.stringify({ ownerPin: '1234', reason: 'Cliente desistiu da compra' }),
+      body: JSON.stringify({ ownerPin: '123456', reason: 'Cliente desistiu da compra' }),
     });
 
     const response = await POST(request, { params: Promise.resolve({ id: saleId }) });
@@ -169,7 +172,7 @@ describe('POST /api/sales/[id]/cancel', () => {
       merchantId,
       saleId,
       operatorId: username,
-      ownerPin: '1234',
+      ownerPin: '123456',
       reason: 'Cliente desistiu da compra',
     });
   });

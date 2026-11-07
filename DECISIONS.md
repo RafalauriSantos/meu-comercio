@@ -40,7 +40,7 @@ Este documento é a **fonte oficial da verdade** para as **regras de negócio** 
 ### 5. Usuários e Autorizações
 - Dois papéis iniciais: **Proprietária** e **Operador**.
 - Cada operador possui usuário individual, senha e um PIN de 4 dígitos para autorizações rápidas no balcão. *Pendente de implementação: não há validador de PIN de operador no código.*
-- A proprietária possui PIN de autorização de **6 dígitos** (D-02, 2026-11-05). *Parcial: a API de vendas e o PDV validam 6 dígitos. Ainda aceitam de 4 a 6 dígitos em `RegisterMerchantSchema`, `InitialOwnerSetupSchema`, na rota de cancelamento (`src/app/api/sales/[id]/cancel/route.ts`), no setup de `src/app/login/page.tsx`, e na validação e rótulo de cancelamento em `src/app/gestao/page.tsx`.*
+- A proprietária possui PIN de autorização de **6 dígitos** (D-02, 2026-11-05). *Implementado no PR #30: cadastro, configuração inicial, venda, cancelamento, PDV, gestão e login exigem exatamente 6 dígitos. Não há PIN de 4 dígitos em uso real (confirmado pelo dono em 2026-11-07), então não há migração.*
 - Operadores não possuem e-mail; recuperação de senha de operadores é realizada diretamente pela proprietária.
 - A proprietária informa e-mail no setup inicial para recuperação de senha única via token criptográfico com expiração de 15 minutos.
 - Bloqueio temporário de conta após tentativas consecutivas de login inválidas.

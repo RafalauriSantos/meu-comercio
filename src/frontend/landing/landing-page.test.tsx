@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { existsSync, readFileSync, statSync } from 'node:fs';
+import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { LandingPage } from './landing-page';
@@ -34,29 +34,23 @@ describe('LandingPage: header and hero', () => {
     expect(linkTexts(markup, '/login')).toEqual(expect.arrayContaining(['Já tenho conta', 'Entrar']));
   });
 
-  it('shows the real PDV screen on the desktop and labels it as an example', () => {
-    const markup = render();
-    const image = markup.match(/<img[^>]*>/)?.[0] ?? '';
-
-    expect(image).toContain('src="/landing/pdv-desktop.webp"');
-    expect(image).toContain('width="1920"');
-    expect(image).toContain('height="1140"');
-    expect(image).toMatch(/alt="[^"]*PDV[^"]*"/);
-    expect(markup).toMatch(/<figcaption[^>]*>Exemplo:/);
-  });
-
-  it('ships the PDV screenshot as a light file', () => {
-    const file = join(process.cwd(), 'public', 'landing', 'pdv-desktop.webp');
-
-    expect(existsSync(file)).toBe(true);
-    expect(statSync(file).size).toBeLessThan(200 * 1024);
-  });
-
-  it('no longer shows the invented cash panel', () => {
+  it('shows a labelled example panel instead of a screenshot', () => {
     const markup = render();
 
-    expect(markup).not.toContain('Caixa de hoje');
-    expect(markup).not.toContain('R$ 1.240,00');
+    expect(markup).not.toContain('<img');
+    expect(markup).toMatch(/<aside[^>]*aria-label="Exemplo de painel do caixa"/);
+    expect(markup).toContain('Caixa de hoje');
+    expect(markup).toContain('Fiado em aberto');
+    expect(markup).toContain('Dinheiro esperado no caixa');
+    expect(markup).toContain('Conferência do caixa');
+    expect(markup).toContain('<span class="landing-badge">Exemplo</span>');
+    expect(markup).toContain('Valores de exemplo, não são dados reais.');
+  });
+
+  it('uses the brand mark and the wordmark in the nav', () => {
+    const markup = render();
+
+    expect(markup).toMatch(/<nav[^>]*>[\s\S]*<svg[\s\S]*Meu Comércio[\s\S]*Entrar/);
   });
 
   it('says the system is free for now and states no price', () => {
@@ -136,6 +130,18 @@ describe('LandingPage: the rest of the page', () => {
     expect(markup).not.toMatch(/sem ver/i);
     expect(markup).not.toMatch(/cego/i);
     expect(markup).toContain('justificativa');
+  });
+
+  it('styles the page with the global tokens only', () => {
+    const css = readFileSync(join(process.cwd(), 'src', 'frontend', 'styles', 'landing.css'), 'utf8');
+
+    expect(css).not.toMatch(/#[0-9a-fA-F]{3,8}\b/);
+    expect(css).not.toMatch(/\b(?:rgb|rgba|hsl|hsla)\(/);
+    expect(css).not.toContain('--font-display');
+    expect(css).not.toContain('--font-geist-sans');
+    expect(css).toContain('var(--font-sans)');
+    expect(css).toContain('var(--primary)');
+    expect(css).not.toMatch(/^\s*--[\w-]+\s*:/m);
   });
 
   it('respects reduced motion in the styles', () => {

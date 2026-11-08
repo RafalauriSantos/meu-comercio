@@ -1,10 +1,10 @@
 /*
   Meu Comércio: sistema visual compartilhado por todas as telas.
-  Fonte da verdade do redesenho: tokens de cor (claro e escuro), escala tipográfica 44 / 22 / 16 / 14 px,
+  Fonte da verdade do redesenho: tokens de cor (só tema claro), escala tipográfica 44 / 22 / 16 / 14 px,
   botões, cartões, avisos, campos e cabeçalho do app. Cada tela só acrescenta o que é dela.
 */
 
-/* Tema claro (padrão). data-theme="light" em qualquer elemento deixa só aquele trecho claro (a landing usa isso). */
+/* Tema claro: o único tema do app. As telas não seguem o modo escuro do sistema. */
 :root,
 [data-theme='light'] {
   color-scheme: light;
@@ -33,73 +33,6 @@
   --input: #ffffff;
   --overlay: rgba(20, 40, 75, 0.55);
   --font-sans: var(--font-inter), system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
-}
-
-/* Tema escuro: segue o sistema; data-theme="light" ou "dark" na tag <html> força um dos dois. data-theme="dark" em qualquer elemento deixa só aquele trecho escuro. */
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme='light']) {
-    color-scheme: dark;
-    --bg: #0c1220;
-    --surface: #151d2f;
-    --surface-2: #1e2940;
-    --border: #2a3852;
-    --border-strong: #3d4d6b;
-    --text: #e4ecf8;
-    --muted: #94a3bc;
-    --primary: #6aa2ff;
-    --on-primary: #0a1a38;
-    --primary-soft: rgba(106, 162, 255, 0.16);
-    --primary-text: #9cc0ff;
-    --header: #0c1220;
-    --on-header: #e4ecf8;
-    --muted-on-header: #94a3bc;
-    --header-line: #2a3852;
-    --ink: #1e2940;
-    --on-ink: #e4ecf8;
-    --muted-on-ink: #94a3bc;
-    --warn: #f5b942;
-    --warn-soft: rgba(245, 185, 66, 0.14);
-    --danger: #ff7a7a;
-    --danger-soft: rgba(255, 122, 122, 0.14);
-    --input: #0f1727;
-    --overlay: rgba(0, 0, 0, 0.6);
-  }
-
-  /* Uma página com um trecho claro (landing, login) mantém claro também o fundo atrás dela. Isso usa :has();
-     sem ele, só as margens atrás da página ficam escuras, o trecho claro em si não muda. */
-  :root:has([data-theme='light']) {
-    color-scheme: light;
-    --bg: #f3f6fa;
-    --text: #142033;
-  }
-}
-
-[data-theme='dark'] {
-  color-scheme: dark;
-  --bg: #0c1220;
-  --surface: #151d2f;
-  --surface-2: #1e2940;
-  --border: #2a3852;
-  --border-strong: #3d4d6b;
-  --text: #e4ecf8;
-  --muted: #94a3bc;
-  --primary: #6aa2ff;
-  --on-primary: #0a1a38;
-  --primary-soft: rgba(106, 162, 255, 0.16);
-  --primary-text: #9cc0ff;
-  --header: #0c1220;
-  --on-header: #e4ecf8;
-  --muted-on-header: #94a3bc;
-  --header-line: #2a3852;
-  --ink: #1e2940;
-  --on-ink: #e4ecf8;
-  --muted-on-ink: #94a3bc;
-  --warn: #f5b942;
-  --warn-soft: rgba(245, 185, 66, 0.14);
-  --danger: #ff7a7a;
-  --danger-soft: rgba(255, 122, 122, 0.14);
-  --input: #0f1727;
-  --overlay: rgba(0, 0, 0, 0.6);
 }
 
 /* Base */

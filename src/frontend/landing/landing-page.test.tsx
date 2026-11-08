@@ -50,7 +50,8 @@ describe('LandingPage: header and hero', () => {
 
   it('always opens in the light theme, as designed, whatever the system theme is', () => {
     const markup = render();
-    const globals = readFileSync(join(process.cwd(), 'src', 'app', 'globals.css'), 'utf8');
+    // Normalize the line endings, so the check does not depend on how git wrote the file on this machine.
+    const globals = readFileSync(join(process.cwd(), 'src', 'app', 'globals.css'), 'utf8').replace(/\r\n/g, '\n');
 
     expect(markup).toMatch(/<div class="landing" data-theme="light">/);
     expect(markup).not.toContain('data-theme="dark"');

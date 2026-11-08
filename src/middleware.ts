@@ -7,14 +7,6 @@ const authLimiter = new SlidingWindowRateLimiter({
   maxRequests: 5,
 });
 
-// Who is signed in and whether the store was set up are read on every page load. These two reads must
-// not share the 5 req/min bucket of the login attempts, or reloading a page a few times locks the
-// screen out. Login, register, logout and the owner setup stay on the strict bucket.
-const sessionReadLimiter = new SlidingWindowRateLimiter({
-  windowMs: 60_000,
-  maxRequests: 30,
-});
-
 const salesCheckoutLimiter = new SlidingWindowRateLimiter({
   windowMs: 60_000,
   maxRequests: 20,
@@ -54,10 +46,7 @@ export function middleware(request: NextRequest) {
     let limiter = catalogAndGeneralLimiter;
     let bucket = 'catalog';
 
-    if (method === 'GET' && (pathname === '/api/auth/me' || pathname === '/api/setup/status')) {
-      limiter = sessionReadLimiter;
-      bucket = 'session_read';
-    } else if (pathname.startsWith('/api/auth/') || pathname.startsWith('/api/setup/')) {
+    if (pathname.startsWith('/api/auth/') || pathname.startsWith('/api/setup/')) {
       limiter = authLimiter;
       bucket = 'auth';
     } else if (method === 'POST' && pathname === '/api/sales') {

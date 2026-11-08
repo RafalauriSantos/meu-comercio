@@ -12,13 +12,13 @@ export interface PinFieldProps {
 
 export function PinField({ id, label, hint, value, onChange }: PinFieldProps) {
   return (
-    <div className="auth-field">
-      <label className="auth-label" htmlFor={id}>
+    <div>
+      <label className="field-label" htmlFor={id}>
         {label}
       </label>
       <input
         id={id}
-        className="auth-input auth-input-pin"
+        className="input auth-input-pin"
         type="password"
         inputMode="numeric"
         pattern="[0-9]{6}"

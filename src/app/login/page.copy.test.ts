@@ -6,14 +6,22 @@ const source = readFileSync(join(process.cwd(), 'src', 'app', 'login', 'page.tsx
 
 describe('login page composition', () => {
   it('is built from the shared auth pieces', () => {
-    for (const piece of ['AuthShell', 'PasswordField', 'PinField', 'FormError']) {
+    for (const piece of ['AuthShell', 'CashOpenScreen', 'PasswordField', 'PinField', 'FormError']) {
       expect(source).toContain(`<${piece}`);
     }
   });
 
-  it('no longer uses the pill or the icon badge above the headings', () => {
-    expect(source).not.toContain('auth-pill');
-    expect(source).not.toContain('auth-icon-badge');
+  it('has no brand panel, tabs or landing display font any more', () => {
+    expect(source).not.toContain('auth-tab');
+    expect(source).not.toContain('displayFont');
+    expect(source).not.toContain('landing/fonts');
+  });
+
+  it('switches between the forms with a footer toggle, hidden on first access', () => {
+    expect(source).toContain('Ainda não tem conta?');
+    expect(source).toContain('Criar conta grátis');
+    expect(source).toContain('Já tem conta?');
+    expect(source).toMatch(/setupRequired \? undefined/);
   });
 
   it('lets a password manager fill and save every field', () => {
@@ -32,10 +40,24 @@ describe('login page composition', () => {
     expect(source).toContain('fiado acima do limite e estornos');
   });
 
-  it('uses the same words as the landing and a clear title for each state', () => {
-    for (const text of ['Criar conta', 'Crie sua conta', 'Configure sua loja', 'Abrir o caixa', 'Entrar']) {
+  it('has a clear title for each state', () => {
+    for (const text of ['Entrar', 'Crie sua conta', 'Configure sua loja']) {
       expect(source).toContain(text);
     }
+  });
+
+  it('does not add the design fields the app does not have', () => {
+    for (const text of ['type="email"', 'Esqueci a senha', 'Continuar conectado', 'Celular', 'Tipo de comércio']) {
+      expect(source).not.toContain(text);
+    }
+  });
+
+  it('gives every keyed element of the screen its own key', () => {
+    // The header and the form of one mode are siblings: sharing a key makes React warn and misplace them.
+    const keys = [...source.matchAll(/\bkey="([^"]+)"/g)].map((match) => match[1]);
+
+    expect(keys.length).toBeGreaterThan(0);
+    expect(new Set(keys).size).toBe(keys.length);
   });
 
   it('tells, before submitting, that the repeated password differs', () => {

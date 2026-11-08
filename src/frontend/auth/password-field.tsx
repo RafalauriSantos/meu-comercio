@@ -28,14 +28,14 @@ export function PasswordField({
   const [visible, setVisible] = useState(false);
 
   return (
-    <div className="auth-field">
-      <label className="auth-label" htmlFor={id}>
+    <div>
+      <label className="field-label" htmlFor={id}>
         {label}
       </label>
       <div className="auth-input-wrap">
         <input
           id={id}
-          className="auth-input auth-input-with-action"
+          className="input auth-input-with-action"
           type={visible ? 'text' : 'password'}
           required
           minLength={minLength}

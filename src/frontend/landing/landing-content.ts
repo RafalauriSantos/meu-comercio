@@ -17,7 +17,7 @@ export const LANDING_CONTENT = {
     primary: { label: 'Criar minha conta grátis', href: '/login?modo=cadastro' } satisfies LandingAction,
     secondary: { label: 'Já tenho conta', href: '/login' } satisfies LandingAction,
     note: 'Gratuito por enquanto.',
-    // Labelled example only: these values are not real data and must never be shown without the label.
+    // Labelled example only: these values are not real data and must never be shown without the "Exemplo" badge.
     example: {
       label: 'Exemplo de painel do caixa',
       title: 'Caixa de hoje',
@@ -27,7 +27,6 @@ export const LANDING_CONTENT = {
         { label: 'Dinheiro esperado no caixa', value: 'R$ 860,00' },
       ],
       check: { label: 'Conferência do caixa', value: '✓ confere' },
-      disclaimer: 'Valores de exemplo, não são dados reais.',
     },
   },
   losses: {

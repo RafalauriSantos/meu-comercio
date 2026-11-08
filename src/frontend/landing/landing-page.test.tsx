@@ -44,7 +44,8 @@ describe('LandingPage: header and hero', () => {
     expect(markup).toContain('Dinheiro esperado no caixa');
     expect(markup).toContain('Conferência do caixa');
     expect(markup).toContain('<span class="landing-badge">Exemplo</span>');
-    expect(markup).toContain('Valores de exemplo, não são dados reais.');
+    // The panel is marked by the "Exemplo" badge only; the extra disclaimer line was removed on purpose.
+    expect(markup).not.toContain('Valores de exemplo');
   });
 
   it('always opens in the light theme, as designed, whatever the system theme is', () => {

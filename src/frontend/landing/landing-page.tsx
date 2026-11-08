@@ -51,7 +51,6 @@ export function LandingPage() {
               <span>{hero.example.check.label}</span>
               <span className="landing-panel-ok">{hero.example.check.value}</span>
             </div>
-            <p className="landing-note landing-panel-note">{hero.example.disclaimer}</p>
           </aside>
         </section>
 

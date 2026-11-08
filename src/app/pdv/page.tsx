@@ -81,6 +81,8 @@ export default function PdvTerminalPage() {
 
   // Checkout Modal
   const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
+  // Fiado stays behind the three-dots button until the operator opens it.
+  const [showMoreMethods, setShowMoreMethods] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState<CalcPaymentMethod>('CASH');
   const [receivedCash, setReceivedCash] = useState('');
   const [isSplit, setIsSplit] = useState(false);
@@ -736,7 +738,7 @@ export default function PdvTerminalPage() {
     { value: 'CREDIT_CARD', label: 'Crédito' },
   ];
 
-  // Fiado is kept out of the main buttons: it is one click away through the "Vender no fiado" link.
+  // Fiado is kept out of the main buttons: it shows up behind the three-dots button.
   const tabMethod: { value: CalcPaymentMethod; label: string } = { value: 'TAB', label: 'Fiado' };
 
   const secondMethods: { value: CalcPaymentMethod; label: string }[] = [
@@ -911,7 +913,23 @@ export default function PdvTerminalPage() {
           </div>
 
           <div className="card pdv-methods-card">
-            <h2 className="pdv-card-title">Forma de pagamento</h2>
+            <div className="pdv-methods-head">
+              <h2 className="pdv-card-title">Forma de pagamento</h2>
+              <button
+                type="button"
+                className="pdv-dots"
+                aria-label="Mais opções de pagamento"
+                aria-expanded={showMoreMethods}
+                aria-controls="pdv-more-methods"
+                onClick={() => setShowMoreMethods((open) => !open)}
+              >
+                <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" fill="currentColor">
+                  <circle cx="5" cy="12" r="2" />
+                  <circle cx="12" cy="12" r="2" />
+                  <circle cx="19" cy="12" r="2" />
+                </svg>
+              </button>
+            </div>
             <div className="pdv-quick-methods">
               {mainMethods.map((method) => (
                 <button
@@ -925,14 +943,18 @@ export default function PdvTerminalPage() {
                 </button>
               ))}
             </div>
-            <button
-              type="button"
-              className="pdv-fiado-link"
-              disabled={cart.length === 0}
-              onClick={() => startPayment('TAB')}
-            >
-              Vender no fiado
-            </button>
+            {showMoreMethods && (
+              <div id="pdv-more-methods" className="pdv-more-methods">
+                <button
+                  type="button"
+                  className="pdv-fiado-link"
+                  disabled={cart.length === 0}
+                  onClick={() => startPayment('TAB')}
+                >
+                  Vender no fiado
+                </button>
+              </div>
+            )}
           </div>
         </aside>
       </main>
@@ -1033,12 +1055,6 @@ export default function PdvTerminalPage() {
                   </button>
                 ))}
               </div>
-
-              {paymentMethod !== 'TAB' && (
-                <button type="button" className="pdv-fiado-link" onClick={() => selectMethod('TAB')}>
-                  Vender no fiado
-                </button>
-              )}
 
               {paymentMethod === 'TAB' && (
                 <div className="pdv-field">

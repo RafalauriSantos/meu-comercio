@@ -14,18 +14,25 @@ describe('PDV: fiado is hidden from the main buttons but easy to find', () => {
     expect(block).not.toContain("'TAB'");
   });
 
-  it('offers fiado through a "Vender no fiado" link in the payment card and in the payment modal', () => {
-    // Count the buttons' text, not the comment that mentions the link.
-    expect(source.match(/>\s*Vender no fiado\s*</g)?.length).toBe(2);
-    expect(source).toContain("startPayment('TAB')");
-    expect(source).toContain("selectMethod('TAB')");
+  it('keeps fiado behind a closed three-dots button in the payment card', () => {
+    expect(source).toContain('const [showMoreMethods, setShowMoreMethods] = useState(false)');
+    expect(source).toContain('aria-expanded={showMoreMethods}');
+    expect(source).toContain('aria-controls="pdv-more-methods"');
+    // An icon-only button needs a label for screen readers.
+    expect(source).toMatch(/className="pdv-dots"\s+aria-label="Mais opções de pagamento"/);
+    expect(source.match(/<circle /g)?.length).toBe(3);
+    // The fiado button only exists once the disclosure is open, and it starts the fiado payment.
+    expect(source).toMatch(/\{showMoreMethods && \([\s\S]*?startPayment\('TAB'\)[\s\S]*?Vender no fiado/);
+    expect(source.match(/>\s*Vender no fiado\s*</g)?.length).toBe(1);
   });
 
   it('shows the Fiado choice in the modal only once it was picked', () => {
     expect(source).toMatch(/paymentMethod === 'TAB' \? \[tabMethod\] : \[\]/);
   });
 
-  it('draws the link like text with a touch area taller than the line, muted when disabled', () => {
+  it('draws both links like small text, with a touch area taller than the line', () => {
+    expect(css).toMatch(/\.pdv-dots\s*\{[^}]*width:\s*32px/);
+    expect(css).toMatch(/\.pdv-dots::after\s*\{[^}]*inset:\s*-6px/);
     expect(css).toMatch(/\.pdv-fiado-link\s*\{[^}]*font-size:\s*14px/);
     expect(css).toMatch(/\.pdv-fiado-link::after\s*\{[^}]*inset:\s*-14px/);
     expect(css).toMatch(/\.pdv-fiado-link:disabled\s*\{[^}]*color:\s*var\(--muted\)/);

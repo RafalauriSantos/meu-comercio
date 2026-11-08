@@ -319,8 +319,16 @@
   cursor: not-allowed;
 }
 
-.pdv-methods-card .pdv-card-title {
+.pdv-methods-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
   margin-bottom: 12px;
+}
+
+.pdv-methods-card .pdv-card-title {
+  margin-bottom: 0;
 }
 
 .pdv-quick-methods {
@@ -816,7 +824,6 @@
 /* Fiado is not a main button: a small link, one click from the payment card and from the modal. */
 .pdv-fiado-link {
   position: relative;
-  align-self: flex-start;
   margin-top: 14px;
   padding: 0;
   background: transparent;
@@ -839,7 +846,34 @@
   cursor: not-allowed;
 }
 
-.pdv-modal-body .pdv-fiado-link {
-  display: block;
-  margin: -8px 0 20px;
+/* The three-dots button is drawn 32px, without growing the card title row; its touch area reaches 44px. */
+.pdv-dots {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  margin: -7px -6px -6px 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--muted);
+}
+
+.pdv-dots::after {
+  content: '';
+  position: absolute;
+  inset: -6px;
+}
+
+.pdv-dots:hover,
+.pdv-dots[aria-expanded='true'] {
+  background: var(--surface-2);
+  color: var(--text);
+}
+
+.pdv-more-methods {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  margin-top: 4px;
 }

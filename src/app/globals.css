@@ -37,8 +37,7 @@
 
 /* Tema escuro: segue o sistema; data-theme="light" ou "dark" na tag <html> força um dos dois. data-theme="dark" em qualquer elemento deixa só aquele trecho escuro. */
 @media (prefers-color-scheme: dark) {
-  /* Uma página com um trecho data-theme="light" (a landing, o login) fica toda clara, inclusive o fundo atrás dela. */
-  :root:not([data-theme='light']):not(:has([data-theme='light'])) {
+  :root:not([data-theme='light']) {
     color-scheme: dark;
     --bg: #0c1220;
     --surface: #151d2f;
@@ -64,6 +63,14 @@
     --danger-soft: rgba(255, 122, 122, 0.14);
     --input: #0f1727;
     --overlay: rgba(0, 0, 0, 0.6);
+  }
+
+  /* Uma página com um trecho claro (landing, login) mantém claro também o fundo atrás dela. Isso usa :has();
+     sem ele, só as margens atrás da página ficam escuras, o trecho claro em si não muda. */
+  :root:has([data-theme='light']) {
+    color-scheme: light;
+    --bg: #f3f6fa;
+    --text: #142033;
   }
 }
 
@@ -435,28 +442,42 @@ a:focus-visible {
   }
 }
 
-/* Esqueleto de carregamento: blocos cinza com um brilho que passa, no lugar do conteúdo que ainda chega */
+/* Esqueleto de carregamento: blocos cinza com um brilho que passa, no lugar do conteúdo que ainda chega.
+   O brilho é um elemento que só se desloca (transform), que não repinta o bloco a cada quadro. */
 
 .skeleton {
+  position: relative;
   display: block;
   flex: none;
   max-width: 100%;
-  /* A little darker than the secondary surface, so the blocks also show on the page background. */
+  overflow: hidden;
+  background-color: var(--surface-2);
+  /* Um pouco mais escuro que a superfície secundária, para os blocos aparecerem também sobre o fundo da página.
+     O valor da linha acima fica de reserva onde color-mix() não existe. */
   background-color: color-mix(in srgb, var(--border) 65%, var(--surface-2));
+}
+
+.skeleton::after {
+  content: ;
+  position: absolute;
+  inset: 0;
   background-image: linear-gradient(
     90deg,
     transparent 0%,
     color-mix(in srgb, var(--surface) 75%, transparent) 50%,
     transparent 100%
   );
-  background-repeat: no-repeat;
-  background-size: 200% 100%;
+  transform: translateX(-100%);
   animation: skeleton-shimmer 1.4s ease-in-out infinite;
 }
 
 /* Sobre o bloco azul-escuro do total, onde um bloco da cor da superfície ofuscaria */
 .skeleton-on-ink {
+  background-color: var(--border-strong);
   background-color: color-mix(in srgb, var(--on-ink) 16%, transparent);
+}
+
+.skeleton-on-ink::after {
   background-image: linear-gradient(
     90deg,
     transparent 0%,
@@ -466,11 +487,8 @@ a:focus-visible {
 }
 
 @keyframes skeleton-shimmer {
-  from {
-    background-position: 200% 0;
-  }
   to {
-    background-position: -200% 0;
+    transform: translateX(100%);
   }
 }
 
@@ -492,7 +510,8 @@ a:focus-visible {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .skeleton {
+  .skeleton::after {
     animation: none;
+    display: none;
   }
 }

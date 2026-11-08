@@ -1,13 +1,15 @@
 import { AppHeaderSkeleton } from '@/frontend/ui/app-header-skeleton';
 import { Skeleton } from '@/frontend/ui/skeleton';
 
-const TAB_WIDTHS = [212, 183, 241, 150];
+const TABS = [0, 1, 2, 3];
 const KPIS = [0, 1, 2];
 const TABLE_ROWS = [0, 1, 2, 3, 4];
 
 // The management panel while its data loads: header, title, tabs, indicators and a table, in gray.
 // The placeholders are direct children of the page, like the real content, so the spacing between
-// them is the same; each one is hidden from screen readers on its own.
+// them is the same; each one is hidden from screen readers on its own. The tabs and the search field
+// share the row (flex) instead of copying the pixel width of today's labels, so a renamed tab does not
+// make the skeleton drift from the real screen.
 export function ManagementSkeleton() {
   return (
     <>
@@ -25,8 +27,8 @@ export function ManagementSkeleton() {
         </div>
 
         <div className="mg-tabs" aria-hidden="true">
-          {TAB_WIDTHS.map((width) => (
-            <Skeleton key={width} width={width} height={44} radius={12} />
+          {TABS.map((tab) => (
+            <Skeleton key={tab} height={44} radius={12} style={{ flex: '1 1 150px', maxWidth: 241 }} />
           ))}
         </div>
 
@@ -42,7 +44,7 @@ export function ManagementSkeleton() {
 
           <div className="card mg-card-flush">
             <div className="mg-toolbar">
-              <Skeleton width={341} height={48} radius={12} />
+              <Skeleton height={48} radius={12} style={{ flex: '1 1 220px', maxWidth: 420 }} />
               <Skeleton width={81} height={44} radius={12} />
               <Skeleton width={141} height={44} radius={12} />
             </div>

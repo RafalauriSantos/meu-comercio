@@ -102,9 +102,24 @@ describe('skeleton styles', () => {
   const css = read('src', 'app', 'globals.css');
 
   it('shimmers, and stands still under reduced motion', () => {
-    expect(css).toMatch(/\.skeleton\s*\{[^}]*animation:\s*skeleton-shimmer/);
+    expect(css).toMatch(/\.skeleton::after\s*\{[^}]*animation:\s*skeleton-shimmer/);
     expect(css).toContain('@keyframes skeleton-shimmer');
-    expect(css).toMatch(/@media \(prefers-reduced-motion: reduce\)\s*\{\s*\.skeleton\s*\{\s*animation:\s*none/);
+    expect(css).toMatch(/@media \(prefers-reduced-motion: reduce\)\s*\{\s*\.skeleton::after\s*\{\s*animation:\s*none/);
+  });
+
+  it('moves the highlight with transform, which does not repaint the block every frame', () => {
+    const keyframes = css.match(/@keyframes skeleton-shimmer\s*\{[^@]*?\n\}/)?.[0] ?? '';
+
+    expect(keyframes).toContain('translateX');
+    expect(keyframes).not.toContain('background-position');
+    expect(css).toMatch(/\.skeleton\s*\{[^}]*overflow:\s*hidden/);
+  });
+
+  it('keeps a visible fill where color-mix() is not supported', () => {
+    // A plain declaration right before the color-mix() one: an unsupported value is dropped, and the
+    // block would otherwise be transparent.
+    expect(css).toMatch(/background-color:\s*var\(--surface-2\);[^}]*background-color:\s*color-mix\(/);
+    expect(css).toMatch(/\.skeleton-on-ink\s*\{\s*background-color:\s*var\(--border-strong\);\s*background-color:\s*color-mix\(/);
   });
 
   it('uses only the tokens, so it follows the light and dark themes', () => {

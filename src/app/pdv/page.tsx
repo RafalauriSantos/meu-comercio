@@ -32,6 +32,8 @@ import {
 } from '@/frontend/lib/thermal-printer';
 import { createCheckoutKeyStore } from '@/frontend/lib/checkout-idempotency';
 import { PdvSkeleton } from '@/frontend/pdv/pdv-skeleton';
+import { blocksImplicitSubmit } from '@/frontend/pdv/enter-submit';
+import { createEscapeDismiss } from '@/frontend/lib/dismiss-on-escape';
 import { settleOfflineSale } from '@/frontend/lib/offline-sale-sender';
 import {
   suggestCashAmounts,
@@ -84,6 +86,7 @@ export default function PdvTerminalPage() {
   const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
   // Fiado stays behind the three-dots button until the operator opens it.
   const [showMoreMethods, setShowMoreMethods] = useState(false);
+  const dotsButtonRef = useRef<HTMLButtonElement>(null);
   const [paymentMethod, setPaymentMethod] = useState<CalcPaymentMethod>('CASH');
   const [receivedCash, setReceivedCash] = useState('');
   const [isSplit, setIsSplit] = useState(false);
@@ -234,11 +237,11 @@ export default function PdvTerminalPage() {
     function handleOutsideClick(event: MouseEvent) {
       if (!(event.target as HTMLElement | null)?.closest('.pdv-menu')) setShowMoreMethods(false);
     }
-    function handleEscape(event: KeyboardEvent) {
-      if (event.key !== 'Escape') return;
-      event.stopPropagation();
+    // Escape closes the menu and puts the focus back on the three-dots button.
+    const handleEscape = createEscapeDismiss(() => {
       setShowMoreMethods(false);
-    }
+      dotsButtonRef.current?.focus();
+    });
     document.addEventListener('mousedown', handleOutsideClick);
     document.addEventListener('keydown', handleEscape, true);
     return () => {
@@ -931,9 +934,9 @@ export default function PdvTerminalPage() {
               <div className="pdv-menu">
                 <button
                   type="button"
+                  ref={dotsButtonRef}
                   className="pdv-dots"
                   aria-label="Mais opções de pagamento"
-                  aria-haspopup="menu"
                   aria-expanded={showMoreMethods}
                   aria-controls="pdv-more-methods"
                   onClick={() => setShowMoreMethods((open) => !open)}
@@ -945,10 +948,9 @@ export default function PdvTerminalPage() {
                   </svg>
                 </button>
                 {showMoreMethods && (
-                  <div id="pdv-more-methods" className="pdv-menu-list" role="menu">
+                  <div id="pdv-more-methods" className="pdv-menu-list">
                     <button
                       type="button"
-                      role="menuitem"
                       className="pdv-menu-item"
                       disabled={cart.length === 0}
                       onClick={() => {
@@ -1035,6 +1037,10 @@ export default function PdvTerminalPage() {
             role="dialog"
             aria-modal="true"
             aria-labelledby="pdv-pay-title"
+            onKeyDown={(e) => {
+              // Enter confirms the sale only from the received amount field.
+              if (blocksImplicitSubmit(e.key, e.target as HTMLElement)) e.preventDefault();
+            }}
             onSubmit={(e) => {
               e.preventDefault();
               if (paymentMethod === 'TAB' && !selectedCustomerId) return;

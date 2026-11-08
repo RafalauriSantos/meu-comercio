@@ -821,39 +821,20 @@
   inset: -6px;
 }
 
-/* Fiado is not a main button: a small link, one click from the payment card and from the modal. */
-.pdv-fiado-link {
+/* Fiado is not a main button: it sits in a small menu under the three dots of the payment card. */
+.pdv-menu {
   position: relative;
-  margin-top: 14px;
-  padding: 0;
-  background: transparent;
-  color: var(--primary-text);
-  font-size: 14px;
-  font-weight: 600;
-  text-decoration: underline;
-  text-underline-offset: 3px;
+  /* Keeps the title row at the height of the title: the dots are 32px, the row is 19px. */
+  margin: -7px -6px -6px 0;
 }
 
-.pdv-fiado-link::after {
-  content: '';
-  position: absolute;
-  inset: -14px -8px;
-}
-
-.pdv-fiado-link:disabled {
-  color: var(--muted);
-  text-decoration: none;
-  cursor: not-allowed;
-}
-
-/* The three-dots button is drawn 32px, without growing the card title row; its touch area reaches 44px. */
+/* The three-dots button is drawn 32px; its touch area reaches 44px. */
 .pdv-dots {
   position: relative;
   display: grid;
   place-items: center;
   width: 32px;
   height: 32px;
-  margin: -7px -6px -6px 0;
   border-radius: 8px;
   background: transparent;
   color: var(--muted);
@@ -871,9 +852,46 @@
   color: var(--text);
 }
 
-.pdv-more-methods {
+.pdv-menu-list {
+  position: absolute;
+  /* Opens to the side of the dots, on the title row, not below them. */
+  top: 50%;
+  right: calc(100% + 8px);
+  z-index: 20;
+  transform: translateY(-50%);
+  padding: 4px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface);
+}
+
+/* Drawn 36px high to fit the title row; its touch area reaches 44px. */
+.pdv-menu-item {
+  position: relative;
   display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  margin-top: 4px;
+  align-items: center;
+  min-height: 36px;
+  padding: 0 14px;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--text);
+  font-size: 14px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.pdv-menu-item::after {
+  content: '';
+  position: absolute;
+  inset: -4px;
+}
+
+.pdv-menu-item:hover:not(:disabled),
+.pdv-menu-item:focus-visible {
+  background: var(--surface-2);
+}
+
+.pdv-menu-item:disabled {
+  color: var(--muted);
+  cursor: not-allowed;
 }

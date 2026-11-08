@@ -226,6 +226,26 @@ export default function PdvTerminalPage() {
     init();
   }, [router]);
 
+  // The fiado menu closes on an outside click or on Escape. Escape is stopped here, so it does not
+  // also reach the global shortcut that clears the sale.
+  useEffect(() => {
+    if (!showMoreMethods) return;
+    function handleOutsideClick(event: MouseEvent) {
+      if (!(event.target as HTMLElement | null)?.closest('.pdv-menu')) setShowMoreMethods(false);
+    }
+    function handleEscape(event: KeyboardEvent) {
+      if (event.key !== 'Escape') return;
+      event.stopPropagation();
+      setShowMoreMethods(false);
+    }
+    document.addEventListener('mousedown', handleOutsideClick);
+    document.addEventListener('keydown', handleEscape, true);
+    return () => {
+      document.removeEventListener('mousedown', handleOutsideClick);
+      document.removeEventListener('keydown', handleEscape, true);
+    };
+  }, [showMoreMethods]);
+
   // Foco contínuo no leitor de código de barras
   useEffect(() => {
     if (!isCheckoutOpen && !isPinModalOpen) {
@@ -915,20 +935,39 @@ export default function PdvTerminalPage() {
           <div className="card pdv-methods-card">
             <div className="pdv-methods-head">
               <h2 className="pdv-card-title">Forma de pagamento</h2>
-              <button
-                type="button"
-                className="pdv-dots"
-                aria-label="Mais opções de pagamento"
-                aria-expanded={showMoreMethods}
-                aria-controls="pdv-more-methods"
-                onClick={() => setShowMoreMethods((open) => !open)}
-              >
-                <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" fill="currentColor">
-                  <circle cx="5" cy="12" r="2" />
-                  <circle cx="12" cy="12" r="2" />
-                  <circle cx="19" cy="12" r="2" />
-                </svg>
-              </button>
+              <div className="pdv-menu">
+                <button
+                  type="button"
+                  className="pdv-dots"
+                  aria-label="Mais opções de pagamento"
+                  aria-haspopup="menu"
+                  aria-expanded={showMoreMethods}
+                  aria-controls="pdv-more-methods"
+                  onClick={() => setShowMoreMethods((open) => !open)}
+                >
+                  <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" fill="currentColor">
+                    <circle cx="5" cy="12" r="2" />
+                    <circle cx="12" cy="12" r="2" />
+                    <circle cx="19" cy="12" r="2" />
+                  </svg>
+                </button>
+                {showMoreMethods && (
+                  <div id="pdv-more-methods" className="pdv-menu-list" role="menu">
+                    <button
+                      type="button"
+                      role="menuitem"
+                      className="pdv-menu-item"
+                      disabled={cart.length === 0}
+                      onClick={() => {
+                        setShowMoreMethods(false);
+                        startPayment('TAB');
+                      }}
+                    >
+                      Fiado
+                    </button>
+                  </div>
+                )}
+              </div>
             </div>
             <div className="pdv-quick-methods">
               {mainMethods.map((method) => (
@@ -943,18 +982,6 @@ export default function PdvTerminalPage() {
                 </button>
               ))}
             </div>
-            {showMoreMethods && (
-              <div id="pdv-more-methods" className="pdv-more-methods">
-                <button
-                  type="button"
-                  className="pdv-fiado-link"
-                  disabled={cart.length === 0}
-                  onClick={() => startPayment('TAB')}
-                >
-                  Vender no fiado
-                </button>
-              </div>
-            )}
           </div>
         </aside>
       </main>

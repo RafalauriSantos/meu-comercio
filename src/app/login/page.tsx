@@ -7,6 +7,7 @@ import { getErrorMessage, parseCurrencyInput } from '@/frontend/lib/formatters';
 import { parseAuthMode } from '@/frontend/lib/auth-mode';
 import { destinationForSession } from '@/frontend/lib/session-destination';
 import { AuthShell } from '@/frontend/auth/auth-shell';
+import { AuthFormSkeleton } from '@/frontend/auth/auth-skeleton';
 import { CashOpenScreen } from '@/frontend/auth/cash-open-screen';
 import { PasswordField } from '@/frontend/auth/password-field';
 import { PinField } from '@/frontend/auth/pin-field';
@@ -178,10 +179,7 @@ export default function LoginPage() {
   if (loading) {
     return (
       <AuthShell>
-        <div className="auth-loading" role="status">
-          <div className="auth-loading-spinner" />
-          <span>Verificando o sistema…</span>
-        </div>
+        <AuthFormSkeleton />
       </AuthShell>
     );
   }

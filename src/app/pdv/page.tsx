@@ -31,6 +31,7 @@ import {
   formatCreditNote,
 } from '@/frontend/lib/thermal-printer';
 import { createCheckoutKeyStore } from '@/frontend/lib/checkout-idempotency';
+import { PdvSkeleton } from '@/frontend/pdv/pdv-skeleton';
 import { settleOfflineSale } from '@/frontend/lib/offline-sale-sender';
 import {
   suggestCashAmounts,
@@ -706,15 +707,7 @@ export default function PdvTerminalPage() {
   }
 
   if (loading) {
-    return (
-      <div className="pdv-app">
-        <main className="pdv-loading">
-          <div className="card">
-            <h1 className="pdv-title">Iniciando terminal PDV...</h1>
-          </div>
-        </main>
-      </div>
-    );
+    return <PdvSkeleton />;
   }
 
   const openedTimeString = cashSession?.openedAt

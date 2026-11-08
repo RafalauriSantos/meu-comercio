@@ -434,3 +434,65 @@ a:focus-visible {
     justify-content: space-between;
   }
 }
+
+/* Esqueleto de carregamento: blocos cinza com um brilho que passa, no lugar do conteúdo que ainda chega */
+
+.skeleton {
+  display: block;
+  flex: none;
+  max-width: 100%;
+  /* A little darker than the secondary surface, so the blocks also show on the page background. */
+  background-color: color-mix(in srgb, var(--border) 65%, var(--surface-2));
+  background-image: linear-gradient(
+    90deg,
+    transparent 0%,
+    color-mix(in srgb, var(--surface) 75%, transparent) 50%,
+    transparent 100%
+  );
+  background-repeat: no-repeat;
+  background-size: 200% 100%;
+  animation: skeleton-shimmer 1.4s ease-in-out infinite;
+}
+
+/* Sobre o bloco azul-escuro do total, onde um bloco da cor da superfície ofuscaria */
+.skeleton-on-ink {
+  background-color: color-mix(in srgb, var(--on-ink) 16%, transparent);
+  background-image: linear-gradient(
+    90deg,
+    transparent 0%,
+    color-mix(in srgb, var(--on-ink) 14%, transparent) 50%,
+    transparent 100%
+  );
+}
+
+@keyframes skeleton-shimmer {
+  from {
+    background-position: 200% 0;
+  }
+  to {
+    background-position: -200% 0;
+  }
+}
+
+.skeleton-row {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.skeleton-line {
+  padding: 14px 20px;
+  border-top: 1px solid var(--border);
+}
+
+.app-nav-skeleton {
+  align-items: center;
+  gap: 28px;
+  padding: 0 18px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .skeleton {
+    animation: none;
+  }
+}

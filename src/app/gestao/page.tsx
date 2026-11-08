@@ -15,6 +15,7 @@ import {
 } from '@/frontend/lib/api-client';
 import { formatMoney, parseCurrencyInput, getErrorMessage } from '@/frontend/lib/formatters';
 import { AppHeader } from '@/frontend/ui/app-header';
+import { ManagementSkeleton } from '@/frontend/management/management-skeleton';
 import {
   countNeedingRestock,
   inventoryValue,
@@ -448,13 +449,7 @@ export default function GestaoPage() {
   }
 
   if (loading) {
-    return (
-      <main className="management-page">
-        <div className="card mg-empty">
-          <h2>Carregando Painel de Gestão...</h2>
-        </div>
-      </main>
-    );
+    return <ManagementSkeleton />;
   }
 
   const stockFilters: { value: StockFilter; label: string }[] = [

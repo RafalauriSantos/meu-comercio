@@ -42,18 +42,6 @@
 
 /* Tela inicial de carregamento */
 
-.pdv-loading {
-  flex: 1;
-  display: grid;
-  place-items: center;
-  padding: 24px;
-}
-
-.pdv-loading .card {
-  padding: 32px;
-  text-align: center;
-}
-
 /* Área principal: duas colunas */
 
 .pdv-main {

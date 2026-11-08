@@ -34,7 +34,7 @@
   --font-sans: var(--font-inter), system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
 }
 
-/* Tema escuro: segue o sistema; data-theme="light" ou "dark" na tag <html> força um dos dois */
+/* Tema escuro: segue o sistema; data-theme="light" ou "dark" na tag <html> força um dos dois. data-theme="dark" em qualquer elemento deixa só aquele trecho escuro (a landing usa isso). */
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme='light']) {
     color-scheme: dark;
@@ -65,7 +65,7 @@
   }
 }
 
-:root[data-theme='dark'] {
+[data-theme='dark'] {
   color-scheme: dark;
   --bg: #0c1220;
   --surface: #151d2f;

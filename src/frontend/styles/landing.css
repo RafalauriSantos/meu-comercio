@@ -1,4 +1,4 @@
-/* Landing page. Colors and font come only from the global tokens (see globals.css); light and dark follow the system. */
+/* Landing page. Colors and font come only from the global tokens (see globals.css). The page is always dark (data-theme="dark" on its root), as designed; the other screens follow the system. */
 
 .landing {
   flex: 1;

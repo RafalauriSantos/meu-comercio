@@ -6,7 +6,7 @@ const { brand, header, hero, losses, steps, safety, faq, finalCall, footer } = L
 
 export function LandingPage() {
   return (
-    <div className="landing">
+    <div className="landing" data-theme="dark">
       <div className="landing-wrap">
         <nav className="landing-nav" aria-label="Principal">
           <span className="landing-wordmark">

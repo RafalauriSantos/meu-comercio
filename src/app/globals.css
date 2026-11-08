@@ -1,11 +1,111 @@
-:root {
-  --background: #f8fafc;
-  --foreground: #0f172a;
+/*
+  Meu Comércio: sistema visual compartilhado por todas as telas.
+  Fonte da verdade do redesenho: tokens de cor (claro e escuro), escala tipográfica 44 / 22 / 16 / 14 px,
+  botões, cartões, avisos, campos e cabeçalho do app. Cada tela só acrescenta o que é dela.
+*/
+
+/* Tema claro (padrão). data-theme="light" em qualquer elemento deixa só aquele trecho claro (a landing usa isso). */
+:root,
+[data-theme='light'] {
+  color-scheme: light;
+  --bg: #f3f6fa;
+  --surface: #ffffff;
+  --surface-2: #eaf0f7;
+  --border: #d6dfea;
+  --border-strong: #b9c6d6;
+  --text: #142033;
+  --muted: #55647a;
+  --primary: #2457c5;
+  --on-primary: #ffffff;
+  --primary-soft: #e6eefb;
+  --primary-text: #1b449c;
+  --header: #ffffff;
+  --on-header: #111b2e;
+  --muted-on-header: #5b6b82;
+  --header-line: #e3e9f1;
+  --ink: #14284b;
+  --on-ink: #ffffff;
+  --muted-on-ink: #a9bcd8;
+  --warn: #8a4b00;
+  --warn-soft: #fff4e0;
+  --danger: #b42318;
+  --danger-soft: #fde7e4;
+  --input: #ffffff;
+  --overlay: rgba(20, 40, 75, 0.55);
+  --font-sans: var(--font-inter), system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
 }
+
+/* Tema escuro: segue o sistema; data-theme="light" ou "dark" na tag <html> força um dos dois. data-theme="dark" em qualquer elemento deixa só aquele trecho escuro. */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) {
+    color-scheme: dark;
+    --bg: #0c1220;
+    --surface: #151d2f;
+    --surface-2: #1e2940;
+    --border: #2a3852;
+    --border-strong: #3d4d6b;
+    --text: #e4ecf8;
+    --muted: #94a3bc;
+    --primary: #6aa2ff;
+    --on-primary: #0a1a38;
+    --primary-soft: rgba(106, 162, 255, 0.16);
+    --primary-text: #9cc0ff;
+    --header: #0c1220;
+    --on-header: #e4ecf8;
+    --muted-on-header: #94a3bc;
+    --header-line: #2a3852;
+    --ink: #1e2940;
+    --on-ink: #e4ecf8;
+    --muted-on-ink: #94a3bc;
+    --warn: #f5b942;
+    --warn-soft: rgba(245, 185, 66, 0.14);
+    --danger: #ff7a7a;
+    --danger-soft: rgba(255, 122, 122, 0.14);
+    --input: #0f1727;
+    --overlay: rgba(0, 0, 0, 0.6);
+  }
+
+  /* Uma página com um trecho claro (landing, login) mantém claro também o fundo atrás dela. Isso usa :has();
+     sem ele, só as margens atrás da página ficam escuras, o trecho claro em si não muda. */
+  :root:has([data-theme='light']) {
+    color-scheme: light;
+    --bg: #f3f6fa;
+    --text: #142033;
+  }
+}
+
+[data-theme='dark'] {
+  color-scheme: dark;
+  --bg: #0c1220;
+  --surface: #151d2f;
+  --surface-2: #1e2940;
+  --border: #2a3852;
+  --border-strong: #3d4d6b;
+  --text: #e4ecf8;
+  --muted: #94a3bc;
+  --primary: #6aa2ff;
+  --on-primary: #0a1a38;
+  --primary-soft: rgba(106, 162, 255, 0.16);
+  --primary-text: #9cc0ff;
+  --header: #0c1220;
+  --on-header: #e4ecf8;
+  --muted-on-header: #94a3bc;
+  --header-line: #2a3852;
+  --ink: #1e2940;
+  --on-ink: #e4ecf8;
+  --muted-on-ink: #94a3bc;
+  --warn: #f5b942;
+  --warn-soft: rgba(245, 185, 66, 0.14);
+  --danger: #ff7a7a;
+  --danger-soft: rgba(255, 122, 122, 0.14);
+  --input: #0f1727;
+  --overlay: rgba(0, 0, 0, 0.6);
+}
+
+/* Base */
 
 html {
   height: 100%;
-  color-scheme: light;
 }
 
 html,
@@ -18,9 +118,11 @@ body {
   min-height: 100%;
   display: flex;
   flex-direction: column;
-  color: var(--foreground);
-  background: var(--background);
-  font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+  color: var(--text);
+  background: var(--bg);
+  font-family: var(--font-sans);
+  font-size: 16px;
+  line-height: normal;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
@@ -36,3 +138,448 @@ a {
   text-decoration: none;
 }
 
+button,
+input,
+select,
+textarea {
+  font: inherit;
+}
+
+button {
+  cursor: pointer;
+  border: 0;
+}
+
+button:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible,
+summary:focus-visible,
+a:focus-visible {
+  outline: 3px solid var(--primary);
+  outline-offset: 2px;
+}
+
+::selection {
+  background: var(--primary);
+  color: var(--on-primary);
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.muted,
+.hint {
+  color: var(--muted);
+}
+
+.num {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Botões */
+
+.primary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  min-height: 48px;
+  padding: 0 22px;
+  border-radius: 12px;
+  background: var(--primary);
+  color: var(--on-primary);
+  font-size: 16px;
+  font-weight: 700;
+  transition: background-color 120ms ease, transform 120ms ease;
+}
+
+.primary:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--primary) 86%, var(--ink));
+}
+
+.primary:active:not(:disabled) {
+  transform: translateY(1px);
+}
+
+.primary:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+/* Secundário com borda, sobre superfície */
+.outline {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  min-height: 48px;
+  padding: 0 20px;
+  border: 1px solid var(--border-strong);
+  border-radius: 12px;
+  background: var(--surface);
+  color: var(--text);
+  font-size: 16px;
+  font-weight: 600;
+  transition: background-color 120ms ease;
+}
+
+.outline:hover:not(:disabled) {
+  background: var(--surface-2);
+}
+
+.outline:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+/* Secundário preenchido, sem borda */
+.soft {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  min-height: 44px;
+  padding: 0 16px;
+  border-radius: 12px;
+  background: var(--surface-2);
+  color: var(--text);
+  font-size: 16px;
+  font-weight: 600;
+  transition: background-color 120ms ease;
+}
+
+.soft:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--surface-2) 82%, var(--border-strong));
+}
+
+.soft:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+/* Discreto, para o cabeçalho e ações pequenas */
+.ghost {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  padding: 8px 14px;
+  border: 1px solid var(--header-line);
+  border-radius: 8px;
+  background: transparent;
+  color: var(--on-header);
+  font-size: 14px;
+  font-weight: 600;
+}
+
+/* Drawn 34px high, as designed; the touch area reaches 44px. */
+.ghost::after {
+  content: '';
+  position: absolute;
+  inset: -5px;
+}
+
+.ghost:hover:not(:disabled) {
+  background: var(--surface-2);
+}
+
+.kbd {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 6px;
+  background: rgba(127, 127, 127, 0.22);
+  font-size: 14px;
+  font-weight: 600;
+}
+
+/* Cartão e avisos */
+
+.card {
+  background: var(--surface);
+  border-radius: 16px;
+  padding: 20px;
+}
+
+.notice,
+.error {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 8px 0;
+  padding: 12px 16px;
+  border-radius: 12px;
+  font-size: 14px;
+  line-height: 1.4;
+}
+
+.notice {
+  background: var(--primary-soft);
+  color: var(--primary-text);
+}
+
+.error {
+  background: var(--danger-soft);
+  color: var(--danger);
+}
+
+/* Campos */
+
+.field-label {
+  display: block;
+  margin-bottom: 8px;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.input {
+  text-overflow: ellipsis;
+  width: 100%;
+  min-width: 0;
+  height: 56px;
+  padding: 0 16px;
+  border: 1px solid var(--border-strong);
+  border-radius: 12px;
+  background: var(--input);
+  color: var(--text);
+  font-size: 16px;
+}
+
+.input::placeholder {
+  color: var(--muted);
+}
+
+/* Cabeçalho do app (PDV e gestão) */
+
+.app-header {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px 32px;
+  padding: 12px 24px;
+  border-bottom: 1px solid var(--header-line);
+  background: var(--header);
+  color: var(--on-header);
+}
+
+.app-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 22px;
+  font-weight: 800;
+  color: var(--on-header);
+}
+
+.app-nav {
+  display: flex;
+  align-self: stretch;
+  gap: 4px;
+}
+
+.app-nav a {
+  display: flex;
+  align-items: center;
+  padding: 0 18px;
+  border-bottom: 3px solid transparent;
+  color: var(--muted-on-header);
+  font-size: 16px;
+  font-weight: 500;
+}
+
+.app-nav a:hover {
+  color: var(--on-header);
+}
+
+.app-nav a[aria-current='page'] {
+  border-bottom-color: var(--primary);
+  color: var(--on-header);
+  font-weight: 700;
+}
+
+.app-userbox {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-left: auto;
+  font-size: 14px;
+  color: var(--muted-on-header);
+}
+
+.app-clock {
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--on-header);
+}
+
+@media (max-width: 600px) {
+  .app-header {
+    padding: 10px 12px;
+    gap: 10px 16px;
+  }
+
+  .app-nav a {
+    padding: 0 10px;
+  }
+
+  .app-userbox {
+    width: 100%;
+    margin-left: 0;
+    justify-content: space-between;
+  }
+}
+
+/* Esqueleto de carregamento: blocos cinza com um brilho que passa, no lugar do conteúdo que ainda chega.
+   O brilho é um elemento que só se desloca (transform), que não repinta o bloco a cada quadro. */
+
+.skeleton {
+  position: relative;
+  display: block;
+  flex: none;
+  max-width: 100%;
+  overflow: hidden;
+  background-color: var(--surface-2);
+  /* Um pouco mais escuro que a superfície secundária, para os blocos aparecerem também sobre o fundo da página.
+     O valor da linha acima fica de reserva onde color-mix() não existe. */
+  background-color: color-mix(in srgb, var(--border) 65%, var(--surface-2));
+}
+
+.skeleton::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-image: linear-gradient(
+    90deg,
+    transparent 0%,
+    color-mix(in srgb, var(--surface) 75%, transparent) 50%,
+    transparent 100%
+  );
+  transform: translateX(-100%);
+  animation: skeleton-shimmer 1.4s ease-in-out infinite;
+}
+
+/* Sobre o bloco azul-escuro do total, onde um bloco da cor da superfície ofuscaria */
+.skeleton-on-ink {
+  background-color: var(--border-strong);
+  background-color: color-mix(in srgb, var(--on-ink) 16%, transparent);
+}
+
+.skeleton-on-ink::after {
+  background-image: linear-gradient(
+    90deg,
+    transparent 0%,
+    color-mix(in srgb, var(--on-ink) 14%, transparent) 50%,
+    transparent 100%
+  );
+}
+
+@keyframes skeleton-shimmer {
+  to {
+    transform: translateX(100%);
+  }
+}
+
+.skeleton-row {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.skeleton-line {
+  padding: 14px 20px;
+  border-top: 1px solid var(--border);
+}
+
+.app-nav-skeleton {
+  align-items: center;
+  gap: 28px;
+  padding: 0 18px;
+}
+
+/* A management indicator value: 44px of text in a 53px line on a desktop, 32px in a 39px line on a phone. */
+.skeleton-kpi-value {
+  width: 90px;
+  height: 44px;
+  margin: 4px 0 9px;
+  border-radius: 8px;
+}
+
+/* PDV blocks that change size on a phone, like the controls they stand for. */
+.skeleton-pdv-scan-input {
+  flex: 1;
+  height: 64px;
+  border-radius: 12px;
+}
+
+.skeleton-pdv-scan-button {
+  width: 131px;
+  height: 64px;
+  border-radius: 12px;
+}
+
+.skeleton-pdv-total-value {
+  width: 190px;
+  height: 44px;
+  border-radius: 8px;
+}
+
+.skeleton-pdv-method {
+  height: 60px;
+  border-radius: 12px;
+}
+
+@media (max-width: 600px) {
+  .app-nav-skeleton {
+    gap: 20px;
+    padding: 0 10px;
+  }
+
+  .skeleton-kpi-value {
+    height: 32px;
+    margin-bottom: 7px;
+  }
+
+  .skeleton-pdv-scan-input {
+    flex: none;
+    height: 56px;
+  }
+
+  .skeleton-pdv-scan-button {
+    width: 100%;
+    height: 52px;
+  }
+
+  .skeleton-pdv-total-value {
+    height: 40px;
+  }
+
+  .skeleton-pdv-method {
+    height: 52px;
+  }
+
+  /* The empty cart of a phone is about this tall; the rows are cut there instead of growing the card. */
+  .skeleton-pdv-cart-rows {
+    max-height: 182px;
+    overflow: hidden;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .skeleton::after {
+    animation: none;
+    display: none;
+  }
+}

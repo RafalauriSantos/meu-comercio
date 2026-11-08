@@ -1,98 +1,80 @@
-/* Landing page: direction A (dark navy ground, green accent). Mobile first. */
-
-html:has(.landing) {
-  background: #0b1220;
-  color-scheme: dark;
-}
+/* Landing page. Colors and font come only from the global tokens (see globals.css). The page is always light (data-theme="light" on its root): the design opens the landing in the light theme; the other screens follow the system. */
 
 .landing {
-  --ground: #0b1220;
-  --line: #243350;
-  --line-strong: #4b5d7c;
-  --text: #f1f5f9;
-  --muted: #b3bfd2;
-  --green: #34d399;
-  --green-ink: #052e1f;
-  --green-hover: #5eead4;
-  --measure: 52ch;
-
-  min-height: 100vh;
-  background: var(--ground);
+  flex: 1;
+  background: var(--bg);
   color: var(--text);
-  font-family: var(--font-geist-sans), system-ui, sans-serif;
-  line-height: 1.55;
-  -webkit-font-smoothing: antialiased;
+  /* The design sets the landing in the system font, unlike the app screens (Inter). */
+  font-family: system-ui, -apple-system, 'Segoe UI', sans-serif;
+  font-size: 16px;
+  line-height: 1.5;
 }
 
-.landing ::selection {
-  background: var(--green);
-  color: var(--green-ink);
+.landing-wrap {
+  width: 100%;
+  max-width: 1120px;
+  margin: 0 auto;
+  padding: 0 32px;
 }
 
-.landing a:focus-visible {
-  outline: 3px solid var(--green);
-  outline-offset: 3px;
-  border-radius: 6px;
-}
+/* Nav */
 
-/* Header */
-
-.landing-header {
+.landing-nav {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 16px;
-  max-width: 1120px;
-  margin: 0 auto;
-  padding: 20px 20px 0;
+  padding: 22px 0;
 }
 
 .landing-wordmark {
-  font-family: var(--font-display), var(--font-geist-sans), system-ui, sans-serif;
-  font-size: 1.125rem;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 18px;
   font-weight: 700;
   letter-spacing: -0.01em;
 }
 
 .landing-header-link {
-  color: var(--text);
-  text-decoration: underline;
-  text-decoration-color: var(--line);
-  text-underline-offset: 0.3em;
-  padding: 10px 4px;
-  min-height: 44px;
   display: inline-flex;
   align-items: center;
+  min-height: 44px;
+  /* A 44px touch target that takes only the 24px of line the design gives the link. */
+  margin: -10px -4px -10px 0;
+  padding: 0 4px;
+  font-size: 16px;
+  color: var(--text);
 }
 
 .landing-header-link:hover {
-  text-decoration-color: var(--green);
+  text-decoration: underline;
+  text-underline-offset: 0.25em;
 }
 
 /* Hero */
 
 .landing-hero {
   display: grid;
-  gap: 40px;
-  max-width: 1120px;
-  margin: 0 auto;
-  padding: 40px 20px 72px;
+  grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr);
+  gap: 48px;
+  align-items: center;
+  padding: 56px 0 80px;
 }
 
 .landing-hero-copy h1 {
-  margin: 0;
-  font-family: var(--font-display), var(--font-geist-sans), system-ui, sans-serif;
-  font-size: clamp(2.25rem, 8.5vw, 4.5rem);
+  margin: 0 0 18px;
+  font-size: 56px;
+  line-height: 1.05;
   font-weight: 800;
-  line-height: 1.03;
   letter-spacing: -0.03em;
   text-wrap: balance;
 }
 
 .landing-lead {
-  margin: 20px 0 0;
-  max-width: var(--measure);
-  font-size: 1.1875rem;
+  max-width: 520px;
+  margin: 0 0 28px;
+  font-size: 18px;
   color: var(--muted);
 }
 
@@ -100,126 +82,128 @@ html:has(.landing) {
   display: flex;
   flex-wrap: wrap;
   gap: 12px;
-  margin-top: 32px;
 }
 
 .landing-button {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-height: 52px;
-  padding: 0 24px;
+  min-height: 50px;
+  padding: 0 22px;
   border-radius: 12px;
-  font-size: 1.0625rem;
-  font-weight: 650;
-  text-decoration: none;
-  transition: background-color 160ms ease-out, border-color 160ms ease-out, transform 160ms ease-out;
+  font-size: 16px;
+  font-weight: 600;
+  transition: background-color 120ms ease, border-color 120ms ease;
 }
 
 .landing-button-primary {
-  background: var(--green);
-  color: var(--green-ink);
-  box-shadow: 0 10px 24px -12px rgba(52, 211, 153, 0.7);
+  background: var(--primary);
+  color: var(--on-primary);
 }
 
 .landing-button-primary:hover {
-  background: var(--green-hover);
-  transform: translateY(-1px);
+  background: color-mix(in srgb, var(--primary) 86%, var(--ink));
 }
 
 .landing-button-secondary {
-  border: 1px solid var(--line-strong);
+  border: 1px solid var(--border-strong);
   color: var(--text);
 }
 
 .landing-button-secondary:hover {
-  border-color: var(--green);
+  background: var(--surface-2);
 }
 
 .landing-note {
   margin: 16px 0 0;
-  font-size: 0.9375rem;
+  font-size: 14px;
   color: var(--muted);
 }
 
-/* The real PDV screen, framed like an application window */
+/* Labelled example panel (not a screenshot, not real data) */
 
-.landing-shot {
-  margin: 0;
+.landing-panel {
+  min-width: 0;
+  padding: 28px;
+  border-radius: 20px;
+  background: var(--surface);
 }
 
-.landing-shot-window {
-  overflow: hidden;
-  border: 1px solid var(--line-strong);
-  border-radius: 14px;
-  background: #ffffff;
-  box-shadow: 0 48px 80px -40px rgba(0, 0, 0, 0.85), 0 16px 32px -16px rgba(0, 0, 0, 0.5);
+.landing-panel-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 12px;
 }
 
-.landing-shot img {
-  display: block;
-  width: 100%;
-  height: auto;
-}
-
-.landing-shot figcaption {
-  margin-top: 14px;
-  font-size: 0.875rem;
+.landing-badge {
+  font-size: 14px;
   color: var(--muted);
+}
+
+.landing-panel-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 16px 0;
+  border-top: 1px solid var(--border);
+  color: var(--muted);
+}
+
+.landing-panel-row strong {
+  font-size: 22px;
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+}
+
+.landing-panel-ok {
+  font-weight: 700;
+  color: var(--text);
 }
 
 /* Sections */
 
 .landing-section {
-  max-width: 1120px;
-  margin: 0 auto;
-  padding: 72px 20px;
-  border-top: 1px solid var(--line);
+  padding: 72px 0;
+  border-top: 1px solid var(--border);
 }
 
-.landing-section h2,
-.landing-final h2 {
-  margin: 0;
-  font-family: var(--font-display), var(--font-geist-sans), system-ui, sans-serif;
-  font-size: clamp(1.75rem, 5.5vw, 2.75rem);
+.landing-section h2 {
+  margin: 0 0 32px;
+  font-size: 32px;
+  line-height: 1.15;
   font-weight: 800;
-  line-height: 1.1;
-  letter-spacing: -0.025em;
+  letter-spacing: -0.02em;
   text-wrap: balance;
 }
 
-/* The four losses: ruled like a notebook page, not cards */
-
 .landing-losses {
   display: grid;
-  gap: 0;
-  margin: 32px 0 0;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 36px 40px;
 }
 
-.landing-loss {
-  padding: 22px 0;
-  border-bottom: 1px dashed var(--line);
-}
-
-.landing-loss dt {
-  font-family: var(--font-display), var(--font-geist-sans), system-ui, sans-serif;
-  font-size: 1.375rem;
+.landing-loss dt,
+.landing-steps h3,
+.landing-safety-row h3 {
+  margin: 0 0 6px;
+  font-size: 18px;
   font-weight: 700;
-  letter-spacing: -0.01em;
 }
 
-.landing-loss dd {
-  margin: 6px 0 0;
-  max-width: var(--measure);
+.landing-loss dd,
+.landing-steps p,
+.landing-safety-row p {
+  margin: 0;
   color: var(--muted);
 }
 
-/* Steps */
-
 .landing-steps {
   display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 28px;
-  margin: 32px 0 0;
   padding: 0;
   list-style: none;
   counter-reset: step;
@@ -227,83 +211,66 @@ html:has(.landing) {
 
 .landing-steps li {
   counter-increment: step;
-  display: grid;
-  grid-template-columns: 3rem 1fr;
-  column-gap: 8px;
 }
 
 .landing-steps li::before {
   content: counter(step);
-  grid-row: span 2;
-  font-family: var(--font-display), var(--font-geist-sans), system-ui, sans-serif;
-  font-size: 2.5rem;
-  font-weight: 800;
-  line-height: 1;
-  color: var(--green);
+  display: block;
+  margin-bottom: 8px;
+  font-size: 22px;
+  font-weight: 700;
   font-variant-numeric: tabular-nums;
 }
 
-.landing-steps h3 {
-  margin: 0;
-  font-size: 1.25rem;
-  letter-spacing: -0.01em;
-}
-
-.landing-steps p {
-  margin: 4px 0 0;
-  max-width: 44ch;
-  color: var(--muted);
-}
-
-/* Control and safety */
-
-.landing-safety {
-  margin-top: 32px;
-}
-
 .landing-safety-row {
-  padding: 22px 0;
-  border-top: 1px solid var(--line);
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr);
+  gap: 24px;
+  padding: 20px 0;
+  border-top: 1px solid var(--border);
 }
 
 .landing-safety-row:last-child {
-  border-bottom: 1px solid var(--line);
+  border-bottom: 1px solid var(--border);
 }
 
 .landing-safety-row h3 {
   margin: 0;
-  font-size: 1.1875rem;
-  letter-spacing: -0.01em;
-}
-
-.landing-safety-row p {
-  margin: 6px 0 0;
-  max-width: var(--measure);
-  color: var(--muted);
 }
 
 /* Questions */
 
 .landing-faq {
-  margin-top: 28px;
-  max-width: 760px;
+  display: grid;
+  max-width: 640px;
 }
 
 .landing-faq details {
-  border-bottom: 1px solid var(--line);
+  padding: 16px 0;
+  border-top: 1px solid var(--border);
+}
+
+.landing-faq details:last-child {
+  border-bottom: 1px solid var(--border);
 }
 
 .landing-faq summary {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 16px;
-  min-height: 56px;
-  padding: 12px 0;
-  font-size: 1.125rem;
+  gap: 12px;
+  position: relative;
+  font-size: 16px;
   font-weight: 600;
   cursor: pointer;
   list-style: none;
+}
+
+/* The line is 24px high, as designed; the clickable row reaches 48px. */
+.landing-faq summary::before {
+  content: '';
+  position: absolute;
+  inset: -12px 0;
 }
 
 .landing-faq summary::-webkit-details-marker {
@@ -313,120 +280,109 @@ html:has(.landing) {
 .landing-faq summary::after {
   content: '+';
   flex: none;
-  font-size: 1.5rem;
-  color: var(--green);
+  font-weight: 700;
+  color: var(--muted);
 }
 
 .landing-faq details[open] summary::after {
   content: '\2212';
 }
 
-.landing-faq summary:focus-visible {
-  outline: 3px solid var(--green);
-  outline-offset: 3px;
-  border-radius: 6px;
-}
-
 .landing-faq p {
-  margin: 0 0 18px;
-  max-width: var(--measure);
+  margin: 10px 0 0;
   color: var(--muted);
 }
 
 /* Final call and footer */
 
-.landing-final {
-  display: grid;
-  justify-items: start;
-  gap: 16px;
-  max-width: 1120px;
-  margin: 0 auto;
-  padding: 72px 20px 80px;
-  border-top: 1px solid var(--line);
+.landing-final h2 {
+  margin-bottom: 12px;
+  font-size: 44px;
 }
 
-.landing-final p {
-  margin: 0;
-  max-width: var(--measure);
+.landing-final p:not(.landing-note) {
+  margin: 0 0 24px;
+  font-size: 18px;
   color: var(--muted);
 }
 
 .landing-final .landing-button {
-  margin-top: 8px;
-}
-
-.landing-final .landing-note {
-  margin: 0;
+  min-height: 54px;
+  padding: 0 26px;
 }
 
 .landing-footer {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  gap: 8px 20px;
-  max-width: 1120px;
-  margin: 0 auto;
-  padding: 24px 20px 40px;
-  border-top: 1px solid var(--line);
-  font-size: 0.9375rem;
+  padding: 28px 0 36px;
+  border-top: 1px solid var(--border);
+  font-size: 14px;
   color: var(--muted);
 }
 
-@media (max-width: 519px) {
-  .landing-actions .landing-button {
-    width: 100%;
+.landing-footer-inner {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 16px;
+}
+
+.landing-footer strong {
+  color: var(--text);
+}
+
+@media (max-width: 900px) {
+  .landing-hero {
+    grid-template-columns: minmax(0, 1fr);
+    padding: 40px 0 56px;
   }
 
-  .landing-final .landing-button {
-    width: 100%;
+  .landing-hero-copy h1 {
+    font-size: 44px;
+  }
+
+  .landing-section h2 {
+    font-size: 28px;
+  }
+
+  .landing-section.landing-final h2 {
+    font-size: 36px;
+  }
+
+  .landing-losses,
+  .landing-steps,
+  .landing-safety-row {
+    grid-template-columns: minmax(0, 1fr);
   }
 }
 
-@media (min-width: 900px) {
-  .landing-header {
-    padding-top: 28px;
+@media (max-width: 600px) {
+  .landing-wrap {
+    padding: 0 18px;
   }
 
-  .landing-hero {
-    gap: 64px;
-    padding-top: 88px;
-    padding-bottom: 112px;
+  .landing-hero-copy h1 {
+    font-size: 36px;
+    overflow-wrap: anywhere;
   }
 
-  .landing-section,
-  .landing-final {
-    padding-top: 112px;
-    padding-bottom: 112px;
+  .landing-lead {
+    font-size: 16px;
   }
 
-  .landing-losses {
-    grid-template-columns: 1fr 1fr;
-    column-gap: 64px;
+  .landing-section {
+    padding: 52px 0;
   }
 
-  .landing-steps {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: 40px;
+  .landing-section.landing-final h2 {
+    font-size: 32px;
   }
 
-  .landing-safety-row {
-    display: grid;
-    grid-template-columns: minmax(0, 0.8fr) minmax(0, 1.2fr);
-    gap: 40px;
-    align-items: baseline;
-  }
-
-  .landing-safety-row p {
-    margin: 0;
+  .landing-button {
+    flex: 1 1 100%;
   }
 }
 
 @media (prefers-reduced-motion: reduce) {
   .landing-button {
     transition: none;
-  }
-
-  .landing-button-primary:hover {
-    transform: none;
   }
 }

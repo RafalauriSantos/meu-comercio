@@ -1,620 +1,780 @@
-/* Estilos do PDV Mini Mercado — Balcão, Caixa e Checkout */
-:root {
-  --pdv-ink: #14201b;
-  --pdv-muted: #55655d;
-  --pdv-line: #cbd5cf;
-  --pdv-line-soft: #e3e8e5;
-  --pdv-surface: #f3f5f4;
-  --pdv-panel: #ffffff;
-  --pdv-dark: #12261f;
-  --pdv-on-dark: #c9d6cf;
-  --pdv-green: #167a43;
-  --pdv-green-soft: #e6f4ec;
-  --pdv-accent: #4fbf84;
-  --brand-lime: #cfed9a;
+/*
+  PDV (/pdv): tela de venda, modais de pagamento, caixa e comprovante.
+  Usa só os tokens e os botões, campos e avisos de globals.css. Escala tipográfica: 44 / 22 / 16 / 14 px.
+  Tudo é prefixado com .pdv- para não vazar para outras telas.
+*/
+
+.pdv-app {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  background: var(--bg);
+  color: var(--text);
 }
 
-* {
-  box-sizing: border-box;
+/* Textos de apoio */
+
+.pdv-title {
+  font-size: 22px;
+  font-weight: 700;
+  line-height: 1.25;
 }
 
-body {
+.pdv-card-title {
+  display: block;
+  margin-bottom: 10px;
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.pdv-meta {
+  font-size: 14px;
+  color: var(--muted);
+}
+
+.pdv-eyebrow {
+  margin-bottom: 4px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--primary-text);
+}
+
+/* Tela inicial de carregamento */
+
+.pdv-loading {
+  flex: 1;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+}
+
+.pdv-loading .card {
+  padding: 32px;
+  text-align: center;
+}
+
+/* Área principal: duas colunas */
+
+.pdv-main {
+  flex: 1;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(300px, 380px);
+  gap: 16px;
+  align-items: start;
+  padding: 16px 24px;
+}
+
+.pdv-main > .notice,
+.pdv-main > .error,
+.pdv-main > .pdv-offline {
+  grid-column: 1 / -1;
   margin: 0;
-  padding: 0;
-  background: var(--pdv-surface);
-  color: var(--pdv-ink);
-  font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
-  -webkit-font-smoothing: antialiased;
 }
 
-button, input, select, textarea {
-  font: inherit;
+.pdv-offline {
+  padding: 12px 16px;
+  border-radius: 12px;
+  background: var(--warn-soft);
+  color: var(--warn);
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.4;
 }
 
-button {
-  cursor: pointer;
-  border: 0;
+.pdv-col {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-width: 0;
 }
 
-button:focus-visible,
-input:focus-visible,
-select:focus-visible,
-summary:focus-visible {
-  outline: 3px solid var(--pdv-green);
-  outline-offset: 2px;
+.pdv-side {
+  position: sticky;
+  top: 80px;
 }
 
-.mono, kbd, time.clock {
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+/* Adicionar produto */
+
+.pdv-scan-row {
+  display: flex;
+  gap: 12px;
 }
 
-.sr-only {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  margin: -1px;
+.pdv-scan-input {
+  flex: 1;
+  min-width: 0;
+  height: 64px;
+  padding: 0 20px;
+  border: 2px solid var(--primary);
+  border-radius: 12px;
+  background: var(--input);
+  color: var(--text);
+  font-size: 22px;
+}
+
+.pdv-scan-input::placeholder {
+  color: var(--muted);
+}
+
+.pdv-app .pdv-scan-submit {
+  min-height: 64px;
+  padding: 0 28px;
+}
+
+.pdv-scan-hint {
+  margin-top: 12px;
+  font-size: 14px;
+  color: var(--muted);
+}
+
+.pdv-last {
+  margin-top: 8px;
+  font-size: 14px;
+}
+
+/* Itens da venda */
+
+.pdv-cart {
+  display: flex;
+  flex-direction: column;
+  min-height: 360px;
   padding: 0;
   overflow: hidden;
-  clip: rect(0 0 0 0);
-  white-space: nowrap;
-  border: 0;
 }
 
-/* Tipografia e Textos Secundários */
-.muted, .hint, small {
-  color: var(--pdv-muted);
+.pdv-cart-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--border);
 }
 
-.eyebrow {
-  color: var(--pdv-muted);
-  font-size: 12px;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  margin-bottom: 4px;
+.pdv-table-wrap {
+  flex: 1;
+  overflow-x: auto;
 }
 
-h1 {
-  font-size: 28px;
-  line-height: 1.15;
-  margin: 0 0 6px;
-  color: var(--pdv-ink);
+.pdv-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 16px;
 }
 
-h2 {
-  font-size: 20px;
-  margin: 0 0 8px;
-  color: var(--pdv-ink);
-}
-
-/* Botões e Ações */
-.primary {
-  background: var(--pdv-green);
-  color: #fff;
-  border-radius: 8px;
-  padding: 12px 18px;
-  font-weight: 700;
-  font-size: 15px;
-  transition: background-color 120ms ease, transform 120ms ease;
-}
-
-.primary:hover:not(:disabled) {
-  background: #116034;
-}
-
-.primary:active:not(:disabled) {
-  transform: translateY(1px);
-}
-
-.primary:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
-}
-
-.soft {
-  background: #eaf0ec;
-  color: var(--pdv-ink);
-  border: 1px solid var(--pdv-line);
-  border-radius: 8px;
-  padding: 10px 14px;
-  font-weight: 600;
+.pdv-table th {
+  padding: 14px 20px;
+  text-align: left;
   font-size: 14px;
+  font-weight: 500;
+  color: var(--muted);
+}
+
+.pdv-table td {
+  padding: 12px 20px;
+  border-top: 1px solid var(--border);
+  vertical-align: middle;
+}
+
+.pdv-table .pdv-center {
+  text-align: center;
+}
+
+.pdv-table .pdv-right {
+  text-align: right;
+}
+
+.pdv-product {
+  font-weight: 600;
+}
+
+.pdv-price {
+  color: var(--muted);
+}
+
+.pdv-line-total {
+  font-weight: 700;
+}
+
+.pdv-latest-tag {
+  margin-left: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--primary-text);
+}
+
+/* Preço unitário sob o nome: só aparece quando a coluna Preço some */
+.pdv-unit {
+  display: none;
+  font-size: 14px;
+  font-weight: 400;
+  color: var(--muted);
+}
+
+.pdv-table tr.is-latest {
+  background: var(--primary-soft);
+}
+
+.pdv-table tr.is-latest td:first-child {
+  box-shadow: inset 4px 0 0 var(--primary);
+}
+
+.pdv-qty {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.pdv-qty-value {
+  min-width: 24px;
+  font-weight: 700;
+  text-align: center;
+}
+
+.pdv-qbtn {
+  width: 44px;
+  height: 44px;
+  border: 1px solid var(--border-strong);
+  border-radius: 10px;
+  background: var(--surface);
+  color: var(--text);
+  font-size: 22px;
+  font-weight: 600;
+  line-height: 1;
   transition: background-color 120ms ease;
 }
 
-.soft:hover:not(:disabled) {
-  background: #d8e4dc;
+.pdv-qbtn:hover {
+  background: var(--surface-2);
 }
 
-.soft:disabled {
+.pdv-empty {
+  padding: 56px 20px;
+  border-top: 1px solid var(--border);
+  text-align: center;
+}
+
+.pdv-empty-title {
+  margin-bottom: 4px;
+  font-size: 22px;
+  font-weight: 700;
+}
+
+/* Total e pagamento */
+
+.pdv-total-card {
+  padding: 24px;
+  border-radius: 16px;
+  background: var(--ink);
+  color: var(--on-ink);
+}
+
+.pdv-total-label {
+  font-size: 16px;
+  font-weight: 500;
+  color: var(--muted-on-ink);
+}
+
+.pdv-total-value {
+  margin-top: 4px;
+  font-size: 44px;
+  font-weight: 800;
+  line-height: 1.1;
+  letter-spacing: -0.02em;
+  overflow-wrap: anywhere;
+}
+
+.pdv-total-meta {
+  margin-top: 4px;
+  font-size: 14px;
+  color: var(--muted-on-ink);
+}
+
+.pdv-app .pdv-pay {
+  width: 100%;
+  min-height: 60px;
+  margin-top: 16px;
+  justify-content: space-between;
+  padding: 0 22px;
+}
+
+.pdv-cancel {
+  width: 100%;
+  min-height: 48px;
+  margin-top: 10px;
+  border: 1px solid color-mix(in srgb, var(--on-ink) 28%, transparent);
+  border-radius: 12px;
+  background: transparent;
+  color: var(--on-ink);
+  font-size: 14px;
+  font-weight: 600;
+  transition: background-color 120ms ease;
+}
+
+.pdv-cancel:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--on-ink) 10%, transparent);
+}
+
+.pdv-cancel:disabled {
   opacity: 0.55;
   cursor: not-allowed;
 }
 
-.ghost {
-  background: transparent;
-  color: var(--pdv-on-dark);
-  border-radius: 6px;
-  padding: 8px 12px;
-  font-weight: 600;
-  font-size: 14px;
+.pdv-methods-card .pdv-card-title {
+  margin-bottom: 12px;
 }
 
-.ghost:hover {
-  background: rgba(255, 255, 255, 0.1);
-  color: #fff;
-}
-
-.wide {
-  width: 100%;
-  margin-top: 8px;
-}
-
-.card {
-  background: var(--pdv-panel);
-  border: 1px solid var(--pdv-line);
-  border-radius: 12px;
-  padding: 16px;
-}
-
-.brand-mark {
+.pdv-quick-methods {
   display: grid;
-  place-items: center;
-  width: 34px;
-  height: 34px;
-  border-radius: 8px;
-  background: var(--brand-lime);
-  color: var(--pdv-dark);
-  font-weight: 800;
-  font-size: 19px;
-}
-
-.brand-mark.small {
-  width: 28px;
-  height: 28px;
-  font-size: 16px;
-  border-radius: 6px;
-  display: inline-grid;
-  margin-right: 8px;
-  vertical-align: middle;
-}
-
-/* Alertas e Mensagens */
-.notice, .error {
-  padding: 12px 16px;
-  border-radius: 8px;
-  font-size: 14px;
-  line-height: 1.4;
-  margin: 8px 0;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-}
-
-.notice {
-  background: #eaf8ed;
-  color: #126336;
-  border: 1px solid #c2e9cb;
-}
-
-.error {
-  background: #fdf0ee;
-  color: #ad2819;
-  border: 1px solid #f8c9c4;
-}
-
-/* Topbar */
-.topbar {
-  background: var(--pdv-dark);
-  color: #fff;
-  min-height: 54px;
-  padding: 0 20px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 20px;
-  flex-wrap: nowrap;
-  position: sticky;
-  top: 0;
-  z-index: 10;
-}
-
-.topbar-brand {
-  display: flex;
-  align-items: center;
+  grid-template-columns: 1fr 1fr;
   gap: 10px;
-  font-size: 18px;
-  font-weight: 700;
-  white-space: nowrap;
-  color: #fff;
-  text-decoration: none;
 }
 
-.topbar-brand b {
-  color: #fff;
+.pdv-quick-methods > :last-child:nth-child(odd) {
+  grid-column: 1 / -1;
 }
 
-.nav-tabs {
+.pdv-app .pdv-method-btn {
+  min-height: 60px;
+}
+
+/* Barra de status */
+
+.pdv-status {
   display: flex;
-  align-self: stretch;
-  align-items: stretch;
-  gap: 4px;
-  flex: 1;
-}
-
-.nav-tabs > a, .nav-tabs > button {
-  height: 100%;
-  padding: 0 16px;
-  border-radius: 0;
-  border-bottom: 3px solid transparent;
-  color: var(--pdv-on-dark);
-  font-weight: 600;
-  font-size: 15px;
-  background: transparent;
-  display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  text-decoration: none;
-}
-
-.nav-tabs > a:hover, .nav-tabs > button:hover {
-  background: rgba(255, 255, 255, 0.08);
-  color: #fff;
-}
-
-.nav-tabs > a.active, .nav-tabs > button.active {
-  color: #fff;
-  border-bottom-color: var(--pdv-accent);
-}
-
-.top-actions {
-  display: flex;
-  align-items: center;
-  gap: 18px;
+  gap: 8px 14px;
+  padding: 10px 24px;
+  border-top: 1px solid var(--border);
+  background: var(--surface);
   font-size: 14px;
+  color: var(--muted);
 }
 
-.top-actions .operator-info {
-  color: var(--pdv-on-dark);
-  font-weight: 500;
+.pdv-conn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--text);
 }
 
-.top-actions .clock {
-  color: #fff;
-  font-weight: 600;
+.pdv-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--primary);
 }
 
-/* PDV Layout */
-.pdv-page {
-  width: 100%;
-  padding: 16px;
+.pdv-dot.is-offline {
+  background: var(--warn);
+}
+
+.pdv-status-actions {
   display: flex;
-  flex-direction: column;
-  gap: 12px;
-  min-height: calc(100vh - 54px);
-  box-sizing: border-box;
-}
-
-.pdv-grid {
-  flex: 1;
-  display: grid;
-  grid-template-columns: 340px minmax(0, 1fr) 350px;
-  gap: 16px;
-  align-items: stretch;
-  min-height: 0;
-}
-
-.pdv-left, .pdv-checkout {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-.pdv-scan {
-  border: 2px solid var(--pdv-green);
-}
-
-.barcode-row {
-  display: flex;
-  flex-direction: column;
   gap: 8px;
-  margin-top: 8px;
+  margin-left: auto;
 }
 
-.barcode-row input {
-  font-size: 18px;
-  padding: 12px 14px;
-  border: 2px solid var(--pdv-line);
+.pdv-app .pdv-small {
+  min-height: 44px;
+  padding: 0 14px;
   border-radius: 8px;
-  background: #fff;
-}
-
-.barcode-row input:focus {
-  border-color: var(--pdv-green);
-}
-
-.pdv-last-name {
-  display: block;
-  font-size: 18px;
-  font-weight: 700;
-  margin-top: 4px;
-  color: var(--pdv-ink);
-}
-
-.pdv-last-meta {
-  display: flex;
-  justify-content: space-between;
-  align-items: baseline;
-  margin-top: 6px;
-}
-
-.pdv-last-meta strong {
-  font-size: 24px;
-  font-weight: 700;
-  color: var(--pdv-green);
-}
-
-.pdv-status-card {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.pdv-status-card > div {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
   font-size: 14px;
 }
 
-.status-badge {
-  padding: 4px 10px;
-  border-radius: 12px;
-  font-size: 12px;
-  font-weight: 700;
-}
+/* Modais */
 
-.status-badge.open {
-  background: var(--pdv-green-soft);
-  color: var(--pdv-green);
-}
-
-.status-badge.closed {
-  background: #fff1d8;
-  color: #925800;
-}
-
-.status-badge.offline {
-  background: #fde8e8;
-  color: #a81c1c;
-}
-
-/* Carrinho Central */
-.pdv-items {
-  display: flex;
-  flex-direction: column;
-  padding: 0;
-  overflow: hidden;
-  background: #fff;
-}
-
-.pdv-items-head {
-  display: grid;
-  grid-template-columns: 32px minmax(0, 1fr) 130px 110px;
-  align-items: center;
-  column-gap: 8px;
-  height: 42px;
-  padding: 0 16px;
-  background: #e9eeeb;
-  font-size: 12px;
-  font-weight: 700;
-  color: var(--pdv-muted);
-}
-
-.cart-items {
-  flex: 1;
-  overflow-y: auto;
-  max-height: calc(100vh - 240px);
-}
-
-.cart-item {
-  display: grid;
-  grid-template-columns: 32px minmax(0, 1fr) 130px 110px;
-  align-items: center;
-  column-gap: 8px;
-  padding: 10px 16px;
-  border-bottom: 1px solid var(--pdv-line-soft);
-}
-
-.cart-item.latest {
-  background: var(--pdv-green-soft);
-  border-left: 4px solid var(--pdv-green);
-}
-
-.cart-item-name b {
-  font-size: 16px;
-  font-weight: 600;
-}
-
-.cart-item-name small {
-  display: block;
-  font-size: 13px;
-  color: var(--pdv-muted);
-  margin-top: 2px;
-}
-
-.cart-item-qty {
+.pdv-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 8px;
+  padding: 16px;
+  background: var(--overlay);
 }
 
-.cart-item-qty button {
-  width: 32px;
-  height: 32px;
-  border-radius: 6px;
-  font-size: 18px;
-  display: grid;
-  place-items: center;
-  padding: 0;
-}
-
-.cart-item-total {
-  text-align: right;
-  font-size: 16px;
-  font-weight: 700;
-}
-
-.pdv-items-foot {
+.pdv-modal {
   display: flex;
-  justify-content: space-between;
-  padding: 12px 16px;
-  background: var(--pdv-surface);
-  font-size: 14px;
-  font-weight: 600;
-  color: var(--pdv-muted);
-  border-top: 1px solid var(--pdv-line);
+  flex-direction: column;
+  width: 100%;
+  max-width: 600px;
+  max-height: calc(100dvh - 32px);
+  overflow: hidden;
+  border-radius: 20px;
+  background: var(--surface);
+  box-shadow: 0 24px 60px color-mix(in srgb, var(--ink) 40%, transparent);
 }
 
-/* Painel de Checkout */
-.pdv-checkout {
-  background: #fff;
+.pdv-modal.is-narrow {
+  max-width: 460px;
 }
 
-.pdv-total {
-  padding-bottom: 12px;
-  border-bottom: 1px solid var(--pdv-line);
-}
-
-.summary-line {
-  display: flex;
-  justify-content: space-between;
-  margin: 6px 0;
-  font-size: 15px;
-}
-
-.total-line {
-  display: flex;
-  justify-content: space-between;
-  align-items: baseline;
-  margin-top: 10px;
-  font-size: 18px;
-  font-weight: 700;
-}
-
-.total-line strong {
-  font-size: 32px;
-  color: var(--pdv-green);
-}
-
-.pdv-methods {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 8px;
-  border: 0;
-  padding: 0;
-  margin: 10px 0;
-}
-
-.pdv-methods.three {
-  grid-template-columns: repeat(3, 1fr);
-}
-
-.pdv-method {
+.pdv-modal-head {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 10px 12px;
-  border: 2px solid var(--pdv-line);
-  border-radius: 8px;
-  cursor: pointer;
+  padding: 18px 24px;
+  border-bottom: 1px solid var(--border);
+}
+
+.pdv-close {
+  width: 44px;
+  height: 44px;
+  border: 1px solid var(--border-strong);
+  border-radius: 10px;
+  background: var(--surface);
+  color: var(--text);
+  font-size: 16px;
   font-weight: 600;
-  font-size: 14px;
-  background: #fbfcfb;
 }
 
-.pdv-method input {
-  margin-right: 6px;
+.pdv-close:hover:not(:disabled) {
+  background: var(--surface-2);
 }
 
-.pdv-method:has(input:checked) {
-  border-color: var(--pdv-green);
-  background: var(--pdv-green-soft);
-  color: var(--pdv-green);
+.pdv-close:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
 }
 
-.pdv-footer {
-  display: flex;
-  gap: 16px;
-  flex-wrap: wrap;
-  padding: 10px 16px;
-  background: #e6eae7;
-  border-radius: 8px;
-  font-size: 13px;
-  color: var(--pdv-ink);
-}
-
-.pdv-footer kbd {
-  background: #fff;
-  border: 1px solid #b8c4bc;
-  padding: 2px 6px;
-  border-radius: 4px;
-  font-weight: 700;
-  margin-right: 4px;
-}
-
-/* Modais e Dialogs */
-.dialog-backdrop {
-  position: fixed;
-  inset: 0;
-  background: rgba(18, 38, 31, 0.6);
-  backdrop-filter: blur(2px);
-  display: grid;
-  place-items: center;
-  z-index: 100;
-  padding: 16px;
-}
-
-.dialog-card {
-  background: #fff;
-  border-radius: 14px;
+.pdv-modal-body {
+  flex: 1;
+  overflow-y: auto;
   padding: 24px;
-  max-width: 480px;
-  width: 100%;
-  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.2);
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
 }
 
-.dialog-actions {
+.pdv-modal-text {
+  margin: 8px 0 16px;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.pdv-modal-total {
   display: flex;
-  justify-content: flex-end;
-  gap: 10px;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 4px 16px;
+  margin-bottom: 20px;
+}
+
+.pdv-total-caption {
+  font-size: 16px;
+  font-weight: 500;
+  color: var(--muted);
+}
+
+.pdv-modal-total-value {
+  font-size: 44px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+}
+
+.pdv-field {
+  margin-top: 20px;
+}
+
+.pdv-field-hint {
+  margin-top: 8px;
+  font-size: 14px;
+}
+
+/* Botões de escolha: forma de pagamento, tipo de operação, tipo de comprovante */
+
+.pdv-choices {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 8px;
+  margin-bottom: 20px;
+}
+
+.pdv-choices.is-three {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  margin-bottom: 16px;
+}
+
+.pdv-choices.is-two {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.pdv-choice {
+  min-height: 56px;
+  padding: 0 8px;
+  border: 1px solid var(--border-strong);
+  border-radius: 12px;
+  background: var(--surface);
+  color: var(--text);
+  font-size: 16px;
+  font-weight: 600;
+  transition: background-color 120ms ease;
+}
+
+.pdv-choice:hover {
+  background: var(--surface-2);
+}
+
+.pdv-choice[aria-pressed='true'] {
+  border: 2px solid var(--primary);
+  background: var(--primary-soft);
+  color: var(--primary-text);
+  font-weight: 700;
+}
+
+.pdv-check {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 44px;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.pdv-check input {
+  width: 24px;
+  height: 24px;
+  accent-color: var(--primary);
+}
+
+.pdv-split {
   margin-top: 12px;
+  padding: 16px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--bg);
 }
 
-/* Responsividade Balcão */
-@media (max-width: 980px) {
-  .pdv-grid {
-    grid-template-columns: 1fr;
+/* Valor recebido, atalhos de valor e troco */
+
+.pdv-big-input {
+  width: 100%;
+  min-width: 0;
+  height: 64px;
+  padding: 0 20px;
+  border: 2px solid var(--primary);
+  border-radius: 12px;
+  background: var(--input);
+  color: var(--text);
+  font-size: 22px;
+  font-weight: 700;
+}
+
+.pdv-big-input::placeholder {
+  color: var(--muted);
+  font-weight: 400;
+}
+
+.pdv-quick-amounts {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.pdv-quick-amounts .outline {
+  min-height: 48px;
+  padding: 0 8px;
+  border-radius: 10px;
+}
+
+.pdv-change {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 20px;
+  padding: 16px 18px;
+  border-radius: 12px;
+  background: var(--bg);
+}
+
+.pdv-change-label {
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.pdv-change-value {
+  font-size: 44px;
+  font-weight: 800;
+  color: var(--primary-text);
+}
+
+.pdv-pin {
+  font-size: 22px;
+  letter-spacing: 6px;
+  text-align: center;
+}
+
+/* Rodapé dos modais */
+
+.pdv-modal-foot {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  padding: 0 24px 24px;
+}
+
+.pdv-app .pdv-back {
+  flex: 1 1 140px;
+  min-height: 58px;
+}
+
+.pdv-app .pdv-confirm {
+  flex: 2 1 220px;
+  min-height: 58px;
+  gap: 12px;
+}
+
+/* Pré-visualização do comprovante */
+
+.pdv-receipt {
+  max-height: 320px;
+  overflow-y: auto;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--bg);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 14px;
+  line-height: 1.35;
+  white-space: pre-wrap;
+}
+
+/* Tela menor que 900px: uma coluna */
+
+@media (max-width: 900px) {
+  .pdv-main {
+    grid-template-columns: minmax(0, 1fr);
   }
-  .pdv-page {
-    height: auto;
-    overflow: auto;
+
+  .pdv-side {
+    position: static;
+  }
+
+  .pdv-cart {
+    min-height: 0;
   }
 }
 
-/* Impressão Térmica de Comprovante Não-Fiscal e Canhoto */
+/* Celular */
+
+@media (max-width: 600px) {
+  .pdv-main {
+    gap: 12px;
+    padding: 12px;
+  }
+
+  .pdv-hide-sm {
+    display: none !important;
+  }
+
+  .pdv-unit {
+    display: block;
+  }
+
+  .pdv-scan-row {
+    flex-direction: column;
+  }
+
+  .pdv-scan-input {
+    height: 56px;
+    font-size: 16px;
+  }
+
+  .pdv-app .pdv-scan-submit {
+    min-height: 52px;
+  }
+
+  .pdv-table th,
+  .pdv-table td {
+    padding-left: 12px;
+    padding-right: 12px;
+  }
+
+  .pdv-total-value {
+    font-size: 40px;
+  }
+
+  .pdv-app .pdv-method-btn {
+    min-height: 52px;
+  }
+
+  .pdv-status {
+    padding: 10px 12px;
+  }
+}
+
+@media (max-width: 480px) {
+  .pdv-choices {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .pdv-choices:not(.is-three):not(.is-two) > :last-child:nth-child(odd) {
+    grid-column: 1 / -1;
+  }
+
+  .pdv-choices.is-three {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .pdv-quick-amounts {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .pdv-modal-head {
+    padding: 14px 18px;
+  }
+
+  .pdv-modal-body {
+    padding: 18px;
+  }
+
+  .pdv-modal-total-value {
+    font-size: 36px;
+  }
+
+  .pdv-change-value {
+    font-size: 30px;
+  }
+
+  .pdv-modal-foot {
+    padding: 0 18px 18px;
+  }
+
+  .pdv-app .pdv-back,
+  .pdv-app .pdv-confirm {
+    flex: 1 1 100%;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pdv-app *,
+  .pdv-app *::before,
+  .pdv-app *::after {
+    transition: none !important;
+  }
+
+  .pdv-app .primary:active:not(:disabled) {
+    transform: none;
+  }
+}
+
+/* Impressão térmica do comprovante e do canhoto (papel de 58 mm; o texto já vem quebrado na largura) */
 @media print {
   body * {
     visibility: hidden !important;
   }
+
   .thermal-print-area,
   .thermal-print-area * {
     visibility: visible !important;
   }
+
   .thermal-print-area {
     position: fixed;
     left: 0;
@@ -630,6 +790,7 @@ h2 {
     white-space: pre-wrap;
     word-break: break-all;
   }
+
   .no-print {
     display: none !important;
   }

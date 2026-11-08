@@ -14,6 +14,14 @@ import {
   CreditMetricsData,
 } from '@/frontend/lib/api-client';
 import { formatMoney, parseCurrencyInput, getErrorMessage } from '@/frontend/lib/formatters';
+import { AppHeader } from '@/frontend/ui/app-header';
+import {
+  countNeedingRestock,
+  inventoryValue,
+  matchesStockFilter,
+  stockStatus,
+  type StockFilter,
+} from '@/frontend/management/stock';
 import '@/frontend/styles/management.css';
 
 export default function GestaoPage() {
@@ -25,6 +33,9 @@ export default function GestaoPage() {
 
   // Estados de Produtos
   const [products, setProducts] = useState<ProductItem[]>([]);
+  // Catálogo completo (última carga sem busca): base dos indicadores, que não mudam com a busca.
+  const [catalog, setCatalog] = useState<ProductItem[]>([]);
+  const [stockFilter, setStockFilter] = useState<StockFilter>('all');
   const [productQuery, setProductQuery] = useState('');
   const [showNewProduct, setShowNewProduct] = useState(false);
   const [newBarcode, setNewBarcode] = useState('');
@@ -81,7 +92,9 @@ export default function GestaoPage() {
   const loadProducts = useCallback(async (query = '') => {
     try {
       const res = await apiClient.listProducts(query);
-      setProducts(res.items || []);
+      const items = res.items || [];
+      setProducts(items);
+      if (!query) setCatalog(items);
     } catch (err) {
       console.error('Erro ao carregar produtos:', err);
     }
@@ -408,396 +421,462 @@ export default function GestaoPage() {
     }
   }
 
-
   const expectedCashNum = cashSession ? parseCurrencyInput(cashSession.expectedCash) : 0;
   const countedNum = parseCurrencyInput(closingCounted);
   const difference = closingCounted ? countedNum - expectedCashNum : 0;
 
+  const lowStockCount = countNeedingRestock(catalog);
+  const stockValue = inventoryValue(catalog);
+  const visibleProducts = products.filter((p) => matchesStockFilter(p.availableQuantity, stockFilter));
+
+  async function handleLogout() {
+    await apiClient.logout();
+    router.push('/login');
+  }
+
+  function closeCashOpModal() {
+    setIsCashOpModalOpen(false);
+    setCashOpAmount('');
+    setCashOpReason('');
+  }
+
+  function closeCancelSaleModal() {
+    setIsCancelSaleModalOpen(false);
+    setCancelSaleId('');
+    setCancelOwnerPin('');
+    setCancelReason('');
+  }
+
   if (loading) {
     return (
       <main className="management-page">
-        <div className="card" style={{ textAlign: 'center', padding: '40px' }}>
+        <div className="card mg-empty">
           <h2>Carregando Painel de Gestão...</h2>
         </div>
       </main>
     );
   }
 
+  const stockFilters: { value: StockFilter; label: string }[] = [
+    { value: 'all', label: 'Todos' },
+    { value: 'low', label: 'Estoque baixo' },
+    { value: 'out', label: 'Sem estoque' },
+  ];
+
   return (
-    <div className="management-page">
-      {/* Topbar com navegação */}
-      <header className="page-heading">
-        <div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
-            <span className="brand-mark small">b</span>
-            <span className="eyebrow">Retaguarda & Controle</span>
+    <>
+      <AppHeader
+        active="gestao"
+        username={user?.username}
+        isOwner={user?.isOwner}
+        onLogout={handleLogout}
+      />
+
+      <main className="management-page">
+        <div className="mg-titlebar">
+          <div>
+            <h1>Painel de Gestão do Comércio</h1>
+            <p className="muted">Retaguarda & Controle</p>
           </div>
-          <h1>Painel de Gestão do Comércio</h1>
-        </div>
-        <div style={{ display: 'flex', gap: '10px' }}>
-          <button
-            type="button"
-            className="soft"
-            style={{ color: '#ad2819', borderColor: '#e0b4b4' }}
-            onClick={() => setIsCancelSaleModalOpen(true)}
-          >
+          <button type="button" className="outline mg-danger-outline" onClick={() => setIsCancelSaleModalOpen(true)}>
             Cancelar Venda
           </button>
-          <Link href="/pdv" className="primary" style={{ display: 'inline-flex', alignItems: 'center', textDecoration: 'none' }}>
-            Voltar ao PDV Balcão
-          </Link>
-          <button
-            className="ghost"
-            onClick={async () => {
-              await apiClient.logout();
-              router.push('/login');
-            }}
-          >
-            Sair ({user?.username})
-          </button>
         </div>
-      </header>
 
-      {/* Alertas */}
-      {feedback && (
-        <div className={feedback.isError ? 'error' : 'notice'}>
-          <span>{feedback.text}</span>
-          <button className="soft" onClick={() => setFeedback(null)}>Fechar</button>
-        </div>
-      )}
-
-      {/* Tabs */}
-      <nav className="management-tabs">
-        <button
-          className={activeTab === 'produtos' ? 'active' : ''}
-          onClick={() => setActiveTab('produtos')}
-        >
-          Catálogo & Estoque ({products.length})
-        </button>
-        <button
-          className={activeTab === 'fiado' ? 'active' : ''}
-          onClick={() => setActiveTab('fiado')}
-        >
-          Clientes & Fiado ({customers.length})
-        </button>
-        <button
-          className={activeTab === 'caixa' ? 'active' : ''}
-          onClick={() => setActiveTab('caixa')}
-        >
-          Controle de Caixa {cashOpen ? '● Aberto' : '● Fechado'}
-        </button>
-        {user?.isOwner && (
-          <button
-            className={activeTab === 'operadores' ? 'active' : ''}
-            onClick={() => setActiveTab('operadores')}
-          >
-            Operadores ({operators.length})
-          </button>
+        {/* Alertas */}
+        {feedback && (
+          <div className={feedback.isError ? 'error' : 'notice'} role={feedback.isError ? 'alert' : 'status'}>
+            <span>{feedback.text}</span>
+            <button type="button" className="soft" onClick={() => setFeedback(null)}>Fechar</button>
+          </div>
         )}
-      </nav>
 
-      {/* TAB 1: PRODUTOS */}
-      {activeTab === 'produtos' && (
-        <section>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
-            <div className="toolbar" style={{ flex: 1, margin: 0 }}>
-              <input
-                type="text"
-                placeholder="Buscar por código de barras ou nome do produto..."
-                value={productQuery}
-                onChange={(e) => {
-                  setProductQuery(e.target.value);
-                  loadProducts(e.target.value);
-                }}
-              />
-            </div>
-            <button
-              className="primary"
-              style={{ marginLeft: '12px' }}
-              onClick={() => setShowNewProduct(!showNewProduct)}
-            >
-              {showNewProduct ? 'Cancelar' : '＋ Novo Produto'}
-            </button>
-          </div>
-
-          {/* Form Novo Produto */}
-          {showNewProduct && (
-            <form onSubmit={handleCreateProduct} className="card" style={{ marginBottom: '20px' }}>
-              <h3 style={{ marginTop: 0 }}>Cadastrar Novo Produto</h3>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '12px' }}>
-                <div>
-                  <label className="eyebrow" htmlFor="np-barcode">Código de Barras</label>
-                  <input
-                    id="np-barcode"
-                    style={{ width: '100%', padding: '10px' }}
-                    required
-                    value={newBarcode}
-                    onChange={(e) => setNewBarcode(e.target.value)}
-                    placeholder="789..."
-                  />
-                </div>
-                <div>
-                  <label className="eyebrow" htmlFor="np-name">Nome do Produto</label>
-                  <input
-                    id="np-name"
-                    style={{ width: '100%', padding: '10px' }}
-                    required
-                    value={newName}
-                    onChange={(e) => setNewName(e.target.value)}
-                    placeholder="Ex: Arroz Tipo 1 5kg"
-                  />
-                </div>
-                <div>
-                  <label className="eyebrow" htmlFor="np-price">Preço de Venda (R$)</label>
-                  <input
-                    id="np-price"
-                    style={{ width: '100%', padding: '10px' }}
-                    type="number"
-                    step="0.01"
-                    min="0.01"
-                    required
-                    value={newPrice}
-                    onChange={(e) => setNewPrice(e.target.value)}
-                    placeholder="24.90"
-                  />
-                </div>
-                <div>
-                  <label className="eyebrow" htmlFor="np-stock">Estoque Inicial</label>
-                  <input
-                    id="np-stock"
-                    style={{ width: '100%', padding: '10px' }}
-                    type="number"
-                    min="0"
-                    value={newStock}
-                    onChange={(e) => setNewStock(e.target.value)}
-                  />
-                </div>
-              </div>
-              <button className="primary" type="submit" disabled={processing} style={{ marginTop: '16px' }}>
-                {processing ? 'Salvando...' : 'Salvar Produto'}
-              </button>
-            </form>
-          )}
-
-          {/* Lista de Produtos */}
-          <div className="product-list">
-            {products.map((p) => (
-              <div key={p.id} className="product-entry">
-                <div className="card product-row">
-                  <div>
-                    <strong style={{ fontSize: '16px' }}>{p.name}</strong>
-                    <div className="muted mono" style={{ fontSize: '13px' }}>{p.barcode}</div>
-                  </div>
-                  <strong className="mono" style={{ fontSize: '16px', color: 'var(--pdv-green)' }}>
-                    {formatMoney(p.salePrice)}
-                  </strong>
-                  <div>
-                    <span className={`stock-badge ${p.availableQuantity <= 5 ? 'low' : 'ok'}`}>
-                      {p.availableQuantity} un
-                    </span>
-                  </div>
-                  <div>
-                    <button
-                      className="soft"
-                      onClick={() => setRestockingId(restockingId === p.id ? null : p.id)}
-                    >
-                      {restockingId === p.id ? 'Fechar' : 'Repor Estoque'}
-                    </button>
-                  </div>
-                </div>
-
-                {/* Box de Reposição */}
-                {restockingId === p.id && (
-                  <form onSubmit={(e) => handleRestock(e, p.id)} className="restock-box">
-                    <label>
-                      Quantidade a Adicionar
-                      <input
-                        type="number"
-                        min="1"
-                        required
-                        value={restockQty}
-                        onChange={(e) => setRestockQty(e.target.value)}
-                      />
-                    </label>
-                    <label style={{ flex: 2 }}>
-                      Motivo da Reposição
-                      <input
-                        type="text"
-                        required
-                        placeholder="Ex: Entrega de fornecedor, acerto semanal"
-                        value={restockReason}
-                        onChange={(e) => setRestockReason(e.target.value)}
-                      />
-                    </label>
-                    <button className="primary" type="submit" disabled={processing}>
-                      Confirmar Reposição
-                    </button>
-                  </form>
-                )}
-              </div>
-            ))}
-            {products.length === 0 && (
-              <div className="card" style={{ textAlign: 'center', padding: '30px' }}>
-                <p className="muted">Nenhum produto cadastrado com os critérios pesquisados.</p>
-              </div>
-            )}
-          </div>
-        </section>
-      )}
-
-      {/* TAB 2: CLIENTES & FIADO */}
-      {activeTab === 'fiado' && (
-        <section>
-          {/* Card em destaque: Total de Fiado na Rua */}
-          <div
-            className="card"
-            style={{
-              marginBottom: '16px',
-              background: 'var(--pdv-green-soft)',
-              border: '2px solid var(--pdv-green)',
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'center',
-              flexWrap: 'wrap',
-              gap: '12px',
-            }}
+        {/* Abas */}
+        <div role="group" aria-label="Seções da gestão" className="mg-tabs">
+          <button
+            type="button"
+            className="mg-segment"
+            aria-pressed={activeTab === 'produtos'}
+            onClick={() => setActiveTab('produtos')}
           >
-            <div>
-              <span className="eyebrow" style={{ color: 'var(--pdv-green)' }}>
-                Gestão Financeira Essencial · Fiado
-              </span>
-              <h2 style={{ margin: '4px 0 6px', fontSize: '26px', color: 'var(--pdv-ink)' }}>
-                Total de Fiado na Rua:{' '}
-                <span className="mono" style={{ color: 'var(--pdv-green)' }}>
-                  {formatMoney(creditMetrics ? creditMetrics.totalOutstandingCredit : 0)}
-                </span>
-              </h2>
-              <span className="muted">
-                {creditMetrics?.activeDebtorsCount ?? 0} cliente(s) com dívida ativa na caderneta
-                {creditMetrics && (
-                  <> · Total já liquidado/recebido: {formatMoney(creditMetrics.totalSettledCredit)}</>
-                )}
-              </span>
-            </div>
+            Catálogo & Estoque ({catalog.length})
+          </button>
+          <button
+            type="button"
+            className="mg-segment"
+            aria-pressed={activeTab === 'fiado'}
+            onClick={() => setActiveTab('fiado')}
+          >
+            Clientes & Fiado ({customers.length})
+          </button>
+          <button
+            type="button"
+            className="mg-segment"
+            aria-pressed={activeTab === 'caixa'}
+            onClick={() => setActiveTab('caixa')}
+          >
+            Controle de Caixa {cashOpen ? '● Aberto' : '● Fechado'}
+          </button>
+          {user?.isOwner && (
             <button
-              className="soft"
               type="button"
-              onClick={loadCreditMetrics}
-              style={{ fontSize: '13px' }}
+              className="mg-segment"
+              aria-pressed={activeTab === 'operadores'}
+              onClick={() => setActiveTab('operadores')}
             >
-              ↻ Atualizar Indicadores
+              Operadores ({operators.length})
             </button>
-          </div>
+          )}
+        </div>
 
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-            <div className="toolbar" style={{ flex: 1, margin: 0 }}>
-              <input
-                type="text"
-                placeholder="Buscar cliente por nome ou telefone..."
-                value={customerQuery}
-                onChange={(e) => setCustomerQuery(e.target.value)}
-              />
+        {/* TAB 1: PRODUTOS */}
+        {activeTab === 'produtos' && (
+          <section className="mg-section">
+            <div className="mg-kpis">
+              <div className="mg-kpi">
+                <div className="mg-kpi-label">Produtos cadastrados</div>
+                <div className="mg-kpi-value num">{catalog.length}</div>
+              </div>
+              <div className="mg-kpi mg-kpi-warn">
+                <div className="mg-kpi-label">Precisam de reposição</div>
+                <div className="mg-kpi-value num">{lowStockCount}</div>
+              </div>
+              <div className="mg-kpi">
+                <div className="mg-kpi-label">Valor em estoque (a preço de venda)</div>
+                <div className="mg-kpi-value num">{formatMoney(stockValue)}</div>
+              </div>
             </div>
-            <button
-              className="primary"
-              style={{ marginLeft: '12px' }}
-              onClick={() => setShowNewCustomer(!showNewCustomer)}
-            >
-              {showNewCustomer ? 'Cancelar' : '＋ Novo Cliente'}
-            </button>
-          </div>
 
-          {/* Form Novo Cliente */}
-          {showNewCustomer && (
-            <form onSubmit={handleCreateCustomer} className="card" style={{ marginBottom: '20px' }}>
-              <h3 style={{ marginTop: 0 }}>Cadastrar Cliente para Fiado</h3>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '12px' }}>
-                <div>
-                  <label className="eyebrow" htmlFor="nc-name">Nome Completo</label>
-                  <input
-                    id="nc-name"
-                    style={{ width: '100%', padding: '10px' }}
-                    required
-                    value={newCustName}
-                    onChange={(e) => setNewCustName(e.target.value)}
-                    placeholder="Ex: Seu Antenor da Esquina"
-                  />
+            {/* Form Novo Produto */}
+            {showNewProduct && (
+              <form onSubmit={handleCreateProduct} className="card">
+                <h3>Cadastrar Novo Produto</h3>
+                <div className="mg-form-grid">
+                  <div>
+                    <label className="field-label" htmlFor="np-barcode">Código de Barras</label>
+                    <input
+                      id="np-barcode"
+                      className="input"
+                      required
+                      value={newBarcode}
+                      onChange={(e) => setNewBarcode(e.target.value)}
+                      placeholder="789..."
+                    />
+                  </div>
+                  <div>
+                    <label className="field-label" htmlFor="np-name">Nome do Produto</label>
+                    <input
+                      id="np-name"
+                      className="input"
+                      required
+                      value={newName}
+                      onChange={(e) => setNewName(e.target.value)}
+                      placeholder="Ex: Arroz Tipo 1 5kg"
+                    />
+                  </div>
+                  <div>
+                    <label className="field-label" htmlFor="np-price">Preço de Venda (R$)</label>
+                    <input
+                      id="np-price"
+                      className="input num"
+                      type="number"
+                      step="0.01"
+                      min="0.01"
+                      required
+                      value={newPrice}
+                      onChange={(e) => setNewPrice(e.target.value)}
+                      placeholder="24.90"
+                    />
+                  </div>
+                  <div>
+                    <label className="field-label" htmlFor="np-stock">Estoque Inicial</label>
+                    <input
+                      id="np-stock"
+                      className="input num"
+                      type="number"
+                      min="0"
+                      value={newStock}
+                      onChange={(e) => setNewStock(e.target.value)}
+                    />
+                  </div>
                 </div>
-                <div>
-                  <label className="eyebrow" htmlFor="nc-phone">Telefone / WhatsApp</label>
-                  <input
-                    id="nc-phone"
-                    style={{ width: '100%', padding: '10px' }}
-                    required
-                    value={newCustPhone}
-                    onChange={(e) => setNewCustPhone(e.target.value)}
-                    placeholder="11999998888"
-                  />
+                <button className="primary mg-form-submit" type="submit" disabled={processing}>
+                  {processing ? 'Salvando...' : 'Salvar Produto'}
+                </button>
+              </form>
+            )}
+
+            <section className="card mg-card-flush" aria-label="Catálogo de produtos">
+              <div className="mg-toolbar">
+                <label htmlFor="product-search" className="sr-only">Buscar produto</label>
+                <input
+                  id="product-search"
+                  type="text"
+                  className="input mg-search"
+                  placeholder="Buscar por código de barras ou nome do produto..."
+                  value={productQuery}
+                  onChange={(e) => {
+                    setProductQuery(e.target.value);
+                    loadProducts(e.target.value);
+                  }}
+                />
+                <div role="group" aria-label="Filtro de estoque" className="mg-filters">
+                  {stockFilters.map((f) => (
+                    <button
+                      key={f.value}
+                      type="button"
+                      className="mg-segment"
+                      aria-pressed={stockFilter === f.value}
+                      onClick={() => setStockFilter(f.value)}
+                    >
+                      {f.label}
+                    </button>
+                  ))}
                 </div>
-                <div>
-                  <label className="eyebrow" htmlFor="nc-limit">Limite de Fiado (R$)</label>
-                  <input
-                    id="nc-limit"
-                    style={{ width: '100%', padding: '10px' }}
-                    type="number"
-                    step="0.01"
-                    min="0"
-                    required
-                    value={newCustLimit}
-                    onChange={(e) => setNewCustLimit(e.target.value)}
-                  />
+                <button
+                  type="button"
+                  className="primary mg-toolbar-action"
+                  onClick={() => setShowNewProduct(!showNewProduct)}
+                >
+                  {showNewProduct ? 'Cancelar' : '＋ Novo Produto'}
+                </button>
+              </div>
+
+              <div className="mg-table-wrap">
+                <table className="mg-table">
+                  <thead>
+                    <tr>
+                      <th scope="col">Produto</th>
+                      <th scope="col" className="mg-num">Preço</th>
+                      <th scope="col" className="mg-num">Em estoque</th>
+                      <th scope="col" className="mg-num">Ação</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {visibleProducts.map((p) => {
+                      const status = stockStatus(p.availableQuantity);
+                      return (
+                        <React.Fragment key={p.id}>
+                          <tr>
+                            <td>
+                              <strong>{p.name}</strong>
+                              {status === 'low' && <span className="mg-tag mg-tag-warn">Estoque baixo</span>}
+                              {status === 'out' && <span className="mg-tag mg-tag-danger">Sem estoque</span>}
+                              <div className="muted mg-barcode num">{p.barcode}</div>
+                            </td>
+                            <td className="mg-num">{formatMoney(p.salePrice)}</td>
+                            <td className={`mg-num mg-stock mg-stock-${status}`}>{p.availableQuantity} un</td>
+                            <td className="mg-num">
+                              <button
+                                type="button"
+                                className="outline mg-row-action"
+                                aria-expanded={restockingId === p.id}
+                                aria-label={
+                                  restockingId === p.id
+                                    ? `Fechar entrada de estoque de ${p.name}`
+                                    : `Registrar entrada de estoque de ${p.name}`
+                                }
+                                onClick={() => setRestockingId(restockingId === p.id ? null : p.id)}
+                              >
+                                {restockingId === p.id ? 'Fechar' : 'Entrada'}
+                              </button>
+                            </td>
+                          </tr>
+
+                          {/* Box de Reposição */}
+                          {restockingId === p.id && (
+                            <tr className="mg-restock-row">
+                              <td colSpan={4}>
+                                <form onSubmit={(e) => handleRestock(e, p.id)} className="mg-restock">
+                                  <div>
+                                    <label className="field-label" htmlFor={`restock-qty-${p.id}`}>Quantidade a Adicionar</label>
+                                    <input
+                                      id={`restock-qty-${p.id}`}
+                                      className="input num"
+                                      type="number"
+                                      min="1"
+                                      required
+                                      value={restockQty}
+                                      onChange={(e) => setRestockQty(e.target.value)}
+                                    />
+                                  </div>
+                                  <div className="mg-restock-reason">
+                                    <label className="field-label" htmlFor={`restock-reason-${p.id}`}>Motivo da Reposição</label>
+                                    <input
+                                      id={`restock-reason-${p.id}`}
+                                      className="input"
+                                      type="text"
+                                      required
+                                      placeholder="Ex: Entrega de fornecedor, acerto semanal"
+                                      value={restockReason}
+                                      onChange={(e) => setRestockReason(e.target.value)}
+                                    />
+                                  </div>
+                                  <button className="primary" type="submit" disabled={processing}>
+                                    Confirmar Reposição
+                                  </button>
+                                </form>
+                              </td>
+                            </tr>
+                          )}
+                        </React.Fragment>
+                      );
+                    })}
+                    {visibleProducts.length === 0 && (
+                      <tr>
+                        <td colSpan={4} className="mg-empty-cell">
+                          Nenhum produto cadastrado com os critérios pesquisados.
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+
+              <p className="mg-foot">
+                Mostrando {visibleProducts.length} de {catalog.length} produtos · Entrada registra compra ou reposição de estoque
+              </p>
+            </section>
+          </section>
+        )}
+
+        {/* TAB 2: CLIENTES & FIADO */}
+        {activeTab === 'fiado' && (
+          <section className="mg-section">
+            {/* Indicadores: Fiado na Rua */}
+            <div className="mg-kpis">
+              <div className="mg-kpi">
+                <div className="mg-kpi-label">Total de Fiado na Rua</div>
+                <div className="mg-kpi-value num">
+                  {formatMoney(creditMetrics ? creditMetrics.totalOutstandingCredit : 0)}
                 </div>
               </div>
-              <button className="primary" type="submit" disabled={processing} style={{ marginTop: '16px' }}>
-                {processing ? 'Salvando...' : 'Cadastrar Cliente'}
-              </button>
-            </form>
-          )}
+              <div className="mg-kpi">
+                <div className="mg-kpi-label">Clientes com dívida ativa na caderneta</div>
+                <div className="mg-kpi-value num">{creditMetrics?.activeDebtorsCount ?? 0}</div>
+              </div>
+              {creditMetrics && (
+                <div className="mg-kpi">
+                  <div className="mg-kpi-label">Total já liquidado/recebido</div>
+                  <div className="mg-kpi-value num">{formatMoney(creditMetrics.totalSettledCredit)}</div>
+                </div>
+              )}
+            </div>
 
-          {/* Grid de Clientes e Dívidas */}
-          <div className="management-grid">
-            {customers
-              .filter(
-                (c) =>
-                  c.name.toLowerCase().includes(customerQuery.toLowerCase()) ||
-                  c.phone.includes(customerQuery)
-              )
-              .map((c) => {
-                const bal = customerBalances[c.id];
-                const debt = bal ? parseCurrencyInput(bal.currentDebt) : 0;
-                const limit = bal ? parseCurrencyInput(bal.creditLimit) : parseCurrencyInput(c.creditLimit);
-                const ratio = limit > 0 ? Math.min(100, (debt / limit) * 100) : debt > 0 ? 100 : 0;
+            <div className="card mg-card-flush">
+              <div className="mg-toolbar">
+                <label htmlFor="customer-search" className="sr-only">Buscar cliente</label>
+                <input
+                  id="customer-search"
+                  type="text"
+                  className="input mg-search"
+                  placeholder="Buscar cliente por nome ou telefone..."
+                  value={customerQuery}
+                  onChange={(e) => setCustomerQuery(e.target.value)}
+                />
+                <button type="button" className="outline mg-row-action" onClick={loadCreditMetrics}>
+                  ↻ Atualizar Indicadores
+                </button>
+                <button
+                  type="button"
+                  className="primary mg-toolbar-action"
+                  onClick={() => setShowNewCustomer(!showNewCustomer)}
+                >
+                  {showNewCustomer ? 'Cancelar' : '＋ Novo Cliente'}
+                </button>
+              </div>
+            </div>
 
-                return (
-                  <div key={c.id} className="card customer-card">
-                    <div className="customer-card-header">
-                      <b>{c.name}</b>
-                      <span className="muted" style={{ fontSize: '13px' }}>{c.phone}</span>
-                    </div>
+            {/* Form Novo Cliente */}
+            {showNewCustomer && (
+              <form onSubmit={handleCreateCustomer} className="card">
+                <h3>Cadastrar Cliente para Fiado</h3>
+                <div className="mg-form-grid">
+                  <div>
+                    <label className="field-label" htmlFor="nc-name">Nome Completo</label>
+                    <input
+                      id="nc-name"
+                      className="input"
+                      required
+                      value={newCustName}
+                      onChange={(e) => setNewCustName(e.target.value)}
+                      placeholder="Ex: Seu Antenor da Esquina"
+                    />
+                  </div>
+                  <div>
+                    <label className="field-label" htmlFor="nc-phone">Telefone / WhatsApp</label>
+                    <input
+                      id="nc-phone"
+                      className="input num"
+                      required
+                      value={newCustPhone}
+                      onChange={(e) => setNewCustPhone(e.target.value)}
+                      placeholder="11999998888"
+                    />
+                  </div>
+                  <div>
+                    <label className="field-label" htmlFor="nc-limit">Limite de Fiado (R$)</label>
+                    <input
+                      id="nc-limit"
+                      className="input num"
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      required
+                      value={newCustLimit}
+                      onChange={(e) => setNewCustLimit(e.target.value)}
+                    />
+                  </div>
+                </div>
+                <button className="primary mg-form-submit" type="submit" disabled={processing}>
+                  {processing ? 'Salvando...' : 'Cadastrar Cliente'}
+                </button>
+              </form>
+            )}
 
-                    <div style={{ marginTop: '8px' }}>
-                      <span className="eyebrow">Dívida Atual em Aberto</span>
-                      <div className={`debt-amount ${debt === 0 ? 'zero' : ''}`}>
-                        {formatMoney(debt)}
+            {/* Grid de Clientes e Dívidas */}
+            <div className="mg-grid">
+              {customers
+                .filter(
+                  (c) =>
+                    c.name.toLowerCase().includes(customerQuery.toLowerCase()) ||
+                    c.phone.includes(customerQuery)
+                )
+                .map((c) => {
+                  const bal = customerBalances[c.id];
+                  const debt = bal ? parseCurrencyInput(bal.currentDebt) : 0;
+                  const limit = bal ? parseCurrencyInput(bal.creditLimit) : parseCurrencyInput(c.creditLimit);
+                  const ratio = limit > 0 ? Math.min(100, (debt / limit) * 100) : debt > 0 ? 100 : 0;
+
+                  return (
+                    <div key={c.id} className="card mg-customer">
+                      <div className="mg-customer-head">
+                        <strong>{c.name}</strong>
+                        <span className="muted num">{c.phone}</span>
                       </div>
-                    </div>
 
-                    <div className="limit-bar">
-                      <div
-                        className={`limit-bar-fill ${ratio >= 100 ? 'exceeded' : ratio >= 80 ? 'warning' : ''}`}
-                        style={{ width: `${ratio}%` }}
-                      />
-                    </div>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', color: 'var(--pdv-muted)' }}>
-                      <span>Limite: {formatMoney(limit)}</span>
-                      <span>Disponível: {formatMoney(bal ? bal.availableCredit : limit - debt)}</span>
-                    </div>
+                      <div>
+                        <span className="mg-meta">Dívida Atual em Aberto</span>
+                        <div className={`mg-debt num ${debt === 0 ? 'zero' : ''}`}>
+                          {formatMoney(debt)}
+                        </div>
+                      </div>
 
-                    <div style={{ marginTop: '12px', display: 'flex', gap: '8px' }}>
+                      <div className="mg-limit-bar">
+                        <div
+                          className={`mg-limit-fill ${ratio >= 100 ? 'exceeded' : ratio >= 80 ? 'warning' : ''}`}
+                          style={{ width: `${ratio}%` }}
+                        />
+                      </div>
+                      <div className="mg-limit-legend num">
+                        <span>Limite: {formatMoney(limit)}</span>
+                        <span>Disponível: {formatMoney(bal ? bal.availableCredit : limit - debt)}</span>
+                      </div>
+
                       {debt > 0 && (
                         <button
+                          type="button"
                           className="primary"
-                          style={{ flex: 1, padding: '8px' }}
                           onClick={() => {
                             setSettlingCustomer(bal || null);
                             setSettleAmount(String(debt));
@@ -807,190 +886,232 @@ export default function GestaoPage() {
                         </button>
                       )}
                     </div>
-                  </div>
-                );
-              })}
-          </div>
-
-          {/* Modal de Quitação de Dívida */}
-          {settlingCustomer && (
-            <div className="dialog-backdrop">
-              <form onSubmit={handleSettleDebt} className="dialog-card">
-                <h2>Quitação de Fiado no Caixa</h2>
-                <p className="muted">
-                  Cliente: <strong>{settlingCustomer.name}</strong><br />
-                  Saldo Devedor Atual: <strong>{formatMoney(settlingCustomer.currentDebt)}</strong>
-                </p>
-
-                <div>
-                  <label className="eyebrow" htmlFor="settle-val">Valor Pago em Dinheiro (R$)</label>
-                  <input
-                    id="settle-val"
-                    className="barcode-row mono"
-                    style={{ width: '100%', fontSize: '20px', fontWeight: 'bold' }}
-                    type="number"
-                    step="0.01"
-                    min="0.01"
-                    max={parseCurrencyInput(settlingCustomer.currentDebt)}
-                    required
-                    value={settleAmount}
-                    onChange={(e) => setSettleAmount(e.target.value)}
-                  />
-                </div>
-
-                <div>
-                  <label className="eyebrow" htmlFor="settle-note">Observação / Recibo (opcional)</label>
-                  <input
-                    id="settle-note"
-                    className="barcode-row"
-                    style={{ width: '100%' }}
-                    value={settleNote}
-                    onChange={(e) => setSettleNote(e.target.value)}
-                    placeholder="Ex: Pago em dinheiro no balcão"
-                  />
-                </div>
-
-                <div className="dialog-actions">
-                  <button className="soft" type="button" onClick={() => setSettlingCustomer(null)}>
-                    Cancelar
-                  </button>
-                  <button className="primary" type="submit" disabled={processing}>
-                    {processing ? 'Processando...' : 'Confirmar Recebimento e Entrada no Caixa'}
-                  </button>
-                </div>
-              </form>
+                  );
+                })}
             </div>
-          )}
-        </section>
-      )}
 
-      {/* TAB 3: CONTROLE & FECHAMENTO DE CAIXA */}
-      {activeTab === 'caixa' && (
-        <section className="cash-layout">
-          <div className="card">
-            <h2>{cashOpen ? 'Conferência Cega e Fechamento de Caixa' : 'Abertura de Caixa'}</h2>
+            {/* Modal de Quitação de Dívida */}
+            {settlingCustomer && (
+              <div className="mg-backdrop">
+                <form
+                  onSubmit={handleSettleDebt}
+                  className="mg-dialog"
+                  role="dialog"
+                  aria-modal="true"
+                  aria-labelledby="settle-title"
+                >
+                  <div className="mg-dialog-head">
+                    <h2 id="settle-title">Quitação de Fiado no Caixa</h2>
+                    <button
+                      type="button"
+                      className="mg-dialog-close"
+                      aria-label="Fechar"
+                      onClick={() => setSettlingCustomer(null)}
+                    >
+                      ×
+                    </button>
+                  </div>
+                  <p className="muted">
+                    Cliente: <strong>{settlingCustomer.name}</strong><br />
+                    Saldo Devedor Atual: <strong className="num">{formatMoney(settlingCustomer.currentDebt)}</strong>
+                  </p>
 
+                  <div>
+                    <label className="field-label" htmlFor="settle-val">Valor Pago em Dinheiro (R$)</label>
+                    <input
+                      id="settle-val"
+                      className="input mg-amount num"
+                      type="number"
+                      step="0.01"
+                      min="0.01"
+                      max={parseCurrencyInput(settlingCustomer.currentDebt)}
+                      required
+                      value={settleAmount}
+                      onChange={(e) => setSettleAmount(e.target.value)}
+                    />
+                  </div>
+
+                  <div>
+                    <label className="field-label" htmlFor="settle-note">Observação / Recibo (opcional)</label>
+                    <input
+                      id="settle-note"
+                      className="input"
+                      value={settleNote}
+                      onChange={(e) => setSettleNote(e.target.value)}
+                      placeholder="Ex: Pago em dinheiro no balcão"
+                    />
+                  </div>
+
+                  <div className="mg-dialog-actions">
+                    <button className="soft" type="button" onClick={() => setSettlingCustomer(null)}>
+                      Cancelar
+                    </button>
+                    <button className="primary" type="submit" disabled={processing}>
+                      {processing ? 'Processando...' : 'Confirmar Recebimento e Entrada no Caixa'}
+                    </button>
+                  </div>
+                </form>
+              </div>
+            )}
+          </section>
+        )}
+
+        {/* TAB 3: CONTROLE & FECHAMENTO DE CAIXA */}
+        {activeTab === 'caixa' && (
+          <section className="mg-section">
             {cashOpen && cashSession ? (
-              <div>
-                <dl className="cash-details-list">
-                  <div>
-                    <dt>Operador Responsável</dt>
-                    <dd>{cashSession.openedBy}</dd>
+              <div className="mg-cash">
+                <div className="mg-col">
+                  <div className="card">
+                    <h2 className="mg-display">Fechar caixa</h2>
+                    <p className="muted">
+                      Conferência cega: conte o dinheiro da gaveta antes de fechar o turno.
+                    </p>
                   </div>
-                  <div>
-                    <dt>Aberto em</dt>
-                    <dd>{new Date(cashSession.openedAt).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}</dd>
-                  </div>
-                  <div>
-                    <dt>Fundo de Troco Inicial</dt>
-                    <dd className="mono">{formatMoney(cashSession.openingBalance)}</dd>
-                  </div>
-                  <div>
-                    <dt>Movimentações Registradas</dt>
-                    <dd>{cashSession.movementsCount ?? 0}</dd>
-                  </div>
-                </dl>
 
-                <div style={{ display: 'flex', gap: '10px', marginTop: '16px', marginBottom: '16px', flexWrap: 'wrap' }}>
-                  <button
-                    type="button"
-                    className="soft"
-                    style={{ flex: 1, minWidth: '160px', padding: '10px' }}
-                    onClick={() => {
-                      setCashOpType('WITHDRAWAL');
-                      setIsCashOpModalOpen(true);
-                    }}
-                  >
-                    - Registrar Sangria (Retirada)
-                  </button>
-                  <button
-                    type="button"
-                    className="soft"
-                    style={{ flex: 1, minWidth: '160px', padding: '10px' }}
-                    onClick={() => {
-                      setCashOpType('DEPOSIT');
-                      setIsCashOpModalOpen(true);
-                    }}
-                  >
-                    + Registrar Suprimento (Entrada)
-                  </button>
-                  <button
-                    type="button"
-                    className="soft"
-                    style={{ color: '#ad2819', borderColor: '#e0b4b4', padding: '10px' }}
-                    onClick={() => setIsCancelSaleModalOpen(true)}
-                  >
-                    Cancelar Venda (PIN)
-                  </button>
+                  <div className="card mg-card-flush">
+                    <h3 className="mg-card-title">Dados do turno</h3>
+                    <dl className="mg-details">
+                      <div>
+                        <dt>Operador Responsável</dt>
+                        <dd>{cashSession.openedBy}</dd>
+                      </div>
+                      <div>
+                        <dt>Aberto em</dt>
+                        <dd className="num">{new Date(cashSession.openedAt).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}</dd>
+                      </div>
+                      <div>
+                        <dt>Fundo de Troco Inicial</dt>
+                        <dd className="num">{formatMoney(cashSession.openingBalance)}</dd>
+                      </div>
+                      <div>
+                        <dt>Movimentações Registradas</dt>
+                        <dd className="num">{cashSession.movementsCount ?? 0}</dd>
+                      </div>
+                    </dl>
+                    <p className="mg-note">
+                      O valor esperado na gaveta fica oculto até o fechamento, para que a contagem seja cega.
+                    </p>
+                  </div>
+
+                  <div className="card">
+                    <h3>Movimentações do caixa</h3>
+                    <div className="mg-actions">
+                      <button
+                        type="button"
+                        className="outline"
+                        onClick={() => {
+                          setCashOpType('WITHDRAWAL');
+                          setIsCashOpModalOpen(true);
+                        }}
+                      >
+                        - Registrar Sangria (Retirada)
+                      </button>
+                      <button
+                        type="button"
+                        className="outline"
+                        onClick={() => {
+                          setCashOpType('DEPOSIT');
+                          setIsCashOpModalOpen(true);
+                        }}
+                      >
+                        + Registrar Suprimento (Entrada)
+                      </button>
+                      <button
+                        type="button"
+                        className="outline mg-danger-outline"
+                        onClick={() => setIsCancelSaleModalOpen(true)}
+                      >
+                        Cancelar Venda (PIN)
+                      </button>
+                    </div>
+                  </div>
+
+                  <aside className="card">
+                    <h3>Regras da Operação</h3>
+                    <ul className="mg-rules">
+                      <li>Na conferência cega, conte todas as cédulas e moedas físicas da gaveta.</li>
+                      <li>Vendas em PIX e cartão de crédito/débito não entram na gaveta de dinheiro.</li>
+                      <li>Quitações de fiado em dinheiro entram diretamente no saldo da gaveta.</li>
+                      <li>Qualquer quebra ou sobra de caixa gera auditoria fiscal e rastreabilidade para a proprietária.</li>
+                    </ul>
+                  </aside>
                 </div>
 
-                <form onSubmit={handleCloseCash} style={{ marginTop: '20px' }}>
-                  <label className="eyebrow" htmlFor="cash-closing">
-                    Conferência Cega: Dinheiro Contado na Gaveta (R$)
-                  </label>
-                  <input
-                    id="cash-closing"
-                    className="barcode-row mono"
-                    style={{ width: '100%', fontSize: '22px', fontWeight: 'bold' }}
-                    type="number"
-                    step="0.01"
-                    min="0"
-                    required
-                    value={closingCounted}
-                    onChange={(e) => setClosingCounted(e.target.value)}
-                    placeholder="0.00"
-                  />
+                <form onSubmit={handleCloseCash} className="mg-col">
+                  <div className="card">
+                    <label className="field-label" htmlFor="cash-closing">
+                      Quanto tem na gaveta? (R$)
+                    </label>
+                    <input
+                      id="cash-closing"
+                      className="input mg-count num"
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      required
+                      value={closingCounted}
+                      onChange={(e) => setClosingCounted(e.target.value)}
+                      placeholder="0.00"
+                    />
 
-                  {closingCounted && (
-                    <div
-                      className={`cash-difference-alert ${
-                        difference === 0 ? 'even' : difference > 0 ? 'over' : 'short'
-                      }`}
-                    >
-                      {difference === 0
-                        ? '✓ Valores conferem perfeitamente com o esperado!'
-                        : difference > 0
-                        ? `Sobra de Caixa: + ${formatMoney(difference)}`
-                        : `Quebra de Caixa: - ${formatMoney(Math.abs(difference))}`}
-                    </div>
-                  )}
+                    {closingCounted && (
+                      <div
+                        role="status"
+                        className={`mg-difference ${
+                          difference === 0 ? 'even' : difference > 0 ? 'over' : 'short'
+                        }`}
+                      >
+                        {difference === 0
+                          ? '✓ Valores conferem perfeitamente com o esperado!'
+                          : difference > 0
+                          ? `Sobra de Caixa: + ${formatMoney(difference)}`
+                          : `Quebra de Caixa: - ${formatMoney(Math.abs(difference))}`}
+                      </div>
+                    )}
 
-                  {closingCounted && difference !== 0 && (
-                    <div style={{ marginTop: '12px' }}>
-                      <label className="eyebrow" htmlFor="discrepancy-reason">
-                        Justificativa Obrigatória da Diferença
-                      </label>
-                      <input
-                        id="discrepancy-reason"
-                        className="barcode-row"
-                        style={{ width: '100%' }}
-                        required
-                        value={discrepancyReason}
-                        onChange={(e) => setDiscrepancyReason(e.target.value)}
-                        placeholder="Ex: Troco arredondado, erro na contagem inicial, etc."
-                      />
-                    </div>
-                  )}
+                    {closingCounted && difference !== 0 && (
+                      <div className="mg-reason">
+                        <label className="field-label" htmlFor="discrepancy-reason">
+                          Justificativa Obrigatória da Diferença
+                        </label>
+                        <input
+                          id="discrepancy-reason"
+                          className="input"
+                          required
+                          value={discrepancyReason}
+                          onChange={(e) => setDiscrepancyReason(e.target.value)}
+                          placeholder="Ex: Troco arredondado, erro na contagem inicial, etc."
+                        />
+                      </div>
+                    )}
 
-                  <button
-                    className="primary wide"
-                    type="submit"
-                    disabled={processing || !closingCounted}
-                    style={{ marginTop: '20px', background: '#ad2819' }}
-                  >
-                    {processing ? 'Fechando Turno...' : 'Finalizar e Fechar Turno do Caixa'}
-                  </button>
+                    <p className="mg-note-inline">
+                      Se a diferença não for zero, o sistema pede o motivo antes de fechar.
+                    </p>
+                  </div>
+
+                  <div className="mg-close-actions">
+                    <button className="primary mg-close-btn" type="submit" disabled={processing || !closingCounted}>
+                      <span>{processing ? 'Fechando Turno...' : 'Fechar caixa'}</span>
+                      <span className="kbd">Enter</span>
+                    </button>
+                    <Link href="/pdv" className="soft mg-back-btn">
+                      Voltar para a venda
+                    </Link>
+                  </div>
+                  <p className="mg-note-inline">Ao fechar, o turno fica registrado no histórico do caixa.</p>
                 </form>
               </div>
             ) : (
-              <div>
+              <div className="card mg-open-cash">
+                <h2>Abertura de Caixa</h2>
                 <p className="muted">O caixa está fechado no momento. Abra um novo turno para registrar vendas em dinheiro.</p>
-                <form onSubmit={handleOpenCash} style={{ marginTop: '16px' }}>
-                  <label className="eyebrow" htmlFor="open-bal">Fundo de Troco Inicial (R$)</label>
+                <form onSubmit={handleOpenCash}>
+                  <label className="field-label" htmlFor="open-bal">Fundo de Troco Inicial (R$)</label>
                   <input
                     id="open-bal"
-                    className="barcode-row mono"
-                    style={{ width: '100%', fontSize: '20px', fontWeight: 'bold' }}
+                    className="input mg-amount num"
                     type="number"
                     step="0.01"
                     min="0"
@@ -998,293 +1119,289 @@ export default function GestaoPage() {
                     value={openingBalance}
                     onChange={(e) => setOpeningBalance(e.target.value)}
                   />
-                  <button className="primary wide" type="submit" disabled={processing} style={{ marginTop: '16px' }}>
+                  <button className="primary mg-form-submit mg-full" type="submit" disabled={processing}>
                     {processing ? 'Abrindo...' : 'Abrir Caixa do Turno'}
                   </button>
                 </form>
               </div>
             )}
-          </div>
+          </section>
+        )}
 
-          <aside className="card">
-            <h3>Regras da Operação</h3>
-            <ul style={{ paddingLeft: '18px', color: 'var(--pdv-muted)', lineHeight: '1.6' }}>
-              <li>Na conferência cega, conte todas as cédulas e moedas físicas da gaveta.</li>
-              <li>Vendas em PIX e cartão de crédito/débito não entram na gaveta de dinheiro.</li>
-              <li>Quitações de fiado em dinheiro entram diretamente no saldo da gaveta.</li>
-              <li>Qualquer quebra ou sobra de caixa gera auditoria fiscal e rastreabilidade para a proprietária.</li>
-            </ul>
-          </aside>
-        </section>
-      )}
-
-      {/* TAB 4: OPERADORES DE CAIXA */}
-      {activeTab === 'operadores' && user?.isOwner && (
-        <section>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-            <div>
-              <h2 style={{ margin: 0 }}>Equipe & Operadores de Caixa</h2>
-              <p className="muted" style={{ margin: '4px 0 0' }}>
-                Cadastre e gerencie operadores para registrar vendas e abrir turnos de caixa no balcão.
-              </p>
-            </div>
-            <button
-              className="primary"
-              onClick={() => setShowNewOperator(!showNewOperator)}
-            >
-              {showNewOperator ? 'Cancelar' : '＋ Novo Operador'}
-            </button>
-          </div>
-
-          {/* Form Novo Operador */}
-          {showNewOperator && (
-            <form onSubmit={handleCreateOperator} className="card" style={{ marginBottom: '20px', maxWidth: '520px' }}>
-              <h3 style={{ marginTop: 0 }}>Cadastrar Novo Operador</h3>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-                <div>
-                  <label className="eyebrow" htmlFor="op-username">Usuário de Acesso</label>
-                  <input
-                    id="op-username"
-                    style={{ width: '100%', padding: '10px' }}
-                    required
-                    value={newOpUsername}
-                    onChange={(e) => setNewOpUsername(e.target.value)}
-                    placeholder="Ex: joao.caixa ou maria"
-                  />
-                  <small className="muted" style={{ display: 'block', marginTop: '4px' }}>
-                    O usuário que o operador usará para entrar no PDV.
-                  </small>
-                </div>
-                <div>
-                  <label className="eyebrow" htmlFor="op-password">Senha de Acesso</label>
-                  <input
-                    id="op-password"
-                    style={{ width: '100%', padding: '10px' }}
-                    type="password"
-                    required
-                    minLength={6}
-                    value={newOpPassword}
-                    onChange={(e) => setNewOpPassword(e.target.value)}
-                    placeholder="Mínimo 6 caracteres"
-                  />
-                </div>
+        {/* TAB 4: OPERADORES DE CAIXA */}
+        {activeTab === 'operadores' && user?.isOwner && (
+          <section className="mg-section">
+            <div className="mg-section-head">
+              <div>
+                <h2>Equipe & Operadores de Caixa</h2>
+                <p className="muted">
+                  Cadastre e gerencie operadores para registrar vendas e abrir turnos de caixa no balcão.
+                </p>
               </div>
-              <button className="primary" type="submit" disabled={processing} style={{ marginTop: '16px' }}>
-                {processing ? 'Salvando...' : 'Salvar Operador'}
+              <button
+                type="button"
+                className="primary"
+                onClick={() => setShowNewOperator(!showNewOperator)}
+              >
+                {showNewOperator ? 'Cancelar' : '＋ Novo Operador'}
               </button>
-            </form>
-          )}
+            </div>
 
-          {/* Tabela de Operadores */}
-          <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
-              <thead>
-                <tr style={{ background: '#f8fafc', borderBottom: '1px solid var(--pdv-line)' }}>
-                  <th style={{ padding: '12px 16px' }}>Usuário</th>
-                  <th style={{ padding: '12px 16px' }}>Função</th>
-                  <th style={{ padding: '12px 16px' }}>Status</th>
-                  <th style={{ padding: '12px 16px' }}>Cadastrado em</th>
-                </tr>
-              </thead>
-              <tbody>
-                {operators.length === 0 ? (
-                  <tr>
-                    <td colSpan={4} style={{ padding: '24px', textAlign: 'center', color: 'var(--pdv-muted)' }}>
-                      Nenhum operador cadastrado ainda. Clique em &quot;＋ Novo Operador&quot; para adicionar funcionários ao caixa.
-                    </td>
-                  </tr>
-                ) : (
-                  operators.map((op) => (
-                    <tr key={op.username} style={{ borderBottom: '1px solid var(--pdv-line-soft)' }}>
-                      <td style={{ padding: '12px 16px', fontWeight: 'bold' }}>{op.username}</td>
-                      <td style={{ padding: '12px 16px' }}>
-                        <span className="stock-badge ok">Operador de Caixa</span>
-                      </td>
-                      <td style={{ padding: '12px 16px' }}>
-                        <span style={{ color: op.enabled ? '#059669' : '#dc2626', fontWeight: '600' }}>
-                          {op.enabled ? '● Ativo' : '● Inativo'}
-                        </span>
-                      </td>
-                      <td style={{ padding: '12px 16px', color: 'var(--pdv-muted)' }}>
-                        {new Date(op.createdAt).toLocaleDateString('pt-BR')}
-                      </td>
+            {/* Form Novo Operador */}
+            {showNewOperator && (
+              <form onSubmit={handleCreateOperator} className="card mg-narrow">
+                <h3>Cadastrar Novo Operador</h3>
+                <div className="mg-stack">
+                  <div>
+                    <label className="field-label" htmlFor="op-username">Usuário de Acesso</label>
+                    <input
+                      id="op-username"
+                      className="input"
+                      required
+                      value={newOpUsername}
+                      onChange={(e) => setNewOpUsername(e.target.value)}
+                      placeholder="Ex: joao.caixa ou maria"
+                    />
+                    <small className="mg-help">
+                      O usuário que o operador usará para entrar no PDV.
+                    </small>
+                  </div>
+                  <div>
+                    <label className="field-label" htmlFor="op-password">Senha de Acesso</label>
+                    <input
+                      id="op-password"
+                      className="input"
+                      type="password"
+                      required
+                      minLength={6}
+                      value={newOpPassword}
+                      onChange={(e) => setNewOpPassword(e.target.value)}
+                      placeholder="Mínimo 6 caracteres"
+                    />
+                  </div>
+                </div>
+                <button className="primary mg-form-submit" type="submit" disabled={processing}>
+                  {processing ? 'Salvando...' : 'Salvar Operador'}
+                </button>
+              </form>
+            )}
+
+            {/* Tabela de Operadores */}
+            <div className="card mg-card-flush">
+              <div className="mg-table-wrap">
+                <table className="mg-table">
+                  <thead>
+                    <tr>
+                      <th scope="col">Usuário</th>
+                      <th scope="col">Função</th>
+                      <th scope="col">Status</th>
+                      <th scope="col">Cadastrado em</th>
                     </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
+                  </thead>
+                  <tbody>
+                    {operators.length === 0 ? (
+                      <tr>
+                        <td colSpan={4} className="mg-empty-cell">
+                          Nenhum operador cadastrado ainda. Clique em &quot;＋ Novo Operador&quot; para adicionar funcionários ao caixa.
+                        </td>
+                      </tr>
+                    ) : (
+                      operators.map((op) => (
+                        <tr key={op.username}>
+                          <td><strong>{op.username}</strong></td>
+                          <td>
+                            <span className="mg-pill">Operador de Caixa</span>
+                          </td>
+                          <td>
+                            <span className={`mg-status ${op.enabled ? 'on' : 'off'}`}>
+                              {op.enabled ? '● Ativo' : '● Inativo'}
+                            </span>
+                          </td>
+                          <td className="muted num">
+                            {new Date(op.createdAt).toLocaleDateString('pt-BR')}
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </section>
+        )}
+
+        {/* MODAL DE SANGRIA E SUPRIMENTO DE CAIXA */}
+        {isCashOpModalOpen && (
+          <div className="mg-backdrop">
+            <form
+              onSubmit={handleCashOperation}
+              className="mg-dialog"
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="cash-op-title"
+            >
+              <div className="mg-dialog-head">
+                <div>
+                  <span className="mg-meta">Gestão de Caixa</span>
+                  <h2 id="cash-op-title">{cashOpType === 'WITHDRAWAL' ? 'Registrar Sangria' : 'Registrar Suprimento'}</h2>
+                </div>
+                <button type="button" className="mg-dialog-close" aria-label="Fechar" onClick={closeCashOpModal}>
+                  ×
+                </button>
+              </div>
+              <p className="muted">
+                {cashOpType === 'WITHDRAWAL'
+                  ? 'Retirada de dinheiro da gaveta para cofre ou pagamentos.'
+                  : 'Aporte de dinheiro na gaveta para troco ou moedas.'}
+              </p>
+
+              <div className="mg-segmented" role="group" aria-label="Tipo de operação">
+                <button
+                  type="button"
+                  className="mg-segment"
+                  aria-pressed={cashOpType === 'WITHDRAWAL'}
+                  onClick={() => setCashOpType('WITHDRAWAL')}
+                >
+                  Sangria (Saída)
+                </button>
+                <button
+                  type="button"
+                  className="mg-segment"
+                  aria-pressed={cashOpType === 'DEPOSIT'}
+                  onClick={() => setCashOpType('DEPOSIT')}
+                >
+                  Suprimento (Entrada)
+                </button>
+              </div>
+
+              <div>
+                <label className="field-label" htmlFor="gestao-cash-amount">Valor (R$)</label>
+                <input
+                  id="gestao-cash-amount"
+                  className="input mg-amount num"
+                  type="number"
+                  step="0.01"
+                  min="0.01"
+                  required
+                  autoFocus
+                  value={cashOpAmount}
+                  onChange={(e) => setCashOpAmount(e.target.value)}
+                  placeholder="0.00"
+                />
+              </div>
+
+              <div>
+                <label className="field-label" htmlFor="gestao-cash-reason">Motivo (mínimo 3 caracteres)</label>
+                <input
+                  id="gestao-cash-reason"
+                  className="input"
+                  required
+                  value={cashOpReason}
+                  onChange={(e) => setCashOpReason(e.target.value)}
+                  placeholder={cashOpType === 'WITHDRAWAL' ? 'Ex: Pagamento fornecedor pão' : 'Ex: Troco de moedas'}
+                />
+              </div>
+
+              <div className="mg-dialog-actions">
+                <button className="soft" type="button" onClick={closeCashOpModal}>
+                  Cancelar
+                </button>
+                <button
+                  className="primary"
+                  type="submit"
+                  disabled={processing || !cashOpAmount || cashOpReason.trim().length < 3}
+                >
+                  {processing ? 'Processando...' : cashOpType === 'WITHDRAWAL' ? 'Confirmar Sangria' : 'Confirmar Suprimento'}
+                </button>
+              </div>
+            </form>
           </div>
-        </section>
-      )}
+        )}
 
-      {/* MODAL DE SANGRIA E SUPRIMENTO DE CAIXA */}
-      {isCashOpModalOpen && (
-        <div className="dialog-backdrop">
-          <form onSubmit={handleCashOperation} className="dialog-card" style={{ maxWidth: '420px' }}>
-            <span className="eyebrow">Gestão de Caixa</span>
-            <h2>{cashOpType === 'WITHDRAWAL' ? 'Registrar Sangria' : 'Registrar Suprimento'}</h2>
-            <p className="muted">
-              {cashOpType === 'WITHDRAWAL'
-                ? 'Retirada de dinheiro da gaveta para cofre ou pagamentos.'
-                : 'Aporte de dinheiro na gaveta para troco ou moedas.'}
-            </p>
+        {/* MODAL DE CANCELAMENTO DE VENDA COM PIN DA PROPRIETÁRIA */}
+        {isCancelSaleModalOpen && (
+          <div className="mg-backdrop">
+            <form
+              onSubmit={handleCancelSale}
+              className="mg-dialog"
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="cancel-sale-title"
+            >
+              <div className="mg-dialog-head">
+                <div>
+                  <span className="mg-meta mg-meta-danger">Segurança & Auditoria</span>
+                  <h2 id="cancel-sale-title">Cancelar Venda</h2>
+                </div>
+                <button type="button" className="mg-dialog-close" aria-label="Fechar" onClick={closeCancelSaleModal}>
+                  ×
+                </button>
+              </div>
+              <p className="muted">
+                O cancelamento de venda devolve integralmente os itens ao estoque, estorna o valor em dinheiro do caixa e anula o fiado (se houver).
+              </p>
 
-            <div style={{ display: 'flex', gap: '8px', marginBottom: '8px' }}>
-              <button
-                type="button"
-                className={cashOpType === 'WITHDRAWAL' ? 'primary' : 'soft'}
-                style={{ flex: 1, padding: '8px' }}
-                onClick={() => setCashOpType('WITHDRAWAL')}
-              >
-                Sangria (Saída)
-              </button>
-              <button
-                type="button"
-                className={cashOpType === 'DEPOSIT' ? 'primary' : 'soft'}
-                style={{ flex: 1, padding: '8px' }}
-                onClick={() => setCashOpType('DEPOSIT')}
-              >
-                Suprimento (Entrada)
-              </button>
-            </div>
+              <div>
+                <label className="field-label" htmlFor="cancel-sale-id">ID ou Código da Venda (UUID)</label>
+                <input
+                  id="cancel-sale-id"
+                  className="input num"
+                  required
+                  autoFocus
+                  value={cancelSaleId}
+                  onChange={(e) => setCancelSaleId(e.target.value)}
+                  placeholder="Ex: 550e8400-e29b-41d4-a716-446655440000"
+                />
+              </div>
 
-            <div>
-              <label className="eyebrow" htmlFor="gestao-cash-amount">Valor (R$)</label>
-              <input
-                id="gestao-cash-amount"
-                className="barcode-row mono"
-                style={{ width: '100%', fontSize: '20px', fontWeight: 'bold' }}
-                type="number"
-                step="0.01"
-                min="0.01"
-                required
-                autoFocus
-                value={cashOpAmount}
-                onChange={(e) => setCashOpAmount(e.target.value)}
-                placeholder="0.00"
-              />
-            </div>
+              <div>
+                <label className="field-label" htmlFor="cancel-owner-pin">PIN da Proprietária (6 dígitos)</label>
+                <input
+                  id="cancel-owner-pin"
+                  className="input mg-pin num"
+                  type="password"
+                  inputMode="numeric"
+                  maxLength={6}
+                  required
+                  value={cancelOwnerPin}
+                  onChange={(e) => setCancelOwnerPin(e.target.value)}
+                  placeholder="••••••"
+                />
+              </div>
 
-            <div>
-              <label className="eyebrow" htmlFor="gestao-cash-reason">Motivo (mínimo 3 caracteres)</label>
-              <input
-                id="gestao-cash-reason"
-                className="barcode-row"
-                style={{ width: '100%' }}
-                required
-                value={cashOpReason}
-                onChange={(e) => setCashOpReason(e.target.value)}
-                placeholder={cashOpType === 'WITHDRAWAL' ? 'Ex: Pagamento fornecedor pão' : 'Ex: Troco de moedas'}
-              />
-            </div>
+              <div>
+                <label className="field-label" htmlFor="cancel-reason">Motivo Obrigatório do Cancelamento</label>
+                <input
+                  id="cancel-reason"
+                  className="input"
+                  required
+                  value={cancelReason}
+                  onChange={(e) => setCancelReason(e.target.value)}
+                  placeholder="Ex: Cliente desistiu da compra / erro no registro"
+                />
+              </div>
 
-            <div className="dialog-actions">
-              <button
-                className="soft"
-                type="button"
-                onClick={() => {
-                  setIsCashOpModalOpen(false);
-                  setCashOpAmount('');
-                  setCashOpReason('');
-                }}
-              >
-                Cancelar
-              </button>
-              <button
-                className="primary"
-                type="submit"
-                disabled={processing || !cashOpAmount || cashOpReason.trim().length < 3}
-              >
-                {processing ? 'Processando...' : cashOpType === 'WITHDRAWAL' ? 'Confirmar Sangria' : 'Confirmar Suprimento'}
-              </button>
-            </div>
-          </form>
-        </div>
-      )}
-
-      {/* MODAL DE CANCELAMENTO DE VENDA COM PIN DA PROPRIETÁRIA */}
-      {isCancelSaleModalOpen && (
-        <div className="dialog-backdrop">
-          <form onSubmit={handleCancelSale} className="dialog-card" style={{ maxWidth: '440px' }}>
-            <span className="eyebrow" style={{ color: '#ad2819' }}>Segurança & Auditoria</span>
-            <h2>Cancelar Venda</h2>
-            <p className="muted">
-              O cancelamento de venda devolve integralmente os itens ao estoque, estorna o valor em dinheiro do caixa e anula o fiado (se houver).
-            </p>
-
-            <div>
-              <label className="eyebrow" htmlFor="cancel-sale-id">ID ou Código da Venda (UUID)</label>
-              <input
-                id="cancel-sale-id"
-                className="barcode-row mono"
-                style={{ width: '100%' }}
-                required
-                autoFocus
-                value={cancelSaleId}
-                onChange={(e) => setCancelSaleId(e.target.value)}
-                placeholder="Ex: 550e8400-e29b-41d4-a716-446655440000"
-              />
-            </div>
-
-            <div>
-              <label className="eyebrow" htmlFor="cancel-owner-pin">PIN da Proprietária (6 dígitos)</label>
-              <input
-                id="cancel-owner-pin"
-                className="barcode-row mono"
-                style={{ width: '100%', fontSize: '20px', letterSpacing: '4px', textAlign: 'center' }}
-                type="password"
-                inputMode="numeric"
-                maxLength={6}
-                required
-                value={cancelOwnerPin}
-                onChange={(e) => setCancelOwnerPin(e.target.value)}
-                placeholder="••••••"
-              />
-            </div>
-
-            <div>
-              <label className="eyebrow" htmlFor="cancel-reason">Motivo Obrigatório do Cancelamento</label>
-              <input
-                id="cancel-reason"
-                className="barcode-row"
-                style={{ width: '100%' }}
-                required
-                value={cancelReason}
-                onChange={(e) => setCancelReason(e.target.value)}
-                placeholder="Ex: Cliente desistiu da compra / erro no registro"
-              />
-            </div>
-
-            <div className="dialog-actions">
-              <button
-                className="soft"
-                type="button"
-                onClick={() => {
-                  setIsCancelSaleModalOpen(false);
-                  setCancelSaleId('');
-                  setCancelOwnerPin('');
-                  setCancelReason('');
-                }}
-              >
-                Voltar
-              </button>
-              <button
-                className="primary"
-                type="submit"
-                style={{ background: '#ad2819' }}
-                disabled={
-                  processing ||
-                  !cancelSaleId.trim() ||
-                  !/^\d{6}$/.test(cancelOwnerPin.trim()) ||
-                  cancelReason.trim().length < 3
-                }
-              >
-                {processing ? 'Processando Cancelamento...' : 'Confirmar Cancelamento'}
-              </button>
-            </div>
-          </form>
-        </div>
-      )}
-    </div>
+              <div className="mg-dialog-actions">
+                <button className="soft" type="button" onClick={closeCancelSaleModal}>
+                  Voltar
+                </button>
+                <button
+                  className="primary mg-danger-solid"
+                  type="submit"
+                  disabled={
+                    processing ||
+                    !cancelSaleId.trim() ||
+                    !/^\d{6}$/.test(cancelOwnerPin.trim()) ||
+                    cancelReason.trim().length < 3
+                  }
+                >
+                  {processing ? 'Processando Cancelamento...' : 'Confirmar Cancelamento'}
+                </button>
+              </div>
+            </form>
+          </div>
+        )}
+      </main>
+    </>
   );
 }

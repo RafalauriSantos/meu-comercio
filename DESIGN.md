@@ -1,6 +1,6 @@
 ---
 name: Meu Comércio
-description: One blue family in a light and a dark theme, Inter for the app, flat cards on a tinted ground, and one dark "ink" block for the sale total, across the landing, login and sign up, the PDV and the management panel, for small-retail cash and fiado control.
+description: One blue family in a single light theme, Inter for the app, flat cards on a tinted ground, and one dark "ink" block for the sale total, across the landing, login and sign up, the PDV and the management panel, for small-retail cash and fiado control.
 colors:
   bg: "#f3f6fa"
   surface: "#ffffff"
@@ -26,31 +26,6 @@ colors:
   danger-soft: "#fde7e4"
   input: "#ffffff"
   overlay: "rgba(20, 40, 75, 0.55)"
-colors-dark:
-  bg: "#0c1220"
-  surface: "#151d2f"
-  surface-2: "#1e2940"
-  border: "#2a3852"
-  border-strong: "#3d4d6b"
-  text: "#e4ecf8"
-  muted: "#94a3bc"
-  primary: "#6aa2ff"
-  on-primary: "#0a1a38"
-  primary-soft: "rgba(106, 162, 255, 0.16)"
-  primary-text: "#9cc0ff"
-  header: "#0c1220"
-  on-header: "#e4ecf8"
-  muted-on-header: "#94a3bc"
-  header-line: "#2a3852"
-  ink: "#1e2940"
-  on-ink: "#e4ecf8"
-  muted-on-ink: "#94a3bc"
-  warn: "#f5b942"
-  warn-soft: "rgba(245, 185, 66, 0.14)"
-  danger: "#ff7a7a"
-  danger-soft: "rgba(255, 122, 122, 0.14)"
-  input: "#0f1727"
-  overlay: "rgba(0, 0, 0, 0.6)"
 typography:
   display:
     fontFamily: "Inter, system-ui, -apple-system, Segoe UI, Roboto, sans-serif"
@@ -161,7 +136,7 @@ Recorded from the code, which is the truth: tokens and shared primitives in `src
 A calm, flat, readable system for the person behind a small counter. One blue family carries every action and every selected state. Cards sit on a tinted ground without borders or shadows, text is large, and money is always set in tabular figures. The same tokens exist in a light and a dark theme, so the PDV can follow the system (a shop with the lights low at night) while the marketing and sign-in screens stay light.
 
 **Key Characteristics:**
-- Two themes, one blue family. Light is the default; dark follows the system.
+- One theme, one blue family: light only. The app ignores the dark mode of the system.
 - Flat tonal layering: `bg`, then `surface` cards, then `surface-2` for secondary fills. Structure comes from tone and hairlines, not from shadows.
 - One accent (`primary`) for primary buttons, selected states, focus, the active nav item and the brand mark.
 - One dark block, `ink`, reserved for the sale total in the PDV.
@@ -170,45 +145,42 @@ A calm, flat, readable system for the person behind a small counter. One blue fa
 
 ## Themes
 
-Defined in `globals.css`. The token names are the same in both themes; only the values change.
+Defined in `globals.css`. There is only the light theme; there is no dark theme.
 
 - **Light is the default** (`:root`, and `[data-theme='light']`). `color-scheme: light`.
-- **Dark follows the system.** Inside `@media (prefers-color-scheme: dark)` the dark values apply to `:root` unless the page opts out (next point). `color-scheme: dark`.
-- **`data-theme="light"` or `"dark"` forces one.** The attribute works on `<html>` and on any element: on any element it re-themes only that subtree (the dark block is `[data-theme='dark']`, the light one is `:root, [data-theme='light']`).
-- **A page that contains a `data-theme="light"` region stays light as a whole**, including the ground behind it: the system-dark rule is `:root:not([data-theme='light'])` (no `:has()`, so it works in every browser), and a later rule `:root:has([data-theme='light'])` puts `--bg`, `--text` and `color-scheme` back to light. In a browser without `:has()` only the margins behind the page stay dark; the light region itself is unaffected, because it redefines every token on its own element. `globals-tokens.test.ts` keeps the two dark token blocks identical and these light values equal to the light theme.
-- **Pinned to light** with `data-theme="light"` on their root element: the landing (`.landing`), sign in and sign up (`AuthShell`, `main.auth`) and the open-cash screen (`.auth-app` in `CashOpenScreen`).
-- **Follow the system:** the PDV (`/pdv`) and management (`/gestao`) screens, which set no `data-theme`.
+- **No dark theme.** The app does not use `prefers-color-scheme` and sets `color-scheme: light`, so every screen stays light whatever the system theme is.
+- `data-theme="light"` stays on the landing, sign in, sign up and open-cash roots; it changes nothing now and the PDV and management are light too.
 
 ## Colors
 
 All values are copied from `globals.css`. Components use `var(--token)` only; no screen hard-codes a color except the thermal print area (`#fff`/`#000`) and the receipt preview.
 
-| Token | Light | Dark | Used for |
-|---|---|---|---|
-| `bg` | `#f3f6fa` | `#0c1220` | page ground |
-| `surface` | `#ffffff` | `#151d2f` | cards, modals, outline buttons, auth card |
-| `surface-2` | `#eaf0f7` | `#1e2940` | soft button fill, hover on surfaces, limit bar track |
-| `border` | `#d6dfea` | `#2a3852` | hairlines: table rows, card heads, section rules |
-| `border-strong` | `#b9c6d6` | `#3d4d6b` | outline of buttons, inputs and choice buttons |
-| `text` | `#142033` | `#e4ecf8` | primary text |
-| `muted` | `#55647a` | `#94a3bc` | secondary text, hints, placeholders, table heads |
-| `primary` | `#2457c5` | `#6aa2ff` | primary button fill, focus ring, selection, active nav underline, selected-state border |
-| `on-primary` | `#ffffff` | `#0a1a38` | text on `primary` fills |
-| `primary-soft` | `#e6eefb` | `rgba(106, 162, 255, 0.16)` | `.notice` fill, selected choice fill, latest cart row |
-| `primary-text` | `#1b449c` | `#9cc0ff` | text on `primary-soft`, link-style buttons, confirmed state text |
-| `header` | `#ffffff` | `#0c1220` | app header and open-cash top bar background |
-| `on-header` | `#111b2e` | `#e4ecf8` | text in the header |
-| `muted-on-header` | `#5b6b82` | `#94a3bc` | inactive nav items, operator name |
-| `header-line` | `#e3e9f1` | `#2a3852` | header bottom border, `.ghost` border |
-| `ink` | `#14284b` | `#1e2940` | the PDV total block |
-| `on-ink` | `#ffffff` | `#e4ecf8` | text on `ink` |
-| `muted-on-ink` | `#a9bcd8` | `#94a3bc` | secondary text on `ink` |
-| `warn` | `#8a4b00` | `#f5b942` | offline bar, low stock, "Caixa fechado", over-count difference |
-| `warn-soft` | `#fff4e0` | `rgba(245, 185, 66, 0.14)` | fill behind `warn` text |
-| `danger` | `#b42318` | `#ff7a7a` | `.error`, invalid input border, debt, destructive actions |
-| `danger-soft` | `#fde7e4` | `rgba(255, 122, 122, 0.14)` | fill behind `danger` text |
-| `input` | `#ffffff` | `#0f1727` | text input fill |
-| `overlay` | `rgba(20, 40, 75, 0.55)` | `rgba(0, 0, 0, 0.6)` | modal backdrop |
+| Token | Value | Used for |
+|---|---|---|
+| `bg` | `#f3f6fa` | page ground |
+| `surface` | `#ffffff` | cards, modals, outline buttons, auth card |
+| `surface-2` | `#eaf0f7` | soft button fill, hover on surfaces, limit bar track |
+| `border` | `#d6dfea` | hairlines: table rows, card heads, section rules |
+| `border-strong` | `#b9c6d6` | outline of buttons, inputs and choice buttons |
+| `text` | `#142033` | primary text |
+| `muted` | `#55647a` | secondary text, hints, placeholders, table heads |
+| `primary` | `#2457c5` | primary button fill, focus ring, selection, active nav underline, selected-state border |
+| `on-primary` | `#ffffff` | text on `primary` fills |
+| `primary-soft` | `#e6eefb` | `.notice` fill, selected choice fill, latest cart row |
+| `primary-text` | `#1b449c` | text on `primary-soft`, link-style buttons, confirmed state text |
+| `header` | `#ffffff` | app header and open-cash top bar background |
+| `on-header` | `#111b2e` | text in the header |
+| `muted-on-header` | `#5b6b82` | inactive nav items, operator name |
+| `header-line` | `#e3e9f1` | header bottom border, `.ghost` border |
+| `ink` | `#14284b` | the PDV total block |
+| `on-ink` | `#ffffff` | text on `ink` |
+| `muted-on-ink` | `#a9bcd8` | secondary text on `ink` |
+| `warn` | `#8a4b00` | offline bar, low stock, "Caixa fechado", over-count difference |
+| `warn-soft` | `#fff4e0` | fill behind `warn` text |
+| `danger` | `#b42318` | `.error`, invalid input border, debt, destructive actions |
+| `danger-soft` | `#fde7e4` | fill behind `danger` text |
+| `input` | `#ffffff` | text input fill |
+| `overlay` | `rgba(20, 40, 75, 0.55)` | modal backdrop |
 
 Derived colors are made with `color-mix` from these tokens (primary hover is `primary` 86% with `ink`; soft hover is `surface-2` 82% with `border-strong`; the skeleton block is `border` 65% with `surface-2`), never with new hex values.
 
@@ -217,7 +189,7 @@ Derived colors are made with `color-mix` from these tokens (primary hover is `pr
 
 **The Selected State Rule.** A selected segment, payment choice or quick amount (`aria-pressed="true"`) is a 2px `primary` border on a `primary-soft` fill with `primary-text` text and weight 700. The padding is reduced by 1px so the 2px border does not change the size.
 
-**The Token Only Rule.** New CSS uses `var(--...)` for color, so both themes work without extra code.
+**The Token Only Rule.** New CSS uses `var(--...)` for color, so a color change happens in one place.
 
 ## Typography
 
@@ -334,8 +306,8 @@ App: the shared `AppHeader` (see Layout). Auth: the brand link to `/` and the fo
 ## Do's and Don'ts
 
 ### Do:
-- **Do** use only tokens for color, so both themes work.
-- **Do** keep the landing, sign in, sign up and open-cash screens on `data-theme="light"`, and let the PDV and management follow the system.
+- **Do** use only tokens for color, and add no dark theme.
+- **Do** keep the landing, sign in, sign up and open-cash screens light, like every other screen.
 - **Do** keep the app in Inter and the landing in the system font stack.
 - **Do** keep the app on the 44 / 22 / 16 / 14 px scale, and set money in tabular figures.
 - **Do** keep the `ink` block for the sale total only.

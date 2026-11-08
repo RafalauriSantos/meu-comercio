@@ -55,11 +55,9 @@ describe('LandingPage: header and hero', () => {
 
     expect(markup).toMatch(/<div class="landing" data-theme="light">/);
     expect(markup).not.toContain('data-theme="dark"');
-    // The light tokens must apply to any element that opts in, so a dark system theme does not
-    // reach the landing: they sit on <html> and on [data-theme='light'].
+    // The light tokens sit on <html> and on [data-theme='light'], and there is no dark theme at all.
     expect(globals).toMatch(/^:root,\n\[data-theme='light'\] \{/m);
-    // The dark tokens apply to any element that opts in, too.
-    expect(globals).toMatch(/^\[data-theme='dark'\] \{/m);
+    expect(globals).not.toContain('prefers-color-scheme: dark');
   });
 
   it('uses the brand mark and the wordmark in the nav', () => {

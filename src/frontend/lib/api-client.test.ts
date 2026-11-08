@@ -32,4 +32,36 @@ describe('apiRequest errors', () => {
 
     expect((error as ApiError).code).toBeUndefined();
   });
+
+  it('shows what the rate limit says, not a generic failure', async () => {
+    // The rate limit answers with an "error" field and no "message".
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(
+        new Response(
+          JSON.stringify({
+            error: 'Muitas requisições em curto intervalo. Aguarde alguns segundos antes de tentar novamente.',
+            retryAfter: 12,
+          }),
+          { status: 429 }
+        )
+      )
+    );
+
+    const error = await apiRequest('/api/setup/status').catch((e: unknown) => e);
+
+    expect((error as ApiError).status).toBe(429);
+    expect((error as ApiError).message).toBe(
+      'Muitas requisições em curto intervalo. Aguarde alguns segundos antes de tentar novamente.'
+    );
+  });
+
+  it('falls back to a generic message when the answer is not JSON', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response('boom', { status: 502 })));
+
+    const error = await apiRequest('/api/sales').catch((e: unknown) => e);
+
+    expect((error as ApiError).status).toBe(502);
+    expect((error as ApiError).message).toBe('Falha ao processar solicitação.');
+  });
 });

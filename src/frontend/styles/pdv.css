@@ -680,6 +680,8 @@
   }
 
   .pdv-scan-input {
+    /* In a column, flex: 1 would collapse the height to the text (22px) instead of keeping 56px. */
+    flex: none;
     height: 56px;
     font-size: 16px;
   }

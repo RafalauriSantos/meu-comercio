@@ -17,10 +17,10 @@ export function PdvSkeleton() {
           <div className="card">
             <Skeleton width={150} height={19} />
             <div className="pdv-scan-row" style={{ marginTop: 10 }}>
-              <Skeleton height={64} radius={12} style={{ flex: 1 }} />
-              <Skeleton width={131} height={64} radius={12} />
+              <span className="skeleton skeleton-pdv-scan-input" aria-hidden="true" />
+              <span className="skeleton skeleton-pdv-scan-button" aria-hidden="true" />
             </div>
-            <Skeleton width={260} height={17} style={{ marginTop: 12 }} />
+            <span className="skeleton pdv-hide-sm" aria-hidden="true" style={{ width: 260, height: 17, marginTop: 12 }} />
           </div>
 
           <div className="card pdv-cart">
@@ -28,20 +28,27 @@ export function PdvSkeleton() {
               <Skeleton width={157} height={27} />
               <Skeleton width={110} height={17} />
             </div>
-            {CART_ROWS.map((row) => (
-              <div key={row} className="skeleton-row skeleton-line">
-                <Skeleton width="38%" height={19} />
-                <Skeleton width={96} height={40} radius={10} />
-                <Skeleton width={70} height={19} style={{ marginLeft: 'auto' }} />
-              </div>
-            ))}
+            <div className="skeleton-row skeleton-line" style={{ paddingBlock: 15 }}>
+              <Skeleton width={60} height={14} />
+              <Skeleton width={28} height={14} style={{ marginLeft: 'auto' }} />
+              <Skeleton width={44} height={14} />
+            </div>
+            <div className="skeleton-pdv-cart-rows">
+              {CART_ROWS.map((row) => (
+                <div key={row} className="skeleton-row skeleton-line">
+                  <Skeleton width="38%" height={19} />
+                  <Skeleton width={96} height={40} radius={10} />
+                  <Skeleton width={70} height={19} style={{ marginLeft: 'auto' }} />
+                </div>
+              ))}
+            </div>
           </div>
         </section>
 
         <aside className="pdv-col pdv-side">
           <div className="pdv-total-card">
             <Skeleton tone="on-ink" width={110} height={16} />
-            <Skeleton tone="on-ink" width={190} height={44} style={{ marginTop: 12 }} />
+            <span className="skeleton skeleton-on-ink skeleton-pdv-total-value" aria-hidden="true" style={{ marginTop: 12 }} />
             <Skeleton tone="on-ink" width={120} height={14} style={{ marginTop: 10 }} />
             <Skeleton tone="on-ink" height={60} radius={12} style={{ marginTop: 16 }} />
             <Skeleton tone="on-ink" height={48} radius={12} style={{ marginTop: 10 }} />
@@ -51,7 +58,7 @@ export function PdvSkeleton() {
             <Skeleton width={150} height={19} style={{ marginBottom: 12 }} />
             <div className="pdv-quick-methods">
               {METHOD_BUTTONS.map((button) => (
-                <Skeleton key={button} height={60} radius={12} />
+                <span key={button} className="skeleton skeleton-pdv-method" aria-hidden="true" />
               ))}
             </div>
           </div>
@@ -59,7 +66,7 @@ export function PdvSkeleton() {
       </main>
 
       <footer className="pdv-status" aria-hidden="true">
-        <Skeleton width={220} height={17} />
+        <span className="skeleton pdv-hide-sm" aria-hidden="true" style={{ width: 220, height: 17 }} />
         <span className="pdv-status-actions">
           <Skeleton width={81} height={32} radius={8} />
           <Skeleton width={108} height={32} radius={8} />

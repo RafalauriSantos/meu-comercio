@@ -350,7 +350,7 @@ export default function LoginPage() {
             onChange={setSetupPassword}
             autoComplete="new-password"
             minLength={8}
-            placeholder="Mínimo de 8 caracteres"
+            placeholder="Mín. 8 caracteres"
           />
 
           <div>

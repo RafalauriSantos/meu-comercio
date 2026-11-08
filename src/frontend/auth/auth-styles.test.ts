@@ -28,6 +28,18 @@ describe('auth.css', () => {
     expect(css).toMatch(/\.auth-link::after\s*\{[^}]*inset:\s*-14px/);
   });
 
+  it('draws the show-password button as a borderless eye icon', () => {
+    const field = readFileSync(join(process.cwd(), 'src', 'frontend', 'auth', 'password-field.tsx'), 'utf8');
+
+    expect(css).toMatch(/\.auth-toggle\s*\{[^}]*background:\s*transparent/);
+    expect(css).toMatch(/\.auth-toggle\s*\{[^}]*width:\s*40px/);
+    expect(css).not.toMatch(/\.auth-toggle\s*\{[^}]*border:/);
+    // An icon-only button keeps its accessible name and shows no text.
+    expect(field).toContain("aria-label={visible ? 'Ocultar senha' : 'Mostrar senha'}");
+    expect(field).toContain('<svg');
+    expect(field).not.toMatch(/>\s*Mostrar\s*</);
+  });
+
   it('is a single centered card, top aligned, with no two-column layout or old tabs', () => {
     expect(css).toMatch(/\.auth-card\s*\{[^}]*max-width:\s*420px/);
     expect(css).toMatch(/\.auth-card-wide\s*\{[^}]*max-width:\s*540px/);

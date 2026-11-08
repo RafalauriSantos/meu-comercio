@@ -70,7 +70,8 @@ html:has(.auth, .auth-app) {
 }
 
 .auth-input-with-action {
-  padding-right: 84px;
+  /* Room for the 40px eye button and its 8px margin. */
+  padding-right: 56px;
 }
 
 /* Two fields side by side, as in the design (one column on a phone). */
@@ -92,18 +93,18 @@ html:has(.auth, .auth-app) {
   position: absolute;
   top: 8px;
   right: 8px;
+  display: grid;
+  place-items: center;
+  width: 40px;
   height: 40px;
-  padding: 0 12px;
-  border: 1px solid var(--border-strong);
   border-radius: 8px;
-  background: var(--surface);
-  color: var(--text);
-  font-size: 14px;
-  font-weight: 600;
+  background: transparent;
+  color: var(--muted);
 }
 
 .auth-toggle:hover {
   background: var(--surface-2);
+  color: var(--text);
 }
 
 /* The button is drawn 40px high, as designed; its touch area reaches 44px. */

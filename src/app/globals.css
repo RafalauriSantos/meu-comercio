@@ -458,7 +458,7 @@ a:focus-visible {
 }
 
 .skeleton::after {
-  content: ;
+  content: '';
   position: absolute;
   inset: 0;
   background-image: linear-gradient(
@@ -507,6 +507,26 @@ a:focus-visible {
   align-items: center;
   gap: 28px;
   padding: 0 18px;
+}
+
+/* A management indicator value: 44px of text in a 53px line on a desktop, 32px in a 39px line on a phone. */
+.skeleton-kpi-value {
+  width: 90px;
+  height: 44px;
+  margin: 4px 0 9px;
+  border-radius: 8px;
+}
+
+@media (max-width: 600px) {
+  .app-nav-skeleton {
+    gap: 20px;
+    padding: 0 10px;
+  }
+
+  .skeleton-kpi-value {
+    height: 32px;
+    margin-bottom: 7px;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {

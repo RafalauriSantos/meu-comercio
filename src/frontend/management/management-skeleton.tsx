@@ -21,14 +21,14 @@ export function ManagementSkeleton() {
         <div className="mg-titlebar" aria-hidden="true">
           <div>
             <Skeleton width={300} height={26} />
-            <Skeleton width={160} height={17} style={{ marginTop: 6 }} />
+            <Skeleton width={160} height={17} style={{ marginTop: 5 }} />
           </div>
           <Skeleton width={164} height={48} radius={12} />
         </div>
 
         <div className="mg-tabs" aria-hidden="true">
           {TABS.map((tab) => (
-            <Skeleton key={tab} height={44} radius={12} style={{ flex: '1 1 150px', maxWidth: 241 }} />
+            <Skeleton key={tab} height={44} radius={12} style={{ flex: '1 1 190px', maxWidth: 241 }} />
           ))}
         </div>
 
@@ -37,7 +37,7 @@ export function ManagementSkeleton() {
             {KPIS.map((kpi) => (
               <div key={kpi} className="mg-kpi">
                 <Skeleton width={140} height={17} />
-                <Skeleton width={90} height={44} style={{ marginTop: 8 }} />
+                <span className="skeleton skeleton-kpi-value" aria-hidden="true" />
               </div>
             ))}
           </div>

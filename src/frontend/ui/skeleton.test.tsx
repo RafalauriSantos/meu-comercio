@@ -107,6 +107,10 @@ describe('skeleton styles', () => {
     expect(css).toMatch(/@media \(prefers-reduced-motion: reduce\)\s*\{\s*\.skeleton::after\s*\{\s*animation:\s*none/);
   });
 
+  it('generates the highlight element: a pseudo-element without content is never drawn', () => {
+    expect(css).toMatch(/\.skeleton::after\s*\{\s*content:\s*'';/);
+  });
+
   it('moves the highlight with transform, which does not repaint the block every frame', () => {
     const keyframes = css.match(/@keyframes skeleton-shimmer\s*\{[^@]*?\n\}/)?.[0] ?? '';
 

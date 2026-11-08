@@ -272,7 +272,7 @@ The **payment modal** is a `surface` dialog up to **600px** wide, 20px radius, w
 
 ## Elevation & Depth
 
-Flat. Cards (`.card`, 16px radius, 20px padding), the auth card (20px) and KPI cards have no border and no shadow; they are separated from `bg` by tone alone. Hairlines (`border`) separate rows and card heads. The only shadow in the app is the PDV modal (`0 24px 60px` of `ink` at 40%), plus the dim `overlay` backdrop. The PDV Fiado menu list is a bordered `surface` popover without a shadow.
+Flat. Cards (`.card`, 16px radius, 20px padding), the auth card (20px) and KPI cards have no border and no shadow; they are separated from `bg` by tone alone. Hairlines (`border`) separate rows and card heads. The only drop shadow in the app is the PDV modal (`0 24px 60px` of `ink` at 40%), plus the dim `overlay` backdrop. The 4px bar on the left of the latest cart row is an `inset` marker in `primary`, not a shadow. The PDV Fiado menu list is a bordered `surface` popover without a shadow.
 
 ## Shapes
 

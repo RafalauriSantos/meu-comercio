@@ -10,8 +10,8 @@ export function AppHeaderSkeleton() {
         Meu Comércio
       </span>
       <div className="app-nav app-nav-skeleton">
+        <Skeleton width={44} height={16} />
         <Skeleton width={52} height={16} />
-        <Skeleton width={64} height={16} />
       </div>
       <div className="app-userbox">
         <Skeleton width={110} height={14} />

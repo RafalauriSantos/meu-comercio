@@ -129,11 +129,6 @@
   color: var(--muted);
 }
 
-.pdv-last {
-  margin-top: 8px;
-  font-size: 14px;
-}
-
 /* Itens da venda */
 
 .pdv-cart {
@@ -235,8 +230,9 @@
 }
 
 .pdv-qbtn {
-  width: 44px;
-  height: 44px;
+  position: relative;
+  width: 40px;
+  height: 40px;
   border: 1px solid var(--border-strong);
   border-radius: 10px;
   background: var(--surface);
@@ -380,8 +376,9 @@
 }
 
 .pdv-app .pdv-small {
-  min-height: 44px;
-  padding: 0 14px;
+  position: relative;
+  min-height: 32px;
+  padding: 0 12px;
   border-radius: 8px;
   font-size: 14px;
 }
@@ -424,14 +421,21 @@
 }
 
 .pdv-close {
-  width: 44px;
-  height: 44px;
+  position: relative;
+  width: 40px;
+  height: 40px;
   border: 1px solid var(--border-strong);
   border-radius: 10px;
   background: var(--surface);
   color: var(--text);
   font-size: 16px;
   font-weight: 600;
+}
+
+.pdv-close::after {
+  content: '';
+  position: absolute;
+  inset: -2px;
 }
 
 .pdv-close:hover:not(:disabled) {
@@ -795,4 +799,18 @@
   .no-print {
     display: none !important;
   }
+}
+
+/* The quantity and footer buttons are drawn at the designed size (40px and 32px); their touch
+   area reaches 44px. */
+.pdv-qbtn::after {
+  content: '';
+  position: absolute;
+  inset: -2px;
+}
+
+.pdv-app .pdv-small::after {
+  content: '';
+  position: absolute;
+  inset: -6px;
 }

@@ -114,8 +114,10 @@ export function LandingPage() {
       </main>
 
       <footer className="landing-footer">
-        <span className="landing-wordmark">{brand}</span>
-        <span>{footer}</span>
+        <div className="landing-wrap landing-footer-inner">
+          <strong>{brand}</strong>
+          <span>{footer}</span>
+        </div>
       </footer>
     </div>
   );

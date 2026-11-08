@@ -149,7 +149,8 @@ describe('LandingPage: the rest of the page', () => {
     expect(css).not.toMatch(/\b(?:rgb|rgba|hsl|hsla)\(/);
     expect(css).not.toContain('--font-display');
     expect(css).not.toContain('--font-geist-sans');
-    expect(css).toContain('var(--font-sans)');
+    // The design sets the landing in the system font, unlike the app screens (Inter).
+    expect(css).toMatch(/font-family:\s*system-ui/);
     expect(css).toContain('var(--primary)');
     expect(css).not.toMatch(/^\s*--[\w-]+\s*:/m);
   });

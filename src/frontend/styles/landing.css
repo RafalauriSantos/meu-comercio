@@ -4,7 +4,8 @@
   flex: 1;
   background: var(--bg);
   color: var(--text);
-  font-family: var(--font-sans);
+  /* The design sets the landing in the system font, unlike the app screens (Inter). */
+  font-family: system-ui, -apple-system, 'Segoe UI', sans-serif;
   font-size: 16px;
   line-height: 1.5;
 }
@@ -39,6 +40,8 @@
   display: inline-flex;
   align-items: center;
   min-height: 44px;
+  /* A 44px touch target that takes only the 24px of line the design gives the link. */
+  margin: -10px 0;
   padding: 0 4px;
   font-size: 16px;
   color: var(--text);

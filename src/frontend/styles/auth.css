@@ -18,7 +18,7 @@ html:has(.auth, .auth-app) {
   flex-direction: column;
   align-items: center;
   gap: 24px;
-  padding: clamp(24px, 8vh, 72px) 16px 40px;
+  padding: 40px 16px;
   background: var(--bg);
   color: var(--text);
 }
@@ -27,7 +27,6 @@ html:has(.auth, .auth-app) {
   display: inline-flex;
   align-items: center;
   gap: 10px;
-  min-height: 44px;
   font-size: 22px;
   font-weight: 700;
   color: var(--text);
@@ -53,7 +52,6 @@ html:has(.auth, .auth-app) {
   margin-bottom: 4px;
   font-size: 22px;
   font-weight: 700;
-  line-height: 1.25;
 }
 
 .auth-subtitle {
@@ -72,7 +70,18 @@ html:has(.auth, .auth-app) {
 }
 
 .auth-input-with-action {
-  padding-right: 96px;
+  padding-right: 84px;
+}
+
+/* Two fields side by side, as in the design (one column on a phone). */
+.auth-grid-2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+
+.auth-grid-2 > * {
+  min-width: 0;
 }
 
 .input[aria-invalid='true'] {
@@ -81,10 +90,9 @@ html:has(.auth, .auth-app) {
 
 .auth-toggle {
   position: absolute;
-  top: 6px;
-  right: 6px;
-  min-height: 44px;
-  min-width: 76px;
+  top: 8px;
+  right: 8px;
+  height: 40px;
   padding: 0 12px;
   border: 1px solid var(--border-strong);
   border-radius: 8px;
@@ -96,6 +104,13 @@ html:has(.auth, .auth-app) {
 
 .auth-toggle:hover {
   background: var(--surface-2);
+}
+
+/* The button is drawn 40px high, as designed; its touch area reaches 44px. */
+.auth-toggle::after {
+  content: '';
+  position: absolute;
+  inset: -2px;
 }
 
 .auth-input-pin {
@@ -145,19 +160,28 @@ html:has(.auth, .auth-app) {
   flex-wrap: wrap;
   align-items: center;
   justify-content: center;
+  margin: 14px 0;
   text-align: center;
   font-size: 14px;
   color: var(--muted);
 }
 
-/* A link-style button: the app switches the form in place, it does not navigate. */
+/* A link-style button: the app switches the form in place, it does not navigate.
+   Drawn like text, as designed; its touch area is taller than the line. */
 .auth-link {
-  min-height: 44px;
-  padding: 0 8px;
+  position: relative;
+  padding: 0;
+  margin-left: 4px;
   background: transparent;
   color: var(--primary-text);
   font-size: 14px;
   font-weight: 600;
+}
+
+.auth-link::after {
+  content: '';
+  position: absolute;
+  inset: -14px -8px;
 }
 
 .auth-link:hover {
@@ -207,6 +231,12 @@ html:has(.auth, .auth-app) {
 .auth-header,
 .auth-form {
   animation: auth-enter 200ms ease-out both;
+}
+
+@media (max-width: 560px) {
+  .auth-grid-2 {
+    grid-template-columns: minmax(0, 1fr);
+  }
 }
 
 @media (max-width: 480px) {
@@ -271,7 +301,6 @@ html:has(.auth, .auth-app) {
   margin: 8px 0 4px;
   font-size: 44px;
   font-weight: 800;
-  line-height: 1.1;
   letter-spacing: -0.02em;
 }
 

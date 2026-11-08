@@ -18,11 +18,14 @@ describe('auth.css', () => {
     expect(css).toMatch(/@media \(prefers-reduced-motion: reduce\)[\s\S]*animation: none/);
   });
 
-  it('keeps every control at least 44 px tall', () => {
+  it('keeps every control at least 44 px to touch', () => {
     expect(css).toMatch(/\.auth-submit\s*\{[^}]*min-height:\s*56px/);
-    expect(css).toMatch(/\.auth-toggle\s*\{[^}]*min-height:\s*44px/);
-    expect(css).toMatch(/\.auth-link\s*\{[^}]*min-height:\s*44px/);
     expect(css).toMatch(/\.cash-quick button\s*\{[^}]*min-height:\s*48px/);
+    // The show-password button is drawn 40px high, as designed; its touch area reaches 44px.
+    expect(css).toMatch(/\.auth-toggle\s*\{[^}]*height:\s*40px/);
+    expect(css).toMatch(/\.auth-toggle::after\s*\{[^}]*inset:\s*-2px/);
+    // The footer link is drawn like a line of text, as designed; its touch area is taller than the line.
+    expect(css).toMatch(/\.auth-link::after\s*\{[^}]*inset:\s*-14px/);
   });
 
   it('is a single centered card, top aligned, with no two-column layout or old tabs', () => {

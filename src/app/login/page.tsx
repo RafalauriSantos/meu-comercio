@@ -302,65 +302,69 @@ export default function LoginPage() {
           />
         </div>
 
-        <div>
-          <label className="field-label" htmlFor="setup-merchant">
-            Nome da loja
-          </label>
-          <input
-            id="setup-merchant"
-            className="input"
-            type="text"
-            required
-            autoFocus
-            autoComplete="organization"
-            value={merchantName}
-            onChange={(e) => setMerchantName(e.target.value)}
-            placeholder="Ex.: Mercadinho da Maria"
-          />
+        <div className="auth-grid-2">
+          <div>
+            <label className="field-label" htmlFor="setup-merchant">
+              Nome da loja
+            </label>
+            <input
+              id="setup-merchant"
+              className="input"
+              type="text"
+              required
+              autoFocus
+              autoComplete="organization"
+              value={merchantName}
+              onChange={(e) => setMerchantName(e.target.value)}
+              placeholder="Ex.: Mercadinho da Maria"
+            />
+          </div>
+
+          <div>
+            <label className="field-label" htmlFor="setup-user">
+              Seu usuário
+            </label>
+            <input
+              id="setup-user"
+              className="input"
+              type="text"
+              required
+              autoComplete="username"
+              value={setupUsername}
+              onChange={(e) => setSetupUsername(e.target.value)}
+              placeholder="Ex.: maria"
+            />
+          </div>
         </div>
 
-        <div>
-          <label className="field-label" htmlFor="setup-user">
-            Seu usuário
-          </label>
-          <input
-            id="setup-user"
-            className="input"
-            type="text"
-            required
-            autoComplete="username"
-            value={setupUsername}
-            onChange={(e) => setSetupUsername(e.target.value)}
-            placeholder="Ex.: maria"
-          />
-        </div>
-
-        <PasswordField
-          id="setup-password"
-          label="Senha"
-          value={setupPassword}
-          onChange={setSetupPassword}
-          autoComplete="new-password"
-          minLength={8}
-          placeholder="Mínimo de 8 caracteres"
-        />
-
-        <div>
+        <div className="auth-grid-2">
           <PasswordField
-            id="setup-confirm"
-            label="Repita a senha"
-            value={setupConfirm}
-            onChange={setSetupConfirm}
+            id="setup-password"
+            label="Senha"
+            value={setupPassword}
+            onChange={setSetupPassword}
             autoComplete="new-password"
             minLength={8}
-            invalid={confirmMismatch}
-            describedBy={confirmMismatch ? 'setup-confirm-msg' : undefined}
+            placeholder="Mínimo de 8 caracteres"
           />
-          {confirmMismatch && (
-            <p className="auth-field-error" id="setup-confirm-msg">
-              As senhas não conferem.
-            </p>
-          )}
+
+          <div>
+            <PasswordField
+              id="setup-confirm"
+              label="Repita a senha"
+              value={setupConfirm}
+              onChange={setSetupConfirm}
+              autoComplete="new-password"
+              minLength={8}
+              invalid={confirmMismatch}
+              describedBy={confirmMismatch ? 'setup-confirm-msg' : undefined}
+            />
+            {confirmMismatch && (
+              <p className="auth-field-error" id="setup-confirm-msg">
+                As senhas não conferem.
+              </p>
+            )}
+          </div>
         </div>
 
         <PinField

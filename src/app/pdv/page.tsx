@@ -792,10 +792,9 @@ export default function PdvTerminalPage() {
               </button>
             </form>
             <p className="pdv-scan-hint pdv-hide-sm">
-              <kbd className="kbd">Enter</kbd> adiciona · <kbd className="kbd">F4</kbd> recebe ·{' '}
-              <kbd className="kbd">Esc</kbd> limpa a venda
+              Enter adiciona · F4 recebe · Esc limpa a venda
             </p>
-            <p className="pdv-last" aria-live="polite">
+            <p className="sr-only" aria-live="polite">
               {lastItem ? (
                 <>
                   <span className="muted">Último lido:</span> <strong>{lastItem.name}</strong>

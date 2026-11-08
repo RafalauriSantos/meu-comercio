@@ -113,7 +113,7 @@ body {
   background: var(--bg);
   font-family: var(--font-sans);
   font-size: 16px;
-  line-height: 1.5;
+  line-height: normal;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
@@ -263,14 +263,21 @@ a:focus-visible {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-height: 36px;
-  padding: 0 14px;
+  position: relative;
+  padding: 8px 14px;
   border: 1px solid var(--header-line);
   border-radius: 8px;
   background: transparent;
   color: var(--on-header);
   font-size: 14px;
   font-weight: 600;
+}
+
+/* Drawn 34px high, as designed; the touch area reaches 44px. */
+.ghost::after {
+  content: '';
+  position: absolute;
+  inset: -5px;
 }
 
 .ghost:hover:not(:disabled) {

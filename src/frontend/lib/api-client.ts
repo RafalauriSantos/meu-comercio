@@ -153,6 +153,7 @@ export async function apiRequest<T>(
     try {
       const data = await response.json();
       if (data.message) message = data.message;
+      else if (typeof data.error === 'string') message = data.error;
       if (data.errors) errors = data.errors;
       if (typeof data.code === 'string') code = data.code;
     } catch {

@@ -47,14 +47,17 @@ describe('LandingPage: header and hero', () => {
     expect(markup).toContain('Valores de exemplo, não são dados reais.');
   });
 
-  it('always opens in the dark theme, as designed, whatever the system theme is', () => {
+  it('always opens in the light theme, as designed, whatever the system theme is', () => {
     const markup = render();
     const globals = readFileSync(join(process.cwd(), 'src', 'app', 'globals.css'), 'utf8');
 
-    expect(markup).toMatch(/<div class="landing" data-theme="dark">/);
-    // The dark tokens must apply to any element that opts in, not only to <html>.
+    expect(markup).toMatch(/<div class="landing" data-theme="light">/);
+    expect(markup).not.toContain('data-theme="dark"');
+    // The light tokens must apply to any element that opts in, so a dark system theme does not
+    // reach the landing: they sit on <html> and on [data-theme='light'].
+    expect(globals).toMatch(/^:root,\n\[data-theme='light'\] \{/m);
+    // The dark tokens apply to any element that opts in, too.
     expect(globals).toMatch(/^\[data-theme='dark'\] \{/m);
-    expect(globals).not.toMatch(/^:root\[data-theme='dark'\]/m);
   });
 
   it('uses the brand mark and the wordmark in the nav', () => {

@@ -1,4 +1,4 @@
-/* Landing page. Colors and font come only from the global tokens (see globals.css). The page is always dark (data-theme="dark" on its root), as designed; the other screens follow the system. */
+/* Landing page. Colors and font come only from the global tokens (see globals.css). The page is always light (data-theme="light" on its root): the design opens the landing in the light theme; the other screens follow the system. */
 
 .landing {
   flex: 1;
@@ -41,7 +41,7 @@
   align-items: center;
   min-height: 44px;
   /* A 44px touch target that takes only the 24px of line the design gives the link. */
-  margin: -10px 0;
+  margin: -10px -4px -10px 0;
   padding: 0 4px;
   font-size: 16px;
   color: var(--text);
@@ -250,7 +250,7 @@
 }
 
 .landing-faq details {
-  padding: 4px 0;
+  padding: 16px 0;
   border-top: 1px solid var(--border);
 }
 
@@ -263,11 +263,18 @@
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  min-height: 48px;
+  position: relative;
   font-size: 16px;
   font-weight: 600;
   cursor: pointer;
   list-style: none;
+}
+
+/* The line is 24px high, as designed; the clickable row reaches 48px. */
+.landing-faq summary::before {
+  content: '';
+  position: absolute;
+  inset: -12px 0;
 }
 
 .landing-faq summary::-webkit-details-marker {
@@ -286,7 +293,7 @@
 }
 
 .landing-faq p {
-  margin: 0 0 12px;
+  margin: 10px 0 0;
   color: var(--muted);
 }
 
@@ -371,10 +378,6 @@
 
   .landing-section.landing-final h2 {
     font-size: 32px;
-  }
-
-  .landing-panel {
-    padding: 20px;
   }
 
   .landing-button {

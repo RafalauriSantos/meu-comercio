@@ -4,8 +4,9 @@
   botões, cartões, avisos, campos e cabeçalho do app. Cada tela só acrescenta o que é dela.
 */
 
-/* Tema claro (padrão) */
-:root {
+/* Tema claro (padrão). data-theme="light" em qualquer elemento deixa só aquele trecho claro (a landing usa isso). */
+:root,
+[data-theme='light'] {
   color-scheme: light;
   --bg: #f3f6fa;
   --surface: #ffffff;
@@ -34,7 +35,7 @@
   --font-sans: var(--font-inter), system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
 }
 
-/* Tema escuro: segue o sistema; data-theme="light" ou "dark" na tag <html> força um dos dois. data-theme="dark" em qualquer elemento deixa só aquele trecho escuro (a landing usa isso). */
+/* Tema escuro: segue o sistema; data-theme="light" ou "dark" na tag <html> força um dos dois. data-theme="dark" em qualquer elemento deixa só aquele trecho escuro. */
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme='light']) {
     color-scheme: dark;

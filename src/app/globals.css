@@ -327,6 +327,7 @@ a:focus-visible {
 }
 
 .input {
+  text-overflow: ellipsis;
   width: 100%;
   min-width: 0;
   height: 56px;

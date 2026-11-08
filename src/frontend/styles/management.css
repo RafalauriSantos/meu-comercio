@@ -215,6 +215,7 @@
 }
 
 .management-page .mg-search {
+  text-overflow: ellipsis;
   flex: 1 1 220px;
   max-width: 420px;
   height: 48px;

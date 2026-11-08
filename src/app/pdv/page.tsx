@@ -734,8 +734,10 @@ export default function PdvTerminalPage() {
     { value: 'PIX', label: 'Pix' },
     { value: 'DEBIT_CARD', label: 'Débito' },
     { value: 'CREDIT_CARD', label: 'Crédito' },
-    { value: 'TAB', label: 'Fiado' },
   ];
+
+  // Fiado is kept out of the main buttons: it is one click away through the "Vender no fiado" link.
+  const tabMethod: { value: CalcPaymentMethod; label: string } = { value: 'TAB', label: 'Fiado' };
 
   const secondMethods: { value: CalcPaymentMethod; label: string }[] = [
     { value: 'PIX', label: 'Pix' },
@@ -923,6 +925,14 @@ export default function PdvTerminalPage() {
                 </button>
               ))}
             </div>
+            <button
+              type="button"
+              className="pdv-fiado-link"
+              disabled={cart.length === 0}
+              onClick={() => startPayment('TAB')}
+            >
+              Vender no fiado
+            </button>
           </div>
         </aside>
       </main>
@@ -1011,7 +1021,7 @@ export default function PdvTerminalPage() {
               </div>
 
               <div role="group" aria-label="Forma de pagamento" className="pdv-choices">
-                {mainMethods.map((method) => (
+                {[...mainMethods, ...(paymentMethod === 'TAB' ? [tabMethod] : [])].map((method) => (
                   <button
                     key={method.value}
                     type="button"
@@ -1023,6 +1033,12 @@ export default function PdvTerminalPage() {
                   </button>
                 ))}
               </div>
+
+              {paymentMethod !== 'TAB' && (
+                <button type="button" className="pdv-fiado-link" onClick={() => selectMethod('TAB')}>
+                  Vender no fiado
+                </button>
+              )}
 
               {paymentMethod === 'TAB' && (
                 <div className="pdv-field">

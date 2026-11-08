@@ -329,10 +329,6 @@
   gap: 10px;
 }
 
-.pdv-quick-methods > :last-child:nth-child(odd) {
-  grid-column: 1 / -1;
-}
-
 .pdv-app .pdv-method-btn {
   min-height: 60px;
 }
@@ -493,7 +489,8 @@
 
 .pdv-choices {
   display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(0, 1fr);
   gap: 8px;
   margin-bottom: 20px;
 }
@@ -716,6 +713,7 @@
 
 @media (max-width: 480px) {
   .pdv-choices {
+    grid-auto-flow: row;
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
@@ -813,4 +811,35 @@
   content: '';
   position: absolute;
   inset: -6px;
+}
+
+/* Fiado is not a main button: a small link, one click from the payment card and from the modal. */
+.pdv-fiado-link {
+  position: relative;
+  align-self: flex-start;
+  margin-top: 14px;
+  padding: 0;
+  background: transparent;
+  color: var(--primary-text);
+  font-size: 14px;
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.pdv-fiado-link::after {
+  content: '';
+  position: absolute;
+  inset: -14px -8px;
+}
+
+.pdv-fiado-link:disabled {
+  color: var(--muted);
+  text-decoration: none;
+  cursor: not-allowed;
+}
+
+.pdv-modal-body .pdv-fiado-link {
+  display: block;
+  margin: -8px 0 20px;
 }

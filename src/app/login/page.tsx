@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { apiClient, AuthUser } from '@/frontend/lib/api-client';
+import { apiClient, ApiError, AuthUser } from '@/frontend/lib/api-client';
 import { getErrorMessage, parseCurrencyInput } from '@/frontend/lib/formatters';
 import { parseAuthMode } from '@/frontend/lib/auth-mode';
 import { destinationForSession } from '@/frontend/lib/session-destination';
@@ -74,7 +74,12 @@ export default function LoginPage() {
         }
       } catch (err) {
         console.error('Erro ao verificar status:', err);
-        setError('Não foi possível conectar ao servidor. Verifique sua conexão.');
+        // A rate limit answer is not a connection failure: say what happened.
+        setError(
+          err instanceof ApiError && err.status === 429
+            ? err.message
+            : 'Não foi possível conectar ao servidor. Verifique sua conexão.'
+        );
       } finally {
         setLoading(false);
       }

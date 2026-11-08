@@ -60,6 +60,11 @@ describe('login page composition', () => {
     expect(new Set(keys).size).toBe(keys.length);
   });
 
+  it('says it when the server asks to wait, instead of calling it a connection failure', () => {
+    expect(source).toContain('err instanceof ApiError && err.status === 429');
+    expect(source).toContain('Não foi possível conectar ao servidor');
+  });
+
   it('tells, before submitting, that the repeated password differs', () => {
     expect(source).toContain('As senhas não conferem.');
     expect(source).toContain('setup-confirm-msg');

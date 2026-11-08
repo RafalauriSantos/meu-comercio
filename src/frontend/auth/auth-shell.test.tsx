@@ -34,10 +34,8 @@ describe('AuthShell', () => {
     expect(markup).toContain('<main class="auth" data-theme="light">');
     // The open cash register screen belongs to the same flow.
     expect(cashOpen).toContain('className="auth-app" data-theme="light"');
-    // A dark system theme must not reach a page that has a light part, background included: a rule
-    // that puts the ground back to light for such a page (the dark rule itself needs no :has()).
-    expect(globals).toContain(":root:not([data-theme='light']) {");
-    expect(globals).toContain(":root:has([data-theme='light']) {");
+    // There is no dark theme to reach the page: the system dark mode is ignored.
+    expect(globals).not.toContain('prefers-color-scheme: dark');
   });
 
   it('has no brand panel, screenshot or claims list', () => {

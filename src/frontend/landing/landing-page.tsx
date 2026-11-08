@@ -1,19 +1,25 @@
 import Link from 'next/link';
+import { BrandMark } from '@/frontend/ui/brand-mark';
 import { LANDING_CONTENT } from './landing-content';
 
 const { brand, header, hero, losses, steps, safety, faq, finalCall, footer } = LANDING_CONTENT;
 
 export function LandingPage() {
   return (
-    <div className="landing">
-      <header className="landing-header">
-        <span className="landing-wordmark">{brand}</span>
-        <Link href={header.login.href} className="landing-header-link">
-          {header.login.label}
-        </Link>
-      </header>
+    <div className="landing" data-theme="light">
+      <div className="landing-wrap">
+        <nav className="landing-nav" aria-label="Principal">
+          <span className="landing-wordmark">
+            <BrandMark size={30} />
+            {brand}
+          </span>
+          <Link href={header.login.href} className="landing-header-link">
+            {header.login.label}
+          </Link>
+        </nav>
+      </div>
 
-      <main>
+      <main className="landing-wrap">
         <section className="landing-hero" aria-labelledby="landing-title">
           <div className="landing-hero-copy">
             <h1 id="landing-title">{hero.title}</h1>
@@ -29,20 +35,23 @@ export function LandingPage() {
             <p className="landing-note">{hero.note}</p>
           </div>
 
-          <figure className="landing-shot">
-            <div className="landing-shot-window">
-              {/* A fixed, already optimized WebP with explicit size: next/image adds nothing here. */}
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={hero.shot.src}
-                width={hero.shot.width}
-                height={hero.shot.height}
-                alt={hero.shot.alt}
-                decoding="async"
-              />
+          {/* A labelled example, not a screenshot and not real data. */}
+          <aside className="landing-panel" aria-label={hero.example.label}>
+            <div className="landing-panel-head">
+              <strong>{hero.example.title}</strong>
+              <span className="landing-badge">{hero.example.badge}</span>
             </div>
-            <figcaption>{hero.shot.caption}</figcaption>
-          </figure>
+            {hero.example.rows.map((row) => (
+              <div className="landing-panel-row" key={row.label}>
+                <span>{row.label}</span>
+                <strong>{row.value}</strong>
+              </div>
+            ))}
+            <div className="landing-panel-row">
+              <span>{hero.example.check.label}</span>
+              <span className="landing-panel-ok">{hero.example.check.value}</span>
+            </div>
+          </aside>
         </section>
 
         <section className="landing-section" aria-labelledby="landing-losses-title">
@@ -93,7 +102,7 @@ export function LandingPage() {
           </div>
         </section>
 
-        <section className="landing-final" aria-labelledby="landing-final-title">
+        <section className="landing-section landing-final" aria-labelledby="landing-final-title">
           <h2 id="landing-final-title">{finalCall.title}</h2>
           <p>{finalCall.text}</p>
           <Link href={hero.primary.href} className="landing-button landing-button-primary">
@@ -104,8 +113,10 @@ export function LandingPage() {
       </main>
 
       <footer className="landing-footer">
-        <span className="landing-wordmark">{brand}</span>
-        <span>{footer}</span>
+        <div className="landing-wrap landing-footer-inner">
+          <strong>{brand}</strong>
+          <span>{footer}</span>
+        </div>
       </footer>
     </div>
   );

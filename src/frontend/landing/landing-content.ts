@@ -17,12 +17,16 @@ export const LANDING_CONTENT = {
     primary: { label: 'Criar minha conta grátis', href: '/login?modo=cadastro' } satisfies LandingAction,
     secondary: { label: 'Já tenho conta', href: '/login' } satisfies LandingAction,
     note: 'Gratuito por enquanto.',
-    shot: {
-      src: '/landing/pdv-desktop.webp',
-      width: 1920,
-      height: 1140,
-      alt: 'Tela do PDV no computador: leitor de código de barras, lista de produtos com quantidades e totais, e o resumo da venda com o total a pagar.',
-      caption: 'Exemplo: a tela do PDV com produtos e valores de demonstração.',
+    // Labelled example only: these values are not real data and must never be shown without the "Exemplo" badge.
+    example: {
+      label: 'Exemplo de painel do caixa',
+      title: 'Caixa de hoje',
+      badge: 'Exemplo',
+      rows: [
+        { label: 'Fiado em aberto', value: 'R$ 1.240,00' },
+        { label: 'Dinheiro esperado no caixa', value: 'R$ 860,00' },
+      ],
+      check: { label: 'Conferência do caixa', value: '✓ confere' },
     },
   },
   losses: {

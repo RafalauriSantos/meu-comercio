@@ -1,7 +1,6 @@
 'use client';
 
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import {
   apiClient,
@@ -32,7 +31,16 @@ import {
   formatCreditNote,
 } from '@/frontend/lib/thermal-printer';
 import { createCheckoutKeyStore } from '@/frontend/lib/checkout-idempotency';
+import { PdvSkeleton } from '@/frontend/pdv/pdv-skeleton';
+import { blocksImplicitSubmit } from '@/frontend/pdv/enter-submit';
+import { createEscapeDismiss } from '@/frontend/lib/dismiss-on-escape';
 import { settleOfflineSale } from '@/frontend/lib/offline-sale-sender';
+import {
+  suggestCashAmounts,
+  centsToInputValue,
+  quickAmountLabel,
+} from '@/frontend/pdv/quick-amounts';
+import { AppHeader } from '@/frontend/ui/app-header';
 import '@/frontend/styles/pdv.css';
 
 interface CartLine {
@@ -76,6 +84,9 @@ export default function PdvTerminalPage() {
 
   // Checkout Modal
   const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
+  // Fiado stays behind the three-dots button until the operator opens it.
+  const [showMoreMethods, setShowMoreMethods] = useState(false);
+  const dotsButtonRef = useRef<HTMLButtonElement>(null);
   const [paymentMethod, setPaymentMethod] = useState<CalcPaymentMethod>('CASH');
   const [receivedCash, setReceivedCash] = useState('');
   const [isSplit, setIsSplit] = useState(false);
@@ -218,6 +229,26 @@ export default function PdvTerminalPage() {
     }
     init();
   }, [router]);
+
+  // The fiado menu closes on an outside click or on Escape. Escape is stopped here, so it does not
+  // also reach the global shortcut that clears the sale.
+  useEffect(() => {
+    if (!showMoreMethods) return;
+    function handleOutsideClick(event: MouseEvent) {
+      if (!(event.target as HTMLElement | null)?.closest('.pdv-menu')) setShowMoreMethods(false);
+    }
+    // Escape closes the menu and puts the focus back on the three-dots button.
+    const handleEscape = createEscapeDismiss(() => {
+      setShowMoreMethods(false);
+      dotsButtonRef.current?.focus();
+    });
+    document.addEventListener('mousedown', handleOutsideClick);
+    document.addEventListener('keydown', handleEscape, true);
+    return () => {
+      document.removeEventListener('mousedown', handleOutsideClick);
+      document.removeEventListener('keydown', handleEscape, true);
+    };
+  }, [showMoreMethods]);
 
   // Foco contínuo no leitor de código de barras
   useEffect(() => {
@@ -679,535 +710,530 @@ export default function PdvTerminalPage() {
   }
 
   if (loading) {
-    return (
-      <main className="pdv-page" style={{ alignItems: 'center', justifyContent: 'center' }}>
-        <div className="card" style={{ padding: '32px', textAlign: 'center' }}>
-          <h2>Iniciando Terminal PDV...</h2>
-        </div>
-      </main>
-    );
+    return <PdvSkeleton />;
   }
 
   const openedTimeString = cashSession?.openedAt
     ? new Date(cashSession.openedAt).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
     : '';
 
+  const itemsSummary = `${cart.length} ${cart.length === 1 ? 'item' : 'itens'} · ${totalItemUnits} ${
+    totalItemUnits === 1 ? 'unidade' : 'unidades'
+  }`;
+
+  // Valor da primeira forma de pagamento (o total inteiro, ou o restante quando a venda é dividida).
+  const cashDueCents = Math.round(Number(paymentInputs[0]?.amount.toDecimal() ?? '0') * 100);
+  const quickAmounts = suggestCashAmounts(cashDueCents);
+
+  async function handleLogout() {
+    await apiClient.logout();
+    router.push('/login');
+  }
+
+  function clearCartWithConfirmation() {
+    if (confirm('Limpar todos os produtos deste carrinho?')) {
+      resetCartAndCheckout();
+      setMessage({ text: 'Carrinho limpo.' });
+    }
+  }
+
+  function selectMethod(method: CalcPaymentMethod) {
+    setPaymentMethod(method);
+    if (method === 'TAB') setIsSplit(false);
+  }
+
+  function startPayment(method: CalcPaymentMethod) {
+    selectMethod(method);
+    setIsCheckoutOpen(true);
+  }
+
+  const mainMethods: { value: CalcPaymentMethod; label: string }[] = [
+    { value: 'CASH', label: 'Dinheiro' },
+    { value: 'PIX', label: 'Pix' },
+    { value: 'DEBIT_CARD', label: 'Débito' },
+    { value: 'CREDIT_CARD', label: 'Crédito' },
+  ];
+
+  // Fiado is kept out of the main buttons: it shows up behind the three-dots button.
+  const tabMethod: { value: CalcPaymentMethod; label: string } = { value: 'TAB', label: 'Fiado' };
+
+  const secondMethods: { value: CalcPaymentMethod; label: string }[] = [
+    { value: 'PIX', label: 'Pix' },
+    { value: 'DEBIT_CARD', label: 'Débito' },
+    { value: 'CREDIT_CARD', label: 'Crédito' },
+  ];
+
   return (
-    <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
-      {/* Topbar do PDV */}
-      <header className="topbar">
-        <Link href="/pdv" className="topbar-brand">
-          <span className="brand-mark small">b</span>
-          <b>Meu Comércio PDV</b>
-        </Link>
+    <div className="pdv-app">
+      <AppHeader
+        active="venda"
+        username={user?.username}
+        isOwner={user?.isOwner}
+        clock={clock}
+        onLogout={handleLogout}
+      />
 
-        <nav className="nav-tabs">
-          <Link href="/pdv" className="active">
-            Nova Venda (F2)
-          </Link>
-          <Link href="/gestao">
-            Painel de Gestão & Estoque
-          </Link>
-        </nav>
-
-        <div className="top-actions">
-          <span className="operator-info">
-            Op: <strong>{user?.username}</strong> {user?.isOwner && '(Dona)'}
-          </span>
-          <span className="clock mono">{clock}</span>
-          <button
-            className="ghost"
-            onClick={async () => {
-              await apiClient.logout();
-              router.push('/login');
-            }}
-          >
-            Sair
-          </button>
-        </div>
-      </header>
-
-      {/* Terminal de Balcão e Checkout */}
-      <main className="pdv-page">
-        {/* Banner de Feedback */}
+      <main className="pdv-main">
         {message && (
           <div className={message.isError ? 'error' : 'notice'} role="alert">
             <span>{message.text}</span>
-            <button className="soft" onClick={() => setMessage(null)}>
+            <button className="soft" type="button" onClick={() => setMessage(null)}>
               Fechar
             </button>
           </div>
         )}
 
-        <div className="pdv-grid">
-          {/* COLUNA ESQUERDA: Leitor e Status */}
-          <div className="pdv-left">
-            {/* Leitor Contínuo */}
-            <div className="card pdv-scan">
-              <label htmlFor="barcode-scanner" className="eyebrow">
-                Leitor de Código de Barras
-              </label>
-              <form onSubmit={handleBarcodeSubmit} className="barcode-row">
-                <input
-                  id="barcode-scanner"
-                  ref={barcodeInputRef}
-                  className="mono"
-                  type="text"
-                  autoFocus
-                  placeholder="Escaneie ou digite e aperte Enter"
-                  value={barcodeInput}
-                  onChange={(e) => setBarcodeInput(e.target.value)}
-                />
-                <button className="primary" type="submit">
-                  Adicionar Item
-                </button>
-              </form>
-              <p className="hint" style={{ marginTop: '8px' }}>
-                Atalhos: <kbd>Enter</kbd> Adicionar · <kbd>F4</kbd> Pagamento · <kbd>Esc</kbd> Limpar
-              </p>
-            </div>
+        {!isOnline && (
+          <div className="pdv-offline" role="status">
+            Sem conexão com a internet. Apenas vendas simples em dinheiro são aceitas; elas ficam salvas neste
+            terminal e sincronizam quando a conexão voltar.
+          </div>
+        )}
 
-            {/* Último Item Lido */}
-            <div className="card">
-              <span className="eyebrow">Último Item Lido</span>
+        <section className="pdv-col" aria-label="Venda atual">
+          <div className="card pdv-scan">
+            <label htmlFor="barcode-scanner" className="pdv-card-title">
+              Adicionar produto
+            </label>
+            <form onSubmit={handleBarcodeSubmit} className="pdv-scan-row">
+              <input
+                id="barcode-scanner"
+                ref={barcodeInputRef}
+                className="pdv-scan-input"
+                type="text"
+                autoFocus
+                autoComplete="off"
+                placeholder="Escaneie ou digite e aperte Enter"
+                value={barcodeInput}
+                onChange={(e) => setBarcodeInput(e.target.value)}
+              />
+              <button className="primary pdv-scan-submit" type="submit">
+                Adicionar
+              </button>
+            </form>
+            <p className="pdv-scan-hint pdv-hide-sm">
+              Enter adiciona · F4 recebe · Esc limpa a venda
+            </p>
+            <p className="sr-only" aria-live="polite">
               {lastItem ? (
-                <div>
-                  <span className="pdv-last-name">{lastItem.name}</span>
-                  <div className="pdv-last-meta">
-                    <small>Disponível: {lastItem.availableQuantity} un</small>
-                    <strong className="mono">{formatMoney(lastItem.salePrice)}</strong>
-                  </div>
-                </div>
+                <>
+                  <span className="muted">Último lido:</span> <strong>{lastItem.name}</strong>
+                  <span className="muted num">
+                    {' '}
+                    · {formatMoney(lastItem.salePrice)} · disponível: {lastItem.availableQuantity} un
+                  </span>
+                </>
               ) : (
-                <p className="muted" style={{ margin: '8px 0 0' }}>
-                  Nenhum produto escaneado ainda.
-                </p>
+                <span className="muted">Nenhum produto escaneado ainda.</span>
               )}
-            </div>
-
-            {/* Status da Operação */}
-            <div className="card pdv-status-card">
-              <span className="eyebrow">Status da Operação</span>
-              <div>
-                <span>Conexão</span>
-                <span className={`status-badge ${isOnline ? 'open' : 'offline'}`}>
-                  {isOnline ? '● Conectado Online' : '● Sem Internet (Modo Offline)'}
-                </span>
-              </div>
-              <div>
-                <span>Turno do Caixa</span>
-                <span className={`status-badge ${cashOpen ? 'open' : 'closed'}`}>
-                  {cashOpen ? `Aberto ${openedTimeString ? `(${openedTimeString})` : ''}` : 'Fechado'}
-                </span>
-              </div>
-              <div>
-                <span>Vendas Offline na Fila</span>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <strong className="mono">{offlineCount}</strong>
-                  {offlineCount > 0 && isOnline && (
-                    <button
-                      className="soft"
-                      style={{ padding: '2px 8px', fontSize: '12px' }}
-                      onClick={triggerOfflineSync}
-                      disabled={syncingOffline}
-                    >
-                      {syncingOffline ? 'Sincronizando...' : 'Sincronizar Agora'}
-                    </button>
-                  )}
-                </div>
-              </div>
-
-              <div style={{ display: 'flex', gap: '8px', marginTop: '10px' }}>
-                <button
-                  type="button"
-                  className="soft"
-                  style={{ flex: 1, padding: '6px 8px', fontSize: '12px' }}
-                  disabled={!cashOpen}
-                  onClick={() => {
-                    setCashOpType('WITHDRAWAL');
-                    setIsCashOpModalOpen(true);
-                  }}
-                >
-                  - Sangria
-                </button>
-                <button
-                  type="button"
-                  className="soft"
-                  style={{ flex: 1, padding: '6px 8px', fontSize: '12px' }}
-                  disabled={!cashOpen}
-                  onClick={() => {
-                    setCashOpType('DEPOSIT');
-                    setIsCashOpModalOpen(true);
-                  }}
-                >
-                  + Suprimento
-                </button>
-              </div>
-            </div>
-
-            <button
-              className="soft pdv-clear"
-              type="button"
-              disabled={cart.length === 0}
-              onClick={() => {
-                if (confirm('Limpar todos os produtos deste carrinho?')) {
-                  resetCartAndCheckout();
-                  setMessage({ text: 'Carrinho limpo.' });
-                }
-              }}
-            >
-              Limpar Carrinho (Esc)
-            </button>
+            </p>
           </div>
 
-          {/* COLUNA CENTRAL: Carrinho Dinâmico */}
-          <div className="card pdv-items">
-            <div className="pdv-items-head">
-              <span>#</span>
-              <span>Produto</span>
-              <span style={{ textAlign: 'center' }}>Qtd</span>
-              <span style={{ textAlign: 'right' }}>Total</span>
+          <div className="card pdv-cart">
+            <div className="pdv-cart-head">
+              <h2 className="pdv-title">Itens da venda</h2>
+              <span className="pdv-meta">{itemsSummary}</span>
             </div>
 
-            <div className="cart-items">
-              {cart.map((line, idx) => {
-                const isLatest = lastItem?.id === line.product.id;
-                const lineTotal = line.product.salePrice
-                  ? Money.fromDecimal(line.product.salePrice).multiply(line.quantity)
-                  : Money.zero();
+            <div className="pdv-table-wrap">
+              <table className="pdv-table">
+                <thead>
+                  <tr>
+                    <th scope="col">Produto</th>
+                    <th scope="col" className="pdv-center">
+                      Qtd
+                    </th>
+                    <th scope="col" className="pdv-right pdv-hide-sm">
+                      Preço
+                    </th>
+                    <th scope="col" className="pdv-right">
+                      Total
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {cart.map((line) => {
+                    const isLatest = lastItem?.id === line.product.id;
+                    const lineTotal = line.product.salePrice
+                      ? Money.fromDecimal(line.product.salePrice).multiply(line.quantity)
+                      : Money.zero();
 
-                return (
-                  <div key={line.product.id} className={`cart-item ${isLatest ? 'latest' : ''}`}>
-                    <span className="mono muted">{idx + 1}</span>
-                    <div className="cart-item-name">
-                      <b>{line.product.name}</b>
-                      <small className="mono">
-                        {line.quantity} × {formatMoney(line.product.salePrice)}
-                      </small>
-                    </div>
-                    <div className="cart-item-qty">
-                      <button
-                        className="soft"
-                        type="button"
-                        onClick={() => updateLineQuantity(line.product.id, -1)}
-                      >
-                        -
-                      </button>
-                      <span className="mono" style={{ fontWeight: 'bold' }}>
-                        {line.quantity}
-                      </span>
-                      <button
-                        className="soft"
-                        type="button"
-                        onClick={() => updateLineQuantity(line.product.id, 1)}
-                      >
-                        +
-                      </button>
-                    </div>
-                    <strong className="mono cart-item-total">{lineTotal.formatBrl()}</strong>
-                  </div>
-                );
-              })}
+                    return (
+                      <tr key={line.product.id} className={isLatest ? 'is-latest' : undefined}>
+                        <td className="pdv-product">
+                          {line.product.name}
+                          {isLatest && <span className="pdv-latest-tag pdv-hide-sm">último lido</span>}
+                          <span className="pdv-unit num">{formatMoney(line.product.salePrice)} cada</span>
+                        </td>
+                        <td className="pdv-center">
+                          <span className="pdv-qty">
+                            <button
+                              className="pdv-qbtn"
+                              type="button"
+                              aria-label={`Diminuir quantidade de ${line.product.name}`}
+                              onClick={() => updateLineQuantity(line.product.id, -1)}
+                            >
+                              −
+                            </button>
+                            <span className="pdv-qty-value num">{line.quantity}</span>
+                            <button
+                              className="pdv-qbtn"
+                              type="button"
+                              aria-label={`Aumentar quantidade de ${line.product.name}`}
+                              onClick={() => updateLineQuantity(line.product.id, 1)}
+                            >
+                              +
+                            </button>
+                          </span>
+                        </td>
+                        <td className="pdv-right pdv-hide-sm pdv-price num">{formatMoney(line.product.salePrice)}</td>
+                        <td className="pdv-right pdv-line-total num">{lineTotal.formatBrl()}</td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
 
               {cart.length === 0 && (
-                <div style={{ textAlign: 'center', padding: '60px 20px', color: 'var(--pdv-muted)' }}>
-                  <h3 style={{ margin: '0 0 6px', color: 'var(--pdv-ink)' }}>Carrinho Vazio</h3>
-                  <p>Escaneie ou digite o código de barras de um produto para iniciar a venda.</p>
+                <div className="pdv-empty">
+                  <p className="pdv-empty-title">Carrinho vazio</p>
+                  <p className="muted">Escaneie ou digite o código de barras de um produto para iniciar a venda.</p>
                 </div>
               )}
             </div>
-
-            <div className="pdv-items-foot">
-              <span>
-                {cart.length} {cart.length === 1 ? 'item' : 'itens'} ({totalItemUnits} unidades)
-              </span>
-              <span>Subtotal: <strong className="mono">{subtotalMoney.formatBrl()}</strong></span>
-            </div>
           </div>
+        </section>
 
-          {/* COLUNA DIREITA: Resumo e Checkout */}
-          <aside className="card pdv-checkout">
-            <div className="pdv-total">
-              <span className="eyebrow">Resumo da Venda</span>
-              <div className="summary-line">
-                <span>Itens no Carrinho</span>
-                <b className="mono">{totalItemUnits}</b>
-              </div>
-              <div className="total-line">
-                <span>Total a Pagar</span>
-                <strong className="mono">{totalMoney.formatBrl()}</strong>
-              </div>
-            </div>
-
+        <aside className="pdv-col pdv-side" aria-label="Pagamento">
+          <div className="pdv-total-card">
+            <div className="pdv-total-label">Total a pagar</div>
+            <div className="pdv-total-value num">{totalMoney.formatBrl()}</div>
+            <div className="pdv-total-meta">{itemsSummary}</div>
             <button
-              className="primary wide"
-              style={{ fontSize: '18px', padding: '16px' }}
+              className="primary pdv-pay"
+              type="button"
               disabled={cart.length === 0}
               onClick={() => setIsCheckoutOpen(true)}
             >
-              Ir para Pagamento (F4)
+              <span>Receber pagamento</span>
+              <kbd className="kbd">F4</kbd>
             </button>
+            <button
+              className="pdv-cancel"
+              type="button"
+              disabled={cart.length === 0}
+              onClick={clearCartWithConfirmation}
+            >
+              Cancelar venda · Esc
+            </button>
+          </div>
 
-            <div style={{ marginTop: 'auto', paddingTop: '16px', borderTop: '1px solid var(--pdv-line)' }}>
-              <Link href="/gestao" className="soft wide" style={{ display: 'block', textAlign: 'center', textDecoration: 'none' }}>
-                Gerenciar Caixa e Fiado
-              </Link>
-            </div>
-          </aside>
-        </div>
-
-        {/* Rodapé com Atalhos */}
-        <footer className="pdv-footer">
-          <span><kbd>Enter</kbd> Adicionar item</span>
-          <span><kbd>F4</kbd> Pagamento</span>
-          <span><kbd>Esc</kbd> Limpar carrinho / Fechar</span>
-          <span><kbd>F2</kbd> Nova venda</span>
-        </footer>
-      </main>
-
-      {/* MODAL DE CHECKOUT COM DIVISÃO DE PAGAMENTOS */}
-      {isCheckoutOpen && (
-        <div className="dialog-backdrop">
-          <div className="dialog-card" style={{ maxWidth: '520px' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
-              <h2>Finalizar Pagamento</h2>
-              <strong className="mono" style={{ fontSize: '24px', color: 'var(--pdv-green)' }}>
-                {totalMoney.formatBrl()}
-              </strong>
-            </div>
-
-            {/* Seleção do Método Principal */}
-            <div>
-              <span className="eyebrow">Forma de Pagamento Principal</span>
-              <fieldset className="pdv-methods">
-                <label className="pdv-method">
-                  <input
-                    type="radio"
-                    name="method"
-                    value="CASH"
-                    checked={paymentMethod === 'CASH'}
-                    onChange={() => setPaymentMethod('CASH')}
-                  />
-                  <span>Dinheiro</span>
-                </label>
-                <label className="pdv-method">
-                  <input
-                    type="radio"
-                    name="method"
-                    value="PIX"
-                    checked={paymentMethod === 'PIX'}
-                    onChange={() => setPaymentMethod('PIX')}
-                  />
-                  <span>PIX</span>
-                </label>
-                <label className="pdv-method">
-                  <input
-                    type="radio"
-                    name="method"
-                    value="DEBIT_CARD"
-                    checked={paymentMethod === 'DEBIT_CARD'}
-                    onChange={() => setPaymentMethod('DEBIT_CARD')}
-                  />
-                  <span>Cartão Débito</span>
-                </label>
-                <label className="pdv-method">
-                  <input
-                    type="radio"
-                    name="method"
-                    value="CREDIT_CARD"
-                    checked={paymentMethod === 'CREDIT_CARD'}
-                    onChange={() => setPaymentMethod('CREDIT_CARD')}
-                  />
-                  <span>Cartão Crédito</span>
-                </label>
-                <label className="pdv-method" style={{ gridColumn: 'span 2' }}>
-                  <input
-                    type="radio"
-                    name="method"
-                    value="TAB"
-                    checked={paymentMethod === 'TAB'}
-                    onChange={() => {
-                      setPaymentMethod('TAB');
-                      setIsSplit(false);
-                    }}
-                  />
-                  <span>Caderneta / Fiado</span>
-                </label>
-              </fieldset>
-            </div>
-
-            {/* Opções específicas para Fiado */}
-            {paymentMethod === 'TAB' && (
-              <div>
-                <label className="eyebrow" htmlFor="customer-select">
-                  Cliente Cadastrado no Fiado
-                </label>
-                <select
-                  id="customer-select"
-                  className="barcode-row"
-                  style={{ width: '100%', padding: '10px' }}
-                  value={selectedCustomerId}
-                  onChange={(e) => setSelectedCustomerId(e.target.value)}
+          <div className="card pdv-methods-card">
+            <div className="pdv-methods-head">
+              <h2 className="pdv-card-title">Forma de pagamento</h2>
+              <div className="pdv-menu">
+                <button
+                  type="button"
+                  ref={dotsButtonRef}
+                  className="pdv-dots"
+                  aria-label="Mais opções de pagamento"
+                  aria-expanded={showMoreMethods}
+                  aria-controls="pdv-more-methods"
+                  onClick={() => setShowMoreMethods((open) => !open)}
                 >
-                  <option value="">-- Selecione o cliente --</option>
-                  {customers.map((c) => (
-                    <option key={c.id} value={c.id}>
-                      {c.name} ({c.phone})
-                    </option>
-                  ))}
-                </select>
-                <p className="hint" style={{ marginTop: '4px' }}>
-                  O sistema validará o limite disponível do cliente. Se ultrapassado, exigirá o PIN da dona.
-                </p>
-              </div>
-            )}
-
-            {/* Divisão de Pagamento (somente se não for fiado) */}
-            {paymentMethod !== 'TAB' && (
-              <div style={{ margin: '8px 0' }}>
-                <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 'bold' }}>
-                  <input
-                    type="checkbox"
-                    checked={isSplit}
-                    onChange={(e) => setIsSplit(e.target.checked)}
-                  />
-                  Dividir pagamento com outra forma
-                </label>
-              </div>
-            )}
-
-            {/* Segunda forma de pagamento se dividida */}
-            {isSplit && (
-              <div style={{ background: '#f8faf9', padding: '12px', borderRadius: '8px', border: '1px solid var(--pdv-line)' }}>
-                <span className="eyebrow">Segunda Forma de Pagamento</span>
-                <fieldset className="pdv-methods three" style={{ margin: '6px 0' }}>
-                  <label className="pdv-method">
-                    <input
-                      type="radio"
-                      name="second-method"
-                      value="PIX"
-                      checked={secondMethod === 'PIX'}
-                      onChange={() => setSecondMethod('PIX')}
-                    />
-                    <span>PIX</span>
-                  </label>
-                  <label className="pdv-method">
-                    <input
-                      type="radio"
-                      name="second-method"
-                      value="DEBIT_CARD"
-                      checked={secondMethod === 'DEBIT_CARD'}
-                      onChange={() => setSecondMethod('DEBIT_CARD')}
-                    />
-                    <span>Débito</span>
-                  </label>
-                  <label className="pdv-method">
-                    <input
-                      type="radio"
-                      name="second-method"
-                      value="CREDIT_CARD"
-                      checked={secondMethod === 'CREDIT_CARD'}
-                      onChange={() => setSecondMethod('CREDIT_CARD')}
-                    />
-                    <span>Crédito</span>
-                  </label>
-                </fieldset>
-
-                <label className="eyebrow" htmlFor="second-val" style={{ marginTop: '8px' }}>
-                  Valor da Segunda Parte (R$)
-                </label>
-                <input
-                  id="second-val"
-                  className="barcode-row mono"
-                  style={{ width: '100%' }}
-                  type="number"
-                  step="0.01"
-                  min="0.01"
-                  max={totalMoney.toDecimal()}
-                  value={secondAmount}
-                  onChange={(e) => setSecondAmount(e.target.value)}
-                  placeholder="0.00"
-                />
-              </div>
-            )}
-
-            {/* Campo de Dinheiro Recebido e Cálculo de Troco */}
-            {paymentMethod === 'CASH' && (
-              <div>
-                <label className="eyebrow" htmlFor="cash-received">
-                  Valor em Dinheiro Recebido do Cliente (R$)
-                </label>
-                <input
-                  id="cash-received"
-                  className="barcode-row mono"
-                  style={{ width: '100%', fontSize: '18px', fontWeight: 'bold' }}
-                  type="number"
-                  step="0.01"
-                  min={0}
-                  value={receivedCash}
-                  onChange={(e) => setReceivedCash(e.target.value)}
-                  placeholder={totalMoney.toDecimal()}
-                />
-
-                {cartSummary.changeAmount.isPositive() && (
-                  <div
-                    style={{
-                      display: 'flex',
-                      justifyContent: 'space-between',
-                      alignItems: 'baseline',
-                      padding: '10px 14px',
-                      background: 'var(--pdv-green-soft)',
-                      borderRadius: '8px',
-                      marginTop: '8px',
-                    }}
-                  >
-                    <span style={{ fontWeight: 'bold', color: 'var(--pdv-green)' }}>Troco a Devolver:</span>
-                    <strong className="mono" style={{ fontSize: '20px', color: 'var(--pdv-green)' }}>
-                      {cartSummary.changeAmount.formatBrl()}
-                    </strong>
+                  <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" fill="currentColor">
+                    <circle cx="5" cy="12" r="2" />
+                    <circle cx="12" cy="12" r="2" />
+                    <circle cx="19" cy="12" r="2" />
+                  </svg>
+                </button>
+                {showMoreMethods && (
+                  <div id="pdv-more-methods" className="pdv-menu-list">
+                    <button
+                      type="button"
+                      className="pdv-menu-item"
+                      disabled={cart.length === 0}
+                      onClick={() => {
+                        setShowMoreMethods(false);
+                        startPayment('TAB');
+                      }}
+                    >
+                      Fiado
+                    </button>
                   </div>
                 )}
               </div>
-            )}
+            </div>
+            <div className="pdv-quick-methods">
+              {mainMethods.map((method) => (
+                <button
+                  key={method.value}
+                  className="outline pdv-method-btn"
+                  type="button"
+                  disabled={cart.length === 0}
+                  onClick={() => startPayment(method.value)}
+                >
+                  {method.label}
+                </button>
+              ))}
+            </div>
+          </div>
+        </aside>
+      </main>
 
-            <div className="dialog-actions">
+      <footer className="pdv-status">
+        <span className="pdv-conn">
+          <span className={`pdv-dot${isOnline ? '' : ' is-offline'}`} aria-hidden="true" />
+          <strong>{isOnline ? 'Online' : 'Sem internet'}</strong>
+        </span>
+        <span className="pdv-hide-sm">
+          {cashOpen
+            ? `Caixa aberto${openedTimeString ? ` desde ${openedTimeString}` : ''}`
+            : 'Caixa fechado'}{' '}
+          · {offlineCount} {offlineCount === 1 ? 'venda offline' : 'vendas offline'}
+        </span>
+        {offlineCount > 0 && isOnline && (
+          <button
+            className="outline pdv-small"
+            type="button"
+            onClick={triggerOfflineSync}
+            disabled={syncingOffline}
+          >
+            {syncingOffline ? 'Sincronizando...' : 'Sincronizar agora'}
+          </button>
+        )}
+        <span className="pdv-status-actions">
+          <button
+            type="button"
+            className="outline pdv-small"
+            disabled={!cashOpen}
+            onClick={() => {
+              setCashOpType('WITHDRAWAL');
+              setIsCashOpModalOpen(true);
+            }}
+          >
+            Sangria
+          </button>
+          <button
+            type="button"
+            className="outline pdv-small"
+            disabled={!cashOpen}
+            onClick={() => {
+              setCashOpType('DEPOSIT');
+              setIsCashOpModalOpen(true);
+            }}
+          >
+            Suprimento
+          </button>
+        </span>
+        <span className="pdv-hide-sm">Enter adicionar · F4 receber · Esc limpar · F2 nova venda</span>
+      </footer>
+
+      {/* MODAL DE PAGAMENTO (FORMA ÚNICA OU DIVIDIDA) */}
+      {isCheckoutOpen && (
+        <div className="pdv-overlay">
+          <form
+            className="pdv-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="pdv-pay-title"
+            onKeyDown={(e) => {
+              // Enter confirms the sale only from the received amount field.
+              if (blocksImplicitSubmit(e.key, e.target as HTMLElement)) e.preventDefault();
+            }}
+            onSubmit={(e) => {
+              e.preventDefault();
+              if (paymentMethod === 'TAB' && !selectedCustomerId) return;
+              void handleFinalizeSale();
+            }}
+          >
+            <header className="pdv-modal-head">
+              <h2 id="pdv-pay-title" className="pdv-title">
+                Receber pagamento
+              </h2>
               <button
-                className="soft"
+                className="pdv-close"
+                type="button"
+                aria-label="Fechar"
+                onClick={() => setIsCheckoutOpen(false)}
+                disabled={processing}
+              >
+                ✕
+              </button>
+            </header>
+
+            <div className="pdv-modal-body">
+              <div className="pdv-modal-total">
+                <span className="pdv-total-caption">Total da venda</span>
+                <span className="pdv-modal-total-value num">{totalMoney.formatBrl()}</span>
+              </div>
+
+              <div role="group" aria-label="Forma de pagamento" className="pdv-choices">
+                {[...mainMethods, ...(paymentMethod === 'TAB' ? [tabMethod] : [])].map((method) => (
+                  <button
+                    key={method.value}
+                    type="button"
+                    className="pdv-choice"
+                    aria-pressed={paymentMethod === method.value}
+                    onClick={() => selectMethod(method.value)}
+                  >
+                    {method.label}
+                  </button>
+                ))}
+              </div>
+
+              {paymentMethod === 'TAB' && (
+                <div className="pdv-field">
+                  <label className="field-label" htmlFor="customer-select">
+                    Cliente cadastrado no fiado
+                  </label>
+                  <select
+                    id="customer-select"
+                    className="input"
+                    value={selectedCustomerId}
+                    onChange={(e) => setSelectedCustomerId(e.target.value)}
+                  >
+                    <option value="">-- Selecione o cliente --</option>
+                    {customers.map((c) => (
+                      <option key={c.id} value={c.id}>
+                        {c.name} ({c.phone})
+                      </option>
+                    ))}
+                  </select>
+                  <p className="hint pdv-field-hint">
+                    O sistema validará o limite disponível do cliente. Se ultrapassado, exigirá o PIN da dona.
+                  </p>
+                </div>
+              )}
+
+              {paymentMethod !== 'TAB' && (
+                <label className="pdv-check">
+                  <input type="checkbox" checked={isSplit} onChange={(e) => setIsSplit(e.target.checked)} />
+                  Dividir pagamento com outra forma
+                </label>
+              )}
+
+              {isSplit && (
+                <div className="pdv-split">
+                  <div role="group" aria-label="Segunda forma de pagamento" className="pdv-choices is-three">
+                    {secondMethods.map((method) => (
+                      <button
+                        key={method.value}
+                        type="button"
+                        className="pdv-choice"
+                        aria-pressed={secondMethod === method.value}
+                        onClick={() => setSecondMethod(method.value)}
+                      >
+                        {method.label}
+                      </button>
+                    ))}
+                  </div>
+
+                  <label className="field-label" htmlFor="second-val">
+                    Valor da segunda parte (R$)
+                  </label>
+                  <input
+                    id="second-val"
+                    className="input num"
+                    type="number"
+                    step="0.01"
+                    min="0.01"
+                    max={totalMoney.toDecimal()}
+                    value={secondAmount}
+                    onChange={(e) => setSecondAmount(e.target.value)}
+                    placeholder="0.00"
+                  />
+                </div>
+              )}
+
+              {paymentMethod === 'CASH' && (
+                <div className="pdv-field">
+                  <label className="pdv-card-title" htmlFor="cash-received">
+                    Valor recebido (R$)
+                  </label>
+                  <input
+                    id="cash-received"
+                    className="pdv-big-input num"
+                    type="number"
+                    step="0.01"
+                    min={0}
+                    value={receivedCash}
+                    onChange={(e) => setReceivedCash(e.target.value)}
+                    placeholder={totalMoney.toDecimal()}
+                  />
+
+                  {cashDueCents > 0 && (
+                    <div className="pdv-quick-amounts">
+                      <button
+                        type="button"
+                        className="outline"
+                        onClick={() => setReceivedCash(centsToInputValue(cashDueCents))}
+                      >
+                        Exato
+                      </button>
+                      {quickAmounts.map((cents) => (
+                        <button
+                          key={cents}
+                          type="button"
+                          className="outline"
+                          onClick={() => setReceivedCash(centsToInputValue(cents))}
+                        >
+                          {quickAmountLabel(cents)}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+
+                  <div className="pdv-change" aria-live="polite">
+                    <span className="pdv-change-label">Troco</span>
+                    <strong className="pdv-change-value num">{cartSummary.changeAmount.formatBrl()}</strong>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <footer className="pdv-modal-foot">
+              <button
+                className="outline pdv-back"
                 type="button"
                 onClick={() => setIsCheckoutOpen(false)}
                 disabled={processing}
               >
-                Voltar (Esc)
+                Voltar · Esc
               </button>
               <button
-                className="primary"
-                type="button"
-                onClick={() => handleFinalizeSale()}
+                className="primary pdv-confirm"
+                type="submit"
                 disabled={processing || (paymentMethod === 'TAB' && !selectedCustomerId)}
               >
-                {processing ? 'Processando...' : 'Confirmar e Finalizar Venda'}
+                <span>{processing ? 'Processando...' : 'Confirmar venda'}</span>
+                {!processing && <kbd className="kbd">Enter</kbd>}
               </button>
-            </div>
-          </div>
+            </footer>
+          </form>
         </div>
       )}
 
       {/* MODAL DE PIN DA PROPRIETÁRIA (PARA FIADO ACIMA DO LIMITE) */}
       {isPinModalOpen && (
-        <div className="dialog-backdrop">
-          <div className="dialog-card" style={{ maxWidth: '400px' }}>
-            <span className="eyebrow">Autorização da Proprietária</span>
-            <h2>PIN de Liberação</h2>
-            <p className="muted">
-              O limite de fiado do cliente foi ultrapassado. Digite o PIN da proprietária para autorizar esta venda a crédito na caderneta.
-            </p>
+        <div className="pdv-overlay">
+          <div className="pdv-modal is-narrow" role="dialog" aria-modal="true" aria-labelledby="pdv-pin-title">
+            <div className="pdv-modal-body">
+              <p className="pdv-eyebrow">Autorização da proprietária</p>
+              <h2 id="pdv-pin-title" className="pdv-title">
+                PIN de liberação
+              </h2>
+              <p className="muted pdv-modal-text">
+                O limite de fiado do cliente foi ultrapassado. Digite o PIN da proprietária para autorizar esta venda
+                a crédito na caderneta.
+              </p>
 
-            <div>
-              <label className="eyebrow" htmlFor="owner-pin-input">PIN da Proprietária (6 dígitos)</label>
+              <label className="field-label" htmlFor="owner-pin-input">
+                PIN da proprietária (6 dígitos)
+              </label>
               <input
                 id="owner-pin-input"
-                className="barcode-row mono"
-                style={{ width: '100%', fontSize: '24px', letterSpacing: '4px', textAlign: 'center' }}
+                className="input pdv-pin"
                 type="password"
                 inputMode="numeric"
                 maxLength={6}
@@ -1218,9 +1244,9 @@ export default function PdvTerminalPage() {
               />
             </div>
 
-            <div className="dialog-actions">
+            <footer className="pdv-modal-foot">
               <button
-                className="soft"
+                className="outline pdv-back"
                 type="button"
                 onClick={() => {
                   setIsPinModalOpen(false);
@@ -1230,82 +1256,94 @@ export default function PdvTerminalPage() {
                 Cancelar
               </button>
               <button
-                className="primary"
+                className="primary pdv-confirm"
                 type="button"
                 disabled={processing || !/^\d{6}$/.test(ownerPin)}
                 onClick={() => handleFinalizeSale(ownerPin)}
               >
-                {processing ? 'Autorizando...' : 'Autorizar e Registrar Fiado'}
+                {processing ? 'Autorizando...' : 'Autorizar e registrar fiado'}
               </button>
-            </div>
+            </footer>
           </div>
         </div>
       )}
 
       {/* MODAL DE SANGRIA E SUPRIMENTO DE CAIXA */}
       {isCashOpModalOpen && (
-        <div className="dialog-backdrop">
-          <form onSubmit={handleCashOperation} className="dialog-card" style={{ maxWidth: '420px' }}>
-            <span className="eyebrow">Operação de Balcão</span>
-            <h2>{cashOpType === 'WITHDRAWAL' ? 'Sangria de Caixa' : 'Suprimento de Caixa'}</h2>
-            <p className="muted">
-              {cashOpType === 'WITHDRAWAL'
-                ? 'Retirada de dinheiro da gaveta para cofre, pagamento de despesa ou recolhimento de segurança.'
-                : 'Entrada de dinheiro na gaveta para reforço de troco ou moeda inicial.'}
-            </p>
+        <div className="pdv-overlay">
+          <form
+            onSubmit={handleCashOperation}
+            className="pdv-modal is-narrow"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="pdv-cashop-title"
+          >
+            <div className="pdv-modal-body">
+              <p className="pdv-eyebrow">Operação de balcão</p>
+              <h2 id="pdv-cashop-title" className="pdv-title">
+                {cashOpType === 'WITHDRAWAL' ? 'Sangria de caixa' : 'Suprimento de caixa'}
+              </h2>
+              <p className="muted pdv-modal-text">
+                {cashOpType === 'WITHDRAWAL'
+                  ? 'Retirada de dinheiro da gaveta para cofre, pagamento de despesa ou recolhimento de segurança.'
+                  : 'Entrada de dinheiro na gaveta para reforço de troco ou moeda inicial.'}
+              </p>
 
-            <div style={{ display: 'flex', gap: '8px', marginBottom: '8px' }}>
-              <button
-                type="button"
-                className={cashOpType === 'WITHDRAWAL' ? 'primary' : 'soft'}
-                style={{ flex: 1, padding: '8px' }}
-                onClick={() => setCashOpType('WITHDRAWAL')}
-              >
-                Sangria (Saída)
-              </button>
-              <button
-                type="button"
-                className={cashOpType === 'DEPOSIT' ? 'primary' : 'soft'}
-                style={{ flex: 1, padding: '8px' }}
-                onClick={() => setCashOpType('DEPOSIT')}
-              >
-                Suprimento (Entrada)
-              </button>
+              <div role="group" aria-label="Tipo de operação" className="pdv-choices is-two">
+                <button
+                  type="button"
+                  className="pdv-choice"
+                  aria-pressed={cashOpType === 'WITHDRAWAL'}
+                  onClick={() => setCashOpType('WITHDRAWAL')}
+                >
+                  Sangria (saída)
+                </button>
+                <button
+                  type="button"
+                  className="pdv-choice"
+                  aria-pressed={cashOpType === 'DEPOSIT'}
+                  onClick={() => setCashOpType('DEPOSIT')}
+                >
+                  Suprimento (entrada)
+                </button>
+              </div>
+
+              <div className="pdv-field">
+                <label className="field-label" htmlFor="cash-op-amount">
+                  Valor (R$)
+                </label>
+                <input
+                  id="cash-op-amount"
+                  className="input num"
+                  type="number"
+                  step="0.01"
+                  min="0.01"
+                  required
+                  autoFocus
+                  value={cashOpAmount}
+                  onChange={(e) => setCashOpAmount(e.target.value)}
+                  placeholder="0.00"
+                />
+              </div>
+
+              <div className="pdv-field">
+                <label className="field-label" htmlFor="cash-op-reason">
+                  Motivo obrigatório (mínimo 3 caracteres)
+                </label>
+                <input
+                  id="cash-op-reason"
+                  className="input"
+                  required
+                  value={cashOpReason}
+                  onChange={(e) => setCashOpReason(e.target.value)}
+                  placeholder={cashOpType === 'WITHDRAWAL' ? 'Ex: Recolhimento para cofre' : 'Ex: Moedas de troco'}
+                />
+              </div>
             </div>
 
-            <div>
-              <label className="eyebrow" htmlFor="cash-op-amount">Valor (R$)</label>
-              <input
-                id="cash-op-amount"
-                className="barcode-row mono"
-                style={{ width: '100%', fontSize: '20px', fontWeight: 'bold' }}
-                type="number"
-                step="0.01"
-                min="0.01"
-                required
-                autoFocus
-                value={cashOpAmount}
-                onChange={(e) => setCashOpAmount(e.target.value)}
-                placeholder="0.00"
-              />
-            </div>
-
-            <div>
-              <label className="eyebrow" htmlFor="cash-op-reason">Motivo Obrigatório (mínimo 3 caracteres)</label>
-              <input
-                id="cash-op-reason"
-                className="barcode-row"
-                style={{ width: '100%' }}
-                required
-                value={cashOpReason}
-                onChange={(e) => setCashOpReason(e.target.value)}
-                placeholder={cashOpType === 'WITHDRAWAL' ? 'Ex: Recolhimento para cofre' : 'Ex: Moedas de troco'}
-              />
-            </div>
-
-            <div className="dialog-actions">
+            <footer className="pdv-modal-foot">
               <button
-                className="soft"
+                className="outline pdv-back"
                 type="button"
                 onClick={() => {
                   setIsCashOpModalOpen(false);
@@ -1316,80 +1354,63 @@ export default function PdvTerminalPage() {
                 Cancelar
               </button>
               <button
-                className="primary"
+                className="primary pdv-confirm"
                 type="submit"
                 disabled={processing || !cashOpAmount || cashOpReason.trim().length < 3}
               >
-                {processing ? 'Registrando...' : cashOpType === 'WITHDRAWAL' ? 'Confirmar Sangria' : 'Confirmar Suprimento'}
+                {processing ? 'Registrando...' : cashOpType === 'WITHDRAWAL' ? 'Confirmar sangria' : 'Confirmar suprimento'}
               </button>
-            </div>
+            </footer>
           </form>
         </div>
       )}
 
       {/* MODAL DE IMPRESSÃO TÉRMICA PÓS-VENDA */}
       {printModalData && (
-        <div className="dialog-backdrop no-print">
-          <div className="dialog-card" style={{ maxWidth: '460px' }}>
-            <span className="eyebrow">Pós-Venda · Impressão Térmica</span>
-            <h2>Comprovante da Venda</h2>
+        <div className="pdv-overlay no-print">
+          <div className="pdv-modal is-narrow" role="dialog" aria-modal="true" aria-labelledby="pdv-print-title">
+            <div className="pdv-modal-body">
+              <p className="pdv-eyebrow">Pós-venda · impressão térmica</p>
+              <h2 id="pdv-print-title" className="pdv-title">
+                Comprovante da venda
+              </h2>
 
-            {printModalData.creditNoteText && (
-              <div style={{ display: 'flex', gap: '8px', marginBottom: '8px' }}>
-                <button
-                  type="button"
-                  className={printModalData.activeTab === 'receipt' ? 'primary' : 'soft'}
-                  style={{ flex: 1, padding: '8px' }}
-                  onClick={() => setPrintModalData({ ...printModalData, activeTab: 'receipt' })}
-                >
-                  Cupom Não-Fiscal
-                </button>
-                <button
-                  type="button"
-                  className={printModalData.activeTab === 'creditNote' ? 'primary' : 'soft'}
-                  style={{ flex: 1, padding: '8px' }}
-                  onClick={() => setPrintModalData({ ...printModalData, activeTab: 'creditNote' })}
-                >
-                  Canhoto Fiado (Assinatura)
-                </button>
-              </div>
-            )}
+              {printModalData.creditNoteText && (
+                <div role="group" aria-label="Tipo de comprovante" className="pdv-choices is-two">
+                  <button
+                    type="button"
+                    className="pdv-choice"
+                    aria-pressed={printModalData.activeTab === 'receipt'}
+                    onClick={() => setPrintModalData({ ...printModalData, activeTab: 'receipt' })}
+                  >
+                    Cupom não fiscal
+                  </button>
+                  <button
+                    type="button"
+                    className="pdv-choice"
+                    aria-pressed={printModalData.activeTab === 'creditNote'}
+                    onClick={() => setPrintModalData({ ...printModalData, activeTab: 'creditNote' })}
+                  >
+                    Canhoto fiado (assinatura)
+                  </button>
+                </div>
+              )}
 
-            <pre
-              className="mono"
-              style={{
-                background: 'var(--pdv-surface)',
-                padding: '12px',
-                borderRadius: '8px',
-                fontSize: '12px',
-                lineHeight: '1.3',
-                maxHeight: '320px',
-                overflowY: 'auto',
-                whiteSpace: 'pre-wrap',
-                border: '1px solid var(--pdv-line-soft)',
-              }}
-            >
-              {printModalData.activeTab === 'receipt'
-                ? printModalData.receiptText
-                : printModalData.creditNoteText}
-            </pre>
+              <pre className="pdv-receipt">
+                {printModalData.activeTab === 'receipt'
+                  ? printModalData.receiptText
+                  : printModalData.creditNoteText}
+              </pre>
+            </div>
 
-            <div className="dialog-actions">
-              <button
-                className="soft"
-                type="button"
-                onClick={() => setPrintModalData(null)}
-              >
+            <footer className="pdv-modal-foot">
+              <button className="outline pdv-back" type="button" onClick={() => setPrintModalData(null)}>
                 Fechar
               </button>
-              <button
-                className="primary"
-                type="button"
-                onClick={() => window.print()}
-              >
+              <button className="primary pdv-confirm" type="button" onClick={() => window.print()}>
                 Imprimir (Ctrl+P)
               </button>
-            </div>
+            </footer>
           </div>
         </div>
       )}

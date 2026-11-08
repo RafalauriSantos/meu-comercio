@@ -2,12 +2,13 @@
 
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { apiClient, AuthUser } from '@/frontend/lib/api-client';
+import { apiClient, ApiError, AuthUser } from '@/frontend/lib/api-client';
 import { getErrorMessage, parseCurrencyInput } from '@/frontend/lib/formatters';
 import { parseAuthMode } from '@/frontend/lib/auth-mode';
 import { destinationForSession } from '@/frontend/lib/session-destination';
-import { displayFont } from '@/frontend/landing/fonts';
 import { AuthShell } from '@/frontend/auth/auth-shell';
+import { AuthFormSkeleton } from '@/frontend/auth/auth-skeleton';
+import { CashOpenScreen } from '@/frontend/auth/cash-open-screen';
 import { PasswordField } from '@/frontend/auth/password-field';
 import { PinField } from '@/frontend/auth/pin-field';
 import { passwordsMismatch } from '@/frontend/auth/passwords-mismatch';
@@ -74,7 +75,12 @@ export default function LoginPage() {
         }
       } catch (err) {
         console.error('Erro ao verificar status:', err);
-        setError('Não foi possível conectar ao servidor. Verifique sua conexão.');
+        // A rate limit answer is not a connection failure: say what happened.
+        setError(
+          err instanceof ApiError && err.status === 429
+            ? err.message
+            : 'Não foi possível conectar ao servidor. Verifique sua conexão.'
+        );
       } finally {
         setLoading(false);
       }
@@ -165,13 +171,15 @@ export default function LoginPage() {
 
   const confirmMismatch = passwordsMismatch(setupPassword, setupConfirm);
 
+  function switchMode(mode: 'login' | 'register') {
+    setAuthMode(mode);
+    setError('');
+  }
+
   if (loading) {
     return (
-      <AuthShell mode="login" fontClassName={displayFont.variable}>
-        <div className="auth-loading" role="status">
-          <div className="auth-loading-spinner" />
-          <span>Verificando o sistema…</span>
-        </div>
+      <AuthShell>
+        <AuthFormSkeleton />
       </AuthShell>
     );
   }
@@ -179,244 +187,208 @@ export default function LoginPage() {
   // Cash register screen: the operator is logged in and the cash register is closed
   if (user && cashOpen === false) {
     return (
-      <AuthShell mode="cash" fontClassName={displayFont.variable}>
-        <header className="auth-header">
-          <h1 className="auth-title">Abrir o caixa</h1>
-          <p className="auth-subtitle">
-            Olá, <strong>{user.username}</strong>. O caixa está fechado. Informe o fundo de troco para começar a vender.
-          </p>
-        </header>
-
-        {error && <FormError message={error} />}
-
-        <form onSubmit={handleOpenCash} className="auth-form">
-          <div className="auth-field">
-            <label className="auth-label" htmlFor="opening-balance">
-              Fundo de troco (R$)
-            </label>
-            <input
-              id="opening-balance"
-              className="auth-input auth-input-amount"
-              type="number"
-              inputMode="decimal"
-              step="0.01"
-              min="0"
-              required
-              autoFocus
-              value={openingBalance}
-              onChange={(e) => setOpeningBalance(e.target.value)}
-            />
-          </div>
-
-          <button className="auth-btn-primary" type="submit" disabled={processing}>
-            {processing ? (
-              <>
-                <div className="auth-loading-spinner" />
-                <span>Abrindo o caixa…</span>
-              </>
-            ) : (
-              'Abrir caixa e ir para o PDV'
-            )}
-          </button>
-
-          <button className="auth-btn-secondary" type="button" onClick={() => router.push('/gestao')}>
-            Ir para a gestão sem abrir o caixa
-          </button>
-        </form>
-      </AuthShell>
+      <CashOpenScreen
+        username={user.username}
+        openingBalance={openingBalance}
+        onOpeningBalanceChange={setOpeningBalance}
+        onSubmit={handleOpenCash}
+        onBack={() => router.push('/gestao')}
+        processing={processing}
+        error={error}
+        now={new Date()}
+      />
     );
   }
 
-  // Main screen: sign in or create an account
-  return (
-    <AuthShell mode={setupRequired ? 'setup' : authMode} fontClassName={displayFont.variable}>
-      {!setupRequired && (
-        <div className="auth-tabs" role="group" aria-label="Escolha como continuar">
-          <button
-            type="button"
-            className={`auth-tab ${authMode === 'login' ? 'active' : ''}`}
-            aria-pressed={authMode === 'login'}
-            onClick={() => { setAuthMode('login'); setError(''); }}
-          >
-            Entrar
-          </button>
-          <button
-            type="button"
-            className={`auth-tab ${authMode === 'register' ? 'active' : ''}`}
-            aria-pressed={authMode === 'register'}
-            onClick={() => { setAuthMode('register'); setError(''); }}
-          >
-            Criar conta
-          </button>
+  // Main screen: sign in or create an account. With setupRequired only the sign up form exists.
+  const footer = setupRequired ? undefined : authMode === 'login' ? (
+    <>
+      Ainda não tem conta?{' '}
+      <button type="button" className="auth-link" onClick={() => switchMode('register')}>
+        Criar conta grátis
+      </button>
+    </>
+  ) : (
+    <>
+      Já tem conta?{' '}
+      <button type="button" className="auth-link" onClick={() => switchMode('login')}>
+        Entrar
+      </button>
+    </>
+  );
+
+  return authMode === 'login' ? (
+    <AuthShell labelledBy="auth-title" footer={footer}>
+      <header key="login-header" className="auth-header">
+        <h1 className="auth-title" id="auth-title">
+          Entrar
+        </h1>
+        <p className="auth-subtitle">Acesse o caixa da sua loja.</p>
+      </header>
+
+      {error && <FormError message={error} />}
+
+      <form key="login-form" onSubmit={handleLogin} className="auth-form">
+        <div style={{ display: 'none', position: 'absolute', left: '-9999px' }} aria-hidden="true">
+          <label htmlFor="login-website">Website</label>
+          <input
+            id="login-website"
+            type="text"
+            tabIndex={-1}
+            autoComplete="off"
+            value={honeypot}
+            onChange={(e) => setHoneypot(e.target.value)}
+          />
         </div>
-      )}
 
-      {authMode === 'login' ? (
-        <>
-          <header className="auth-header">
-            <h1 className="auth-title">Entrar</h1>
-            <p className="auth-subtitle">Acesse o caixa da sua loja.</p>
-          </header>
+        <div>
+          <label className="field-label" htmlFor="login-username">
+            Usuário
+          </label>
+          <input
+            id="login-username"
+            className="input"
+            type="text"
+            required
+            autoFocus
+            autoComplete="username"
+            value={username}
+            onChange={(e) => setUsername(e.target.value)}
+          />
+        </div>
 
-          {error && <FormError message={error} />}
+        <PasswordField
+          id="login-password"
+          label="Senha"
+          value={password}
+          onChange={setPassword}
+          autoComplete="current-password"
+        />
 
-          <form onSubmit={handleLogin} className="auth-form">
-            <div style={{ display: 'none', position: 'absolute', left: '-9999px' }} aria-hidden="true">
-              <label htmlFor="login-website">Website</label>
-              <input
-                id="login-website"
-                type="text"
-                tabIndex={-1}
-                autoComplete="off"
-                value={honeypot}
-                onChange={(e) => setHoneypot(e.target.value)}
-              />
-            </div>
+        <button className="primary auth-submit" type="submit" disabled={processing}>
+          {processing ? (
+            <>
+              <div className="auth-loading-spinner" />
+              <span>Entrando…</span>
+            </>
+          ) : (
+            'Entrar'
+          )}
+        </button>
+      </form>
+    </AuthShell>
+  ) : (
+    <AuthShell wide labelledBy="auth-title" footer={footer}>
+      <header key="register-header" className="auth-header">
+        <h1 className="auth-title" id="auth-title">
+          {setupRequired ? 'Configure sua loja' : 'Crie sua conta'}
+        </h1>
+        <p className="auth-subtitle">
+          {setupRequired
+            ? 'Este é o primeiro acesso. Crie a conta da dona para começar.'
+            : 'Cadastre sua loja e a conta da dona. Gratuito por enquanto.'}
+        </p>
+      </header>
 
-            <div className="auth-field">
-              <label className="auth-label" htmlFor="login-username">
-                Usuário
-              </label>
-              <input
-                id="login-username"
-                className="auth-input"
-                type="text"
-                required
-                autoFocus
-                autoComplete="username"
-                value={username}
-                onChange={(e) => setUsername(e.target.value)}
-              />
-            </div>
+      {error && <FormError message={error} />}
 
-            <PasswordField
-              id="login-password"
-              label="Senha"
-              value={password}
-              onChange={setPassword}
-              autoComplete="current-password"
+      <form key="register-form" onSubmit={handleRegister} className="auth-form">
+        <div style={{ display: 'none', position: 'absolute', left: '-9999px' }} aria-hidden="true">
+          <label htmlFor="setup-website">Website</label>
+          <input
+            id="setup-website"
+            type="text"
+            tabIndex={-1}
+            autoComplete="off"
+            value={honeypot}
+            onChange={(e) => setHoneypot(e.target.value)}
+          />
+        </div>
+
+        <div className="auth-grid-2">
+          <div>
+            <label className="field-label" htmlFor="setup-merchant">
+              Nome da loja
+            </label>
+            <input
+              id="setup-merchant"
+              className="input"
+              type="text"
+              required
+              autoFocus
+              autoComplete="organization"
+              value={merchantName}
+              onChange={(e) => setMerchantName(e.target.value)}
+              placeholder="Ex.: Mercadinho da Maria"
             />
+          </div>
 
-            <button className="auth-btn-primary" type="submit" disabled={processing}>
-              {processing ? (
-                <>
-                  <div className="auth-loading-spinner" />
-                  <span>Entrando…</span>
-                </>
-              ) : (
-                'Entrar'
-              )}
-            </button>
-          </form>
-        </>
-      ) : (
-        <>
-          <header className="auth-header">
-            <h1 className="auth-title">{setupRequired ? 'Configure sua loja' : 'Crie sua conta'}</h1>
-            <p className="auth-subtitle">
-              {setupRequired
-                ? 'Este é o primeiro acesso. Crie a conta da dona para começar.'
-                : 'Cadastre sua loja e a conta da dona. Gratuito por enquanto.'}
-            </p>
-          </header>
+          <div>
+            <label className="field-label" htmlFor="setup-user">
+              Seu usuário
+            </label>
+            <input
+              id="setup-user"
+              className="input"
+              type="text"
+              required
+              autoComplete="username"
+              value={setupUsername}
+              onChange={(e) => setSetupUsername(e.target.value)}
+              placeholder="Ex.: maria"
+            />
+          </div>
+        </div>
 
-          {error && <FormError message={error} />}
+        <div className="auth-grid-2">
+          <PasswordField
+            id="setup-password"
+            label="Senha"
+            value={setupPassword}
+            onChange={setSetupPassword}
+            autoComplete="new-password"
+            minLength={8}
+            placeholder="Mín. 8 caracteres"
+          />
 
-          <form onSubmit={handleRegister} className="auth-form">
-            <div style={{ display: 'none', position: 'absolute', left: '-9999px' }} aria-hidden="true">
-              <label htmlFor="setup-website">Website</label>
-              <input
-                id="setup-website"
-                type="text"
-                tabIndex={-1}
-                autoComplete="off"
-                value={honeypot}
-                onChange={(e) => setHoneypot(e.target.value)}
-              />
-            </div>
-
-            <div className="auth-field">
-              <label className="auth-label" htmlFor="setup-merchant">
-                Nome da loja
-              </label>
-              <input
-                id="setup-merchant"
-                className="auth-input"
-                type="text"
-                required
-                autoFocus
-                autoComplete="organization"
-                value={merchantName}
-                onChange={(e) => setMerchantName(e.target.value)}
-                placeholder="Ex.: Mercadinho da Maria"
-              />
-            </div>
-
-            <div className="auth-field">
-              <label className="auth-label" htmlFor="setup-user">
-                Seu usuário
-              </label>
-              <input
-                id="setup-user"
-                className="auth-input"
-                type="text"
-                required
-                autoComplete="username"
-                value={setupUsername}
-                onChange={(e) => setSetupUsername(e.target.value)}
-                placeholder="Ex.: maria"
-              />
-            </div>
-
+          <div>
             <PasswordField
-              id="setup-password"
-              label="Senha"
-              value={setupPassword}
-              onChange={setSetupPassword}
+              id="setup-confirm"
+              label="Repita a senha"
+              value={setupConfirm}
+              onChange={setSetupConfirm}
               autoComplete="new-password"
               minLength={8}
-              placeholder="Mínimo de 8 caracteres"
+              invalid={confirmMismatch}
+              describedBy={confirmMismatch ? 'setup-confirm-msg' : undefined}
             />
+            {confirmMismatch && (
+              <p className="auth-field-error" id="setup-confirm-msg">
+                As senhas não conferem.
+              </p>
+            )}
+          </div>
+        </div>
 
-            <div>
-              <PasswordField
-                id="setup-confirm"
-                label="Repita a senha"
-                value={setupConfirm}
-                onChange={setSetupConfirm}
-                autoComplete="new-password"
-                minLength={8}
-                invalid={confirmMismatch}
-                describedBy={confirmMismatch ? 'setup-confirm-msg' : undefined}
-              />
-              {confirmMismatch && (
-                <p className="auth-field-error" id="setup-confirm-msg">
-                  As senhas não conferem.
-                </p>
-              )}
-            </div>
+        <PinField
+          id="setup-pin"
+          label="PIN da dona (6 dígitos)"
+          hint="Libera o que é arriscado: fiado acima do limite e estornos."
+          value={setupPin}
+          onChange={setSetupPin}
+        />
 
-            <PinField
-              id="setup-pin"
-              label="PIN da dona (6 dígitos)"
-              hint="Libera o que é arriscado: fiado acima do limite e estornos."
-              value={setupPin}
-              onChange={setSetupPin}
-            />
-
-            <button className="auth-btn-primary" type="submit" disabled={processing}>
-              {processing ? (
-                <>
-                  <div className="auth-loading-spinner" />
-                  <span>Criando conta…</span>
-                </>
-              ) : (
-                'Criar conta e entrar'
-              )}
-            </button>
-          </form>
-        </>
-      )}
+        <button className="primary auth-submit" type="submit" disabled={processing}>
+          {processing ? (
+            <>
+              <div className="auth-loading-spinner" />
+              <span>Criando conta…</span>
+            </>
+          ) : (
+            'Criar conta e entrar'
+          )}
+        </button>
+      </form>
     </AuthShell>
   );
 }

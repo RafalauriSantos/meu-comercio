@@ -1,293 +1,355 @@
 ---
 name: Meu Comércio
-description: Dark navy ground, one green accent, ruled lists, and one real product screen in an application window as proof, across the landing, login and sign up, for small-retail cash and fiado control.
+description: One blue family in a light and a dark theme, Inter for the app, flat cards on a tinted ground, and one dark "ink" block for the sale total, across the landing, login and sign up, the PDV and the management panel, for small-retail cash and fiado control.
 colors:
-  ground: "#0b1220"
-  surface: "#111c31"
-  line: "#243350"
-  line-strong: "#4b5d7c"
-  field-border: "#5f7293"
-  text: "#f1f5f9"
-  muted: "#b3bfd2"
-  green: "#34d399"
-  green-hover: "#5eead4"
-  green-ink: "#052e1f"
-  placeholder: "#8593ad"
-  danger-text: "#fecaca"
-  danger-bg: "#2a1215"
-  danger-line: "#7f1d1d"
-  danger-border: "#f87171"
+  bg: "#f3f6fa"
+  surface: "#ffffff"
+  surface-2: "#eaf0f7"
+  border: "#d6dfea"
+  border-strong: "#b9c6d6"
+  text: "#142033"
+  muted: "#55647a"
+  primary: "#2457c5"
+  on-primary: "#ffffff"
+  primary-soft: "#e6eefb"
+  primary-text: "#1b449c"
+  header: "#ffffff"
+  on-header: "#111b2e"
+  muted-on-header: "#5b6b82"
+  header-line: "#e3e9f1"
+  ink: "#14284b"
+  on-ink: "#ffffff"
+  muted-on-ink: "#a9bcd8"
+  warn: "#8a4b00"
+  warn-soft: "#fff4e0"
+  danger: "#b42318"
+  danger-soft: "#fde7e4"
+  input: "#ffffff"
+  overlay: "rgba(20, 40, 75, 0.55)"
+colors-dark:
+  bg: "#0c1220"
+  surface: "#151d2f"
+  surface-2: "#1e2940"
+  border: "#2a3852"
+  border-strong: "#3d4d6b"
+  text: "#e4ecf8"
+  muted: "#94a3bc"
+  primary: "#6aa2ff"
+  on-primary: "#0a1a38"
+  primary-soft: "rgba(106, 162, 255, 0.16)"
+  primary-text: "#9cc0ff"
+  header: "#0c1220"
+  on-header: "#e4ecf8"
+  muted-on-header: "#94a3bc"
+  header-line: "#2a3852"
+  ink: "#1e2940"
+  on-ink: "#e4ecf8"
+  muted-on-ink: "#94a3bc"
+  warn: "#f5b942"
+  warn-soft: "rgba(245, 185, 66, 0.14)"
+  danger: "#ff7a7a"
+  danger-soft: "rgba(255, 122, 122, 0.14)"
+  input: "#0f1727"
+  overlay: "rgba(0, 0, 0, 0.6)"
 typography:
   display:
-    fontFamily: "Bricolage Grotesque, Geist, system-ui, sans-serif"
-    fontSize: "clamp(2.25rem, 8.5vw, 4.5rem)"
+    fontFamily: "Inter, system-ui, -apple-system, Segoe UI, Roboto, sans-serif"
+    fontSize: "44px"
     fontWeight: 800
-    lineHeight: 1.03
-    letterSpacing: "-0.03em"
-  headline:
-    fontFamily: "Bricolage Grotesque, Geist, system-ui, sans-serif"
-    fontSize: "clamp(1.75rem, 5.5vw, 2.75rem)"
-    fontWeight: 800
-    lineHeight: 1.1
-    letterSpacing: "-0.025em"
+    lineHeight: normal
+    letterSpacing: "-0.02em"
   title:
-    fontFamily: "Bricolage Grotesque, Geist, system-ui, sans-serif"
-    fontSize: "1.375rem"
+    fontFamily: "Inter, system-ui, -apple-system, Segoe UI, Roboto, sans-serif"
+    fontSize: "22px"
     fontWeight: 700
-    letterSpacing: "-0.01em"
+    lineHeight: normal
   body:
-    fontFamily: "Geist, system-ui, sans-serif"
-    fontSize: "1rem"
+    fontFamily: "Inter, system-ui, -apple-system, Segoe UI, Roboto, sans-serif"
+    fontSize: "16px"
     fontWeight: 400
-    lineHeight: 1.55
-  lead:
-    fontFamily: "Geist, system-ui, sans-serif"
-    fontSize: "1.1875rem"
-    lineHeight: 1.55
+    lineHeight: normal
   caption:
-    fontFamily: "Geist, system-ui, sans-serif"
-    fontSize: "0.875rem"
-    lineHeight: 1.55
+    fontFamily: "Inter, system-ui, -apple-system, Segoe UI, Roboto, sans-serif"
+    fontSize: "14px"
+    fontWeight: 400
+    lineHeight: normal
+  landing-body:
+    fontFamily: "system-ui, -apple-system, Segoe UI, sans-serif"
+    fontSize: "16px"
+    fontWeight: 400
+    lineHeight: 1.5
 rounded:
-  sm: "6px"
-  md: "12px"
-  window: "14px"
-  tab: "9px"
-  field: "10px"
-  tabs: "12px"
+  xs: "6px"
+  sm: "8px"
+  md: "10px"
+  lg: "12px"
+  xl: "16px"
+  card: "20px"
 spacing:
   xs: "8px"
   sm: "12px"
-  md: "20px"
-  lg: "32px"
-  xl: "72px"
-  xxl: "112px"
+  md: "16px"
+  lg: "24px"
+  xl: "32px"
 components:
   button-primary:
-    backgroundColor: "{colors.green}"
-    textColor: "{colors.green-ink}"
-    rounded: "{rounded.md}"
-    padding: "0 24px"
-    height: "52px"
-  button-primary-hover:
-    backgroundColor: "{colors.green-hover}"
-  button-secondary:
-    backgroundColor: "transparent"
-    textColor: "{colors.text}"
-    rounded: "{rounded.md}"
-    padding: "0 24px"
-    height: "52px"
-  application-window:
-    backgroundColor: "#ffffff"
-    rounded: "{rounded.window}"
-  auth-input:
-    backgroundColor: "{colors.ground}"
-    textColor: "{colors.text}"
-    rounded: "{rounded.field}"
-    padding: "0 14px"
+    backgroundColor: "{colors.primary}"
+    textColor: "{colors.on-primary}"
+    rounded: "{rounded.lg}"
+    padding: "0 22px"
     height: "48px"
-  auth-tab:
-    backgroundColor: "transparent"
-    textColor: "{colors.muted}"
-    rounded: "{rounded.tab}"
-    height: "44px"
-  auth-tab-active:
+  button-outline:
     backgroundColor: "{colors.surface}"
     textColor: "{colors.text}"
-  auth-button-primary:
-    backgroundColor: "{colors.green}"
-    textColor: "{colors.green-ink}"
-    rounded: "{rounded.md}"
-    height: "52px"
-  auth-button-secondary:
-    backgroundColor: "transparent"
-    textColor: "{colors.text}"
-    rounded: "{rounded.md}"
+    rounded: "{rounded.lg}"
+    padding: "0 20px"
     height: "48px"
-  form-error:
-    backgroundColor: "{colors.danger-bg}"
-    textColor: "{colors.danger-text}"
-    rounded: "{rounded.field}"
-    padding: "12px 14px"
+  button-soft:
+    backgroundColor: "{colors.surface-2}"
+    textColor: "{colors.text}"
+    rounded: "{rounded.lg}"
+    padding: "0 16px"
+    height: "44px"
+  button-ghost:
+    backgroundColor: "transparent"
+    textColor: "{colors.on-header}"
+    rounded: "{rounded.sm}"
+    padding: "8px 14px"
+  card:
+    backgroundColor: "{colors.surface}"
+    rounded: "{rounded.xl}"
+    padding: "20px"
+  input:
+    backgroundColor: "{colors.input}"
+    textColor: "{colors.text}"
+    rounded: "{rounded.lg}"
+    padding: "0 16px"
+    height: "56px"
+  notice:
+    backgroundColor: "{colors.primary-soft}"
+    textColor: "{colors.primary-text}"
+    rounded: "{rounded.lg}"
+    padding: "12px 16px"
+  error:
+    backgroundColor: "{colors.danger-soft}"
+    textColor: "{colors.danger}"
+    rounded: "{rounded.lg}"
+    padding: "12px 16px"
+  total-block:
+    backgroundColor: "{colors.ink}"
+    textColor: "{colors.on-ink}"
+    rounded: "{rounded.xl}"
+    padding: "24px"
+  auth-card:
+    backgroundColor: "{colors.surface}"
+    rounded: "{rounded.card}"
+    padding: "32px"
+  app-header:
+    backgroundColor: "{colors.header}"
+    textColor: "{colors.on-header}"
+    padding: "12px 24px"
 ---
 
 # Design System: Meu Comércio
 
-Recorded from the shipped landing page (`src/frontend/styles/landing.css`, `src/frontend/landing/*`) and the login and sign up screens (`src/frontend/styles/auth.css`, `src/frontend/auth/*`, `src/app/login/page.tsx`). Tokens are CSS custom properties on `.landing` and, with the same names and values plus `surface` and the danger set, on `.auth`. PDV and management screens extend this system; where a later screen needs a token this file lacks, add it here first.
+Recorded from the code, which is the truth: tokens and shared primitives in `src/app/globals.css`; the font in `src/app/layout.tsx`; shared components in `src/frontend/ui/*` (`BrandMark`, `AppHeader`, `Skeleton`, `AppHeaderSkeleton`); and per-screen styles in `src/frontend/styles/landing.css`, `auth.css`, `pdv.css` and `management.css`. Every screen reads the same global tokens; a screen file only adds what is its own. Where a screen needs a token this file lacks, add it to `globals.css` and to this file first. Copy in the UI is Brazilian Portuguese; this file is English.
 
 ## Overview
 
-**Creative North Star: "The Shop-Counter Ledger"**
+**Creative North Star: "The Shop-Counter Ledger, in daylight"**
 
-A night-time bookkeeping page: a deep navy ground, ruled lines instead of boxes, and one green that means "this is fine / act here". The owner chose the direction (dark navy, green accent). The product promise is control over money, so the page states it plainly and then shows the real product screen as proof, instead of a dashboard of metric cards or a drawn mock-up.
-
-The product is used mostly on the desktop (owner, 2026-11-07), so the system is desktop-first: the hero is composed for 1440 and 1920 wide screens, and mobile stacks the same single column. Density is calm and generous on the marketing surface (72px to 112px section rhythm); operational screens may tighten spacing but keep the same flat, tonal language. Copy is Brazilian Portuguese; this file is English.
+A calm, flat, readable system for the person behind a small counter. One blue family carries every action and every selected state. Cards sit on a tinted ground without borders or shadows, text is large, and money is always set in tabular figures. The same tokens exist in a light and a dark theme, so the PDV can follow the system (a shop with the lights low at night) while the marketing and sign-in screens stay light.
 
 **Key Characteristics:**
-- Flat tonal layering on navy; hairline rules (solid or dashed) carry structure.
-- One accent (green) for actions, step numerals and disclosure markers.
-- Display face only for headings and step numerals.
-- Lists are ruled, not carded: losses, safety rows, FAQ.
-- The hero proof is a real capture of the app inside an application window, never a drawn imitation.
-- No authored motion beyond short hover/focus transitions and the loading spinner.
-- Login and sign up reuse the same world: two columns on desktop (brand side on `ground`, form side on lifted `surface`), one column on a phone.
+- Two themes, one blue family. Light is the default; dark follows the system.
+- Flat tonal layering: `bg`, then `surface` cards, then `surface-2` for secondary fills. Structure comes from tone and hairlines, not from shadows.
+- One accent (`primary`) for primary buttons, selected states, focus, the active nav item and the brand mark.
+- One dark block, `ink`, reserved for the sale total in the PDV.
+- Type scale 44 / 22 / 16 / 14 px in the app, Inter, tabular figures for money.
+- Controls are large (48 to 64px for the main ones) and any control drawn smaller still has a 44px touch area.
+
+## Themes
+
+Defined in `globals.css`. The token names are the same in both themes; only the values change.
+
+- **Light is the default** (`:root`, and `[data-theme='light']`). `color-scheme: light`.
+- **Dark follows the system.** Inside `@media (prefers-color-scheme: dark)` the dark values apply to `:root` unless the page opts out (next point). `color-scheme: dark`.
+- **`data-theme="light"` or `"dark"` forces one.** The attribute works on `<html>` and on any element: on any element it re-themes only that subtree (the dark block is `[data-theme='dark']`, the light one is `:root, [data-theme='light']`).
+- **A page that contains a `data-theme="light"` region stays light as a whole**, including the ground behind it: the system-dark rule is `:root:not([data-theme='light'])` (no `:has()`, so it works in every browser), and a later rule `:root:has([data-theme='light'])` puts `--bg`, `--text` and `color-scheme` back to light. In a browser without `:has()` only the margins behind the page stay dark; the light region itself is unaffected, because it redefines every token on its own element. `globals-tokens.test.ts` keeps the two dark token blocks identical and these light values equal to the light theme.
+- **Pinned to light** with `data-theme="light"` on their root element: the landing (`.landing`), sign in and sign up (`AuthShell`, `main.auth`) and the open-cash screen (`.auth-app` in `CashOpenScreen`).
+- **Follow the system:** the PDV (`/pdv`) and management (`/gestao`) screens, which set no `data-theme`.
 
 ## Colors
 
-A navy-and-slate neutral family with one mint-green accent. Contrast measured on the build: text on ground 17.09:1, muted on ground 10.07:1, button text on green 7.71:1. On the auth screens (measured in the browser): label 15.53, subtitle 9.15, input text 17.09, inactive tab 10.07, show-password toggle 9.74, hint 9.15, placeholder 6.04, primary button 7.71.
+All values are copied from `globals.css`. Components use `var(--token)` only; no screen hard-codes a color except the thermal print area (`#fff`/`#000`) and the receipt preview.
 
-### Primary
-- **Ledger Green** (`green`, #34d399): primary button fill, focus ring, selection, step numerals, FAQ plus/minus marker, hover underline on the header link, secondary button hover border.
-- **Green Hover** (`green-hover`, #5eead4): primary button hover fill only.
-- **Green Ink** (`green-ink`, #052e1f): text on green fills and selected text.
+| Token | Light | Dark | Used for |
+|---|---|---|---|
+| `bg` | `#f3f6fa` | `#0c1220` | page ground |
+| `surface` | `#ffffff` | `#151d2f` | cards, modals, outline buttons, auth card |
+| `surface-2` | `#eaf0f7` | `#1e2940` | soft button fill, hover on surfaces, limit bar track |
+| `border` | `#d6dfea` | `#2a3852` | hairlines: table rows, card heads, section rules |
+| `border-strong` | `#b9c6d6` | `#3d4d6b` | outline of buttons, inputs and choice buttons |
+| `text` | `#142033` | `#e4ecf8` | primary text |
+| `muted` | `#55647a` | `#94a3bc` | secondary text, hints, placeholders, table heads |
+| `primary` | `#2457c5` | `#6aa2ff` | primary button fill, focus ring, selection, active nav underline, selected-state border |
+| `on-primary` | `#ffffff` | `#0a1a38` | text on `primary` fills |
+| `primary-soft` | `#e6eefb` | `rgba(106, 162, 255, 0.16)` | `.notice` fill, selected choice fill, latest cart row |
+| `primary-text` | `#1b449c` | `#9cc0ff` | text on `primary-soft`, link-style buttons, confirmed state text |
+| `header` | `#ffffff` | `#0c1220` | app header and open-cash top bar background |
+| `on-header` | `#111b2e` | `#e4ecf8` | text in the header |
+| `muted-on-header` | `#5b6b82` | `#94a3bc` | inactive nav items, operator name |
+| `header-line` | `#e3e9f1` | `#2a3852` | header bottom border, `.ghost` border |
+| `ink` | `#14284b` | `#1e2940` | the PDV total block |
+| `on-ink` | `#ffffff` | `#e4ecf8` | text on `ink` |
+| `muted-on-ink` | `#a9bcd8` | `#94a3bc` | secondary text on `ink` |
+| `warn` | `#8a4b00` | `#f5b942` | offline bar, low stock, "Caixa fechado", over-count difference |
+| `warn-soft` | `#fff4e0` | `rgba(245, 185, 66, 0.14)` | fill behind `warn` text |
+| `danger` | `#b42318` | `#ff7a7a` | `.error`, invalid input border, debt, destructive actions |
+| `danger-soft` | `#fde7e4` | `rgba(255, 122, 122, 0.14)` | fill behind `danger` text |
+| `input` | `#ffffff` | `#0f1727` | text input fill |
+| `overlay` | `rgba(20, 40, 75, 0.55)` | `rgba(0, 0, 0, 0.6)` | modal backdrop |
 
-### Neutral
-- **Night Navy** (`ground`, #0b1220): page ground; also set on `html` so overscroll matches. `color-scheme: dark`.
-- **Hairline** (`line`, #243350): all section rules, row rules, header link underline.
-- **Strong Hairline** (`line-strong`, #4b5d7c): outlines of the application window and of controls that carry visible text (landing secondary button, auth tab and secondary button borders, auth brand capture window). It measures 2.81:1 on `ground` and 2.56:1 on `surface`, so it is not enough to mark an empty control on its own.
-- **Field Border** (`field-border`, #5f7293, auth only, custom property on `.auth`): the 1px boundary of text inputs (`.auth-input`). The input fill is the ground colour, so this border is the only thing that marks the control; it measures 3.85:1 on `ground` and 3.50:1 on `surface` (WCAG 1.4.11 non-text contrast, 3:1).
-- **Paper White** (`text`, #f1f5f9): headings, primary copy.
-- **Slate Muted** (`muted`, #b3bfd2): body copy, captions, notes.
-- **Window White** (`#ffffff`, hard-coded on `.landing-shot-window`): the backing behind the screenshot only, so the image never shows a navy seam. The greens and greys inside the capture belong to the app's own screen, not to this palette.
-
-- **Lifted Navy** (`surface`, #111c31): the form side of the auth screens on desktop and the active tab fill. Used only there; the landing does not use it.
-- **Placeholder Slate** (`placeholder`, #8593ad): input placeholder text only (6.04:1 on `ground`).
-
-### Danger (auth forms only)
-- **Danger Text** (`danger-text`, #fecaca) on **Danger Wash** (`danger-bg`, #2a1215) with **Danger Line** (`danger-line`, #7f1d1d) border: the form error banner and inline field errors (text only).
-- **Danger Border** (`danger-border`, #f87171): border of an input with `aria-invalid`. Currently a literal in `auth.css`, not a custom property.
+Derived colors are made with `color-mix` from these tokens (primary hover is `primary` 86% with `ink`; soft hover is `surface-2` 82% with `border-strong`; the skeleton block is `border` 65% with `surface-2`), never with new hex values.
 
 ### Named Rules
-**The Field Boundary Rule.** A text input's boundary is `field-border`, never `line-strong`: the input has no fill to tell it apart, and `line-strong` is below 3:1 on `surface`. `line-strong` stays on borders of elements that carry visible text.
+**The One Accent Rule.** `primary` marks an action, a selected state or focus. There is no second accent. `warn` and `danger` are states, not decoration: `danger` appears for errors, debt and destructive actions only.
 
-**The One Green Rule.** Green marks an action or a confirmed state, never decoration. No second accent, no green body text. The short green dash before each auth claim and the in-field Mostrar/Ocultar button are the same signal (marker and action). Red appears only as the error state on forms, never as an accent.
+**The Selected State Rule.** A selected segment, payment choice or quick amount (`aria-pressed="true"`) is a 2px `primary` border on a `primary-soft` fill with `primary-text` text and weight 700. The padding is reduced by 1px so the 2px border does not change the size.
+
+**The Token Only Rule.** New CSS uses `var(--...)` for color, so both themes work without extra code.
 
 ## Typography
 
-**Display Font:** Bricolage Grotesque (self-hosted via next/font, `--font-display`, fallback Geist then system-ui)
-**Body Font:** Geist (`--font-geist-sans` from `src/app/layout.tsx`, fallback system-ui, sans-serif)
+**App font:** Inter, loaded with `next/font/google` in `src/app/layout.tsx` as the CSS variable `--font-inter` (`subsets: ["latin"]`, `display: "swap"`) and applied on `<html>`. `globals.css` exposes it as `--font-sans: var(--font-inter), system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif`, set on `body` at 16px with `line-height: normal`.
 
-**Character:** Bricolage gives headings a warm, slightly irregular shop-sign voice; Geist keeps body plain and legible. Tight negative tracking on headings, none on body.
+**Landing font:** the system font stack (`system-ui, -apple-system, 'Segoe UI', sans-serif`), set on `.landing` at 16px with `line-height: 1.5`. The landing deliberately does not use Inter.
 
-### Hierarchy
-- **Display** (800, clamp(2.25rem, 8.5vw, 4.5rem), 1.03, -0.03em, balanced wrap): the single h1 per page.
-- **Headline** (800, clamp(1.75rem, 5.5vw, 2.75rem), 1.1, -0.025em, balanced wrap): section h2.
-- **Title** (700, 1.375rem, -0.01em): loss names. Step and safety h3 use Geist at 1.25rem / 1.1875rem with -0.01em.
-- **Step numeral** (Bricolage 800, 2.5rem, line-height 1, green, tabular): numbered list markers.
-- **Lead** (400, 1.1875rem, muted, max 52ch) and **Body** (400, 1rem, 1.55, muted, max 52ch; step text 44ch).
-- **Caption** (0.875rem, muted): the screenshot caption; note 0.9375rem muted; button 1.0625rem at 650.
+### Hierarchy (app screens)
+- **Display** (800, 44px, -0.02em): the sale total (`.pdv-total-value`, `.pdv-modal-total-value`, `.pdv-change-value`), the management KPI value, the open-cash title. On a phone these step down (40px, 36px, 32px, 30px depending on the element).
+- **Title** (700, 22px): page and section titles, app brand in the header, auth title, the PDV card and empty-state titles, amount inputs. The management `h1` is 800.
+- **Body** (16px): default text, table cells, buttons, inputs, nav items. Card titles are 600 or 700.
+- **Caption** (14px): hints, labels (`.field-label` at 600), table heads, meta lines, notices, status bar, small buttons.
+- Weights in use: 400, 500, 600, 700, 800.
 
-### Auth hierarchy
-- **Brand headline** (Bricolage 800, clamp(1.75rem, 6vw, 2.25rem) on a phone, clamp(2.5rem, 4vw, 3.5rem) from 960px, 1.08, -0.025em, balanced, max 14ch on desktop): a `p`, not the page h1.
-- **Form title** (Bricolage 800, 2rem, 1.1, -0.025em): the single h1 of each auth state.
-- **Subtitle** (Geist 1rem, muted, max 46ch; `strong` in Paper White).
-- **Label** (Geist 0.9375rem at 600), **hint** and **field error** (0.875rem), **error banner** (0.9375rem), **tab** (0.9375rem at 600), **toggle** (0.875rem at 600), **input** 1rem; PIN input 1.25rem with 0.4em letter spacing; amount input 1.25rem at 700. PIN and amount are tabular.
-- The display face reaches these screens through the `fontClassName` prop of `AuthShell` (the page passes `displayFont.variable`); a new auth surface must pass it or headings fall back to Geist.
+### Landing sizes
+The landing is marketing and has its own larger steps: hero h1 56px (44px under 900px, 36px under 600px), section h2 32px (28px under 900px), final-call h2 44px (36px, then 32px on narrow screens), lead and final-call text 18px, step numerals 22px, item titles 18px, wordmark 18px, note and footer 14px.
 
 ### Named Rules
-**The Tabular Rule.** Every money figure and counter the landing sets itself uses `font-variant-numeric: tabular-nums` (today: step numerals, and the PIN and amount inputs on the auth screens). Money figures inside the screenshot are the app's own.
+**The Tabular Rule.** Money and counters use `font-variant-numeric: tabular-nums`: the `.num` utility, the app clock, totals, table amount columns (`.mg-num`), the PIN and amount inputs, the landing example values and step numerals.
 
-**The Measure Rule.** Running text never exceeds 52ch (`--measure`); the FAQ column caps at 760px.
+**The Scale Rule.** App screens use the 44 / 22 / 16 / 14 px scale. A one-off size (the 20px PIN input, the 40/36/32/30px phone steps of the display size) is a documented exception, not a new step.
 
 ## Layout
 
-Desktop-first in intent, written mobile first in CSS: single column, 20px side gutters, content max-width 1120px centered. Sections are separated by a 1px `line` top rule with vertical padding 72px (112px from 900px up). The hero is a single column at every width: h1, lead, two actions, a note, then the application window full content width (up to 1120px) below them, 40px gap (64px from 900px up), padding 40px top / 72px bottom (88px / 112px from 900px up). At 1920 the window starts about 550px down, so the top of the real screen, including the total, sits in the first viewport; at 1440 the window starts a little lower and the first viewport shows its upper half. Losses go two-up with 64px column gap; steps go three-up with 40px gap; safety rows become a two-column row (0.8fr title, 1.2fr text, baseline aligned). Under 520px, primary and secondary buttons go full width.
+Written desktop-first in intent (the owner uses the product mostly on a desktop), with explicit phone behavior. Breakpoints in use: 480, 560, 600 and 900px.
 
-Spacing rhythm in use: 8, 12, 14, 16, 20, 28, 32, 40, 64, 72, 88, 112px. Rows inside lists use 22px (losses, safety) vertical padding.
+### App header (shared)
+`AppHeader` (`src/frontend/ui/app-header.tsx`) is used by the PDV and by management: `BrandMark` plus the name "Meu Comércio" (a link to `/pdv`), a main nav with two links, **Venda** (`/pdv`) and **Gestão** (`/gestao`), the operator name and role ("Dona" or "Operador"), an optional clock, and a `.ghost` "Sair" button. It is sticky, 12px 24px padding, bottom border `header-line`. The active link has `aria-current="page"`, a 3px `primary` bottom border and weight 700. Under 600px the user box wraps to its own full-width row.
 
-Breakpoints: 520px (button width), 900px (grid layouts and larger paddings).
+### Landing
+`.landing` is pinned light. Content is centered in a 1120px wrap with 32px side padding (18px under 600px). Order: nav (brand and an "Entrar" link), hero, "o que o caderno deixa escapar" (a two-column list of losses), "Como funciona" (three numbered steps), safety rows, FAQ, final call, footer. The hero is two columns on desktop (copy, then the example panel) and stacks under 900px. Sections are separated by 1px `border` top rules with 72px vertical padding (52px under 600px). Buttons go full width under 600px.
 
-### Auth screens
-From 960px the page is a two-column grid (`1.1fr` brand, `0.9fr` form, form column at least 440px). Brand side sits on `ground`, padding 40px 56px 48px, wordmark at the top, headline and claims in the middle, the capture window at the bottom. The form side is `surface`, separated by a 1px `line` left hairline, content top aligned with top padding `clamp(48px, 10vh, 112px)` so the tabs and the title do not move between login and sign up. The form column is capped at 420px. Below 960px it is one column: wordmark and headline (padding 24px 20px 8px), then the form (24px 20px 48px); the claims and the capture are hidden. Form fields stack with an 18px gap, label to input 8px, tabs to title 28px.
+### Sign in and sign up
+`AuthShell` (`main.auth`, pinned light) is a single centered card on the page ground: the brand mark and name on top (a link to `/`), the card, and a footer line beneath. There is no brand panel, no tabs and no screenshot.
+- Sign in: card up to **420px** wide. Sign up: **540px** (`auth-card-wide`), with two-column rows (`.auth-grid-2`, one column under 560px).
+- The card is `surface`, 20px radius, 32px padding (24px 18px under 480px), no shadow.
+- Switching between the two forms is a **link-style footer toggle** (`.auth-link`, a button drawn like text in `primary-text`), not tabs. The page is top aligned so the brand and the card top do not move when the user switches.
+- The form column has an 18px gap; the submit button is full width, 56px high.
 
-The cash-open state (logged in, cash closed) has no tabs, so its title sits higher than on login and sign up; the top alignment keeps it stable within that state only.
+### Open cash register
+`CashOpenScreen` (`.auth-app`, pinned light) has a top bar (the shared header colors, brand name at 22px/700 and the operator name), a centered `cash-card` up to 560px, and a bottom note. The card shows the warn-colored status "Caixa fechado", a 44px title, a 64px amount input with a 2px `primary` border, a grid of four quick amounts and two actions.
 
-Verified in the browser: no horizontal overflow at 320, 360, 390 and 1440px; every control at least 44px; keyboard order wordmark, tabs, fields, show password, submit.
+### PDV
+A two-column grid: the sale on the left (add-product card, the cart table card), the payment column on the right (380px at most, 300px at least, sticky below the header). It collapses to one column under 900px. The payment column holds, in order:
+- the **total block**: `ink` fill, 16px radius, 24px padding, the total in Display size, a 60px primary pay button and a 48px cancel button with a 28%-`on-ink` border;
+- the **payment methods card** with a title row (see Fiado below) and a 2-column grid of main method buttons, 60px high.
 
-### Review rule
-Review the landing and the auth screens desktop-first: check 1440 and 1920 wide, then 390. At every size the window must show the whole capture (full width, auto height, no crop) and the caption must stay directly below it.
+The **payment modal** is a `surface` dialog up to **600px** wide, 20px radius, with a header, a scrolling body and a footer; narrow dialogs (PIN, receipt type) are 460px. A status bar closes the screen (connection dot, offline state, small actions).
+
+### Management
+`.management-page` is centered, up to 1200px, with 16px 24px padding. A title bar, **segmented tabs** (`mg-segment`, 44px high, 10px radius, `aria-pressed` selected style), and per-tab content built from **KPI cards** (`repeat(auto-fit, minmax(240px, 1fr))`, 16px radius, 44px value), cards with toolbars, **tables** (`mg-table`, 560px minimum width, scrolling inside its wrapper), customer cards with a limit bar, and the cash-close layout (two columns, one under 900px). Dialogs are 600px wide.
 
 ## Elevation & Depth
 
-Flat by default; depth is tonal plus 1px rules. On the auth screens the form side is lifted by tone (`surface` against `ground`) and a hairline, not by shadow. Three soft shadows exist: the application window (`0 48px 80px -40px rgba(0,0,0,0.85), 0 16px 32px -16px rgba(0,0,0,0.5)`, grounding shadows that lift the light capture off the navy) and the primary button (`0 10px 24px -12px rgba(52,211,153,0.7)`, a faint green glow). The capture window on the auth brand side has a lighter grounding shadow (`0 32px 64px -32px rgba(0,0,0,0.8)`). Focused inputs get a 3px green ring (`0 0 0 3px rgba(52,211,153,0.35)`). No offset hard shadows, no stacked cards.
-
-### Named Rules
-**The One Raised Surface Rule.** Only the application window is raised (one per page; the auth form side is a tonal lift, not a raised surface). Everything else is ground with rules.
+Flat. Cards (`.card`, 16px radius, 20px padding), the auth card (20px) and KPI cards have no border and no shadow; they are separated from `bg` by tone alone. Hairlines (`border`) separate rows and card heads. The only drop shadow in the app is the PDV modal (`0 24px 60px` of `ink` at 40%), plus the dim `overlay` backdrop. The 4px bar on the left of the latest cart row is an `inset` marker in `primary`, not a shadow. The PDV Fiado menu list is a bordered `surface` popover without a shadow.
 
 ## Shapes
 
-Soft but not bubbly: 12px on buttons and the tab group, 10px on inputs and the error banner, 9px on the active tab, 14px on the application window (top corners only on the auth capture, which runs off the bottom edge), 6px on landing focus outlines and 8px on auth ones. Structure comes from straight horizontal rules, solid (`line`) between sections and FAQ/safety rows, dashed (`1px dashed line`) for the four losses, evoking notebook ruling.
+Radii in use: 6px (`.kbd`), 8px (ghost and small buttons, icon buttons, menu items), 10px (segments, choice and quick-amount buttons, close buttons, search), 12px (primary, outline and soft buttons, inputs, notices, change box), 16px (cards, KPI cards, the total block), 20px (auth card, cash card, modals, landing example panel), 999px (the operator pill).
 
 ## Components
 
+All primitives live in `globals.css` and are shared by every screen.
+
 ### Buttons
-- **Shape:** 12px radius, 52px minimum height, 24px horizontal padding, 1.0625rem at 650.
-- **Primary:** Ledger Green fill, Green Ink text, soft green glow. Hover: Green Hover fill, lifts 1px.
-- **Secondary:** transparent, 1px `line-strong` border, Paper White text; hover border turns green.
-- **Motion:** 160ms ease-out on background, border and transform.
+- **`.primary`:** `primary` fill, `on-primary` text, 48px minimum height, 22px padding, 12px radius, 16px at 700. Hover mixes `primary` 86% with `ink`; pressed moves 1px down; disabled is 55% opacity.
+- **`.outline`:** `surface` fill, 1px `border-strong`, `text`, 48px, weight 600. Hover fills `surface-2`.
+- **`.soft`:** `surface-2` fill, no border, 44px, weight 600.
+- **`.ghost`:** transparent, 1px `header-line` border, 8px radius, 14px at 600; used for "Sair" in the header. Drawn 34px high with a touch area extended to 44px.
+- **Destructive:** `mg-danger-outline` (danger border and text) and `primary.mg-danger-solid` (danger fill) in management.
+- **`.kbd`:** a small keyboard-key hint.
+- Main PDV actions are larger: pay 60px, method buttons 60px (52px on a phone), modal footer 58px.
 
-### Application window (signature)
-A `figure.landing-shot` holding `div.landing-shot-window` and a `figcaption`. The window is `overflow: hidden`, 1px `line-strong` border, 14px radius, white backing, the two grounding shadows above; the image is block, `width: 100%`, `height: auto`, with explicit `width`/`height` attributes (1920x1140) and `decoding="async"`. It is a plain `img` (fixed, already optimized WebP; next/image adds nothing). The frame has no fake title bar or traffic-light dots: the capture carries the app's own header. The caption sits 14px below, in Caption style, and always starts with "Exemplo:" (current text: "Exemplo: a tela do PDV com produtos e valores de demonstração."). The alt text describes the screen in pt-BR.
+### Cards and notices
+`.card` is `surface`, 16px radius, 20px padding. `.notice` (`primary-soft`/`primary-text`) and `.error` (`danger-soft`/`danger`) are 12px-radius, 14px bars with 12px 16px padding; `.pdv-offline` uses `warn-soft`/`warn`.
 
-**The Real Capture Rule.** The product screen in the window must be a real capture of the app (here `/pdv`), never a redrawn or illustrative mock-up, it must use demo data only, and it must always carry the "Exemplo:" caption. When the PDV changes visibly, recapture it.
+### Fields
+`.field-label` (14px, 600, 8px below). `.input`: 56px high, 12px radius, 1px `border-strong`, `input` fill, 16px text, `muted` placeholder, ellipsis on overflow. Invalid: `aria-invalid="true"` turns the border `danger`. The large amount, scan and count inputs are 60 to 64px with a 2px `primary` border and 22px text. Number inputs hide the browser spin buttons. Each field sets `autoComplete`.
+- **Password field:** an `.input` with a borderless **eye icon** button inside at the right (`auth-toggle`, 40px, 8px radius, `muted`, hover `surface-2`); the icon gets a slash when the password is visible. The accessible name changes ("Mostrar senha" / "Ocultar senha").
+- **PIN field:** digits only, 20px, 0.4em letter spacing, tabular.
+- **Inline field error:** 14px `danger` below the field. **Form error banner:** `auth-error`, `danger-soft` fill, 12px radius, with a small alert icon before the message.
 
-**Raster provenance (`public/landing/pdv-desktop.webp`).** 1920x1140 WebP, about 100 KB. Captured with Playwright from the built app's `/pdv` at a 1280x760 viewport, device scale factor 1.5, with invented demo products and customers served by intercepted API responses, then converted to WebP. Nothing from production or from real customers.
+### Brand mark
+`BrandMark` is an SVG receipt with a check, filled from `primary`/`on-primary`, so it follows the theme. Sizes in use: 40 (auth), 32 (header), 30 (landing nav).
 
-### Auth shell and brand side
-`AuthShell` (`main.auth`) takes a `mode` (login, register, setup, cash) that picks the brand copy and a `fontClassName`. The brand side holds: the wordmark link to `/` (display face 1.125rem at 700, 44px target), the headline, three claims as a list with an 8x2px green dash marker (no bullets, no icons), and the real PDV capture (same `/landing/pdv-desktop.webp`) cropped to a 300px-high window anchored top-left, 1px `line-strong` border, 14px top corners, open at the bottom, with the visible caption "Exemplo: tela do PDV com dados de demonstração." beneath. The image has empty alt (decorative; the caption carries the meaning). The cropped window is specific to auth: the landing window always shows the whole capture.
+### Segmented controls and choices
+Management tabs and filters (`mg-segment`), payment choices (`pdv-choice`), and cash quick amounts share the selected-state rule. Choice buttons are 56px high.
 
-**The Allowed Claims Rule.** Auth copy states only what the product does: owner PIN of 6 digits for estornos and fiado above the limit, fiado limit per customer, cash close that compares the counted amount with the expected one, simple cash sales kept offline. No profit, reports, prices, customers, ratings or testimonials.
+### Skeletons (loading)
+Loading is shown as shimmering gray blocks drawn with the real layout classes of the screen, so the page does not jump when data arrives.
+- `Skeleton` (`src/frontend/ui/skeleton.tsx`) renders one block (`.skeleton`, `aria-hidden`) with `width`, `height`, `radius` and a `tone`. The fill is `border` 65% mixed with `surface-2` and a moving highlight (a 1.4s `skeleton-shimmer` on an `::after` element that only moves with `transform`, so the block is not repainted). `tone="on-ink"` (`.skeleton-on-ink`) is for blocks on the dark total block.
+- Screens: `PdvSkeleton` (header, scan card, cart, total block, method grid, status bar), `ManagementSkeleton` (header, title, tabs, KPI cards, a table) and `AuthFormSkeleton` (the inside of the sign-in card: title, two fields, button). `AppHeaderSkeleton` keeps the real brand and draws the rest in gray.
+- **Announced once:** the root of each skeleton has `role="status"` and `aria-busy="true"` and contains one visually hidden `.sr-only` label ("Carregando o terminal de vendas…", "Carregando o painel de gestão…", "Verificando o sistema…"); the blocks themselves are `aria-hidden`.
+- Under `prefers-reduced-motion: reduce` the shimmer stops.
 
-### Auth form components
-- **Tabs:** a two-button segmented group (`role=group`, buttons with `aria-pressed`, the only use of it on these screens): "Entrar" and "Criar conta" (same words as the landing). Container `ground` with 1px `line` border, 12px radius, 4px padding; tab 44px high, 9px radius, muted text, hover Paper White; active tab fills `surface` with a `line-strong` border and Paper White text. Hidden in first-access setup and in the cash state.
-- **Title and subtitle:** h1 in the display face, muted subtitle.
-- **Text input:** 48px, `ground` fill, 1px `field-border` border, 10px radius, 14px side padding, 1rem. Focus: border turns green plus the 3px green ring (outline removed, the ring is the indicator). Invalid: `danger-border` border. Placeholder in `placeholder`. Transition 160ms ease-out.
-- **Password field:** an input with a Mostrar/Ocultar text button inside at the right (green, 0.875rem at 600, 44px high, at least 72px wide, 8px radius, hover Green Hover); input right padding 92px. The button has no `aria-pressed`: its accessible name changes ("Mostrar senha" / "Ocultar senha") and contains the visible text ("Mostrar" / "Ocultar"). The sign-up form repeats it as "Repita a senha" with an inline mismatch message, "As senhas não conferem.", shown only when the repeated password is as long as the password and still differs, or longer (pure helper `passwordsMismatch` in `src/frontend/auth/passwords-mismatch.ts`), not on the first keystroke.
-- **PIN field:** numeric keypad, digits only, max 6, wide letter spacing, hint below in muted 0.875rem.
-- **Amount field:** the opening balance input is a number input with the browser spin buttons removed (`appearance: textfield` and the webkit spin buttons hidden); 1.25rem at 700, tabular.
-- **Inline field error:** 0.875rem `danger-text` under the field, tied by `aria-describedby`.
-- **Form error banner:** `role="alert"`, `danger-bg` fill, 1px `danger-line` border, 10px radius, 12px 14px padding, a small stroke SVG alert mark (18px, `currentColor`, `aria-hidden`) before the message. It sits between the subtitle and the form.
-- **Buttons:** primary is full width, 52px, green, 12px radius, 1.0625rem at 650, hover Green Hover (no lift, no glow on auth), disabled at 0.75 opacity. Secondary is full width, 48px, transparent with 1px `line-strong` border, hover border green.
-- **Loading:** a 20px ring spinner (3px border, green top; green-ink inside the primary button), 800ms linear; under `prefers-reduced-motion` it slows to 2.4s instead of stopping, and the other transitions are removed.
-- **Labels and autocomplete:** labels are nouns ("Usuário", "Senha", "Repita a senha", "PIN da dona (6 dígitos)", "Nome da loja", "Seu usuário"). Every field sets `autoComplete` (username, current-password, new-password, organization) so password managers work. A hidden honeypot input sits in each form, off-screen and `aria-hidden`.
+### The Fiado menu
+**Fiado is not a main payment button.** In the payment card of the PDV it lives in a small panel opened by a **three-dots button** (`pdv-dots`, `aria-expanded`, label "Mais opções de pagamento") on the title row of the card. The panel opens to the side of the dots and holds one button, "Fiado". It is a plain disclosure, not an ARIA menu (there is no arrow-key navigation): Escape or a click outside closes it, Escape returns the focus to the dots button and does not clear the sale. The main grid keeps the everyday methods.
 
-### Ruled lists
-Losses: display-face title over muted explanation, 22px padding, dashed rule below, two-up from 900px. Safety rows: solid rules above and below the set. Steps: ordered list with green display numerals via CSS counter, in a 3rem + 1fr grid. Never boxed or carded.
-
-### Questions (FAQ)
-Native `details`/`summary`, 56px minimum target, 1.125rem at 600, solid bottom rule, a green typographic plus that becomes a minus when open (default marker hidden).
+### Landing example panel
+The hero shows a **labelled example panel** ("Exemplo de painel do caixa": title "Caixa de hoje", a badge "Exemplo", two amount rows and a "confere" check) built from HTML, not a screenshot. The "Exemplo" badge must always be shown with the values; they are not real data. There is no application-window frame and no PDV screenshot.
 
 ### Navigation
-Auth screens: the wordmark link to `/` and the tab group are the only navigation. Landing header: wordmark in display face (1.125rem, 700) at left, a single text link ("Entrar") at right, underlined with a `line` underline that turns green on hover, 44px minimum height. Footer repeats the wordmark with a muted line.
+App: the shared `AppHeader` (see Layout). Auth: the brand link to `/` and the footer toggle. Landing: wordmark at the left, one "Entrar" link at the right (underline on hover, 44px target).
 
-### Motion
-None authored beyond state feedback. Landing: button hover transition (160ms ease-out on background, border and transform, 1px lift on primary hover). Auth: 160ms ease-out on tab, input and button colors, and the loading spinner. Under `prefers-reduced-motion: reduce` transitions and the lift are removed.
+## Interaction
 
-### Accessibility floor
-Focus: `3px solid green`, 3px offset, 6px radius on links and summaries (8px on auth links and buttons; auth inputs use the green border plus ring). Interactive targets at least 44px (buttons 52px, FAQ 56px). Sections are labelled by their headings; the screenshot has descriptive alt text and a visible caption. Text colors hold the measured contrast above. Selection uses green with green ink.
+- **Focus:** every button, input, select, textarea, summary and link gets a `3px solid var(--primary)` outline with a 2px offset on `:focus-visible`.
+- **Touch targets:** the controls that are drawn smaller than 44px extend their hit area with an `::after` pseudo-element, so the design stays small and the touch area reaches 44px. Examples: `.ghost` (34px), password eye toggle (40px), quantity and close buttons (40px), row actions in management (40px), the Fiado menu item (36px), the three-dots button and the small status-bar buttons (32px), the landing FAQ summary (24px line, 48px row), the sign-in/sign-up toggle link and the landing header link.
+- **Reduced motion:** respected. Transitions are removed in the PDV and the landing buttons; the skeleton shimmer and the sign-in form entrance animation stop; the spinner slows to 2.4s instead of stopping; the management limit bar only animates under `prefers-reduced-motion: no-preference`.
+- **Motion otherwise:** 120ms color transitions on buttons, a 200ms enter on the sign-in forms, an 800ms spinner. Nothing else is animated.
+- **Selection** uses `primary` with `on-primary` text.
+- **Labels** are nouns in pt-BR ("Usuário", "Senha", "PIN da dona (6 dígitos)").
 
 ## Do's and Don'ts
 
 ### Do:
-- **Do** show the product through a real capture with demo data, inside the application window, with the "Exemplo:" caption.
-- **Do** build lists as ruled rows (dashed for the losses, solid between sections).
-- **Do** keep all user-facing text in pt-BR in a content module, and claim only what the product does.
-- **Do** keep green for actions; keep text on green in Green Ink.
-- **Do** review desktop-first (1440 and 1920, then 390).
+- **Do** use only tokens for color, so both themes work.
+- **Do** keep the landing, sign in, sign up and open-cash screens on `data-theme="light"`, and let the PDV and management follow the system.
+- **Do** keep the app in Inter and the landing in the system font stack.
+- **Do** keep the app on the 44 / 22 / 16 / 14 px scale, and set money in tabular figures.
+- **Do** keep the `ink` block for the sale total only.
+- **Do** keep Fiado behind the three-dots menu, not in the main method grid.
+- **Do** build loading states as skeletons with the real layout classes, and announce them once with an `.sr-only` status label.
+- **Do** give every control smaller than 44px an `::after` that extends its touch area to 44px.
 - **Do** honor `prefers-reduced-motion` for any motion added.
-- **Do** use `surface` only for the lifted form side and active tab; keep inputs on `ground`.
-- **Do** keep field labels as nouns, reuse the landing's words ("Criar conta"), and set `autoComplete` on every field.
-- **Do** pass `fontClassName` to `AuthShell` so the display face loads.
-- **Do** limit auth copy to the allowed claims and keep the "Exemplo:" caption under the capture.
-- **Do** keep every control at least 44px.
+- **Do** show the "Exemplo" badge next to the landing example values, and claim only what the product does.
 
 ### Don't:
-- **Don't** put an eyebrow, kicker or pill above a heading, on the landing or the auth screens.
-- **Don't** use rows of same-size icon cards or boxed metric cards.
-- **Don't** use gradient text.
-- **Don't** invent claims, testimonials, ratings, customers, prices or profit/report promises.
-- **Don't** draw an imitation of the product screen, or use production or real-customer data in the capture.
-- **Don't** use hard offset shadows or a second accent color.
-- **Don't** show the browser's number spin buttons on money inputs.
-- **Don't** use red for anything but form errors.
-- **Don't** use emoji or glyph characters as icons; the FAQ plus/minus is a typographic disclosure marker, not an icon precedent.
+- **Don't** reintroduce the dark navy and green identity, a display font, or `.landing`/`.auth` scoped color tokens: the tokens are global.
+- **Don't** add shadows to cards, or a second accent color.
+- **Don't** use `danger` for anything but errors, debt and destructive actions.
+- **Don't** show a browser spin button on money inputs.
+- **Don't** put the PDV screenshot back in the hero or draw a fake application window; the example is a labelled panel.
+- **Don't** use emoji or glyph characters as icons; icons are SVG with `currentColor`.
+- **Don't** invent claims, testimonials, ratings, customers, prices or profit and report promises on the landing.

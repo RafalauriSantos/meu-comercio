@@ -12,7 +12,8 @@
     "start": "next start",
     "lint": "eslint",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "ci:local": "node scripts/ci-local.mjs"
   },
   "dependencies": {
     "@neondatabase/serverless": "^1.2.0",

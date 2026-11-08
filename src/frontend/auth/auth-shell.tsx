@@ -1,41 +1,31 @@
 import type { ReactNode } from 'react';
 import Link from 'next/link';
-import { AUTH_CONTENT, type AuthMode } from './auth-content';
+import { BrandMark } from '@/frontend/ui/brand-mark';
 
-const { brand, image, imageCaption, modes } = AUTH_CONTENT;
+interface AuthShellProps {
+  // Wider card for the sign up form.
+  wide?: boolean;
+  // id of the card's heading, when it has one.
+  labelledBy?: string;
+  // Line below the card (the sign in / sign up toggle).
+  footer?: ReactNode;
+  children: ReactNode;
+}
 
-export function AuthShell({ mode, fontClassName, children }: { mode: AuthMode; fontClassName?: string; children: ReactNode }) {
-  const copy = modes[mode];
-
+// Sign in and sign up: the logo, one centered card and a footer line, on the page ground.
+export function AuthShell({ wide, labelledBy, footer, children }: AuthShellProps) {
   return (
-    <main className={fontClassName ? `auth ${fontClassName}` : 'auth'}>
-      <aside className="auth-brand">
-        <Link href="/" className="auth-wordmark">
-          {brand}
-        </Link>
+    <main className="auth" data-theme="light">
+      <Link href="/" className="auth-brand">
+        <BrandMark size={40} />
+        Meu Comércio
+      </Link>
 
-        <div>
-          <p className="auth-brand-title">{copy.headline}</p>
-          <ul className="auth-claims">
-            {copy.claims.map((claim) => (
-              <li key={claim}>{claim}</li>
-            ))}
-          </ul>
-        </div>
-
-        <figure className="auth-brand-shot">
-          <div className="auth-brand-window">
-            {/* Decorative: a fixed, already optimized WebP with explicit size. */}
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={image.src} width={image.width} height={image.height} alt="" decoding="async" />
-          </div>
-          <figcaption>{imageCaption}</figcaption>
-        </figure>
-      </aside>
-
-      <section className="auth-panel">
-        <div className="auth-panel-inner">{children}</div>
+      <section className={wide ? 'auth-card auth-card-wide' : 'auth-card'} aria-labelledby={labelledBy}>
+        {children}
       </section>
+
+      {footer && <p className="auth-foot">{footer}</p>}
     </main>
   );
 }

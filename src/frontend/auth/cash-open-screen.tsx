@@ -31,7 +31,7 @@ export function CashOpenScreen({
   const current = parseCurrencyInput(openingBalance);
 
   return (
-    <div className="auth-app">
+    <div className="auth-app" data-theme="light">
       <header className="auth-topbar">
         <BrandMark size={32} />
         Meu Comércio

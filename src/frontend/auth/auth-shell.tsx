@@ -15,7 +15,7 @@ interface AuthShellProps {
 // Sign in and sign up: the logo, one centered card and a footer line, on the page ground.
 export function AuthShell({ wide, labelledBy, footer, children }: AuthShellProps) {
   return (
-    <main className="auth">
+    <main className="auth" data-theme="light">
       <Link href="/" className="auth-brand">
         <BrandMark size={40} />
         Meu Comércio

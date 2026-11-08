@@ -37,7 +37,8 @@
 
 /* Tema escuro: segue o sistema; data-theme="light" ou "dark" na tag <html> força um dos dois. data-theme="dark" em qualquer elemento deixa só aquele trecho escuro. */
 @media (prefers-color-scheme: dark) {
-  :root:not([data-theme='light']) {
+  /* Uma página com um trecho data-theme="light" (a landing, o login) fica toda clara, inclusive o fundo atrás dela. */
+  :root:not([data-theme='light']):not(:has([data-theme='light'])) {
     color-scheme: dark;
     --bg: #0c1220;
     --surface: #151d2f;

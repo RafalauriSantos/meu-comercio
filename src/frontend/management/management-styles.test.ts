@@ -4,7 +4,13 @@ import { join } from 'node:path';
 
 const root = process.cwd();
 const css = readFileSync(join(root, 'src', 'frontend', 'styles', 'management.css'), 'utf8');
-const page = readFileSync(join(root, 'src', 'app', 'gestao', 'page.tsx'), 'utf8');
+// The classes of the page and of the pieces it is built from.
+const page = [
+  join(root, 'src', 'app', 'gestao', 'page.tsx'),
+  join(root, 'src', 'frontend', 'management', 'import-products-panel.tsx'),
+]
+  .map((file) => readFileSync(file, 'utf8'))
+  .join('\n');
 
 function classesInCss(text: string): Set<string> {
   const withoutComments = text.replace(/\/\*[\s\S]*?\*\//g, '');

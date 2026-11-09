@@ -1,3 +1,10 @@
+export interface ProductImportReport {
+  valid: Array<{ line: number; barcode: string; name: string; salePrice: string; initialStock: number }>;
+  skipped: Array<{ line: number; barcode: string; name: string }>;
+  errors: Array<{ line: number; message: string }>;
+  imported: boolean;
+}
+
 export class ApiError extends Error {
   constructor(
     public readonly status: number,
@@ -260,6 +267,11 @@ export const apiClient = {
         salePrice: payload.salePrice,
         initialStock: payload.initialStock ?? 0,
       }),
+    }),
+  importProducts: (payload: { csv: string; dryRun: boolean }) =>
+    apiRequest<ProductImportReport>('/api/products/import', {
+      method: 'POST',
+      body: JSON.stringify(payload),
     }),
   restockInventory: (payload: { productId: string; quantity: number; reason: string }) =>
     apiRequest<{ success: boolean; newAvailableQuantity: number }>('/api/inventory/restock', {

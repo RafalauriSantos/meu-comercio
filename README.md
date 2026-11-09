@@ -10,7 +10,7 @@ Sistema de Ponto de Venda (PDV) e gestão comercial para mini-mercados e pequeno
 
 ## Acesse
 
-- **Aplicação no ar:** [https://meu-comercio-rho.vercel.app](https://meu-comercio-rho.vercel.app)
+- **Aplicação no ar:** [https://meucomercio.vercel.app](https://meucomercio.vercel.app)
 - **Rotas principais:**
   - `/` — Terminal de PDV com leitura contínua, atalhos de teclado, split checkout, impressão térmica e fila offline.
   - `/gestao` — Painel de retaguarda: catálogo de produtos, reposição de estoque, extrato e total de fiado na rua, operações de caixa (sangria/suprimento), controle de equipe/operadores e fechamento de caixa.

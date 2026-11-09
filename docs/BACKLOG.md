@@ -166,17 +166,17 @@ Este documento rastreia formalmente as fatias verticais de entrega, critérios d
 
 ## ⭐ Próximos passos (pedidos pela dona do comércio)
 
-### [ ] Slice 14: Relatórios de vendas — **próximo passo**
-A dona quer saber **quanto vendeu no dia, na semana e no mês**. Hoje o app mostra o fechamento do caixa e o fiado em aberto, mas não tem um relatório de vendas por período.
+### [x] Slice 14: Relatórios de vendas
+*Entregue na aba **Relatórios** da gestão (só a proprietária), em `/api/reports/sales`.* A dona queria saber **quanto vendeu no dia, na semana e no mês**. Antes o app mostrava o fechamento do caixa e o fiado em aberto, mas não tem um relatório de vendas por período.
 
-- [ ] 14.1 **Resumo do período** com seletor: Hoje, Ontem, Esta semana, Este mês e Período personalizado. Mostra o **total vendido**, o **número de vendas**, o **ticket médio** e a comparação com o período anterior equivalente (por exemplo, esta semana contra a semana passada, em % e em reais).
-- [ ] 14.2 **Por forma de pagamento**: dinheiro, Pix, débito, crédito e fiado, com valor e percentual. O troco não conta como venda.
-- [ ] 14.3 **Por dia** dentro do período (tabela e gráfico simples), destacando o melhor e o pior dia.
-- [ ] 14.4 **Produtos mais vendidos** (10 primeiros), por quantidade e por valor. Produto vendido por peso aparece em kg.
-- [ ] 14.5 **Por operador**: quanto cada pessoa do caixa vendeu.
-- [ ] 14.6 **Cancelamentos e fiado**: vendas canceladas listadas à parte e **fora** do total; fiado vendido e fiado recebido (quitações) no período.
-- [ ] 14.7 **Exportar** o relatório em CSV (abre no Excel).
-- [ ] 14.8 **Acesso só da proprietária** (`ROLE_OWNER`): o operador de caixa não vê.
+- [x] 14.1 **Resumo do período** com seletor: Hoje, Ontem, Esta semana, Este mês e Período personalizado. Mostra o **total vendido**, o **número de vendas**, o **ticket médio** e a comparação com o período anterior equivalente (por exemplo, esta semana contra a semana passada, em % e em reais).
+- [x] 14.2 **Por forma de pagamento**: dinheiro, Pix, débito, crédito e fiado, com valor e percentual. O troco não conta como venda.
+- [x] 14.3 **Por dia** dentro do período (tabela e gráfico simples), destacando o melhor e o pior dia.
+- [x] 14.4 **Produtos mais vendidos** (10 primeiros), por quantidade e por valor. Produto vendido por peso aparece em kg.
+- [x] 14.5 **Por operador**: quanto cada pessoa do caixa vendeu.
+- [x] 14.6 **Cancelamentos e fiado**: vendas canceladas listadas à parte e **fora** do total; fiado vendido e fiado recebido (quitações) no período.
+- [x] 14.7 **Exportar** o relatório em CSV (abre no Excel).
+- [x] 14.8 **Acesso só da proprietária** (`ROLE_OWNER`): o operador de caixa não vê.
 
 **Regras e cuidados**
 - **Fuso horário:** o dia vai de 00:00 a 23:59 no horário de Brasília (`America/Sao_Paulo`), não em UTC. Uma venda às 22h não pode cair no dia seguinte. Teste com vendas perto da meia-noite.

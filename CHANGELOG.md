@@ -7,7 +7,13 @@ lançar uma versão estão em `docs/PROJECT_WORKFLOW.md`.
 
 ## [Não lançado]
 
-Próximo passo planejado: relatórios de vendas (do dia, da semana e do mês). Veja `docs/BACKLOG.md`.
+### Adicionado
+
+- **Relatório de vendas** na aba "Relatórios" da gestão, só para a proprietária: quanto a loja vendeu hoje, ontem, nesta
+  semana, neste mês ou em um período escolhido, com a comparação com o período anterior. Mostra o total, o número de
+  vendas e o ticket médio; as formas de pagamento; as vendas por dia; os produtos mais vendidos; as vendas de cada
+  operador; o fiado vendido e recebido e as vendas canceladas (fora do total). Pode ser exportado em CSV para o Excel.
+  O dia segue o horário de Brasília.
 
 ## [0.1.0] - 2026-11-09
 

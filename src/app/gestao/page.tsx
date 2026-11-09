@@ -21,6 +21,7 @@ import { formatQuantity, type ProductUnit } from '@/shared/domain/product-unit';
 import { useAutoDismiss } from '@/frontend/lib/use-auto-dismiss';
 import { ManagementSkeleton } from '@/frontend/management/management-skeleton';
 import { ImportProductsPanel } from '@/frontend/management/import-products-panel';
+import { SalesReportPanel } from '@/frontend/management/sales-report-panel';
 import {
   countNeedingRestock,
   inventoryValue,
@@ -34,7 +35,7 @@ import '@/frontend/styles/management.css';
 
 export default function GestaoPage() {
   const router = useRouter();
-  const [activeTab, setActiveTab] = useState<'produtos' | 'fiado' | 'caixa' | 'operadores'>('produtos');
+  const [activeTab, setActiveTab] = useState<'produtos' | 'fiado' | 'caixa' | 'operadores' | 'relatorios'>('produtos');
   const [user, setUser] = useState<AuthUser | null>(null);
   const [loading, setLoading] = useState(true);
   const [feedback, setFeedback] = useState<{ text: string; isError?: boolean } | null>(null);
@@ -565,6 +566,16 @@ export default function GestaoPage() {
           >
             Controle de Caixa {cashOpen ? '● Aberto' : '● Fechado'}
           </button>
+          {user?.isOwner && (
+            <button
+              type="button"
+              className="mg-segment"
+              aria-pressed={activeTab === 'relatorios'}
+              onClick={() => setActiveTab('relatorios')}
+            >
+              Relatórios
+            </button>
+          )}
           {user?.isOwner && (
             <button
               type="button"
@@ -1240,6 +1251,9 @@ export default function GestaoPage() {
         )}
 
         {/* TAB 4: OPERADORES DE CAIXA */}
+        {/* TAB: RELATÓRIOS (só a dona) */}
+        {activeTab === 'relatorios' && user?.isOwner && <SalesReportPanel />}
+
         {activeTab === 'operadores' && user?.isOwner && (
           <section className="mg-section">
             <div className="mg-section-head">

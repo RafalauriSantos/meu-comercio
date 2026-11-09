@@ -15,6 +15,7 @@ import {
 } from '@/frontend/lib/api-client';
 import { formatMoney, parseCurrencyInput, getErrorMessage } from '@/frontend/lib/formatters';
 import { AppHeader } from '@/frontend/ui/app-header';
+import { useAutoDismiss } from '@/frontend/lib/use-auto-dismiss';
 import { ManagementSkeleton } from '@/frontend/management/management-skeleton';
 import { ImportProductsPanel } from '@/frontend/management/import-products-panel';
 import {
@@ -39,6 +40,7 @@ export default function GestaoPage() {
   const [catalog, setCatalog] = useState<ProductItem[]>([]);
   const [stockFilter, setStockFilter] = useState<StockFilter>('all');
   const [productQuery, setProductQuery] = useState('');
+  useAutoDismiss(feedback, () => setFeedback(null));
   const [showNewProduct, setShowNewProduct] = useState(false);
   const [showImport, setShowImport] = useState(false);
   const [newBarcode, setNewBarcode] = useState('');

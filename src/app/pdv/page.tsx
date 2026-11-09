@@ -34,6 +34,8 @@ import { createCheckoutKeyStore } from '@/frontend/lib/checkout-idempotency';
 import { PdvSkeleton } from '@/frontend/pdv/pdv-skeleton';
 import { blocksImplicitSubmit } from '@/frontend/pdv/enter-submit';
 import { createEscapeDismiss } from '@/frontend/lib/dismiss-on-escape';
+import { isNameSearch, moveHighlight, SEARCH_DEBOUNCE_MS } from '@/frontend/pdv/product-search';
+import { SearchResults, SEARCH_LIST_ID, searchOptionId } from '@/frontend/pdv/search-results';
 import { useAutoDismiss } from '@/frontend/lib/use-auto-dismiss';
 import { settleOfflineSale } from '@/frontend/lib/offline-sale-sender';
 import {
@@ -82,6 +84,13 @@ export default function PdvTerminalPage() {
   const [cart, setCart] = useState<CartLine[]>([]);
   const [lastItem, setLastItem] = useState<ProductItem | null>(null);
   const barcodeInputRef = useRef<HTMLInputElement>(null);
+
+  // Busca por nome no mesmo campo do código de barras. Os resultados só valem para o texto que os gerou.
+  const [searchResults, setSearchResults] = useState<ProductItem[]>([]);
+  const [searchFor, setSearchFor] = useState('');
+  const [highlighted, setHighlighted] = useState(0);
+  const searchText = barcodeInput.trim();
+  const showSearch = isNameSearch(searchText) && searchFor === searchText && searchResults.length > 0;
 
   // Checkout Modal
   const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
@@ -251,6 +260,38 @@ export default function PdvTerminalPage() {
       document.removeEventListener('keydown', handleEscape, true);
     };
   }, [showMoreMethods]);
+
+  // Procura por nome enquanto a pessoa digita (só online; o cache offline guarda por código de barras).
+  useEffect(() => {
+    if (!isNameSearch(searchText) || !isOnline) return;
+    let cancelled = false;
+    const timer = setTimeout(async () => {
+      try {
+        const { items } = await apiClient.searchProducts(searchText);
+        if (cancelled) return;
+        setSearchResults(items);
+        setSearchFor(searchText);
+        setHighlighted(0);
+      } catch {
+        if (!cancelled) setSearchResults([]);
+      }
+    }, SEARCH_DEBOUNCE_MS);
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+  }, [searchText, isOnline]);
+
+  // Esc fecha a lista de produtos sem limpar a venda.
+  useEffect(() => {
+    if (!showSearch) return;
+    const handleEscape = createEscapeDismiss(() => {
+      setSearchResults([]);
+      setSearchFor('');
+    });
+    document.addEventListener('keydown', handleEscape, true);
+    return () => document.removeEventListener('keydown', handleEscape, true);
+  }, [showSearch]);
 
   // Foco contínuo no leitor de código de barras
   useEffect(() => {
@@ -422,11 +463,52 @@ export default function PdvTerminalPage() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [cart.length, isCheckoutOpen, isPinModalOpen]);
 
-  // Adicionar produto por código de barras
+  function addProductToCart(product: ProductItem) {
+    setCart((current) => {
+      const index = current.findIndex((item) => item.product.id === product.id);
+      if (index >= 0) {
+        const updated = [...current];
+        updated[index] = {
+          ...updated[index],
+          quantity: updated[index].quantity + 1,
+        };
+        return updated;
+      }
+      return [...current, { product, quantity: 1 }];
+    });
+
+    setLastItem(product);
+  }
+
+  function pickSearchResult(product: ProductItem) {
+    setBarcodeInput('');
+    setSearchResults([]);
+    setSearchFor('');
+    setMessage(null);
+    addProductToCart(product);
+    barcodeInputRef.current?.focus();
+  }
+
+  function handleSearchKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
+    if (!showSearch) return;
+    if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+      e.preventDefault();
+      setHighlighted((current) => moveHighlight(current, searchResults.length, e.key));
+    }
+  }
+
+  // Adicionar produto por código de barras (ou, com texto, o produto escolhido na lista)
   async function handleBarcodeSubmit(e: React.FormEvent) {
     e.preventDefault();
     const code = barcodeInput.trim();
     if (!code) return;
+
+    // Com a lista de nomes aberta, Enter escolhe o produto destacado. Sem lista (o leitor de código de barras
+    // digita e envia antes da busca terminar), segue como código de barras.
+    if (showSearch && searchResults[highlighted]) {
+      pickSearchResult(searchResults[highlighted]);
+      return;
+    }
 
     setBarcodeInput('');
     setMessage(null);
@@ -476,21 +558,7 @@ export default function PdvTerminalPage() {
         return;
       }
 
-      // Atualiza carrinho
-      setCart((current) => {
-        const index = current.findIndex((item) => item.product.id === product!.id);
-        if (index >= 0) {
-          const updated = [...current];
-          updated[index] = {
-            ...updated[index],
-            quantity: updated[index].quantity + 1,
-          };
-          return updated;
-        }
-        return [...current, { product: product!, quantity: 1 }];
-      });
-
-      setLastItem(product);
+      addProductToCart(product);
     } catch (err) {
       setMessage({
         text: getErrorMessage(err, 'Produto não encontrado.'),
@@ -805,14 +873,21 @@ export default function PdvTerminalPage() {
                 type="text"
                 autoFocus
                 autoComplete="off"
-                placeholder="Escaneie ou digite e aperte Enter"
+                placeholder="Escaneie, digite o código ou o nome do produto"
                 value={barcodeInput}
                 onChange={(e) => setBarcodeInput(e.target.value)}
+                onKeyDown={handleSearchKeyDown}
+                role="combobox"
+                aria-expanded={showSearch}
+                aria-controls={SEARCH_LIST_ID}
+                aria-autocomplete="list"
+                aria-activedescendant={showSearch ? searchOptionId(highlighted) : undefined}
               />
               <button className="primary pdv-scan-submit" type="submit">
                 Adicionar
               </button>
             </form>
+            {showSearch && <SearchResults results={searchResults} highlighted={highlighted} onPick={pickSearchResult} />}
             <p className="pdv-scan-hint pdv-hide-sm">
               Enter adiciona · F4 recebe · Esc limpa a venda
             </p>

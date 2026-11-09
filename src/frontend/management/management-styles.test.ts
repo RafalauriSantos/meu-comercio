@@ -8,6 +8,7 @@ const css = readFileSync(join(root, 'src', 'frontend', 'styles', 'management.css
 const page = [
   join(root, 'src', 'app', 'gestao', 'page.tsx'),
   join(root, 'src', 'frontend', 'management', 'import-products-panel.tsx'),
+  join(root, 'src', 'frontend', 'management', 'sales-report-panel.tsx'),
 ]
   .map((file) => readFileSync(file, 'utf8'))
   .join('\n');
@@ -41,6 +42,9 @@ describe('management.css', () => {
     // Modifiers built from a runtime value in the page (mg-stock-${status})
     for (const status of ['low', 'out']) used.add(`mg-stock-${status}`);
     used.delete('mg-stock-');
+    // The direction of the change in the sales report (mg-delta-${direction}).
+    for (const direction of ['up', 'down', 'same']) used.add(`mg-delta-${direction}`);
+    used.delete('mg-delta-');
     used.delete('mg-stock-ok');
 
     expect([...used].filter((c) => !defined.has(c)).sort()).toEqual([]);

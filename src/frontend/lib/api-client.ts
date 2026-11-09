@@ -1,4 +1,8 @@
 import type { ProductUnit } from '@/shared/domain/product-unit';
+import type { PeriodKind } from '@/modules/reports/domain/report-period';
+
+export type { SalesReport } from '@/modules/reports/application/get-sales-report.use-case';
+import type { SalesReport } from '@/modules/reports/application/get-sales-report.use-case';
 
 export interface ProductImportReport {
   valid: Array<{
@@ -288,6 +292,12 @@ export const apiClient = {
         unit: payload.unit ?? 'UN',
       }),
     }),
+  getSalesReport: (params: { period: PeriodKind; from?: string; to?: string }) => {
+    const query = new URLSearchParams({ period: params.period });
+    if (params.from) query.set('from', params.from);
+    if (params.to) query.set('to', params.to);
+    return apiRequest<SalesReport>(`/api/reports/sales?${query.toString()}`);
+  },
   importProducts: (payload: { csv: string; dryRun: boolean }) =>
     apiRequest<ProductImportReport>('/api/products/import', {
       method: 'POST',

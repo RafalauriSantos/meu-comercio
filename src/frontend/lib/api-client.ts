@@ -1,4 +1,19 @@
 import type { ProductUnit } from '@/shared/domain/product-unit';
+import type { PeriodKind } from '@/modules/reports/domain/report-period';
+
+export type { SalesReport } from '@/modules/reports/application/get-sales-report.use-case';
+import type { SalesReport } from '@/modules/reports/application/get-sales-report.use-case';
+
+/** A confirmed sale of today that can be picked to be cancelled. */
+export interface RecentSaleItem {
+  id: string;
+  /** The first 8 characters of the id: what the printed receipt shows. */
+  shortId: string;
+  createdAt: string;
+  total: string;
+  operatorId: string;
+  items: string;
+}
 
 export interface ProductImportReport {
   valid: Array<{
@@ -288,6 +303,12 @@ export const apiClient = {
         unit: payload.unit ?? 'UN',
       }),
     }),
+  getSalesReport: (params: { period: PeriodKind; from?: string; to?: string }) => {
+    const query = new URLSearchParams({ period: params.period });
+    if (params.from) query.set('from', params.from);
+    if (params.to) query.set('to', params.to);
+    return apiRequest<SalesReport>(`/api/reports/sales?${query.toString()}`);
+  },
   importProducts: (payload: { csv: string; dryRun: boolean }) =>
     apiRequest<ProductImportReport>('/api/products/import', {
       method: 'POST',
@@ -349,6 +370,7 @@ export const apiClient = {
   },
   getSaleById: (saleId: string) =>
     apiRequest<SaleResponse>(`/api/sales/${encodeURIComponent(saleId)}`),
+  listRecentSales: () => apiRequest<{ items: RecentSaleItem[] }>('/api/sales/recent'),
   cancelSale: (saleId: string, payload: { ownerPin: string; reason: string }) =>
     apiRequest<{ success: boolean; sale: SaleResponse }>(
       `/api/sales/${encodeURIComponent(saleId)}/cancel`,

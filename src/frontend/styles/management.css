@@ -54,15 +54,6 @@
   font-size: 14px;
 }
 
-.management-page .mg-danger-outline {
-  border-color: var(--danger);
-  color: var(--danger);
-}
-
-.management-page .mg-danger-outline:hover:not(:disabled) {
-  background: var(--danger-soft);
-}
-
 /* Abas e filtros (mesmo estilo de segmento) */
 
 .management-page .mg-tabs,
@@ -190,6 +181,11 @@
   display: flex;
   flex-direction: column;
   gap: 14px;
+}
+
+.management-page .mg-help-warn {
+  color: var(--warn);
+  font-weight: 600;
 }
 
 .management-page .mg-help {
@@ -451,10 +447,6 @@
   font-weight: 500;
 }
 
-.management-page .mg-meta-danger {
-  color: var(--danger);
-}
-
 .management-page .mg-debt {
   color: var(--danger);
   font-size: 22px;
@@ -621,12 +613,6 @@
   font-weight: 700;
 }
 
-.management-page .mg-pin {
-  font-size: 22px;
-  letter-spacing: 4px;
-  text-align: center;
-}
-
 .management-page .mg-difference {
   margin-top: 14px;
   padding: 12px 16px;
@@ -676,17 +662,6 @@
 
 .management-page .mg-open-cash form {
   margin-top: 16px;
-}
-
-/* Botão destrutivo preenchido (confirmar cancelamento) */
-
-.management-page .primary.mg-danger-solid {
-  background: var(--danger);
-  color: var(--on-primary);
-}
-
-.management-page .primary.mg-danger-solid:hover:not(:disabled) {
-  background: color-mix(in srgb, var(--danger) 86%, var(--ink));
 }
 
 /* Janelas de diálogo */
@@ -757,6 +732,91 @@
   .management-page .mg-cash {
     grid-template-columns: minmax(0, 1fr);
   }
+}
+
+/* Relatório de vendas */
+
+.management-page .mg-period-custom {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 12px 16px;
+}
+
+.management-page .mg-delta {
+  margin-top: 6px;
+  font-size: 15px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.management-page .mg-delta-up {
+  color: var(--primary-text);
+}
+
+.management-page .mg-delta-down {
+  color: var(--danger);
+}
+
+.management-page .mg-delta-same {
+  color: var(--muted);
+}
+
+.management-page .mg-delta-note {
+  color: var(--muted);
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.management-page .mg-report-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 16px;
+  align-items: start;
+}
+
+.management-page [data-loading] {
+  opacity: 0.6;
+}
+
+.management-page .mg-bar {
+  width: 32%;
+  min-width: 120px;
+}
+
+.management-page .mg-bar-fill {
+  display: block;
+  height: 10px;
+  border-radius: 5px;
+  background: var(--primary);
+}
+
+.management-page .mg-report-facts {
+  margin: 0;
+  padding: 8px 24px 16px;
+}
+
+.management-page .mg-report-facts > div {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 12px 0;
+  border-top: 1px solid var(--border);
+}
+
+.management-page .mg-report-facts > div:first-child {
+  border-top: 0;
+}
+
+.management-page .mg-report-facts dt {
+  color: var(--muted);
+}
+
+.management-page .mg-report-facts dd {
+  margin: 0;
+  font-weight: 700;
+  text-align: right;
 }
 
 @media (max-width: 600px) {

@@ -45,6 +45,7 @@ import {
 } from '@/frontend/pdv/quick-amounts';
 import { AppHeader } from '@/frontend/ui/app-header';
 import { WeightPrompt } from '@/frontend/pdv/weight-prompt';
+import { CancelSaleModal } from '@/frontend/pdv/cancel-sale-modal';
 import { VersionLabel } from '@/frontend/ui/version-label';
 import { WEIGHT_STEP_GRAMS } from '@/frontend/pdv/weight-input';
 import { formatQuantity, lineSubtotal } from '@/shared/domain/product-unit';
@@ -118,6 +119,8 @@ export default function PdvTerminalPage() {
   const [ownerPin, setOwnerPin] = useState('');
 
   // Sangria e Suprimento
+  // Cancelar uma venda já finalizada (a da lista de hoje), com o PIN da proprietária
+  const [isCancelSaleOpen, setIsCancelSaleOpen] = useState(false);
   const [isCashOpModalOpen, setIsCashOpModalOpen] = useState(false);
   const [cashOpType, setCashOpType] = useState<'WITHDRAWAL' | 'DEPOSIT'>('WITHDRAWAL');
   const [cashOpAmount, setCashOpAmount] = useState('');
@@ -301,10 +304,10 @@ export default function PdvTerminalPage() {
 
   // Foco contínuo no leitor de código de barras
   useEffect(() => {
-    if (!isCheckoutOpen && !isPinModalOpen && !weightProduct) {
+    if (!isCheckoutOpen && !isPinModalOpen && !weightProduct && !isCancelSaleOpen) {
       barcodeInputRef.current?.focus();
     }
-  }, [isCheckoutOpen, isPinModalOpen, weightProduct]);
+  }, [isCheckoutOpen, isPinModalOpen, weightProduct, isCancelSaleOpen]);
 
   // Cálculos do Carrinho via CartCalculator
   const calculatorItems: CalculatorCartItem[] = useMemo(() => {
@@ -427,8 +430,8 @@ export default function PdvTerminalPage() {
   // Atalhos de Teclado Globais (F2, F4, Esc)
   useEffect(() => {
     function handleKeyDown(e: KeyboardEvent) {
-      // A janela do peso tem os próprios atalhos (Enter e Esc).
-      if (weightProduct) return;
+      // A janela do peso e a de cancelar venda têm os próprios atalhos (Enter e Esc).
+      if (weightProduct || isCancelSaleOpen) return;
 
       // Esc: fecha modais ou limpa carrinho
       if (e.key === 'Escape') {
@@ -472,7 +475,7 @@ export default function PdvTerminalPage() {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [cart.length, isCheckoutOpen, isPinModalOpen, weightProduct]);
+  }, [cart.length, isCheckoutOpen, isPinModalOpen, weightProduct, isCancelSaleOpen]);
 
   // Produto por unidade entra com 1; produto por peso pergunta o peso antes.
   function addProductToCart(product: ProductItem) {
@@ -1120,6 +1123,14 @@ export default function PdvTerminalPage() {
         <span className="pdv-status-actions">
           <button
             type="button"
+            className="outline pdv-small pdv-danger-outline"
+            disabled={!cashOpen || !isOnline}
+            onClick={() => setIsCancelSaleOpen(true)}
+          >
+            Cancelar venda finalizada
+          </button>
+          <button
+            type="button"
             className="outline pdv-small"
             disabled={!cashOpen}
             onClick={() => {
@@ -1330,6 +1341,22 @@ export default function PdvTerminalPage() {
       )}
 
       {/* MODAL DE PIN DA PROPRIETÁRIA (PARA FIADO ACIMA DO LIMITE) */}
+      {isCancelSaleOpen && (
+        <CancelSaleModal
+          onClose={() => {
+            setIsCancelSaleOpen(false);
+            barcodeInputRef.current?.focus();
+          }}
+          onCancelled={(shortId) => {
+            setIsCancelSaleOpen(false);
+            setMessage({
+              text: `Venda ${shortId} cancelada. Os produtos voltaram ao estoque e os valores foram estornados.`,
+            });
+            barcodeInputRef.current?.focus();
+          }}
+        />
+      )}
+
       {weightProduct && (
         <WeightPrompt
           product={weightProduct}

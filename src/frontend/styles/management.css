@@ -54,15 +54,6 @@
   font-size: 14px;
 }
 
-.management-page .mg-danger-outline {
-  border-color: var(--danger);
-  color: var(--danger);
-}
-
-.management-page .mg-danger-outline:hover:not(:disabled) {
-  background: var(--danger-soft);
-}
-
 /* Abas e filtros (mesmo estilo de segmento) */
 
 .management-page .mg-tabs,
@@ -456,10 +447,6 @@
   font-weight: 500;
 }
 
-.management-page .mg-meta-danger {
-  color: var(--danger);
-}
-
 .management-page .mg-debt {
   color: var(--danger);
   font-size: 22px;
@@ -626,12 +613,6 @@
   font-weight: 700;
 }
 
-.management-page .mg-pin {
-  font-size: 22px;
-  letter-spacing: 4px;
-  text-align: center;
-}
-
 .management-page .mg-difference {
   margin-top: 14px;
   padding: 12px 16px;
@@ -681,17 +662,6 @@
 
 .management-page .mg-open-cash form {
   margin-top: 16px;
-}
-
-/* Botão destrutivo preenchido (confirmar cancelamento) */
-
-.management-page .primary.mg-danger-solid {
-  background: var(--danger);
-  color: var(--on-primary);
-}
-
-.management-page .primary.mg-danger-solid:hover:not(:disabled) {
-  background: color-mix(in srgb, var(--danger) 86%, var(--ink));
 }
 
 /* Janelas de diálogo */

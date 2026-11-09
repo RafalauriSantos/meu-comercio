@@ -15,6 +15,12 @@ lançar uma versão estão em `docs/PROJECT_WORKFLOW.md`.
   operador; o fiado vendido e recebido e as vendas canceladas (fora do total). Pode ser exportado em CSV para o Excel.
   O dia segue o horário de Brasília.
 
+### Alterado
+
+- **Cancelar venda finalizada** saiu da gestão e foi para a tela de vendas (PDV), ao lado de Sangria e Suprimento. Em vez
+  de digitar o código da venda, a pessoa escolhe a venda na lista das vendas de hoje (hora, valor e produtos). O PIN da
+  proprietária e o motivo continuam obrigatórios.
+
 ## [0.1.0] - 2026-11-09
 
 Primeira versão do app, em produção em <https://meucomercio.vercel.app>.

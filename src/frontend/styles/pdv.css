@@ -649,6 +649,84 @@
   text-align: center;
 }
 
+/* Cancelar uma venda finalizada */
+
+.pdv-app .pdv-danger-outline {
+  border-color: var(--danger);
+  color: var(--danger);
+}
+
+.pdv-sale-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: 260px;
+  margin: 12px 0 0;
+  padding: 0;
+  overflow-y: auto;
+  border: 0;
+}
+
+.pdv-sale-list legend {
+  padding: 0;
+  margin-bottom: 6px;
+}
+
+.pdv-sale-option {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface);
+  cursor: pointer;
+}
+
+.pdv-sale-option:has(input:checked) {
+  border: 2px solid var(--primary);
+  padding: 9px 11px;
+  background: var(--primary-soft);
+}
+
+.pdv-sale-option input {
+  margin-top: 4px;
+  accent-color: var(--primary);
+}
+
+.pdv-sale-main {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.pdv-sale-top {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.pdv-sale-items {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pdv-sale-meta {
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.pdv-app .pdv-cancel-confirm {
+  flex: 2 1 200px;
+  min-height: 58px;
+  background: var(--danger);
+  border-color: var(--danger);
+  color: var(--on-primary);
+}
+
 /* Peso de um produto vendido por peso */
 
 .pdv-weight-input {

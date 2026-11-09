@@ -1,5 +1,14 @@
+import type { ProductUnit } from '@/shared/domain/product-unit';
+
 export interface ProductImportReport {
-  valid: Array<{ line: number; barcode: string; name: string; salePrice: string; initialStock: number }>;
+  valid: Array<{
+    line: number;
+    barcode: string;
+    name: string;
+    salePrice: string;
+    unit: ProductUnit;
+    initialStock: number;
+  }>;
   skipped: Array<{ line: number; barcode: string; name: string }>;
   errors: Array<{ line: number; message: string }>;
   imported: boolean;
@@ -34,8 +43,12 @@ export interface ProductItem {
   id: string;
   barcode: string;
   name: string;
+  /** Per unit, or per kg when the unit is 'KG'. */
   salePrice: number;
+  /** Units, or grams when the unit is 'KG'. */
   availableQuantity: number;
+  /** Missing means by the unit. */
+  unit?: ProductUnit;
   active?: boolean;
 }
 
@@ -258,7 +271,13 @@ export const apiClient = {
     apiRequest<{ items: ProductItem[] }>(`/api/products/search?q=${encodeURIComponent(query)}`),
   listProducts: (query = '') =>
     apiRequest<{ items: ProductItem[] }>(`/api/products${query ? `?q=${encodeURIComponent(query)}` : ''}`),
-  createProduct: (payload: { barcode: string; name: string; salePrice: number | string; initialStock?: number }) =>
+  createProduct: (payload: {
+    barcode: string;
+    name: string;
+    salePrice: number | string;
+    initialStock?: number;
+    unit?: ProductUnit;
+  }) =>
     apiRequest<ProductItem>('/api/products', {
       method: 'POST',
       body: JSON.stringify({
@@ -266,6 +285,7 @@ export const apiClient = {
         name: payload.name,
         salePrice: payload.salePrice,
         initialStock: payload.initialStock ?? 0,
+        unit: payload.unit ?? 'UN',
       }),
     }),
   importProducts: (payload: { csv: string; dryRun: boolean }) =>

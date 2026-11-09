@@ -1,5 +1,6 @@
 import type { ProductItem } from '@/frontend/lib/api-client';
 import { formatMoney } from '@/frontend/lib/formatters';
+import { formatQuantity } from '@/shared/domain/product-unit';
 
 export const SEARCH_LIST_ID = 'pdv-search-results';
 
@@ -29,7 +30,9 @@ export function SearchResults({ results, highlighted, onPick }: SearchResultsPro
         >
           <span className="pdv-search-name">{product.name}</span>
           <span className="pdv-search-meta num">
-            {formatMoney(product.salePrice)} · {product.availableQuantity} un
+            {formatMoney(product.salePrice)}
+            {product.unit === 'KG' ? '/kg' : ''} · {formatQuantity(product.availableQuantity, product.unit)}
+            {product.unit === 'KG' ? '' : ' un'}
           </span>
         </li>
       ))}

@@ -44,6 +44,9 @@ import {
   quickAmountLabel,
 } from '@/frontend/pdv/quick-amounts';
 import { AppHeader } from '@/frontend/ui/app-header';
+import { WeightPrompt } from '@/frontend/pdv/weight-prompt';
+import { WEIGHT_STEP_GRAMS } from '@/frontend/pdv/weight-input';
+import { formatQuantity, lineSubtotal } from '@/shared/domain/product-unit';
 import '@/frontend/styles/pdv.css';
 
 interface CartLine {
@@ -94,6 +97,8 @@ export default function PdvTerminalPage() {
 
   // Checkout Modal
   const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
+  // Produto vendido por peso à espera do peso da balança.
+  const [weightProduct, setWeightProduct] = useState<ProductItem | null>(null);
   // Fiado stays behind the three-dots button until the operator opens it.
   const [showMoreMethods, setShowMoreMethods] = useState(false);
   const dotsButtonRef = useRef<HTMLButtonElement>(null);
@@ -295,10 +300,10 @@ export default function PdvTerminalPage() {
 
   // Foco contínuo no leitor de código de barras
   useEffect(() => {
-    if (!isCheckoutOpen && !isPinModalOpen) {
+    if (!isCheckoutOpen && !isPinModalOpen && !weightProduct) {
       barcodeInputRef.current?.focus();
     }
-  }, [isCheckoutOpen, isPinModalOpen]);
+  }, [isCheckoutOpen, isPinModalOpen, weightProduct]);
 
   // Cálculos do Carrinho via CartCalculator
   const calculatorItems: CalculatorCartItem[] = useMemo(() => {
@@ -307,11 +312,13 @@ export default function PdvTerminalPage() {
       name: line.product.name,
       price: Money.fromDecimal(line.product.salePrice),
       quantity: line.quantity,
+      unit: line.product.unit,
     }));
   }, [cart]);
 
   const totalItemUnits = useMemo(() => {
-    return cart.reduce((acc, l) => acc + l.quantity, 0);
+    // Um produto vendido por peso conta como 1 item, não como gramas.
+    return cart.reduce((acc, l) => acc + (l.product.unit === 'KG' ? 1 : l.quantity), 0);
   }, [cart]);
 
   const subtotalMoney = useMemo(() => {
@@ -419,6 +426,9 @@ export default function PdvTerminalPage() {
   // Atalhos de Teclado Globais (F2, F4, Esc)
   useEffect(() => {
     function handleKeyDown(e: KeyboardEvent) {
+      // A janela do peso tem os próprios atalhos (Enter e Esc).
+      if (weightProduct) return;
+
       // Esc: fecha modais ou limpa carrinho
       if (e.key === 'Escape') {
         e.preventDefault();
@@ -461,20 +471,36 @@ export default function PdvTerminalPage() {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [cart.length, isCheckoutOpen, isPinModalOpen]);
+  }, [cart.length, isCheckoutOpen, isPinModalOpen, weightProduct]);
 
+  // Produto por unidade entra com 1; produto por peso pergunta o peso antes.
   function addProductToCart(product: ProductItem) {
+    if (product.unit === 'KG') {
+      setLastItem(product);
+      setWeightProduct(product);
+      return;
+    }
+    addQuantityToCart(product, 1);
+  }
+
+  function addWeighedToCart(product: ProductItem, grams: number) {
+    setWeightProduct(null);
+    addQuantityToCart(product, grams);
+    barcodeInputRef.current?.focus();
+  }
+
+  function addQuantityToCart(product: ProductItem, quantity: number) {
     setCart((current) => {
       const index = current.findIndex((item) => item.product.id === product.id);
       if (index >= 0) {
         const updated = [...current];
         updated[index] = {
           ...updated[index],
-          quantity: updated[index].quantity + 1,
+          quantity: updated[index].quantity + quantity,
         };
         return updated;
       }
-      return [...current, { product, quantity: 1 }];
+      return [...current, { product, quantity }];
     });
 
     setLastItem(product);
@@ -527,6 +553,7 @@ export default function PdvTerminalPage() {
               name: product.name,
               salePrice: parseCurrencyInput(product.salePrice),
               availableQuantity: product.availableQuantity,
+              unit: product.unit,
             },
           ]);
         }
@@ -545,6 +572,7 @@ export default function PdvTerminalPage() {
               name: cached.name,
               salePrice: cached.salePrice,
               availableQuantity: cached.availableQuantity ?? 999,
+              unit: cached.unit,
             };
           }
         }
@@ -573,7 +601,8 @@ export default function PdvTerminalPage() {
       return current
         .map((line) => {
           if (line.product.id === productId) {
-            const nextQty = line.quantity + delta;
+            const step = line.product.unit === 'KG' ? WEIGHT_STEP_GRAMS : 1;
+            const nextQty = line.quantity + delta * step;
             return nextQty > 0 ? { ...line, quantity: nextQty } : null;
           }
           return line;
@@ -639,12 +668,13 @@ export default function PdvTerminalPage() {
         date: new Date(),
         items: cart.map((line) => {
           const unit = Money.fromDecimal(line.product.salePrice);
-          const lineSubtotal = unit.multiply(line.quantity);
+          const subtotalOfLine = lineSubtotal(unit, line.quantity, line.product.unit);
           return {
             name: line.product.name,
             quantity: line.quantity,
             unitPrice: unit.toDecimal(),
-            subtotal: lineSubtotal.toDecimal(),
+            subtotal: subtotalOfLine.toDecimal(),
+            unit: line.product.unit,
           };
         }),
         subtotal: cartSummary.subtotal.toDecimal(),
@@ -897,7 +927,7 @@ export default function PdvTerminalPage() {
                   <span className="muted">Último lido:</span> <strong>{lastItem.name}</strong>
                   <span className="muted num">
                     {' '}
-                    · {formatMoney(lastItem.salePrice)} · disponível: {lastItem.availableQuantity} un
+                    · {formatMoney(lastItem.salePrice)} · disponível: {formatQuantity(lastItem.availableQuantity, lastItem.unit)}{lastItem.unit === 'KG' ? '' : ' un'}
                   </span>
                 </>
               ) : (
@@ -932,7 +962,7 @@ export default function PdvTerminalPage() {
                   {cart.map((line) => {
                     const isLatest = lastItem?.id === line.product.id;
                     const lineTotal = line.product.salePrice
-                      ? Money.fromDecimal(line.product.salePrice).multiply(line.quantity)
+                      ? lineSubtotal(Money.fromDecimal(line.product.salePrice), line.quantity, line.product.unit)
                       : Money.zero();
 
                     return (
@@ -940,7 +970,9 @@ export default function PdvTerminalPage() {
                         <td className="pdv-product">
                           {line.product.name}
                           {isLatest && <span className="pdv-latest-tag pdv-hide-sm">último lido</span>}
-                          <span className="pdv-unit num">{formatMoney(line.product.salePrice)} cada</span>
+                          <span className="pdv-unit num">
+                            {formatMoney(line.product.salePrice)} {line.product.unit === 'KG' ? 'por kg' : 'cada'}
+                          </span>
                         </td>
                         <td className="pdv-center">
                           <span className="pdv-qty">
@@ -952,7 +984,7 @@ export default function PdvTerminalPage() {
                             >
                               −
                             </button>
-                            <span className="pdv-qty-value num">{line.quantity}</span>
+                            <span className="pdv-qty-value num">{formatQuantity(line.quantity, line.product.unit)}</span>
                             <button
                               className="pdv-qbtn"
                               type="button"
@@ -963,7 +995,9 @@ export default function PdvTerminalPage() {
                             </button>
                           </span>
                         </td>
-                        <td className="pdv-right pdv-hide-sm pdv-price num">{formatMoney(line.product.salePrice)}</td>
+                        <td className="pdv-right pdv-hide-sm pdv-price num">{formatMoney(line.product.salePrice)}
+                          {line.product.unit === 'KG' ? '/kg' : ''}
+                        </td>
                         <td className="pdv-right pdv-line-total num">{lineTotal.formatBrl()}</td>
                       </tr>
                     );
@@ -1292,6 +1326,17 @@ export default function PdvTerminalPage() {
       )}
 
       {/* MODAL DE PIN DA PROPRIETÁRIA (PARA FIADO ACIMA DO LIMITE) */}
+      {weightProduct && (
+        <WeightPrompt
+          product={weightProduct}
+          onConfirm={(grams) => addWeighedToCart(weightProduct, grams)}
+          onCancel={() => {
+            setWeightProduct(null);
+            barcodeInputRef.current?.focus();
+          }}
+        />
+      )}
+
       {isPinModalOpen && (
         <div className="pdv-overlay">
           <div className="pdv-modal is-narrow" role="dialog" aria-modal="true" aria-labelledby="pdv-pin-title">

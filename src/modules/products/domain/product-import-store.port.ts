@@ -2,7 +2,10 @@ export interface ProductImportItem {
   barcode: string;
   name: string;
   /** Decimal text with up to two places, e.g. "24.90". */
+  /** Per unit, or per kg when the unit is 'KG'. */
   salePrice: string;
+  unit: 'UN' | 'KG';
+  /** Units, or grams when the unit is 'KG'. */
   initialStock: number;
 }
 

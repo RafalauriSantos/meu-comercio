@@ -1,12 +1,16 @@
 import { Money } from '@/shared/domain/money';
+import { ProductUnit, lineSubtotal } from '@/shared/domain/product-unit';
 
 export type PaymentMethod = 'CASH' | 'PIX' | 'DEBIT_CARD' | 'CREDIT_CARD' | 'TAB';
 
 export interface CartItem {
   productId: string;
   name?: string;
+  /** Per unit, or per kg when the unit is 'KG'. */
   price: Money;
+  /** Units, or grams when the unit is 'KG'. */
   quantity: number;
+  unit?: ProductUnit;
 }
 
 export interface PaymentInput {
@@ -50,7 +54,7 @@ export class CartCalculator {
     if (item.price.isNegative()) {
       throw new Error('Preço do item não pode ser negativo.');
     }
-    return item.price.multiply(item.quantity);
+    return lineSubtotal(item.price, item.quantity, item.unit);
   }
 
   public static calculateSubtotal(items: CartItem[]): Money {

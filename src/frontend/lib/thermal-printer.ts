@@ -1,3 +1,5 @@
+import { formatQuantity } from '@/shared/domain/product-unit';
+
 export type ThermalWidth = '58mm' | '80mm';
 
 export interface ThermalStoreHeader {
@@ -9,9 +11,12 @@ export interface ThermalStoreHeader {
 
 export interface ThermalSaleItem {
   name: string;
+  /** Units, or grams when the unit is 'KG'. */
   quantity: number;
+  /** Per unit, or per kg when the unit is 'KG'. */
   unitPrice: string;
   subtotal: string;
+  unit?: 'UN' | 'KG';
 }
 
 export interface ThermalPaymentItem {
@@ -155,7 +160,10 @@ export function formatSaleReceipt(
 
     const price = item.unitPrice.replace(/^R\$\s*/, '');
     const subtotal = item.subtotal.replace(/^R\$\s*/, '');
-    const detailLeft = `${item.quantity}x R$ ${price}`;
+    const detailLeft =
+      item.unit === 'KG'
+        ? `${formatQuantity(item.quantity, 'KG')} x R$ ${price}/kg`
+        : `${item.quantity}x R$ ${price}`;
     const detailRight = `R$ ${subtotal}`;
     lines.push(padLine(detailLeft, detailRight, cols));
   }

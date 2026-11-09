@@ -1,12 +1,16 @@
 import { CreateProductSchema } from './create-product.use-case';
 import { normalizePriceText, parseProductCsv } from './parse-product-csv';
 import { ProductImportItem, ProductImportStore } from '../domain/product-import-store.port';
+import { parseKilosToGrams, type ProductUnit } from '@/shared/domain/product-unit';
 
 export interface ImportRowPreview {
   line: number;
   barcode: string;
   name: string;
+  /** Per unit, or per kg when the unit is 'KG'. */
   salePrice: string;
+  unit: ProductUnit;
+  /** Units, or grams when the unit is 'KG'. */
   initialStock: number;
 }
 
@@ -22,6 +26,24 @@ export interface ImportReport {
 
 const PRICE_PATTERN = /^\d+(\.\d{1,2})?$/;
 const STOCK_PATTERN = /^\d+$/;
+
+const UNIT_WORDS: Record<string, ProductUnit> = {
+  un: 'UN',
+  und: 'UN',
+  unid: 'UN',
+  unidade: 'UN',
+  kg: 'KG',
+  kilo: 'KG',
+  quilo: 'KG',
+  quilos: 'KG',
+  peso: 'KG',
+};
+
+function parseUnit(text: string): ProductUnit | null {
+  const key = text.trim().toLowerCase();
+  if (key === '') return 'UN';
+  return UNIT_WORDS[key] ?? null;
+}
 
 export class ImportProductsUseCase {
   constructor(private readonly store: ProductImportStore) {}
@@ -48,15 +70,34 @@ export class ImportProductsUseCase {
         errors.push({ line: row.line, message: `Preço inválido: "${row.salePrice}". Use um valor como 24,90.` });
         continue;
       }
-      if (row.initialStock !== '' && !STOCK_PATTERN.test(row.initialStock)) {
-        errors.push({ line: row.line, message: `Estoque inválido: "${row.initialStock}". Use um número inteiro.` });
+      const unit = parseUnit(row.unit);
+      if (unit === null) {
+        errors.push({ line: row.line, message: `Unidade inválida: "${row.unit}". Use un (por unidade) ou kg (por peso).` });
         continue;
+      }
+      // By weight the stock is typed in kilograms (2,5) and kept in grams; by the unit it is a whole number.
+      let initialStock = 0;
+      if (row.initialStock !== '') {
+        if (unit === 'KG') {
+          const grams = Number(row.initialStock.replace(',', '.')) === 0 ? 0 : parseKilosToGrams(row.initialStock);
+          if (grams === null) {
+            errors.push({ line: row.line, message: `Estoque inválido: "${row.initialStock}". Use quilos, como 2,5.` });
+            continue;
+          }
+          initialStock = grams;
+        } else if (STOCK_PATTERN.test(row.initialStock)) {
+          initialStock = Number(row.initialStock);
+        } else {
+          errors.push({ line: row.line, message: `Estoque inválido: "${row.initialStock}". Use um número inteiro.` });
+          continue;
+        }
       }
       const parsed = CreateProductSchema.safeParse({
         barcode: row.barcode,
         name: row.name,
         salePrice: price,
-        initialStock: row.initialStock === '' ? 0 : Number(row.initialStock),
+        unit,
+        initialStock,
       });
       if (!parsed.success) {
         errors.push({ line: row.line, message: parsed.error.issues[0].message });
@@ -76,6 +117,7 @@ export class ImportProductsUseCase {
         barcode: parsed.data.barcode,
         name: parsed.data.name,
         salePrice: Number(price).toFixed(2),
+        unit: parsed.data.unit,
         initialStock: parsed.data.initialStock,
       });
     }
@@ -91,10 +133,11 @@ export class ImportProductsUseCase {
 
     const canWrite = !options.dryRun && errors.length === 0 && valid.length > 0;
     if (canWrite) {
-      const items: ProductImportItem[] = valid.map(({ barcode, name, salePrice, initialStock }) => ({
+      const items: ProductImportItem[] = valid.map(({ barcode, name, salePrice, unit, initialStock }) => ({
         barcode,
         name,
         salePrice,
+        unit,
         initialStock,
       }));
       await this.store.importAll(merchantId, actorId, items);

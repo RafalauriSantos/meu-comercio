@@ -649,6 +649,30 @@
   text-align: center;
 }
 
+/* Peso de um produto vendido por peso */
+
+.pdv-weight-input {
+  height: 64px;
+  font-size: 28px;
+  font-weight: 700;
+}
+
+.pdv-weight-preview {
+  min-height: 24px;
+  margin-top: 12px;
+  font-size: 16px;
+}
+
+.pdv-weight-warn {
+  color: var(--danger);
+  font-weight: 600;
+}
+
+.pdv-app .pdv-weight-add {
+  flex: 2 1 200px;
+  min-height: 58px;
+}
+
 /* Rodapé dos modais */
 
 .pdv-modal-foot {

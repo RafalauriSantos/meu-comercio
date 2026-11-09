@@ -15,13 +15,16 @@ import {
 } from '@/frontend/lib/api-client';
 import { formatMoney, parseCurrencyInput, getErrorMessage } from '@/frontend/lib/formatters';
 import { AppHeader } from '@/frontend/ui/app-header';
+import { formatQuantity, type ProductUnit } from '@/shared/domain/product-unit';
 import { useAutoDismiss } from '@/frontend/lib/use-auto-dismiss';
 import { ManagementSkeleton } from '@/frontend/management/management-skeleton';
 import { ImportProductsPanel } from '@/frontend/management/import-products-panel';
 import {
   countNeedingRestock,
   inventoryValue,
+  initialStockToQuantity,
   matchesStockFilter,
+  restockToQuantity,
   stockStatus,
   type StockFilter,
 } from '@/frontend/management/stock';
@@ -47,6 +50,7 @@ export default function GestaoPage() {
   const [newName, setNewName] = useState('');
   const [newPrice, setNewPrice] = useState('');
   const [newStock, setNewStock] = useState('0');
+  const [newUnit, setNewUnit] = useState<ProductUnit>('UN');
   const [restockingId, setRestockingId] = useState<string | null>(null);
   const [restockQty, setRestockQty] = useState('1');
   const [restockReason, setRestockReason] = useState('');
@@ -189,11 +193,20 @@ export default function GestaoPage() {
     setProcessing(true);
     setFeedback(null);
     try {
+      const initialStock = initialStockToQuantity(newStock, newUnit);
+      if (initialStock === null) {
+        setFeedback({
+          text: newUnit === 'KG' ? 'Estoque inicial inválido. Use quilos, como 2,5.' : 'Estoque inicial inválido. Use um número inteiro.',
+          isError: true,
+        });
+        return;
+      }
       await apiClient.createProduct({
         barcode: newBarcode.trim(),
         name: newName.trim(),
         salePrice: parseCurrencyInput(newPrice),
-        initialStock: parseInt(newStock, 10) || 0,
+        initialStock,
+        unit: newUnit,
       });
       setFeedback({ text: 'Produto cadastrado com sucesso!' });
       setShowNewProduct(false);
@@ -201,6 +214,7 @@ export default function GestaoPage() {
       setNewName('');
       setNewPrice('');
       setNewStock('0');
+      setNewUnit('UN');
       await loadProducts();
     } catch (err) {
       setFeedback({ text: getErrorMessage(err, 'Erro ao cadastrar produto.'), isError: true });
@@ -214,9 +228,18 @@ export default function GestaoPage() {
     setProcessing(true);
     setFeedback(null);
     try {
+      const unit = products.find((p) => p.id === productId)?.unit ?? 'UN';
+      const restockQuantity = restockToQuantity(restockQty, unit);
+      if (restockQuantity === null) {
+        setFeedback({
+          text: unit === 'KG' ? 'Quantidade inválida. Use quilos, como 1,5.' : 'Quantidade inválida. Use um número inteiro de 1 em diante.',
+          isError: true,
+        });
+        return;
+      }
       await apiClient.restockInventory({
         productId,
-        quantity: parseInt(restockQty, 10) || 1,
+        quantity: restockQuantity,
         reason: restockReason.trim() || 'Reposição manual de balcão',
       });
       setFeedback({ text: 'Estoque reposto com sucesso!' });
@@ -432,7 +455,7 @@ export default function GestaoPage() {
 
   const lowStockCount = countNeedingRestock(catalog);
   const stockValue = inventoryValue(catalog);
-  const visibleProducts = products.filter((p) => matchesStockFilter(p.availableQuantity, stockFilter));
+  const visibleProducts = products.filter((p) => matchesStockFilter(p.availableQuantity, stockFilter, p.unit));
 
   async function handleLogout() {
     await apiClient.logout();
@@ -574,7 +597,21 @@ export default function GestaoPage() {
                     />
                   </div>
                   <div>
-                    <label className="field-label" htmlFor="np-price">Preço de Venda (R$)</label>
+                    <label className="field-label" htmlFor="np-unit">Como é vendido</label>
+                    <select
+                      id="np-unit"
+                      className="input"
+                      value={newUnit}
+                      onChange={(e) => setNewUnit(e.target.value === 'KG' ? 'KG' : 'UN')}
+                    >
+                      <option value="UN">Por unidade</option>
+                      <option value="KG">Por peso (preço por quilo)</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="field-label" htmlFor="np-price">
+                      {newUnit === 'KG' ? 'Preço por Quilo (R$)' : 'Preço de Venda (R$)'}
+                    </label>
                     <input
                       id="np-price"
                       className="input num"
@@ -588,12 +625,15 @@ export default function GestaoPage() {
                     />
                   </div>
                   <div>
-                    <label className="field-label" htmlFor="np-stock">Estoque Inicial</label>
+                    <label className="field-label" htmlFor="np-stock">
+                      {newUnit === 'KG' ? 'Estoque Inicial (kg)' : 'Estoque Inicial'}
+                    </label>
                     <input
                       id="np-stock"
                       className="input num"
-                      type="number"
-                      min="0"
+                      type={newUnit === 'KG' ? 'text' : 'number'}
+                      inputMode={newUnit === 'KG' ? 'decimal' : undefined}
+                      min={newUnit === 'KG' ? undefined : '0'}
                       value={newStock}
                       onChange={(e) => setNewStock(e.target.value)}
                     />
@@ -675,7 +715,8 @@ export default function GestaoPage() {
                   </thead>
                   <tbody>
                     {visibleProducts.map((p) => {
-                      const status = stockStatus(p.availableQuantity);
+                      const status = stockStatus(p.availableQuantity, p.unit);
+                      const byWeight = p.unit === 'KG';
                       return (
                         <React.Fragment key={p.id}>
                           <tr>
@@ -685,8 +726,14 @@ export default function GestaoPage() {
                               {status === 'out' && <span className="mg-tag mg-tag-danger">Sem estoque</span>}
                               <div className="muted mg-barcode num">{p.barcode}</div>
                             </td>
-                            <td className="mg-num">{formatMoney(p.salePrice)}</td>
-                            <td className={`mg-num mg-stock mg-stock-${status}`}>{p.availableQuantity} un</td>
+                            <td className="mg-num">
+                              {formatMoney(p.salePrice)}
+                              {byWeight ? ' /kg' : ''}
+                            </td>
+                            <td className={`mg-num mg-stock mg-stock-${status}`}>
+                              {formatQuantity(p.availableQuantity, p.unit)}
+                              {byWeight ? '' : ' un'}
+                            </td>
                             <td className="mg-num">
                               <button
                                 type="button"
@@ -710,12 +757,16 @@ export default function GestaoPage() {
                               <td colSpan={4}>
                                 <form onSubmit={(e) => handleRestock(e, p.id)} className="mg-restock">
                                   <div>
-                                    <label className="field-label" htmlFor={`restock-qty-${p.id}`}>Quantidade a Adicionar</label>
+                                    <label className="field-label" htmlFor={`restock-qty-${p.id}`}>
+                                      {byWeight ? 'Quantidade a Adicionar (kg)' : 'Quantidade a Adicionar'}
+                                    </label>
                                     <input
                                       id={`restock-qty-${p.id}`}
                                       className="input num"
-                                      type="number"
-                                      min="1"
+                                      type={byWeight ? 'text' : 'number'}
+                                      inputMode={byWeight ? 'decimal' : undefined}
+                                      min={byWeight ? undefined : '1'}
+                                      placeholder={byWeight ? 'Ex: 2,5' : undefined}
                                       required
                                       value={restockQty}
                                       onChange={(e) => setRestockQty(e.target.value)}

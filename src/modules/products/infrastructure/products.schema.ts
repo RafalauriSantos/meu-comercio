@@ -7,6 +7,8 @@ export const products = pgTable('products', {
   barcode: varchar('barcode', { length: 64 }).notNull(),
   name: varchar('name', { length: 160 }).notNull(),
   salePrice: numeric('sale_price', { precision: 19, scale: 4 }).notNull(),
+  // 'UN' (by the unit) or 'KG' (by weight: price per kg, quantity in grams).
+  unit: varchar('unit', { length: 8 }).notNull().default('UN'),
   active: boolean('active').notNull().default(true),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),

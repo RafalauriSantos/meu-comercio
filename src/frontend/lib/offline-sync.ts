@@ -36,6 +36,8 @@ export interface CachedProduct {
   name: string;
   salePrice: number;
   availableQuantity?: number;
+  /** Missing means by the unit. */
+  unit?: 'UN' | 'KG';
   active?: boolean;
 }
 

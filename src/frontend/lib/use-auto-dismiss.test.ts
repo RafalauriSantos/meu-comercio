@@ -72,6 +72,10 @@ describe('useAutoDismiss', () => {
 describe('where the notices go away by themselves', () => {
   const read = (...parts: string[]) => readFileSync(join(process.cwd(), ...parts), 'utf8');
 
+  it('is used for the errors of the login screen too', () => {
+    expect(read('src', 'app', 'login', 'page.tsx')).toContain("useAutoDismiss(error || null, () => setError(''));");
+  });
+
   it('is used for the notices of the management panel, the PDV and the import panel', () => {
     expect(read('src', 'app', 'gestao', 'page.tsx')).toContain('useAutoDismiss(feedback, () => setFeedback(null));');
     expect(read('src', 'app', 'pdv', 'page.tsx')).toContain('useAutoDismiss(message, () => setMessage(null));');

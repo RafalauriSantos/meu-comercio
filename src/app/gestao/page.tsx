@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import {
@@ -15,6 +15,7 @@ import {
 } from '@/frontend/lib/api-client';
 import { formatMoney, parseCurrencyInput, getErrorMessage } from '@/frontend/lib/formatters';
 import { AppHeader } from '@/frontend/ui/app-header';
+import { findProductWithBarcode, takenBarcodeMessage } from '@/frontend/management/barcode-check';
 import { formatQuantity, type ProductUnit } from '@/shared/domain/product-unit';
 import { useAutoDismiss } from '@/frontend/lib/use-auto-dismiss';
 import { ManagementSkeleton } from '@/frontend/management/management-skeleton';
@@ -51,6 +52,9 @@ export default function GestaoPage() {
   const [newPrice, setNewPrice] = useState('');
   const [newStock, setNewStock] = useState('0');
   const [newUnit, setNewUnit] = useState<ProductUnit>('UN');
+  // Aviso de código de barras já cadastrado, e o campo do nome, para onde o foco vai depois do bipador.
+  const [barcodeNote, setBarcodeNote] = useState<string | null>(null);
+  const newNameRef = useRef<HTMLInputElement>(null);
   const [restockingId, setRestockingId] = useState<string | null>(null);
   const [restockQty, setRestockQty] = useState('1');
   const [restockReason, setRestockReason] = useState('');
@@ -188,6 +192,26 @@ export default function GestaoPage() {
   }, [router, loadProducts, loadCustomers, loadCash, loadCreditMetrics, loadOperators]);
 
   // --- Handlers de Produtos ---
+
+  // Confere se o código (digitado ou lido pelo bipador) já está cadastrado.
+  async function checkNewBarcode(code: string) {
+    try {
+      const existing = await findProductWithBarcode(apiClient.findProductByBarcode, code);
+      setBarcodeNote(existing ? takenBarcodeMessage(existing) : null);
+    } catch {
+      // Sem resposta do servidor: o cadastro em si avisa se o código for repetido.
+      setBarcodeNote(null);
+    }
+  }
+
+  // O bipador envia Enter depois do código: em vez de enviar o formulário vazio, confere o código e vai para o nome.
+  function handleNewBarcodeKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
+    if (e.key !== 'Enter') return;
+    e.preventDefault();
+    void checkNewBarcode(e.currentTarget.value);
+    newNameRef.current?.focus();
+  }
+
   async function handleCreateProduct(e: React.FormEvent) {
     e.preventDefault();
     setProcessing(true);
@@ -215,6 +239,7 @@ export default function GestaoPage() {
       setNewPrice('');
       setNewStock('0');
       setNewUnit('UN');
+      setBarcodeNote(null);
       await loadProducts();
     } catch (err) {
       setFeedback({ text: getErrorMessage(err, 'Erro ao cadastrar produto.'), isError: true });
@@ -580,15 +605,28 @@ export default function GestaoPage() {
                       id="np-barcode"
                       className="input"
                       required
+                      autoFocus
+                      autoComplete="off"
                       value={newBarcode}
-                      onChange={(e) => setNewBarcode(e.target.value)}
-                      placeholder="789..."
+                      onChange={(e) => {
+                        setNewBarcode(e.target.value);
+                        setBarcodeNote(null);
+                      }}
+                      onKeyDown={handleNewBarcodeKeyDown}
+                      onBlur={(e) => void checkNewBarcode(e.target.value)}
+                      placeholder="Bipe o produto ou digite o código"
                     />
+                    {barcodeNote && (
+                      <span className="mg-help mg-help-warn" role="alert">
+                        {barcodeNote}
+                      </span>
+                    )}
                   </div>
                   <div>
                     <label className="field-label" htmlFor="np-name">Nome do Produto</label>
                     <input
                       id="np-name"
+                      ref={newNameRef}
                       className="input"
                       required
                       value={newName}

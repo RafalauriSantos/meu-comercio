@@ -192,6 +192,11 @@
   gap: 14px;
 }
 
+.management-page .mg-help-warn {
+  color: var(--warn);
+  font-weight: 600;
+}
+
 .management-page .mg-help {
   display: block;
   margin-top: 4px;

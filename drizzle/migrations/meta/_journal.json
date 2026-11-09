@@ -15,6 +15,13 @@
       "when": 1793931400631,
       "tag": "0001_narrow_wind_dancer",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1794187454893,
+      "tag": "0002_dizzy_doctor_faustus",
+      "breakpoints": true
     }
   ]
 }

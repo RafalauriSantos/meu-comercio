@@ -13,6 +13,7 @@ import { PasswordField } from '@/frontend/auth/password-field';
 import { PinField } from '@/frontend/auth/pin-field';
 import { passwordsMismatch } from '@/frontend/auth/passwords-mismatch';
 import { FormError } from '@/frontend/auth/form-error';
+import { useAutoDismiss } from '@/frontend/lib/use-auto-dismiss';
 import '@/frontend/styles/auth.css';
 
 export default function LoginPage() {
@@ -41,6 +42,7 @@ export default function LoginPage() {
 
   // Feedback
   const [error, setError] = useState('');
+  useAutoDismiss(error || null, () => setError(''));
   const [processing, setProcessing] = useState(false);
   const [honeypot, setHoneypot] = useState('');
 

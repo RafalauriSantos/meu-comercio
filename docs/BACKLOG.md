@@ -43,17 +43,17 @@ Este documento rastreia formalmente as fatias verticais de entrega, critérios d
 - [x] Reposição de estoque (`/api/inventory/restock`) com rastreamento e registro de auditoria.
 - **Status:** Concluído e Auditado ✅
 
-### [ ] Slice 4: Vendas, Checkout e Split Payments
+### [x] Slice 4: Vendas, Checkout e Split Payments
 - [x] 4.1 Schemas relacionais Drizzle `sales`, `sale_items` e `payments` com multi-tenancy estrito (`merchant_id`), chaves estrangeiras e integridade referencial.
 - [x] 4.2 Restrição única parcial para chave de idempotência (`merchant_id, idempotency_key WHERE idempotency_key IS NOT NULL`).
 - [x] 4.3 Entidades puras de domínio (`Sale`, `SaleItem`, `Payment`) com invariantes estritas e cálculos imutáveis via Value Object `Money`.
 - [x] 4.4 Validação compulsória de sessão de caixa aberta (`findCurrentOpenSession`) antes de autorizar qualquer venda.
-- [ ] 4.5 Verificação de estoque disponível e dedução atômica por produto vendido com lançamento de movimentação `'SALE'`. *Em revisão (PR #30): dedução com `FOR UPDATE` em ordem fixa, na mesma transação da venda (ADR-008); ver AC-08.*
+- [x] 4.5 Verificação de estoque disponível e dedução atômica por produto vendido com lançamento de movimentação `'SALE'`. *PR #30: dedução com `FOR UPDATE` em ordem fixa, na mesma transação da venda (ADR-008). Com o controle de estoque desligado (ADR-015), a venda não confere nem baixa.*
 - [x] 4.6 Suporte a pagamentos múltiplos/divididos (Split Payments) em Dinheiro (`CASH`), PIX (`PIX`), Débito (`DEBIT_CARD`) e Crédito (`CREDIT_CARD`), garantindo soma exata do valor da venda.
 - [x] 4.7 Cálculo exato de troco para pagamentos em dinheiro com validação de valor recebido >= valor pago.
 - [x] 4.8 Registro automático de entrada de dinheiro (`SALE_RECEIPT`) no caixa aberto ativo quando houver componente em dinheiro. *Na transação da venda desde o PR #30.*
 - [x] 4.9 Registro em trilha de auditoria imutável (`audit_events`) do evento `SALE_CONFIRMED`.
-- **Status:** Em revisão no PR #30. A dedução e o recibo de caixa estão na transação da venda. O veredito do revisor fica em `docs/reviews/30.md`.
+- **Status:** Concluído (PR #30). A dedução e o recibo de caixa estão na transação da venda. O veredito do revisor fica em `docs/reviews/30.md`.
 
 ### [ ] Slice 5: Clientes e Fiado / Crediário com PIN da Proprietária (customers)
 - [x] 5.1 Schemas relacionais Drizzle `customers` e `customer_credit_ledger` com multi-tenancy estrito (`merchant_id`), chaves estrangeiras e integridade referencial.
@@ -71,7 +71,7 @@ Este documento rastreia formalmente as fatias verticais de entrega, critérios d
 - [x] 6.2 Cliente HTTP Tipado (`src/frontend/lib/api-client.ts`): cliente `fetch` com `credentials: 'include'` conectado aos endpoints dos Slices 1 a 5 (`/api/auth/*`, `/api/cash/*`, `/api/products/*`, `/api/sales/*`, `/api/customers/*`).
 - [ ] 6.3 Mecanismo de Contingência Offline (`src/frontend/lib/offline-sync.ts`): adaptação do `offlineStore.ts` com fila de vendas em dinheiro no `localStorage`, cache de produtos, chaves de idempotência e sincronização automática ao restabelecer conexão. *Reaberto: a interface gera nova chave a cada envio e o cache de produtos é sobrescrito; ver AC-50 e AC-51.*
 - [x] 6.4 Fluxo de Acesso e Abertura de Caixa (`src/app/login/page.tsx`): verificação de setup inicial (`/api/setup/status` e `/api/setup/owner`), autenticação de operador/dona (`/api/auth/login`) e abertura de caixa com saldo inicial (`/api/cash/open`).
-- [ ] 6.5 Terminal de PDV e Checkout com Atalhos (`src/app/page.tsx`): leitura de código de barras ou busca por nome, controle do carrinho sem permitir estoque negativo, atalhos de teclado (`Enter`, `Esc`, `F2`–`F5`, `F7`, `F10`, `Ctrl+L`), split checkout e venda a fiado com PIN da proprietária. *Reaberto: só `Esc`, `F2` e `F4` têm atalho; não há busca por nome na PDV; o carrinho não checa estoque; a venda fiado cria venda desde o PR #30 (pendente de merge). Ver AC-11, AC-52, AC-55, AC-59.*
+- [ ] 6.5 Terminal de PDV e Checkout com Atalhos (`src/app/pdv/page.tsx`): leitura de código de barras ou busca por nome, controle do carrinho sem permitir estoque negativo, atalhos de teclado (`Enter`, `Esc`, `F2`–`F5`, `F7`, `F10`, `Ctrl+L`), split checkout e venda a fiado com PIN da proprietária. *Reaberto: só `Esc`, `F2` e `F4` têm atalho; o carrinho não checa estoque (a venda confere no servidor). **Resolvido:** a busca por nome no PDV (PR #46) e a venda fiado criando a venda (PR #30). Ver AC-11, AC-52, AC-55, AC-59.*
 - [x] 6.6 Painel de Gestão (`src/app/gestao/page.tsx`): catálogo de produtos e reposição de estoque (`/api/inventory/restock`), clientes e extrato de fiado com quitação em caixa aberto (`/api/customers/[id]/settle`), e fechamento cego de caixa com justificativa de divergência (`/api/cash/close`).
 - [ ] 6.7 Suíte de Testes Unitários de Frontend e Fila Offline: cobertura de testes para lógica de sincronização offline, cálculos do carrinho, regras de atalhos e split payment. *Reaberto: há testes de `src/frontend/lib` apenas; não há testes de atalhos, `page.tsx`, `gestao`, `login` ou `api-client`. Ver AC-56.*
 - [x] 6.8 Gestão e Cadastro de Operadores de Caixa: caso de uso `CreateOperatorUseCase`, endpoint `POST /api/users/operators` e aba dedicada em `/gestao` permitindo à proprietária criar acessos para funcionários do balcão (PR #5).
@@ -86,7 +86,7 @@ Este documento rastreia formalmente as fatias verticais de entrega, critérios d
 
 ### [ ] Slice 7: PWA Instalável & Perímetro de Borda (Modelado a partir de `barbearia.js`)
 - [x] 7.1 Manifesto Web (`manifest.json`) e ícones de aplicação para instalação do PDV como aplicativo desktop/tablet em modo tela cheia (*standalone*). *Feito no PR #49: manifesto, ícones 192/512 e maskable, ícone da Apple e botão "Instalar app" no cabeçalho. Sem service worker, de propósito.*
-- [ ] 7.2 Service Worker para cache avançado de assets e casca da aplicação (App Shell) acelerando abertura instantânea.
+- [ ] 7.2 Service Worker para cache avançado de assets e casca da aplicação (App Shell) acelerando abertura instantânea. *Decidido não fazer por enquanto (ADR-017): a instalação do app não torna o PDV offline e evita servir tela antiga depois de um deploy.*
 - [ ] 7.3 Proteção perimetral no Login e Verificação de PIN contra ataques de força bruta com Cloudflare Turnstile.
 - [ ] 7.4 Ambiente containerizado `docker-compose.yml` para desenvolvimento e testes locais com um único comando (`npm run docker:up`).
 - [ ] 7.5 Scanner de vulnerabilidades CodeQL (SAST) e Gitleaks integrados no GitHub Actions.
@@ -133,14 +133,15 @@ Este documento rastreia formalmente as fatias verticais de entrega, critérios d
   - [x] 11.4.2 Modelagem tipada para canhoto de fiado (nota promissória de caderneta) com histórico do débito e declaração de confissão de dívida para assinatura física.
   - [ ] 11.4.3 Folha de estilos `@media print` otimizada para bobinas de 58mm (32 colunas) e 80mm (48 colunas) sem quebra indevida de página. *Reaberto: há `@media print`, mas nenhuma regra de 80mm (AC-62).*
 - **PR-Reviewer audit (items 11.1–11.4, historical):** Formal verdict **PASS** (zero findings, 231 tests passing).
-- **Status:** In progress. 11.5 and 11.6 are open.
+- **Status:** Em andamento. A 11.6 (recuperação de acesso e redefinição do PIN da proprietária) segue aberta; as demais estão entregues.
 - [x] 11.5 **Importação de Produtos em Lote (Excel/CSV)**: planilha `.xlsx` ou CSV, prévia com erros por linha, tudo ou nada em uma transação, coluna opcional `Unidade` (PRs #41, #42, #44 e #48).
 - [ ] 11.6 **Recuperação de Acesso e Redefinição de PIN da Proprietária** (Próxima etapa).
 - [x] 11.7 **Produto vendido por peso** (mussarela, mortadela): preço por quilo, peso digitado no PDV, estoque em gramas, linha arredondada ao centavo (PR #48; migração `0002` no PR #47, aplicada em produção em 09/11/2026).
 - [x] 11.8 **Busca de produto pelo nome no PDV**, no mesmo campo do código de barras (PR #46).
-- [x] 11.11 **Controle de estoque opcional** (pedido da cliente: vender sem estoque por enquanto, mantendo o controle como opção): interruptor da loja só para a proprietária; desligado, a venda não exige saldo nem baixa estoque, e as telas de estoque somem. Cada venda guarda se tirou do estoque (`sales.stock_tracked`), para o cancelamento só devolver o que saiu. Migração `0003`.
 - [x] 11.9 **Bipador no cadastro de produto**: o código lido preenche o campo, o Enter vai para o nome e um código repetido é avisado na hora. *PR #52.*
 - [x] 11.10 **Versão inicial `0.1.0`** (Versionamento Semântico, CHANGELOG, versão visível no rodapé e em `/api/version`). *PR #51; tag e Release v0.1.0.*
+- [x] 11.11 **Controle de estoque opcional** (pedido da cliente: vender sem estoque por enquanto, mantendo o controle como opção): interruptor da loja só para a proprietária; desligado, a venda não exige saldo nem baixa estoque, e as telas de estoque somem. Cada venda guarda se tirou do estoque (`sales.stock_tracked`), para o cancelamento só devolver o que saiu. Migração `0003`.
+- [x] 11.12 **Cancelar venda finalizada no PDV**: o botão saiu da gestão e foi para a barra de baixo do PDV; a venda é escolhida na lista das vendas de hoje (`GET /api/sales/recent`), sem digitar código, e o PIN da proprietária continua obrigatório (PR #56, ADR-019).
 
 ### [ ] Slice 12: Endurecimento Integral de Segurança (Defense-in-Depth)
 - [ ] 12.1 **Cabeçalhos de Segurança HTTP OWASP**: Configuração em `next.config.ts` com `X-Frame-Options: DENY`, `X-Content-Type-Options: nosniff`, `Referrer-Policy`, `Permissions-Policy` e HSTS. *Reaberto: não há CSP em nenhum lugar do código (AC-32).*
@@ -160,7 +161,7 @@ Este documento rastreia formalmente as fatias verticais de entrega, critérios d
 - [x] 13.4 Redesenho visual de login e cadastro no mesmo mundo visual (desktop primeiro, duas colunas; componentes em `src/frontend/auth/`). A rota `/cadastro` não foi necessária: `/login?modo=cadastro` já abre o cadastro.
 - [ ] 13.5 Capturas reais do produto na landing, a partir de uma loja de demonstração criada pela dona (fase 2).
 - [ ] 13.6 Termos de uso e política de privacidade (LGPD), canal de ajuda e logo (fase 2). Primeiro item da fase 2: o cadastro já coleta nome, e-mail e senha sem aviso de privacidade.
-- [ ] 13.7 Rodar todos os `*.integration.test.ts` no job de Postgres do CI. Hoje o job roda só `drizzle-owner-pin-attempt-store.integration.test.ts`; os testes de integração de vendas rodam apenas localmente.
+- [ ] 13.7 Rodar todos os `*.integration.test.ts` no job de Postgres do CI. Hoje o job roda só `drizzle-owner-pin-attempt-store.integration.test.ts`; os outros 6 arquivos (venda, importação, relatórios, vendas de hoje, configurações da loja e `create-sale`) não rodam no CI. *Conferido em 09/11/2026: os 7 arquivos (39 testes) passam num Postgres 18, então ligar todos no CI é seguro.*
 
 
 ---

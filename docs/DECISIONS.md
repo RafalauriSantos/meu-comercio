@@ -279,7 +279,7 @@ Este documento registra formalmente as decisões de arquitetura e de produto do 
 ## ADR-013: Bloqueio por tentativas do PIN da proprietária por loja
 
 - **Data**: 2026-11-05
-- **Status**: Proposto. Implementado na PR #31; aguarda aprovação do dono para mergear, porque altera o banco.
+- **Status**: Aprovado e implementado (PR #31). A tabela `owner_pin_attempts` (migração `0001`) foi criada no banco de produção em 09/11/2026, quando o `db-migrate` rodou pela primeira vez.
 - **Contexto**: O PIN da proprietária autoriza descontos, estornos e vendas fiado acima do limite. Sem limite de tentativas, um operador logado pode testar PINs pela rota de vendas. O bloqueio de login (ADR-006) não cobre esse PIN.
 - **Decisão**:
   1. Cada loja tem um contador de tentativas do PIN da proprietária, na tabela `owner_pin_attempts`.
@@ -291,3 +291,102 @@ Este documento registra formalmente as decisões de arquitetura e de produto do 
 - **Trade-offs / Consequências**:
   - *Positivo*: impede teste de força bruta do PIN de 6 dígitos pela rota de vendas.
   - *Negativo*: operador mal-intencionado pode atrasar vendas que dependem do PIN da dona por 15 minutos.
+
+
+---
+
+## ADR-014: Produto Vendido por Peso (preço por quilo, quantidade em gramas)
+
+- **Data**: 2026-11-09
+- **Status**: Aprovado e implementado (PR #47, migração `0002`; PR #48).
+- **Contexto**: A loja pesa mussarela, mortadela e outros itens, e a balança não imprime etiqueta. O sistema só conhecia quantidade inteira de unidades, na venda e no estoque.
+- **Decisão**:
+  1. Cada produto tem uma unidade, `UN` (por unidade) ou `KG` (por peso), em `products.unit`. A venda guarda a unidade do item em `sale_items.unit`.
+  2. Para `KG`, o preço é **por quilo** e a quantidade (na venda e no estoque) é um número **inteiro de gramas**. Assim o resto do sistema segue com quantidades inteiras.
+  3. O valor de uma linha é `preço por kg × gramas ÷ 1000`, **arredondado ao centavo na própria linha** (*half-up*). A mesma função (`lineSubtotal`, em `src/shared/domain/product-unit.ts`) calcula a linha no servidor, no carrinho e no recibo, e a soma das linhas é sempre o total cobrado.
+  4. No PDV, o peso é digitado na hora: só dígitos são gramas (`350`) e dígitos com vírgula ou ponto são quilos (`0,350`). A tela mostra o valor da linha antes de adicionar.
+  5. A unidade de um produto que já existe não muda por upsert.
+- **Trade-offs / Consequências**:
+  - *Positivo*: nenhuma coluna de quantidade fracionária; nenhum centavo que aparece só no total; cancelamento e estoque continuam em inteiros.
+  - *Negativo*: o estoque de um produto por peso é lido em gramas por quem consulta o banco; a tela converte para kg. Não há integração com balança: o peso é digitado.
+
+---
+
+## ADR-015: Controle de Estoque Opcional por Loja
+
+- **Data**: 2026-11-09
+- **Status**: Aprovado e implementado (PR #57, migração `0003`; PR #58).
+- **Contexto**: A cliente quer vender sem controlar estoque por enquanto, mas manter o controle como opção para depois.
+- **Decisão**:
+  1. Um interruptor por loja, `merchants.stock_control_enabled` (padrão **ligado**), que só a proprietária muda, por `PATCH /api/store/settings`. Qualquer usuário logado lê (`GET`). Cada mudança grava `STORE_SETTINGS_CHANGED` na auditoria.
+  2. **Desligado:** a venda não exige saldo e não baixa o estoque (nem grava movimentação); somem da gestão o saldo, as entradas, os alertas de estoque baixo, os filtros e o valor em estoque; o cadastro não pede o estoque inicial; a importação ignora a coluna Estoque; o PDV não mostra o saldo.
+  3. Cada venda guarda se tirou do estoque, em `sales.stock_tracked`. O **cancelamento só devolve ao estoque a venda que tirou**; o estorno do dinheiro e do fiado não muda.
+  4. As lojas que já existem ficam com o controle **ligado**: nada muda até a dona desligar.
+- **Trade-offs / Consequências**:
+  - *Positivo*: onboarding simples (produto só precisa de nome, código e preço); o controle volta quando a dona quiser; cancelar nunca infla o saldo.
+  - *Negativo*: ao ligar de novo, os saldos podem estar desatualizados, porque as vendas feitas sem controle não baixaram nada. A tela avisa e pede confirmação; o ajuste fica por conta da dona. O interruptor é da loja, não de cada produto.
+
+---
+
+## ADR-016: Relatórios de Vendas no Horário de Brasília
+
+- **Data**: 2026-11-09
+- **Status**: Aprovado e implementado (PR #55).
+- **Contexto**: A dona quer saber quanto vendeu no dia, na semana e no mês.
+- **Decisão**:
+  1. O **dia é o dia do comércio**, em `America/Sao_Paulo`, não em UTC. Cada limite de período é um instante que é meia-noite lá, e o **fim é exclusivo**: uma venda às 22h do dia 9 é do dia 9 (já é dia 10 em UTC) e uma venda exatamente à meia-noite é do dia seguinte. A semana vai de segunda a domingo.
+  2. Cada período é comparado com o anterior **até o mesmo ponto do tempo** (hoje às 12h contra ontem às 12h; a semana até quarta contra a semana passada até quarta).
+  3. O total é a soma das vendas **confirmadas**; as canceladas aparecem à parte. As formas de pagamento somam o **valor do pagamento**, nunca o dinheiro entregue (o troco não é venda). O **fiado recebido** conta só as quitações no balcão (crédito sem venda), e não o estorno de uma venda cancelada.
+  4. O dinheiro é somado **no banco** e arredondado ao centavo na aplicação; nenhuma soma usa número de ponto flutuante.
+  5. **Só a proprietária** vê os relatórios (`403` para os demais). A loja vem sempre da sessão.
+  6. Somente leitura, sem mudança de banco.
+- **Trade-offs / Consequências**:
+  - *Positivo*: os números batem com o dia da loja e com o fechamento do caixa; a regra de fuso fica num só lugar (`report-period.ts`) e é testada nas bordas.
+  - *Negativo*: o fuso é fixo; uma loja em outro fuso exigiria guardar o fuso por loja. Sem índice por loja e data, consultas de períodos longos podem ficar lentas com muito histórico.
+
+---
+
+## ADR-017: App Instalável sem Service Worker
+
+- **Data**: 2026-11-09
+- **Status**: Aprovado e implementado (PR #49).
+- **Contexto**: A dona quer o sistema como um atalho na área de trabalho, em janela própria.
+- **Decisão**:
+  1. Um **manifesto web** (`/manifest.webmanifest`, `display: standalone`, abre em `/login`, atalhos para o PDV e a gestão), ícones PNG de 192 e 512 px, um ícone *maskable* e o ícone da Apple, todos desenhados a partir da marca. O favicon continua o `icon.svg`.
+  2. Um botão **Instalar app** no cabeçalho, que só aparece quando o Chrome ou o Edge avisam que dá para instalar.
+  3. **Sem service worker**, de propósito: a instalação não torna o app offline (o PDV mantém a fila offline que já tinha) e nenhuma tela antiga fica presa depois de um deploy.
+- **Trade-offs / Consequências**:
+  - *Positivo*: instalação sem o risco de servir versão velha do app; nada a invalidar a cada deploy.
+  - *Negativo*: não abre sem internet por ser instalado. Se isso for desejado, é uma decisão à parte, com estratégia de atualização do cache.
+
+---
+
+## ADR-018: Versionamento Semântico e Lançamento de Versões
+
+- **Data**: 2026-11-09
+- **Status**: Aprovado e implementado (PR #51); versão `0.1.0` lançada em 2026-11-09.
+- **Contexto**: Mesclar na `main` já publica em produção, e não havia como saber qual versão estava no ar nem o que mudou entre elas.
+- **Decisão**:
+  1. **Versionamento Semântico** (`MAJOR.MINOR.PATCH`), com a versão num só lugar, o `package.json`. `0.x` quer dizer "em produção, mas ainda crescendo"; vira `1.0.0` quando a lojista opera o dia no sistema e a dona aceita os fluxos principais.
+  2. **`CHANGELOG.md`** no formato Keep a Changelog, com a seção "Não lançado" sempre no topo. Um teste falha se o `package.json` e o CHANGELOG discordarem.
+  3. **Mesclar não é lançar**: a versão é cortada de propósito, por uma PR `chore(release): vX.Y.Z`, seguida da tag e da Release no GitHub.
+  4. A versão e o commit publicados aparecem no rodapé das telas e em `GET /api/version` (público, sem segredo).
+- **Trade-offs / Consequências**:
+  - *Positivo*: dá para dizer exatamente o que está no ar e o que mudou.
+  - *Negativo*: um passo manual a mais por versão; o commit só aparece no rodapé quando a Vercel informa a variável do deploy.
+
+---
+
+## ADR-019: Cancelar Venda Finalizada no PDV
+
+- **Data**: 2026-11-09
+- **Status**: Aprovado e implementado (PR #56).
+- **Contexto**: O botão de cancelar uma venda já feita ficava na gestão, longe de quem está no caixa, e pedia o código da venda (UUID de 36 caracteres), que o cupom nem mostra inteiro.
+- **Decisão**:
+  1. O botão **Cancelar venda finalizada** fica na barra de baixo do **PDV**, ao lado de Sangria e Suprimento, e só funciona com o caixa aberto e com internet. Saiu da gestão.
+  2. Em vez de digitar o código, a pessoa **escolhe a venda na lista das vendas de hoje** (até 30, da mais recente para a mais antiga, no dia de Brasília), por `GET /api/sales/recent`. A rota exige login, só enxerga a loja da sessão e nunca é guardada em cache.
+  3. O cancelamento em si não muda: **PIN da proprietária e motivo continuam obrigatórios**; os itens voltam ao estoque (se a venda os tirou), o dinheiro é estornado e o fiado é desfeito.
+  4. O botão que limpa a venda em andamento ("Cancelar venda · Esc") continua como estava; é outra coisa.
+- **Trade-offs / Consequências**:
+  - *Positivo*: o caixa cancela sem digitar código nenhum, e só vendas de hoje aparecem.
+  - *Negativo*: o operador passa a ver a lista das vendas de hoje, com valores (o PIN da dona continua sendo exigido para cancelar). Cancelar vendas de dias anteriores deixa de ter tela.

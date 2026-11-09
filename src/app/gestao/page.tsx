@@ -92,12 +92,6 @@ export default function GestaoPage() {
   const [cashOpAmount, setCashOpAmount] = useState('');
   const [cashOpReason, setCashOpReason] = useState('');
 
-  // Cancelamento de Venda
-  const [isCancelSaleModalOpen, setIsCancelSaleModalOpen] = useState(false);
-  const [cancelSaleId, setCancelSaleId] = useState('');
-  const [cancelOwnerPin, setCancelOwnerPin] = useState('');
-  const [cancelReason, setCancelReason] = useState('');
-
   // Estados de Operadores (Equipe)
   const [operators, setOperators] = useState<OperatorItem[]>([]);
   const [showNewOperator, setShowNewOperator] = useState(false);
@@ -435,47 +429,6 @@ export default function GestaoPage() {
     }
   }
 
-  async function handleCancelSale(e: React.FormEvent) {
-    e.preventDefault();
-    setProcessing(true);
-    setFeedback(null);
-    try {
-      if (!cancelSaleId.trim()) {
-        setFeedback({ text: 'Informe o ID da venda a ser cancelada.', isError: true });
-        return;
-      }
-      if (!/^\d{6}$/.test(cancelOwnerPin.trim())) {
-        setFeedback({ text: 'O PIN da proprietária deve conter exatamente 6 dígitos numéricos.', isError: true });
-        return;
-      }
-      if (cancelReason.trim().length < 3) {
-        setFeedback({ text: 'O motivo do cancelamento deve conter no mínimo 3 caracteres.', isError: true });
-        return;
-      }
-
-      await apiClient.cancelSale(cancelSaleId.trim(), {
-        ownerPin: cancelOwnerPin.trim(),
-        reason: cancelReason.trim(),
-      });
-
-      setFeedback({
-        text: `Venda ${cancelSaleId.trim().slice(0, 8)} cancelada com sucesso! Produtos retornados ao estoque e valores estornados.`,
-      });
-      setIsCancelSaleModalOpen(false);
-      setCancelSaleId('');
-      setCancelOwnerPin('');
-      setCancelReason('');
-      await Promise.all([loadProducts(), loadCash(), loadCreditMetrics()]);
-    } catch (err) {
-      setFeedback({
-        text: getErrorMessage(err, 'Erro ao cancelar venda.'),
-        isError: true,
-      });
-    } finally {
-      setProcessing(false);
-    }
-  }
-
   const expectedCashNum = cashSession ? parseCurrencyInput(cashSession.expectedCash) : 0;
   const countedNum = parseCurrencyInput(closingCounted);
   const difference = closingCounted ? countedNum - expectedCashNum : 0;
@@ -495,12 +448,6 @@ export default function GestaoPage() {
     setCashOpReason('');
   }
 
-  function closeCancelSaleModal() {
-    setIsCancelSaleModalOpen(false);
-    setCancelSaleId('');
-    setCancelOwnerPin('');
-    setCancelReason('');
-  }
 
   if (loading) {
     return <ManagementSkeleton />;
@@ -527,9 +474,6 @@ export default function GestaoPage() {
             <h1>Painel de Gestão do Comércio</h1>
             <p className="muted">Retaguarda & Controle</p>
           </div>
-          <button type="button" className="outline mg-danger-outline" onClick={() => setIsCancelSaleModalOpen(true)}>
-            Cancelar Venda
-          </button>
         </div>
 
         {/* Alertas */}
@@ -1139,13 +1083,6 @@ export default function GestaoPage() {
                       >
                         + Registrar Suprimento (Entrada)
                       </button>
-                      <button
-                        type="button"
-                        className="outline mg-danger-outline"
-                        onClick={() => setIsCancelSaleModalOpen(true)}
-                      >
-                        Cancelar Venda (PIN)
-                      </button>
                     </div>
                   </div>
 
@@ -1437,90 +1374,6 @@ export default function GestaoPage() {
                   disabled={processing || !cashOpAmount || cashOpReason.trim().length < 3}
                 >
                   {processing ? 'Processando...' : cashOpType === 'WITHDRAWAL' ? 'Confirmar Sangria' : 'Confirmar Suprimento'}
-                </button>
-              </div>
-            </form>
-          </div>
-        )}
-
-        {/* MODAL DE CANCELAMENTO DE VENDA COM PIN DA PROPRIETÁRIA */}
-        {isCancelSaleModalOpen && (
-          <div className="mg-backdrop">
-            <form
-              onSubmit={handleCancelSale}
-              className="mg-dialog"
-              role="dialog"
-              aria-modal="true"
-              aria-labelledby="cancel-sale-title"
-            >
-              <div className="mg-dialog-head">
-                <div>
-                  <span className="mg-meta mg-meta-danger">Segurança & Auditoria</span>
-                  <h2 id="cancel-sale-title">Cancelar Venda</h2>
-                </div>
-                <button type="button" className="mg-dialog-close" aria-label="Fechar" onClick={closeCancelSaleModal}>
-                  ×
-                </button>
-              </div>
-              <p className="muted">
-                O cancelamento de venda devolve integralmente os itens ao estoque, estorna o valor em dinheiro do caixa e anula o fiado (se houver).
-              </p>
-
-              <div>
-                <label className="field-label" htmlFor="cancel-sale-id">ID ou Código da Venda (UUID)</label>
-                <input
-                  id="cancel-sale-id"
-                  className="input num"
-                  required
-                  autoFocus
-                  value={cancelSaleId}
-                  onChange={(e) => setCancelSaleId(e.target.value)}
-                  placeholder="Ex: 550e8400-e29b-41d4-a716-446655440000"
-                />
-              </div>
-
-              <div>
-                <label className="field-label" htmlFor="cancel-owner-pin">PIN da Proprietária (6 dígitos)</label>
-                <input
-                  id="cancel-owner-pin"
-                  className="input mg-pin num"
-                  type="password"
-                  inputMode="numeric"
-                  maxLength={6}
-                  required
-                  value={cancelOwnerPin}
-                  onChange={(e) => setCancelOwnerPin(e.target.value)}
-                  placeholder="••••••"
-                />
-              </div>
-
-              <div>
-                <label className="field-label" htmlFor="cancel-reason">Motivo Obrigatório do Cancelamento</label>
-                <input
-                  id="cancel-reason"
-                  className="input"
-                  required
-                  value={cancelReason}
-                  onChange={(e) => setCancelReason(e.target.value)}
-                  placeholder="Ex: Cliente desistiu da compra / erro no registro"
-                />
-              </div>
-
-              <div className="mg-dialog-actions">
-                <button className="soft" type="button" onClick={closeCancelSaleModal}>
-                  Voltar
-                </button>
-                <button
-                  className="primary mg-danger-solid"
-                  type="submit"
-                  disabled={
-                    processing ||
-                    !cancelSaleId.trim() ||
-                    !/^\d{6}$/.test(cancelOwnerPin.trim()) ||
-                    cancelReason.trim().length < 3
-                  }
-                >
-                  {processing ? 'Processando Cancelamento...' : 'Confirmar Cancelamento'}
                 </button>
               </div>
             </form>

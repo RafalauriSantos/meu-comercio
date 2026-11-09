@@ -29,7 +29,12 @@ O sistema elimina retrabalho, previne furos de estoque e quebras de caixa, e per
 - [x] Catálogo de produtos com leitura de código de barras e precificação
 - [x] Controle de estoque com bloqueio estrito de saldo negativo (no domínio; sem `CHECK` no banco)
 - [x] Abertura e fechamento de turno de caixa com conferência cega
-- [ ] Fluxo de checkout com troco, split payments e chave de idempotência (parcial: fiado simples no PDV não cria venda; a interface envia uma chave nova a cada envio, então um reenvio não é deduplicado)
+- [x] Fluxo de checkout com troco, split payments e chave de idempotência (a venda fiado cria a venda, e a interface mantém a chave do checkout até a venda ser concluída)
 - [x] Cadastro de clientes e gestão de limite de fiado
 - [ ] Trilha de auditoria imutável para ações sensíveis (parcial: registros são gravados, mas não há bloqueio de UPDATE e DELETE em `audit_events`)
-- [ ] Relatórios de vendas e conciliação por método de pagamento
+- [x] Relatórios de vendas por período (dia, semana, mês e período escolhido) e por forma de pagamento, só para a dona. *A conciliação com a maquininha depende da integração de cartão (`docs/INTEGRATIONS.md`).*
+- [x] Produto vendido por peso (preço por quilo, peso digitado na venda, estoque em gramas)
+- [x] Controle de estoque opcional por loja: a dona liga e desliga, e as vendas funcionam sem estoque
+- [x] Importação de produtos em lote por planilha (`.xlsx` ou CSV), com prévia e erros por linha
+- [x] App instalável na área de trabalho e versão visível (Versionamento Semântico)
+- [ ] Integração com maquininhas de cartão e emissão de nota fiscal (NFC-e): planejado em `docs/INTEGRATIONS.md`, depende de decisões da dona e do contador

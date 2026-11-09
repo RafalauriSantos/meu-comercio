@@ -294,6 +294,20 @@ The hero shows a **labelled example panel** ("Exemplo de painel do caixa": title
 ### Navigation
 App: the shared `AppHeader` (see Layout). Auth: the brand link to `/` and the footer toggle. Landing: wordmark at the left, one "Entrar" link at the right (underline on hover, 44px target).
 
+## Components added after the redesign
+
+These pieces follow the same tokens and primitives; they are listed here so they are not redrawn from scratch.
+
+- **Weight window** (`WeightPrompt`, PDV): a narrow modal (`pdv-modal is-narrow`) with the product, its price per kg and (when the shop controls stock) the stock, one large field (28px, bold) for the weight and a live line that shows the weight and what it costs before adding. A weight above the stock turns the line `danger`.
+- **Product search list** (`pdv-search-list`, PDV): a bordered `surface` list under the barcode field, rows of 52px, the highlighted row on `primary-soft` with `primary-text`; name at 600, price and balance muted at the right. It is a listbox (arrow keys, Enter, Escape).
+- **Cancel a finished sale** (`CancelSaleModal`, PDV): a modal with a radio list of today's sales (`pdv-sale-option`: time and total in bold, product names, operator and short id muted; the chosen row has a 2px `primary` border on `primary-soft`), the PIN field and the reason. The confirm button is the one **solid `danger`** button of the app (`pdv-cancel-confirm`), and the opener in the status bar is an outline in `danger` (`pdv-danger-outline`).
+- **Import area** (`mg-import-drop`, management): one dashed 2px area, `surface-2`, that opens the file picker (the real file field covers it, invisible); the template is a small underlined link in the help text, not a second button.
+- **Stock switch** (`mg-stock-switch`, management): a card with the state ("Controle de estoque: ligado/desligado"), a one-line explanation and an outline button. Only the owner sees it.
+- **Sales report** (management, Relatórios tab): the period segments, three KPI cards (the first one carries the change against the previous period as `mg-delta`: `primary-text` when up, `danger` when down, `muted` when equal), flat tables, and a bar per day (`mg-bar-fill`, `primary`, 10px, scaled to the best day).
+- **Version label** (`app-version`): 12px, `muted`, tabular figures, at the foot of the landing, the auth screens, the PDV status bar and the management panel.
+- **Install button** (`soft`, in the app header): shown only when the browser says the app can be installed.
+- **Notices** (`notice` and `error` banners of the PDV and the management panel, and the login errors) leave the screen by themselves after 2 seconds; the Close button still works. The offline banner of the PDV and the list of rows with a problem in the import stay, because they describe a state or need to be read.
+
 ## Interaction
 
 - **Focus:** every button, input, select, textarea, summary and link gets a `3px solid var(--primary)` outline with a 2px offset on `:focus-visible`.

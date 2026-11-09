@@ -16,6 +16,7 @@ import {
 import { formatMoney, parseCurrencyInput, getErrorMessage } from '@/frontend/lib/formatters';
 import { AppHeader } from '@/frontend/ui/app-header';
 import { findProductWithBarcode, takenBarcodeMessage } from '@/frontend/management/barcode-check';
+import { VersionLabel } from '@/frontend/ui/version-label';
 import { formatQuantity, type ProductUnit } from '@/shared/domain/product-unit';
 import { useAutoDismiss } from '@/frontend/lib/use-auto-dismiss';
 import { ManagementSkeleton } from '@/frontend/management/management-skeleton';
@@ -1511,6 +1512,10 @@ export default function GestaoPage() {
             </form>
           </div>
         )}
+
+        <p className="app-version-line">
+          <VersionLabel />
+        </p>
       </main>
     </>
   );

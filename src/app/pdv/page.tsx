@@ -45,6 +45,7 @@ import {
 } from '@/frontend/pdv/quick-amounts';
 import { AppHeader } from '@/frontend/ui/app-header';
 import { WeightPrompt } from '@/frontend/pdv/weight-prompt';
+import { VersionLabel } from '@/frontend/ui/version-label';
 import { WEIGHT_STEP_GRAMS } from '@/frontend/pdv/weight-input';
 import { formatQuantity, lineSubtotal } from '@/shared/domain/product-unit';
 import '@/frontend/styles/pdv.css';
@@ -1102,6 +1103,9 @@ export default function PdvTerminalPage() {
             ? `Caixa aberto${openedTimeString ? ` desde ${openedTimeString}` : ''}`
             : 'Caixa fechado'}{' '}
           · {offlineCount} {offlineCount === 1 ? 'venda offline' : 'vendas offline'}
+        </span>
+        <span className="pdv-hide-sm">
+          <VersionLabel />
         </span>
         {offlineCount > 0 && isOnline && (
           <button

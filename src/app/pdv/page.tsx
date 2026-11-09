@@ -34,6 +34,7 @@ import { createCheckoutKeyStore } from '@/frontend/lib/checkout-idempotency';
 import { PdvSkeleton } from '@/frontend/pdv/pdv-skeleton';
 import { blocksImplicitSubmit } from '@/frontend/pdv/enter-submit';
 import { createEscapeDismiss } from '@/frontend/lib/dismiss-on-escape';
+import { useAutoDismiss } from '@/frontend/lib/use-auto-dismiss';
 import { settleOfflineSale } from '@/frontend/lib/offline-sale-sender';
 import {
   suggestCashAmounts,
@@ -116,6 +117,7 @@ export default function PdvTerminalPage() {
 
   // Notificações e Feedback
   const [message, setMessage] = useState<{ text: string; isError?: boolean } | null>(null);
+  useAutoDismiss(message, () => setMessage(null));
   const [processing, setProcessing] = useState(false);
 
   // Relógio

@@ -3,6 +3,7 @@
 import React, { useRef, useState } from 'react';
 import { apiClient, type ProductImportReport } from '@/frontend/lib/api-client';
 import { formatMoney, getErrorMessage } from '@/frontend/lib/formatters';
+import { useAutoDismiss } from '@/frontend/lib/use-auto-dismiss';
 import { PRODUCT_IMPORT_TEMPLATE } from './import-template';
 import { readSpreadsheetAsCsv } from './spreadsheet-to-csv';
 
@@ -17,6 +18,8 @@ export function ImportProductsPanel({ onImported }: ImportProductsPanelProps) {
   const [report, setReport] = useState<ProductImportReport | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+
+  useAutoDismiss(message, () => setMessage(null));
 
   async function handleFile(event: React.ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
@@ -71,27 +74,26 @@ export function ImportProductsPanel({ onImported }: ImportProductsPanelProps) {
     <section className="card mg-stack" aria-label="Importar produtos de uma planilha">
       <h3>Importar produtos de uma planilha</h3>
       <p className="mg-help">
-        Use uma planilha do Excel (.xlsx) ou um CSV, com as colunas código de barras, nome, preço e estoque (até 500
-        produtos por vez). Deixe a coluna do código de barras como Texto, para o Excel não cortar zeros do começo.
-        Produtos cujo código de barras já existe não são alterados.
-      </p>
-      <div className="mg-import-actions">
-        <button type="button" className="outline" onClick={downloadTemplate}>
+        Colunas: código de barras, nome, preço e estoque. Deixe o código de barras como Texto, para o Excel não cortar
+        zeros do começo. Produtos cujo código já existe não são alterados.{' '}
+        <button type="button" className="mg-link" onClick={downloadTemplate}>
           Baixar planilha-modelo
         </button>
-        <label className="field-label mg-import-file" htmlFor="import-file">
-          Escolher arquivo (Excel ou CSV)
-        </label>
+      </p>
+      <label className="mg-import-drop" data-busy={busy || undefined}>
         <input
-          id="import-file"
           ref={fileInput}
-          className="input mg-import-input"
+          className="mg-import-input"
           type="file"
           accept=".xlsx,.csv,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
           onChange={handleFile}
           disabled={busy}
         />
-      </div>
+        <span className="mg-import-drop-title">
+          {busy ? 'Lendo a planilha...' : fileName || 'Escolher a planilha'}
+        </span>
+        <span className="mg-import-drop-hint">Excel (.xlsx) ou CSV · até 500 produtos</span>
+      </label>
 
       {message && (
         <div className="error" role="alert">

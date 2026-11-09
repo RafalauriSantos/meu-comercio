@@ -85,7 +85,7 @@ Este documento rastreia formalmente as fatias verticais de entrega, critérios d
 ## 🔮 Roadmap de Evolução (Planejado a partir dos Projetos de Referência)
 
 ### [ ] Slice 7: PWA Instalável & Perímetro de Borda (Modelado a partir de `barbearia.js`)
-- [ ] 7.1 Manifesto Web (`manifest.json`) e ícones de aplicação para instalação do PDV como aplicativo desktop/tablet em modo tela cheia (*standalone*).
+- [x] 7.1 Manifesto Web (`manifest.json`) e ícones de aplicação para instalação do PDV como aplicativo desktop/tablet em modo tela cheia (*standalone*). *Feito no PR #49: manifesto, ícones 192/512 e maskable, ícone da Apple e botão "Instalar app" no cabeçalho. Sem service worker, de propósito.*
 - [ ] 7.2 Service Worker para cache avançado de assets e casca da aplicação (App Shell) acelerando abertura instantânea.
 - [ ] 7.3 Proteção perimetral no Login e Verificação de PIN contra ataques de força bruta com Cloudflare Turnstile.
 - [ ] 7.4 Ambiente containerizado `docker-compose.yml` para desenvolvimento e testes locais com um único comando (`npm run docker:up`).
@@ -102,6 +102,7 @@ Este documento rastreia formalmente as fatias verticais de entrega, critérios d
 - [ ] 9.3 Comandos interativos no Telegram (`/saldo`, `/caixa`, `/vendas_hoje`) permitindo à dona consultar o faturamento de onde estiver sem abrir o navegador.
 
 ### [ ] Slice 10: Integração de Maquininha de Cartão Smart POS / TEF (Stone Connect / POS Cloud)
+> Plano detalhado, opções e perguntas para a dona: [`docs/INTEGRATIONS.md`](INTEGRATIONS.md). A escolha do adquirente depende da maquininha que a loja já usa.
 - [ ] 10.1 Adaptador de Gateway de Pagamento para API Cloud da maquininha da loja (ex: Stone Connect / PagBank).
 - [ ] 10.2 Disparo automático do valor da venda para o visor da maquininha no balcão sem digitação manual pelo operador.
 - [ ] 10.3 Confirmação síncrona via Webhook/Polling com gravação de NSU/TID e baixa automática do carrinho.
@@ -133,8 +134,12 @@ Este documento rastreia formalmente as fatias verticais de entrega, critérios d
   - [ ] 11.4.3 Folha de estilos `@media print` otimizada para bobinas de 58mm (32 colunas) e 80mm (48 colunas) sem quebra indevida de página. *Reaberto: há `@media print`, mas nenhuma regra de 80mm (AC-62).*
 - **PR-Reviewer audit (items 11.1–11.4, historical):** Formal verdict **PASS** (zero findings, 231 tests passing).
 - **Status:** In progress. 11.5 and 11.6 are open.
-- [ ] 11.5 **Importação de Produtos em Lote (Excel/CSV)** (Próxima etapa).
+- [x] 11.5 **Importação de Produtos em Lote (Excel/CSV)**: planilha `.xlsx` ou CSV, prévia com erros por linha, tudo ou nada em uma transação, coluna opcional `Unidade` (PRs #41, #42, #44 e #48).
 - [ ] 11.6 **Recuperação de Acesso e Redefinição de PIN da Proprietária** (Próxima etapa).
+- [x] 11.7 **Produto vendido por peso** (mussarela, mortadela): preço por quilo, peso digitado no PDV, estoque em gramas, linha arredondada ao centavo (PR #48; migração `0002` no PR #47, aplicada em produção em 09/11/2026).
+- [x] 11.8 **Busca de produto pelo nome no PDV**, no mesmo campo do código de barras (PR #46).
+- [ ] 11.9 **Bipador no cadastro de produto**: o código lido preenche o campo, o Enter vai para o nome e um código repetido é avisado na hora. *PR #52 aberta.*
+- [ ] 11.10 **Versão inicial `0.1.0`** (Versionamento Semântico, CHANGELOG, versão visível no rodapé e em `/api/version`). *PR #51 aberta.*
 
 ### [ ] Slice 12: Endurecimento Integral de Segurança (Defense-in-Depth)
 - [ ] 12.1 **Cabeçalhos de Segurança HTTP OWASP**: Configuração em `next.config.ts` com `X-Frame-Options: DENY`, `X-Content-Type-Options: nosniff`, `Referrer-Policy`, `Permissions-Policy` e HSTS. *Reaberto: não há CSP em nenhum lugar do código (AC-32).*
@@ -155,3 +160,41 @@ Este documento rastreia formalmente as fatias verticais de entrega, critérios d
 - [ ] 13.5 Capturas reais do produto na landing, a partir de uma loja de demonstração criada pela dona (fase 2).
 - [ ] 13.6 Termos de uso e política de privacidade (LGPD), canal de ajuda e logo (fase 2). Primeiro item da fase 2: o cadastro já coleta nome, e-mail e senha sem aviso de privacidade.
 - [ ] 13.7 Rodar todos os `*.integration.test.ts` no job de Postgres do CI. Hoje o job roda só `drizzle-owner-pin-attempt-store.integration.test.ts`; os testes de integração de vendas rodam apenas localmente.
+
+
+---
+
+## ⭐ Próximos passos (pedidos pela dona do comércio)
+
+### [ ] Slice 14: Relatórios de vendas — **próximo passo**
+A dona quer saber **quanto vendeu no dia, na semana e no mês**. Hoje o app mostra o fechamento do caixa e o fiado em aberto, mas não tem um relatório de vendas por período.
+
+- [ ] 14.1 **Resumo do período** com seletor: Hoje, Ontem, Esta semana, Este mês e Período personalizado. Mostra o **total vendido**, o **número de vendas**, o **ticket médio** e a comparação com o período anterior equivalente (por exemplo, esta semana contra a semana passada, em % e em reais).
+- [ ] 14.2 **Por forma de pagamento**: dinheiro, Pix, débito, crédito e fiado, com valor e percentual. O troco não conta como venda.
+- [ ] 14.3 **Por dia** dentro do período (tabela e gráfico simples), destacando o melhor e o pior dia.
+- [ ] 14.4 **Produtos mais vendidos** (10 primeiros), por quantidade e por valor. Produto vendido por peso aparece em kg.
+- [ ] 14.5 **Por operador**: quanto cada pessoa do caixa vendeu.
+- [ ] 14.6 **Cancelamentos e fiado**: vendas canceladas listadas à parte e **fora** do total; fiado vendido e fiado recebido (quitações) no período.
+- [ ] 14.7 **Exportar** o relatório em CSV (abre no Excel).
+- [ ] 14.8 **Acesso só da proprietária** (`ROLE_OWNER`): o operador de caixa não vê.
+
+**Regras e cuidados**
+- **Fuso horário:** o dia vai de 00:00 a 23:59 no horário de Brasília (`America/Sao_Paulo`), não em UTC. Uma venda às 22h não pode cair no dia seguinte. Teste com vendas perto da meia-noite.
+- **Os números precisam bater com o fechamento do caixa** do mesmo dia: o dinheiro do relatório é o dinheiro que o caixa conferiu.
+- Só vendas confirmadas entram; as canceladas não.
+- **Sem mudança de banco prevista**: são somas sobre `sales`, `payments` e `sale_items`. Se for preciso um índice (por exemplo, loja e data da venda), a migração vai em PR própria, com a aprovação da dona.
+- É **dinheiro** (cálculo e exibição de valores): pelo fluxo do projeto, a PR pede a aprovação da dona.
+- Testes: períodos (dia, semana de segunda a domingo, mês), fuso, cancelamento, fiado, venda por peso, loja sem vendas e isolamento entre lojas.
+
+**Depois dos relatórios:** o resumo diário no Telegram da dona (Slice 9) reaproveita as mesmas contas.
+
+### [ ] Slice 15: Notas fiscais (NFC-e)
+> Plano, opções de fornecedor, requisitos fiscais e perguntas para o contador: [`docs/INTEGRATIONS.md`](INTEGRATIONS.md).
+
+- [ ] 15.0 **Decisão com o contador:** a loja é obrigada a emitir NFC-e? Qual o regime tributário e o estado? Qual emissor?
+- [ ] 15.1 **Cadastro fiscal do produto** (NCM, CFOP, CEST, origem, situação tributária e alíquotas), inclusive na importação em lote. Migração em PR própria.
+- [ ] 15.2 **Porta `FiscalDocumentIssuer`** e adaptador do emissor escolhido, com credenciais por loja guardadas cifradas.
+- [ ] 15.3 **Emissão em segundo plano** depois da venda, com nova tentativa e estados `PENDENTE`, `AUTORIZADA`, `REJEITADA`, `CONTINGÊNCIA` e `CANCELADA`. A emissão nunca trava o caixa.
+- [ ] 15.4 **Homologação:** emitir no ambiente de testes da SEFAZ antes de qualquer nota real.
+- [ ] 15.5 **Cupom com QR Code** da NFC-e e marcação "com nota" nos relatórios.
+- [ ] 15.6 **Cancelamento** da nota junto com o cancelamento da venda (dentro do prazo), inutilização de numeração e contingência sem internet.

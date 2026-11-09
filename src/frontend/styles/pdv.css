@@ -117,6 +117,47 @@
   color: var(--muted);
 }
 
+/* Produtos encontrados pelo nome */
+
+.pdv-search-list {
+  max-height: 280px;
+  margin: 12px 0 0;
+  padding: 4px;
+  overflow-y: auto;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface);
+  list-style: none;
+}
+
+.pdv-search-option {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 52px;
+  padding: 8px 14px;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.pdv-search-option:hover,
+.pdv-search-option[aria-selected='true'] {
+  background: var(--primary-soft);
+  color: var(--primary-text);
+}
+
+.pdv-search-name {
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.pdv-search-meta {
+  flex: none;
+  color: var(--muted);
+  font-size: 14px;
+}
+
 /* Itens da venda */
 
 .pdv-cart {

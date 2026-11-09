@@ -954,6 +954,82 @@ describe('CreateSaleUseCase — Slice 4: Vendas, Checkout e Split Payments', () 
       );
     });
   });
+
+  describe('4.11 Produto vendido por peso (KG: preço por quilo, quantidade em gramas)', () => {
+    let cheese: Product;
+    let bologna: Product;
+
+    beforeEach(async () => {
+      cheese = Product.create(MERCHANT_ID, '200000000900', 'Queijo Mussarela', Money.fromDecimal('42.90'), 'prod-queijo', 'KG');
+      bologna = Product.create(MERCHANT_ID, '200000000917', 'Mortadela', Money.fromDecimal('19.90'), 'prod-mortadela', 'KG');
+      await productRepo.save(cheese);
+      await productRepo.save(bologna);
+      for (const [product, grams] of [[cheese, 5000], [bologna, 3000]] as const) {
+        await inventoryRepo.save(
+          new InventoryItem({ merchantId: MERCHANT_ID, productId: product.id, availableQuantity: grams, updatedAt: new Date() })
+        );
+      }
+    });
+
+    function cashDto(items: CreateSaleDTO['items'], total: string): CreateSaleDTO {
+      return {
+        merchantId: MERCHANT_ID,
+        operatorId: OPERATOR_ID,
+        items,
+        payments: [{ method: 'CASH', amount: Money.fromDecimal(total), receivedAmount: Money.fromDecimal(total) }],
+      };
+    }
+
+    it('cobra o peso pelo preço por quilo, arredondando o centavo para cima, e baixa o estoque em gramas', async () => {
+      // 350 g x R$ 42,90/kg = 15,015 -> R$ 15,02
+      const sale = await useCase.execute(cashDto([{ productId: cheese.id, quantity: 350 }], '15.02'));
+
+      expect(sale.total.toDecimal()).toBe('15.02');
+      expect(sale.items[0].unit).toBe('KG');
+      expect(sale.items[0].subtotal.toDecimal()).toBe('15.02');
+      expect(await inventoryRepo.getAvailableQuantity(MERCHANT_ID, cheese.id)).toBe(4650);
+      expect(inventoryRepo.movements[0]).toMatchObject({ movementType: 'SALE', quantity: 350 });
+    });
+
+    it('arredonda cada linha, então a soma das linhas é o total cobrado', async () => {
+      // 350 g de mussarela = 15,02 e 350 g de mortadela (19,90/kg) = 6,965 -> 6,97: total 21,99
+      const sale = await useCase.execute(
+        cashDto(
+          [
+            { productId: cheese.id, quantity: 350 },
+            { productId: bologna.id, quantity: 350 },
+          ],
+          '21.99'
+        )
+      );
+
+      expect(sale.items.map((item) => item.subtotal.toDecimal())).toEqual(['15.02', '6.97']);
+      expect(sale.total.toDecimal()).toBe('21.99');
+    });
+
+    it('recusa um peso maior que o estoque em gramas', async () => {
+      await expect(useCase.execute(cashDto([{ productId: cheese.id, quantity: 6000 }], '257.40'))).rejects.toThrow(
+        InsufficientStockError
+      );
+      expect(await inventoryRepo.getAvailableQuantity(MERCHANT_ID, cheese.id)).toBe(5000);
+    });
+
+    it('vende produto por unidade e por peso na mesma venda', async () => {
+      // 2 arroz (51,00) + 1,25 kg de mussarela (53,625 -> 53,63) = 104,63
+      const sale = await useCase.execute(
+        cashDto(
+          [
+            { productId: riceProduct.id, quantity: 2 },
+            { productId: cheese.id, quantity: 1250 },
+          ],
+          '104.63'
+        )
+      );
+
+      expect(sale.total.toDecimal()).toBe('104.63');
+      expect(sale.items.map((item) => item.unit)).toEqual(['UN', 'KG']);
+    });
+  });
 });
 
 class InMemoryCustomerRepo implements CustomerRepository {

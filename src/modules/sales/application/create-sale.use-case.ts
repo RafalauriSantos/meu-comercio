@@ -284,7 +284,14 @@ export class CreateSaleUseCase {
 
     for (const res of resolvedProducts) {
       sale.addItem(
-        SaleItem.create(res.product.id, res.product.name, res.product.salePrice, res.quantity)
+        SaleItem.create(
+          res.product.id,
+          res.product.name,
+          res.product.salePrice,
+          res.quantity,
+          undefined,
+          res.product.unit
+        )
       );
     }
 

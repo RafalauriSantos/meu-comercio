@@ -1,4 +1,5 @@
 import { Money } from '@/shared/domain/money';
+import { ProductUnit, isProductUnit } from '@/shared/domain/product-unit';
 
 export interface ProductProps {
   id: string;
@@ -6,6 +7,8 @@ export interface ProductProps {
   barcode: string;
   name: string;
   salePrice: Money;
+  /** Missing means by the unit. */
+  unit?: ProductUnit;
   active: boolean;
   createdAt: Date;
   updatedAt: Date;
@@ -17,6 +20,7 @@ export class Product {
   public readonly barcode: string;
   public readonly name: string;
   public readonly salePrice: Money;
+  public readonly unit: ProductUnit;
   public readonly active: boolean;
   public readonly createdAt: Date;
   public readonly updatedAt: Date;
@@ -39,6 +43,11 @@ export class Product {
     this.barcode = trimmedBarcode;
     this.name = trimmedName;
     this.salePrice = props.salePrice;
+    const unit = props.unit ?? 'UN';
+    if (!isProductUnit(unit)) {
+      throw new Error('Unidade do produto deve ser UN ou KG.');
+    }
+    this.unit = unit;
     this.active = props.active;
     this.createdAt = props.createdAt;
     this.updatedAt = props.updatedAt;
@@ -49,7 +58,8 @@ export class Product {
     barcode: string,
     name: string,
     salePrice: Money,
-    id = crypto.randomUUID()
+    id = crypto.randomUUID(),
+    unit: ProductUnit = 'UN'
   ): Product {
     const now = new Date();
     return new Product({
@@ -58,6 +68,7 @@ export class Product {
       barcode,
       name,
       salePrice,
+      unit,
       active: true,
       createdAt: now,
       updatedAt: now,

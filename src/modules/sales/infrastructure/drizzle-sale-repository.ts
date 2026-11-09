@@ -10,6 +10,7 @@ import { Payment, PaymentMethod, PaymentStatus } from '../domain/payment';
 import { CreditDebitCommit, SaleCommit, SaleRepository } from '../domain/sale-repository.port';
 import { cashMovements, cashSessions } from '@/modules/cash/infrastructure/cash.schema';
 import { CashSessionNotOpenError } from '../domain/errors';
+import { isProductUnit } from '@/shared/domain/product-unit';
 import { Money } from '@/shared/domain/money';
 import { inventoryItems, inventoryMovements } from '@/modules/inventory/infrastructure/inventory.schema';
 import { InsufficientStockError } from '@/modules/inventory/domain/inventory-item';
@@ -32,6 +33,7 @@ function toDomain(
         productName: item.productName,
         unitPrice: Money.fromDecimal(item.unitPrice),
         quantity: item.quantity,
+        unit: isProductUnit(item.unit) ? item.unit : 'UN',
       })
   );
 
@@ -239,6 +241,7 @@ export class DrizzleSaleRepository implements SaleRepository {
           productName: item.productName,
           unitPrice: item.unitPrice.toDecimal(),
           quantity: item.quantity,
+          unit: item.unit,
           subtotal: item.subtotal.toDecimal(),
           createdAt: sale.createdAt,
         }))

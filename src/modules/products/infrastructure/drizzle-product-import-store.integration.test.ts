@@ -43,8 +43,8 @@ describe.skipIf(!TEST_DATABASE_URL)('DrizzleProductImportStore (Postgres)', () =
     const merchantId = await freshMerchant();
 
     await store.importAll(merchantId, 'dona', [
-      { barcode: '1001', name: 'Arroz 5kg', salePrice: '24.90', initialStock: 12 },
-      { barcode: '1002', name: 'Feijão 1kg', salePrice: '8.50', initialStock: 0 },
+      { barcode: '1001', name: 'Arroz 5kg', salePrice: '24.90', unit: 'UN', initialStock: 12 },
+      { barcode: '1002', name: 'Feijão 1kg', salePrice: '8.50', unit: 'UN', initialStock: 0 },
     ]);
 
     const created = await database.select().from(products).where(eq(products.merchantId, merchantId));
@@ -69,15 +69,29 @@ describe.skipIf(!TEST_DATABASE_URL)('DrizzleProductImportStore (Postgres)', () =
     expect(events.filter((e) => e.eventType === 'INVENTORY_RESTOCKED')).toHaveLength(1);
   });
 
+  it('keeps the unit: a product sold by weight has its stock in grams', async () => {
+    const store = new DrizzleProductImportStore(database);
+    const merchantId = await freshMerchant();
+
+    await store.importAll(merchantId, 'dona', [
+      { barcode: '4001', name: 'Queijo Mussarela', salePrice: '42.90', unit: 'KG', initialStock: 2500 },
+    ]);
+
+    const [row] = await database.select().from(products).where(eq(products.merchantId, merchantId));
+    expect(row.unit).toBe('KG');
+    const [stock] = await database.select().from(inventoryItems).where(eq(inventoryItems.productId, row.id));
+    expect(stock.availableQuantity).toBe(2500);
+  });
+
   it('creates none of them when one fails (a barcode that already exists)', async () => {
     const store = new DrizzleProductImportStore(database);
     const merchantId = await freshMerchant();
-    await store.importAll(merchantId, 'dona', [{ barcode: '2001', name: 'Sal', salePrice: '3.00', initialStock: 1 }]);
+    await store.importAll(merchantId, 'dona', [{ barcode: '2001', name: 'Sal', salePrice: '3.00', unit: 'UN', initialStock: 1 }]);
 
     await expect(
       store.importAll(merchantId, 'dona', [
-        { barcode: '2002', name: 'Açúcar', salePrice: '5.00', initialStock: 4 },
-        { barcode: '2001', name: 'Sal de novo', salePrice: '9.00', initialStock: 9 },
+        { barcode: '2002', name: 'Açúcar', salePrice: '5.00', unit: 'UN', initialStock: 4 },
+        { barcode: '2001', name: 'Sal de novo', salePrice: '9.00', unit: 'UN', initialStock: 9 },
       ])
     ).rejects.toThrow();
 
@@ -92,8 +106,8 @@ describe.skipIf(!TEST_DATABASE_URL)('DrizzleProductImportStore (Postgres)', () =
     const store = new DrizzleProductImportStore(database);
     const merchantId = await freshMerchant();
     const other = await freshMerchant();
-    await store.importAll(merchantId, 'dona', [{ barcode: '3001', name: 'Café', salePrice: '12.00', initialStock: 0 }]);
-    await store.importAll(other, 'dona', [{ barcode: '3002', name: 'Leite', salePrice: '5.00', initialStock: 0 }]);
+    await store.importAll(merchantId, 'dona', [{ barcode: '3001', name: 'Café', salePrice: '12.00', unit: 'UN', initialStock: 0 }]);
+    await store.importAll(other, 'dona', [{ barcode: '3002', name: 'Leite', salePrice: '5.00', unit: 'UN', initialStock: 0 }]);
 
     const found = await store.findExistingBarcodes(merchantId, ['3001', '3002', '3003']);
 

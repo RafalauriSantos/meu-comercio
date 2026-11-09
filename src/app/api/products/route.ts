@@ -37,6 +37,7 @@ export async function POST(request: NextRequest) {
         barcode: product.barcode,
         name: product.name,
         salePrice: product.salePrice.toDecimal(),
+        unit: product.unit,
         availableQuantity,
         active: product.active,
       },
@@ -80,6 +81,7 @@ export async function GET(request: NextRequest) {
         barcode: p.barcode,
         name: p.name,
         salePrice: p.salePrice.toDecimal(),
+        unit: p.unit,
         availableQuantity: await inventoryRepo.getAvailableQuantity(session.merchantId, p.id),
         active: p.active,
       }))

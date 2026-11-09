@@ -34,6 +34,8 @@ export const saleItems = pgTable('sale_items', {
   productName: varchar('product_name', { length: 160 }).notNull(),
   unitPrice: numeric('unit_price', { precision: 19, scale: 4 }).notNull(),
   quantity: integer('quantity').notNull(),
+  // The unit the product was sold in: for 'KG' the quantity is in grams and unit_price is per kg.
+  unit: varchar('unit', { length: 8 }).notNull().default('UN'),
   subtotal: numeric('subtotal', { precision: 19, scale: 4 }).notNull(),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 }, (table) => [

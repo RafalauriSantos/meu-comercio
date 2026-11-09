@@ -10,6 +10,8 @@ export interface CsvProductRow {
   name: string;
   salePrice: string;
   initialStock: string;
+  /** Optional column: how the product is sold ("un" or "kg"). Empty means by the unit. */
+  unit: string;
 }
 
 export class ImportFileError extends Error {
@@ -19,11 +21,12 @@ export class ImportFileError extends Error {
   }
 }
 
-const COLUMN_ALIASES: Record<'barcode' | 'name' | 'salePrice' | 'initialStock', string[]> = {
+const COLUMN_ALIASES: Record<'barcode' | 'name' | 'salePrice' | 'initialStock' | 'unit', string[]> = {
   barcode: ['codigo', 'codigodebarras', 'codigodebarra', 'codbarras', 'barcode', 'ean', 'gtin'],
   name: ['nome', 'produto', 'descricao', 'nomedoproduto', 'name'],
   salePrice: ['preco', 'precodevenda', 'valor', 'valordevenda', 'saleprice'],
   initialStock: ['estoque', 'estoqueinicial', 'quantidade', 'qtd', 'stock'],
+  unit: ['unidade', 'un', 'vendidopor', 'tipo', 'medida', 'unit'],
 };
 
 function normalizeHeader(value: string): string {
@@ -154,6 +157,7 @@ export function parseProductCsv(rawText: string): CsvProductRow[] {
     name: cellAt(record.cells, columnIndex.name),
     salePrice: cellAt(record.cells, columnIndex.salePrice),
     initialStock: cellAt(record.cells, columnIndex.initialStock),
+    unit: cellAt(record.cells, columnIndex.unit),
   }));
 }
 

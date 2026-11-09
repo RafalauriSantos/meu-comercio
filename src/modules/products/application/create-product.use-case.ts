@@ -17,6 +17,8 @@ export const CreateProductSchema = z.object({
       return false;
     }
   }, 'Preço de venda deve ser um valor monetário válido e não negativo'),
+  // For a product sold by weight (KG) the price is per kilogram and the initial stock is in grams.
+  unit: z.enum(['UN', 'KG']).optional().default('UN'),
   initialStock: z.number().int('Estoque inicial deve ser um número inteiro').min(0).optional().default(0),
 });
 
@@ -46,7 +48,7 @@ export class CreateProductUseCase {
     }
 
     const salePrice = Money.fromDecimal(input.salePrice);
-    const product = Product.create(merchantId, normalizedBarcode, input.name.trim(), salePrice);
+    const product = Product.create(merchantId, normalizedBarcode, input.name.trim(), salePrice, undefined, input.unit);
 
     await this.productRepository.save(product);
 
@@ -69,6 +71,7 @@ export class CreateProductUseCase {
         barcode: product.barcode,
         name: product.name,
         salePrice: product.salePrice.toDecimal(),
+        unit: product.unit,
         initialStock,
       }
     );

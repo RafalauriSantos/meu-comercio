@@ -21,8 +21,8 @@ describe('parseProductCsv', () => {
     const rows = parseProductCsv('﻿Código de barras;Nome;Preço;Estoque\r\n789;Arroz 5kg;24,90;10\r\n790;Feijão;8,5;\r\n');
 
     expect(rows).toEqual([
-      { line: 2, barcode: '789', name: 'Arroz 5kg', salePrice: '24,90', initialStock: '10' },
-      { line: 3, barcode: '790', name: 'Feijão', salePrice: '8,5', initialStock: '' },
+      { line: 2, barcode: '789', name: 'Arroz 5kg', salePrice: '24,90', initialStock: '10', unit: '' },
+      { line: 3, barcode: '790', name: 'Feijão', salePrice: '8,5', initialStock: '', unit: '' },
     ]);
   });
 
@@ -74,7 +74,7 @@ describe('ImportProductsUseCase', () => {
     const report = await useCase.execute('m1', 'dona', sheet('789;Arroz;24,90;10'), { dryRun: true });
 
     expect(report.valid).toEqual([
-      { line: 2, barcode: '789', name: 'Arroz', salePrice: '24.90', initialStock: 10 },
+      { line: 2, barcode: '789', name: 'Arroz', salePrice: '24.90', unit: 'UN', initialStock: 10 },
     ]);
     expect(report.errors).toEqual([]);
     expect(report.imported).toBe(false);
@@ -87,8 +87,8 @@ describe('ImportProductsUseCase', () => {
     expect(report.imported).toBe(true);
     expect(store.imported).toHaveLength(1);
     expect(store.imported[0]).toEqual([
-      { barcode: '1', name: 'Arroz', salePrice: '1.50', initialStock: 2 },
-      { barcode: '2', name: 'Feijão', salePrice: '3.00', initialStock: 0 },
+      { barcode: '1', name: 'Arroz', salePrice: '1.50', unit: 'UN', initialStock: 2 },
+      { barcode: '2', name: 'Feijão', salePrice: '3.00', unit: 'UN', initialStock: 0 },
     ]);
   });
 
@@ -106,6 +106,35 @@ describe('ImportProductsUseCase', () => {
     expect(report.errors[0].message).toMatch(/Preço inválido/);
     expect(report.errors[1].message).toMatch(/Estoque inválido/);
     expect(report.valid.map((row) => row.line)).toEqual([2, 6]);
+  });
+
+  it('reads a product sold by weight: price per kg and stock in kilograms, kept as grams', async () => {
+    const report = await useCase.execute(
+      'm1',
+      'dona',
+      ['codigo;nome;preco;estoque;unidade', '9;Queijo Mussarela;42,90;2,5;kg', '8;Arroz;5;3;un', '7;Mortadela;19,90;;KG'].join('\n'),
+      { dryRun: true }
+    );
+
+    expect(report.errors).toEqual([]);
+    expect(report.valid).toEqual([
+      { line: 2, barcode: '9', name: 'Queijo Mussarela', salePrice: '42.90', unit: 'KG', initialStock: 2500 },
+      { line: 3, barcode: '8', name: 'Arroz', salePrice: '5.00', unit: 'UN', initialStock: 3 },
+      { line: 4, barcode: '7', name: 'Mortadela', salePrice: '19.90', unit: 'KG', initialStock: 0 },
+    ]);
+  });
+
+  it('flags an unknown unit and a weight stock that is not kilograms', async () => {
+    const report = await useCase.execute(
+      'm1',
+      'dona',
+      ['codigo;nome;preco;estoque;unidade', '1;Queijo;42,90;2;litro', '2;Presunto;30;abc;kg', '3;Salame;50;1,2345;kg'].join('\n'),
+      { dryRun: true }
+    );
+
+    expect(report.errors.map((error) => error.line)).toEqual([2, 3, 4]);
+    expect(report.errors[0].message).toMatch(/Unidade inválida/);
+    expect(report.errors[1].message).toMatch(/quilos/);
   });
 
   it('flags a short name and an empty barcode', async () => {

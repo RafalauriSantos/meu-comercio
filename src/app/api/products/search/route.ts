@@ -22,6 +22,7 @@ export async function GET(request: NextRequest) {
         barcode: i.product.barcode,
         name: i.product.name,
         salePrice: i.product.salePrice.toDecimal(),
+        unit: i.product.unit,
         availableQuantity: i.availableQuantity,
       })),
     });

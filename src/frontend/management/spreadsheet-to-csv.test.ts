@@ -108,8 +108,8 @@ describe('an .xlsx through the importer', () => {
     const report = await useCase.execute('m1', 'dona', csv, { dryRun: true });
 
     expect(report.valid).toEqual([
-      { line: 2, barcode: '7891000100103', name: 'Arroz Tipo 1 5kg', salePrice: '24.90', initialStock: 12 },
-      { line: 3, barcode: '7891000200207', name: 'Feijão Carioca 1kg', salePrice: '8.50', initialStock: 30 },
+      { line: 2, barcode: '7891000100103', name: 'Arroz Tipo 1 5kg', salePrice: '24.90', unit: 'UN', initialStock: 12 },
+      { line: 3, barcode: '7891000200207', name: 'Feijão Carioca 1kg', salePrice: '8.50', unit: 'UN', initialStock: 30 },
     ]);
     expect(report.errors).toHaveLength(1);
     expect(report.errors[0]).toMatchObject({ line: 4 });

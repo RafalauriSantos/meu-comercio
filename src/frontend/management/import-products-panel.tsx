@@ -4,6 +4,7 @@ import React, { useRef, useState } from 'react';
 import { apiClient, type ProductImportReport } from '@/frontend/lib/api-client';
 import { formatMoney, getErrorMessage } from '@/frontend/lib/formatters';
 import { useAutoDismiss } from '@/frontend/lib/use-auto-dismiss';
+import { formatQuantity } from '@/shared/domain/product-unit';
 import { PRODUCT_IMPORT_TEMPLATE } from './import-template';
 import { readSpreadsheetAsCsv } from './spreadsheet-to-csv';
 
@@ -74,8 +75,9 @@ export function ImportProductsPanel({ onImported }: ImportProductsPanelProps) {
     <section className="card mg-stack" aria-label="Importar produtos de uma planilha">
       <h3>Importar produtos de uma planilha</h3>
       <p className="mg-help">
-        Colunas: código de barras, nome, preço e estoque. Deixe o código de barras como Texto, para o Excel não cortar
-        zeros do começo. Produtos cujo código já existe não são alterados.{' '}
+        Colunas: código de barras, nome, preço, estoque e, se for vendido por peso, unidade kg (preço por quilo e
+        estoque em quilos). Deixe o código de barras como Texto, para o Excel não cortar zeros do começo. Produtos
+        cujo código já existe não são alterados.{' '}
         <button type="button" className="mg-link" onClick={downloadTemplate}>
           Baixar planilha-modelo
         </button>
@@ -141,8 +143,11 @@ export function ImportProductsPanel({ onImported }: ImportProductsPanelProps) {
                         {row.name}
                         <div className="mg-barcode num">{row.barcode}</div>
                       </td>
-                      <td className="mg-num">{formatMoney(Number(row.salePrice))}</td>
-                      <td className="mg-num">{row.initialStock}</td>
+                      <td className="mg-num">
+                        {formatMoney(Number(row.salePrice))}
+                        {row.unit === 'KG' ? ' /kg' : ''}
+                      </td>
+                      <td className="mg-num">{formatQuantity(row.initialStock, row.unit)}</td>
                     </tr>
                   ))}
                 </tbody>

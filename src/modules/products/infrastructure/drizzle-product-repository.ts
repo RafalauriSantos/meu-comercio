@@ -4,6 +4,7 @@ import { products } from './products.schema';
 import { Product } from '../domain/product';
 import { ProductRepository } from '../domain/product-repository.port';
 import { Money } from '@/shared/domain/money';
+import { isProductUnit } from '@/shared/domain/product-unit';
 
 function toDomain(row: typeof products.$inferSelect): Product {
   return new Product({
@@ -12,6 +13,7 @@ function toDomain(row: typeof products.$inferSelect): Product {
     barcode: row.barcode,
     name: row.name,
     salePrice: Money.fromDecimal(row.salePrice),
+    unit: isProductUnit(row.unit) ? row.unit : 'UN',
     active: row.active,
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
@@ -28,6 +30,8 @@ export class DrizzleProductRepository implements ProductRepository {
         barcode: product.barcode,
         name: product.name,
         salePrice: product.salePrice.toDecimal(),
+        // Not part of the update below: the unit of a product that already exists never changes here.
+        unit: product.unit,
         active: product.active,
         createdAt: product.createdAt,
         updatedAt: product.updatedAt,

@@ -5,7 +5,7 @@ import { ImportProductsUseCase } from '@/modules/products/application/import-pro
 
 describe('product import template', () => {
   it('is a sheet the importer reads without any problem', async () => {
-    expect(parseProductCsv(PRODUCT_IMPORT_TEMPLATE)).toHaveLength(2);
+    expect(parseProductCsv(PRODUCT_IMPORT_TEMPLATE)).toHaveLength(3);
 
     const useCase = new ImportProductsUseCase({
       findExistingBarcodes: async () => new Set(),
@@ -14,6 +14,8 @@ describe('product import template', () => {
     const report = await useCase.execute('m1', 'dona', PRODUCT_IMPORT_TEMPLATE, { dryRun: true });
 
     expect(report.errors).toEqual([]);
-    expect(report.valid.map((row) => row.salePrice)).toEqual(['24.90', '8.50']);
+    expect(report.valid.map((row) => row.salePrice)).toEqual(['24.90', '8.50', '42.90']);
+    // The last row is the example of a product sold by weight: 2,5 kg of stock are kept as 2500 g.
+    expect(report.valid[2]).toMatchObject({ unit: 'KG', initialStock: 2500 });
   });
 });

@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import { BrandMark } from './brand-mark';
+import { useInstallPrompt } from '@/frontend/lib/use-install-prompt';
 
 export type AppHeaderSection = 'venda' | 'gestao';
 
@@ -14,6 +15,8 @@ interface AppHeaderProps {
 
 // Cabeçalho comum do PDV e da gestão: marca, navegação, operador, relógio e saída.
 export function AppHeader({ active, username, isOwner, clock, onLogout }: AppHeaderProps) {
+  const { canInstall, install } = useInstallPrompt();
+
   return (
     <header className="app-header">
       <Link href="/pdv" className="app-brand">
@@ -37,6 +40,11 @@ export function AppHeader({ active, username, isOwner, clock, onLogout }: AppHea
           </span>
         )}
         {clock && <span className="app-clock">{clock}</span>}
+        {canInstall && (
+          <button type="button" className="soft" onClick={() => void install()}>
+            Instalar app
+          </button>
+        )}
         <button type="button" className="ghost" onClick={onLogout}>
           Sair
         </button>

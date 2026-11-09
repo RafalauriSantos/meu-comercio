@@ -19,6 +19,8 @@ import { PaymentMethod } from '@/modules/sales/domain/payment';
 import { DrizzleCustomerRepository } from '@/modules/customers/infrastructure/drizzle-customer-repository';
 import { DrizzleCustomerCreditRepository } from '@/modules/customers/infrastructure/drizzle-customer-credit-repository';
 import { BcryptOwnerPinVerifier } from '@/modules/customers/infrastructure/bcrypt-owner-pin-verifier';
+import { DrizzleStoreSettingsRepository } from '@/modules/settings/infrastructure/drizzle-store-settings-repository';
+import { db } from '@/shared/infrastructure/db/connection';
 import {
   CustomerNotFoundError,
   CustomerInactiveError,
@@ -126,7 +128,8 @@ export async function POST(request: NextRequest) {
         customerRepository: new DrizzleCustomerRepository(),
         customerCreditRepository: new DrizzleCustomerCreditRepository(),
         ownerPinVerifier: new BcryptOwnerPinVerifier(),
-      }
+      },
+      new DrizzleStoreSettingsRepository(db)
     );
 
     const sale = await useCase.execute({

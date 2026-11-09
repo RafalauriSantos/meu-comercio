@@ -4,6 +4,7 @@ import { SaleItem } from '../domain/sale-item';
 import { Payment, PaymentMethod } from '../domain/payment';
 import { AuditEntry, CreditDebitCommit, SaleRepository } from '../domain/sale-repository.port';
 import { ProductRepository } from '@/modules/products/domain/product-repository.port';
+import type { StoreSettingsReader } from '@/modules/settings/domain/store-settings.port';
 import { InventoryRepository } from '@/modules/inventory/domain/inventory-repository.port';
 import { Product } from '@/modules/products/domain/product';
 import { InventoryItem, InsufficientStockError } from '@/modules/inventory/domain/inventory-item';
@@ -88,7 +89,8 @@ interface CreditAuthorization {
 
 interface ResolvedProduct {
   product: Product;
-  inventoryItem: InventoryItem;
+  /** Only when the shop controls its stock. */
+  inventoryItem?: InventoryItem;
   quantity: number;
 }
 
@@ -98,7 +100,9 @@ export class CreateSaleUseCase {
     private readonly productRepository: ProductRepository,
     private readonly inventoryRepository: InventoryRepository,
     private readonly cashSessionRepository: CashSessionRepository,
-    private readonly creditDeps?: CreditSaleDependencies
+    private readonly creditDeps?: CreditSaleDependencies,
+    // Whether the shop controls its stock. Without it, as in the tests of the sale itself, it does.
+    private readonly storeSettings?: StoreSettingsReader
   ) {}
 
   public async execute(dto: CreateSaleDTO): Promise<Sale> {
@@ -116,10 +120,13 @@ export class CreateSaleUseCase {
       throw new Error('A venda deve conter pelo menos uma forma de pagamento.');
     }
 
+    // A shop that does not control its stock sells without checking it and takes nothing out of it.
+    const trackStock = this.storeSettings ? (await this.storeSettings.get(dto.merchantId)).stockControlEnabled : true;
+
     // Products and stock are validated first, so an invalid sale never spends an owner PIN attempt.
-    const resolvedProducts = await this.resolveAndValidateProducts(dto.merchantId, dto.items);
+    const resolvedProducts = await this.resolveAndValidateProducts(dto.merchantId, dto.items, trackStock);
     const credit = await this.authorizeCreditPayment(dto);
-    const sale = this.buildSale(dto, openSession.id, resolvedProducts);
+    const sale = this.buildSale(dto, openSession.id, resolvedProducts, trackStock);
 
     const audits: AuditEntry[] = [this.saleConfirmedAudit(dto, openSession.id, sale)];
     if (credit?.limitAuthorized) {
@@ -129,7 +136,9 @@ export class CreateSaleUseCase {
     await this.saleRepository.commitSale({
       sale,
       actorId: dto.operatorId,
-      stockDeductions: resolvedProducts.map((r) => ({ productId: r.product.id, quantity: r.quantity })),
+      stockDeductions: trackStock
+        ? resolvedProducts.map((r) => ({ productId: r.product.id, quantity: r.quantity }))
+        : [],
       creditDebit: credit ? this.creditDebitCommit(dto, openSession.id, sale, credit) : undefined,
       cashReceipt: sale.cashPaid.isPositive()
         ? { cashSessionId: openSession.id, amount: sale.cashPaid }
@@ -238,7 +247,8 @@ export class CreateSaleUseCase {
 
   private async resolveAndValidateProducts(
     merchantId: string,
-    items: CreateSaleItemDTO[]
+    items: CreateSaleItemDTO[],
+    trackStock: boolean
   ): Promise<ResolvedProduct[]> {
     const resolved: ResolvedProduct[] = [];
 
@@ -253,6 +263,11 @@ export class CreateSaleUseCase {
       }
       if (!product.active) {
         throw new ProductInactiveError(item.productId);
+      }
+
+      if (!trackStock) {
+        resolved.push({ product, quantity: item.quantity });
+        continue;
       }
 
       const inventoryItem = await this.inventoryRepository.findByProductId(merchantId, item.productId);
@@ -273,13 +288,14 @@ export class CreateSaleUseCase {
   private buildSale(
     dto: CreateSaleDTO,
     cashSessionId: string,
-    resolvedProducts: ResolvedProduct[]
+    resolvedProducts: ResolvedProduct[],
+    trackStock: boolean
   ): Sale {
     const sale = Sale.create(
       dto.merchantId,
       cashSessionId,
       dto.operatorId,
-      { idempotencyKey: dto.idempotencyKey }
+      { idempotencyKey: dto.idempotencyKey, stockTracked: trackStock }
     );
 
     for (const res of resolvedProducts) {

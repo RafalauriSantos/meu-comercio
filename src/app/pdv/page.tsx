@@ -119,6 +119,8 @@ export default function PdvTerminalPage() {
   const [ownerPin, setOwnerPin] = useState('');
 
   // Sangria e Suprimento
+  // Se a loja controla o estoque. Desligado, o PDV não mostra saldo nem limita a venda por ele.
+  const [stockControl, setStockControl] = useState(true);
   // Cancelar uma venda já finalizada (a da lista de hoje), com o PIN da proprietária
   const [isCancelSaleOpen, setIsCancelSaleOpen] = useState(false);
   const [isCashOpModalOpen, setIsCashOpModalOpen] = useState(false);
@@ -226,13 +228,16 @@ export default function PdvTerminalPage() {
   useEffect(() => {
     async function init() {
       try {
-        const [me, cash, custResult] = await Promise.all([
+        const [me, cash, custResult, settings] = await Promise.all([
           apiClient.me(),
           apiClient.getCurrentCash(),
           apiClient.listCustomers().catch(() => ({ items: [] })),
+          // Sem resposta, vale o controle de estoque ligado, como era antes.
+          apiClient.getStoreSettings().catch(() => ({ stockControlEnabled: true })),
         ]);
 
         setUser(me);
+        setStockControl(settings.stockControlEnabled);
         setCashOpen(cash.open);
         setCashSession(cash.session);
         setCustomers(custResult.items || []);
@@ -921,7 +926,14 @@ export default function PdvTerminalPage() {
                 Adicionar
               </button>
             </form>
-            {showSearch && <SearchResults results={searchResults} highlighted={highlighted} onPick={pickSearchResult} />}
+            {showSearch && (
+              <SearchResults
+                results={searchResults}
+                highlighted={highlighted}
+                onPick={pickSearchResult}
+                showStock={stockControl}
+              />
+            )}
             <p className="pdv-scan-hint pdv-hide-sm">
               Enter adiciona · F4 recebe · Esc limpa a venda
             </p>
@@ -931,7 +943,13 @@ export default function PdvTerminalPage() {
                   <span className="muted">Último lido:</span> <strong>{lastItem.name}</strong>
                   <span className="muted num">
                     {' '}
-                    · {formatMoney(lastItem.salePrice)} · disponível: {formatQuantity(lastItem.availableQuantity, lastItem.unit)}{lastItem.unit === 'KG' ? '' : ' un'}
+                    · {formatMoney(lastItem.salePrice)} {stockControl && (
+                      <>
+                        {' '}
+                        · disponível: {formatQuantity(lastItem.availableQuantity, lastItem.unit)}
+                        {lastItem.unit === 'KG' ? '' : ' un'}
+                      </>
+                    )}
                   </span>
                 </>
               ) : (
@@ -1360,6 +1378,7 @@ export default function PdvTerminalPage() {
       {weightProduct && (
         <WeightPrompt
           product={weightProduct}
+          stockControl={stockControl}
           onConfirm={(grams) => addWeighedToCart(weightProduct, grams)}
           onCancel={() => {
             setWeightProduct(null);

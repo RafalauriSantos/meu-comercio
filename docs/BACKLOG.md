@@ -138,8 +138,9 @@ Este documento rastreia formalmente as fatias verticais de entrega, critérios d
 - [ ] 11.6 **Recuperação de Acesso e Redefinição de PIN da Proprietária** (Próxima etapa).
 - [x] 11.7 **Produto vendido por peso** (mussarela, mortadela): preço por quilo, peso digitado no PDV, estoque em gramas, linha arredondada ao centavo (PR #48; migração `0002` no PR #47, aplicada em produção em 09/11/2026).
 - [x] 11.8 **Busca de produto pelo nome no PDV**, no mesmo campo do código de barras (PR #46).
-- [ ] 11.9 **Bipador no cadastro de produto**: o código lido preenche o campo, o Enter vai para o nome e um código repetido é avisado na hora. *PR #52 aberta.*
-- [ ] 11.10 **Versão inicial `0.1.0`** (Versionamento Semântico, CHANGELOG, versão visível no rodapé e em `/api/version`). *PR #51 aberta.*
+- [x] 11.11 **Controle de estoque opcional** (pedido da cliente: vender sem estoque por enquanto, mantendo o controle como opção): interruptor da loja só para a proprietária; desligado, a venda não exige saldo nem baixa estoque, e as telas de estoque somem. Cada venda guarda se tirou do estoque (`sales.stock_tracked`), para o cancelamento só devolver o que saiu. Migração `0003`.
+- [x] 11.9 **Bipador no cadastro de produto**: o código lido preenche o campo, o Enter vai para o nome e um código repetido é avisado na hora. *PR #52.*
+- [x] 11.10 **Versão inicial `0.1.0`** (Versionamento Semântico, CHANGELOG, versão visível no rodapé e em `/api/version`). *PR #51; tag e Release v0.1.0.*
 
 ### [ ] Slice 12: Endurecimento Integral de Segurança (Defense-in-Depth)
 - [ ] 12.1 **Cabeçalhos de Segurança HTTP OWASP**: Configuração em `next.config.ts` com `X-Frame-Options: DENY`, `X-Content-Type-Options: nosniff`, `Referrer-Policy`, `Permissions-Policy` e HSTS. *Reaberto: não há CSP em nenhum lugar do código (AC-32).*

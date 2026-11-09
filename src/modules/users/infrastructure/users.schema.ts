@@ -3,6 +3,8 @@ import { pgTable, varchar, uuid, boolean, integer, timestamp, uniqueIndex, prima
 export const merchants = pgTable('merchants', {
   id: uuid('id').primaryKey().defaultRandom(),
   name: varchar('name', { length: 160 }).notNull(),
+  // Whether the shop controls its stock. Off: a sale needs no stock and takes none out.
+  stockControlEnabled: boolean('stock_control_enabled').notNull().default(true),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 });
 

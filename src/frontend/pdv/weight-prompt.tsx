@@ -10,16 +10,18 @@ import { parseWeightInput } from './weight-input';
 
 interface WeightPromptProps {
   product: ProductItem;
+  /** Whether the shop controls its stock: off, the stock is neither shown nor a limit on the weight. */
+  stockControl: boolean;
   onConfirm: (grams: number) => void;
   onCancel: () => void;
 }
 
 /** Asks the weight of a product sold by weight, and shows what that weight costs before it is added. */
-export function WeightPrompt({ product, onConfirm, onCancel }: WeightPromptProps) {
+export function WeightPrompt({ product, stockControl, onConfirm, onCancel }: WeightPromptProps) {
   const [text, setText] = useState('');
   const grams = parseWeightInput(text);
   const total = grams ? lineSubtotal(Money.fromDecimal(product.salePrice), grams, 'KG') : null;
-  const tooMuch = grams !== null && grams > product.availableQuantity;
+  const tooMuch = stockControl && grams !== null && grams > product.availableQuantity;
 
   // Esc closes this window only; it must not also clear the sale.
   useEffect(() => {
@@ -42,7 +44,8 @@ export function WeightPrompt({ product, onConfirm, onCancel }: WeightPromptProps
             {product.name}
           </h2>
           <p className="muted pdv-modal-text">
-            {formatMoney(product.salePrice)} por kg · em estoque: {formatQuantity(product.availableQuantity, 'KG')}
+            {formatMoney(product.salePrice)} por kg
+            {stockControl && <> · em estoque: {formatQuantity(product.availableQuantity, 'KG')}</>}
           </p>
 
           <label className="field-label" htmlFor="pdv-weight-input">

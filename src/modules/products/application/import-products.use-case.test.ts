@@ -137,6 +137,33 @@ describe('ImportProductsUseCase', () => {
     expect(report.errors[1].message).toMatch(/quilos/);
   });
 
+  it('ignores the Estoque column when the shop does not control its stock: every product starts at zero', async () => {
+    const report = await useCase.execute(
+      'm1',
+      'dona',
+      ['codigo;nome;preco;estoque;unidade', '1;Arroz;5;40;un', '2;Queijo;42,90;2,5;kg', '3;Sal;3;abc;un'].join('\n'),
+      { dryRun: true, stockControl: false }
+    );
+
+    // Not even a stock that would be an error (abc) is looked at.
+    expect(report.errors).toEqual([]);
+    expect(report.valid.map((row) => [row.barcode, row.unit, row.initialStock])).toEqual([
+      ['1', 'UN', 0],
+      ['2', 'KG', 0],
+      ['3', 'UN', 0],
+    ]);
+  });
+
+  it('still reads the Estoque column when the shop controls its stock, and by default', async () => {
+    const sheet = ['codigo;nome;preco;estoque', '1;Arroz;5;40'].join('\n');
+
+    const explicit = await useCase.execute('m1', 'dona', sheet, { dryRun: true, stockControl: true });
+    const byDefault = await useCase.execute('m1', 'dona', sheet, { dryRun: true });
+
+    expect(explicit.valid[0].initialStock).toBe(40);
+    expect(byDefault.valid[0].initialStock).toBe(40);
+  });
+
   it('flags a short name and an empty barcode', async () => {
     const report = await useCase.execute('m1', 'dona', sheet(';Arroz;5;1', '7;A;5;1'), { dryRun: true });
 

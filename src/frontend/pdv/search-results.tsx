@@ -12,9 +12,11 @@ interface SearchResultsProps {
   results: ProductItem[];
   highlighted: number;
   onPick: (product: ProductItem) => void;
+  /** Whether the shop controls its stock: off, only the price is shown. */
+  showStock?: boolean;
 }
 
-export function SearchResults({ results, highlighted, onPick }: SearchResultsProps) {
+export function SearchResults({ results, highlighted, onPick, showStock = true }: SearchResultsProps) {
   return (
     <ul id={SEARCH_LIST_ID} className="pdv-search-list" role="listbox" aria-label="Produtos encontrados">
       {results.map((product, index) => (
@@ -31,8 +33,14 @@ export function SearchResults({ results, highlighted, onPick }: SearchResultsPro
           <span className="pdv-search-name">{product.name}</span>
           <span className="pdv-search-meta num">
             {formatMoney(product.salePrice)}
-            {product.unit === 'KG' ? '/kg' : ''} · {formatQuantity(product.availableQuantity, product.unit)}
-            {product.unit === 'KG' ? '' : ' un'}
+            {product.unit === 'KG' ? '/kg' : ''}
+            {showStock && (
+              <>
+                {' · '}
+                {formatQuantity(product.availableQuantity, product.unit)}
+                {product.unit === 'KG' ? '' : ' un'}
+              </>
+            )}
           </span>
         </li>
       ))}

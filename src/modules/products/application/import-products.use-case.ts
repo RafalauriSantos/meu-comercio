@@ -56,8 +56,13 @@ export class ImportProductsUseCase {
     merchantId: string,
     actorId: string,
     csv: string,
-    options: { dryRun: boolean }
+    options: {
+      dryRun: boolean;
+      /** Whether the shop controls its stock. Off, the Estoque column is ignored: every product starts at zero. Default: on. */
+      stockControl?: boolean;
+    }
   ): Promise<ImportReport> {
+    const stockControl = options.stockControl ?? true;
     const rows = parseProductCsv(csv);
 
     const errors: ImportReport['errors'] = [];
@@ -77,7 +82,7 @@ export class ImportProductsUseCase {
       }
       // By weight the stock is typed in kilograms (2,5) and kept in grams; by the unit it is a whole number.
       let initialStock = 0;
-      if (row.initialStock !== '') {
+      if (stockControl && row.initialStock !== '') {
         if (unit === 'KG') {
           const grams = Number(row.initialStock.replace(',', '.')) === 0 ? 0 : parseKilosToGrams(row.initialStock);
           if (grams === null) {

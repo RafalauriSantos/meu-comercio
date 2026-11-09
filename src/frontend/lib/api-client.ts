@@ -4,6 +4,12 @@ import type { PeriodKind } from '@/modules/reports/domain/report-period';
 export type { SalesReport } from '@/modules/reports/application/get-sales-report.use-case';
 import type { SalesReport } from '@/modules/reports/application/get-sales-report.use-case';
 
+/** The settings of the shop that the owner can change. */
+export interface StoreSettings {
+  /** Off: a sale needs no stock and takes nothing out of it, and the stock screens are hidden. */
+  stockControlEnabled: boolean;
+}
+
 /** A confirmed sale of today that can be picked to be cancelled. */
 export interface RecentSaleItem {
   id: string;
@@ -370,6 +376,9 @@ export const apiClient = {
   },
   getSaleById: (saleId: string) =>
     apiRequest<SaleResponse>(`/api/sales/${encodeURIComponent(saleId)}`),
+  getStoreSettings: () => apiRequest<StoreSettings>('/api/store/settings'),
+  updateStoreSettings: (payload: StoreSettings) =>
+    apiRequest<StoreSettings>('/api/store/settings', { method: 'PATCH', body: JSON.stringify(payload) }),
   listRecentSales: () => apiRequest<{ items: RecentSaleItem[] }>('/api/sales/recent'),
   cancelSale: (saleId: string, payload: { ownerPin: string; reason: string }) =>
     apiRequest<{ success: boolean; sale: SaleResponse }>(

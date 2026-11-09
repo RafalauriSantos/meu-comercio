@@ -99,8 +99,9 @@ export class CancelSaleUseCase {
     sale.cancel();
     await this.saleRepository.save(sale);
 
-    // Devolve os itens ao estoque com movimento RETURN
-    for (const item of sale.items) {
+    // Devolve os itens ao estoque com movimento RETURN, mas só se a venda os tirou de lá: uma venda feita
+    // com o controle de estoque desligado não tirou nada, e devolver inflaria o estoque.
+    for (const item of sale.stockTracked ? sale.items : []) {
       const inventoryItem = await this.inventoryRepository.findByProductId(
         dto.merchantId,
         item.productId

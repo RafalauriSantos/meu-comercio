@@ -14,6 +14,11 @@ lançar uma versão estão em `docs/PROJECT_WORKFLOW.md`.
   vendas e o ticket médio; as formas de pagamento; as vendas por dia; os produtos mais vendidos; as vendas de cada
   operador; o fiado vendido e recebido e as vendas canceladas (fora do total). Pode ser exportado em CSV para o Excel.
   O dia segue o horário de Brasília.
+- **Controle de estoque opcional.** A proprietária liga ou desliga o controle de estoque da loja na aba "Catálogo &
+  Estoque". Desligado, a venda não exige saldo e não baixa o estoque, e somem da gestão o saldo, as entradas, os
+  alertas de estoque baixo e o valor em estoque; o cadastro de produto não pede o estoque inicial e a importação ignora
+  a coluna Estoque. As lojas que já existem continuam com o controle ligado. Cancelar uma venda feita com o controle
+  desligado não devolve nada ao estoque, porque ela não tirou nada.
 
 ### Alterado
 

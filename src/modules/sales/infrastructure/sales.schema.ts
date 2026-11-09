@@ -1,4 +1,4 @@
-import { pgTable, varchar, uuid, timestamp, numeric, integer, index, uniqueIndex } from 'drizzle-orm/pg-core';
+import { pgTable, varchar, uuid, timestamp, numeric, integer, boolean, index, uniqueIndex } from 'drizzle-orm/pg-core';
 import { sql } from 'drizzle-orm';
 import { merchants } from '@/modules/users/infrastructure/users.schema';
 import { products } from '@/modules/products/infrastructure/products.schema';
@@ -10,6 +10,9 @@ export const sales = pgTable('sales', {
   cashSessionId: uuid('cash_session_id').notNull().references(() => cashSessions.id),
   operatorId: varchar('operator_id', { length: 120 }).notNull(),
   status: varchar('status', { length: 24 }).notNull().default('PENDING_PAYMENT'),
+  // Whether this sale took its items out of the stock: false when the shop did not control stock at the time.
+  // A cancellation only puts the items back when it did.
+  stockTracked: boolean('stock_tracked').notNull().default(true),
   subtotal: numeric('subtotal', { precision: 19, scale: 4 }).notNull(),
   discountAmount: numeric('discount_amount', { precision: 19, scale: 4 }).notNull().default('0'),
   total: numeric('total', { precision: 19, scale: 4 }).notNull(),

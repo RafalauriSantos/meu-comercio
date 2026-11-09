@@ -47,6 +47,8 @@ export default function GestaoPage() {
   const [stockFilter, setStockFilter] = useState<StockFilter>('all');
   const [productQuery, setProductQuery] = useState('');
   useAutoDismiss(feedback, () => setFeedback(null));
+  // Se a loja controla o estoque. Desligado, somem o saldo, as entradas, os alertas e o valor em estoque.
+  const [stockControl, setStockControl] = useState(true);
   const [showNewProduct, setShowNewProduct] = useState(false);
   const [showImport, setShowImport] = useState(false);
   const [newBarcode, setNewBarcode] = useState('');
@@ -169,6 +171,11 @@ export default function GestaoPage() {
         const me = await apiClient.me();
         setUser(me);
         const tasks: Promise<unknown>[] = [
+          // Sem resposta, vale o controle de estoque ligado, como era antes.
+          apiClient
+            .getStoreSettings()
+            .then((settings) => setStockControl(settings.stockControlEnabled))
+            .catch(() => undefined),
           loadProducts(),
           loadCustomers(),
           loadCash(),
@@ -188,6 +195,31 @@ export default function GestaoPage() {
   }, [router, loadProducts, loadCustomers, loadCash, loadCreditMetrics, loadOperators]);
 
   // --- Handlers de Produtos ---
+
+  // A dona liga ou desliga o controle de estoque da loja.
+  async function handleToggleStockControl() {
+    const turningOff = stockControl;
+    const question = turningOff
+      ? 'Desligar o controle de estoque?\n\nAs vendas deixam de exigir saldo e de baixar o estoque, e as telas de estoque somem. Os saldos de hoje ficam guardados.'
+      : 'Ligar o controle de estoque?\n\nAs vendas voltam a exigir saldo e a baixar o estoque. As vendas feitas com o controle desligado não baixaram nada, então os saldos podem estar desatualizados: confira os produtos depois de ligar.';
+    if (!confirm(question)) return;
+
+    setProcessing(true);
+    setFeedback(null);
+    try {
+      const settings = await apiClient.updateStoreSettings({ stockControlEnabled: !stockControl });
+      setStockControl(settings.stockControlEnabled);
+      setFeedback({
+        text: settings.stockControlEnabled
+          ? 'Controle de estoque ligado. Confira os saldos dos produtos.'
+          : 'Controle de estoque desligado. As vendas não dependem mais do estoque.',
+      });
+    } catch (err) {
+      setFeedback({ text: getErrorMessage(err, 'Erro ao mudar o controle de estoque.'), isError: true });
+    } finally {
+      setProcessing(false);
+    }
+  }
 
   // Confere se o código (digitado ou lido pelo bipador) já está cadastrado.
   async function checkNewBarcode(code: string) {
@@ -435,7 +467,9 @@ export default function GestaoPage() {
 
   const lowStockCount = countNeedingRestock(catalog);
   const stockValue = inventoryValue(catalog);
-  const visibleProducts = products.filter((p) => matchesStockFilter(p.availableQuantity, stockFilter, p.unit));
+  const visibleProducts = products.filter(
+    (p) => !stockControl || matchesStockFilter(p.availableQuantity, stockFilter, p.unit)
+  );
 
   async function handleLogout() {
     await apiClient.logout();
@@ -540,15 +574,36 @@ export default function GestaoPage() {
                 <div className="mg-kpi-label">Produtos cadastrados</div>
                 <div className="mg-kpi-value num">{catalog.length}</div>
               </div>
-              <div className="mg-kpi mg-kpi-warn">
-                <div className="mg-kpi-label">Precisam de reposição</div>
-                <div className="mg-kpi-value num">{lowStockCount}</div>
-              </div>
-              <div className="mg-kpi">
-                <div className="mg-kpi-label">Valor em estoque (a preço de venda)</div>
-                <div className="mg-kpi-value num">{formatMoney(stockValue)}</div>
-              </div>
+              {stockControl && (
+                <>
+                  <div className="mg-kpi mg-kpi-warn">
+                    <div className="mg-kpi-label">Precisam de reposição</div>
+                    <div className="mg-kpi-value num">{lowStockCount}</div>
+                  </div>
+                  <div className="mg-kpi">
+                    <div className="mg-kpi-label">Valor em estoque (a preço de venda)</div>
+                    <div className="mg-kpi-value num">{formatMoney(stockValue)}</div>
+                  </div>
+                </>
+              )}
             </div>
+
+            {/* Interruptor do controle de estoque (só a dona) */}
+            {user?.isOwner && (
+              <section className="card mg-stock-switch" aria-label="Controle de estoque">
+                <div>
+                  <strong>Controle de estoque: {stockControl ? 'ligado' : 'desligado'}</strong>
+                  <p className="muted mg-stock-switch-note">
+                    {stockControl
+                      ? 'As vendas baixam o estoque e não passam do saldo.'
+                      : 'As vendas não dependem do estoque: não precisam de saldo e não baixam nada.'}
+                  </p>
+                </div>
+                <button type="button" className="outline" onClick={handleToggleStockControl} disabled={processing}>
+                  {stockControl ? 'Desligar' : 'Ligar'}
+                </button>
+              </section>
+            )}
 
             {/* Form Novo Produto */}
             {showNewProduct && (
@@ -618,6 +673,7 @@ export default function GestaoPage() {
                       placeholder="24.90"
                     />
                   </div>
+                  {stockControl && (
                   <div>
                     <label className="field-label" htmlFor="np-stock">
                       {newUnit === 'KG' ? 'Estoque Inicial (kg)' : 'Estoque Inicial'}
@@ -632,6 +688,7 @@ export default function GestaoPage() {
                       onChange={(e) => setNewStock(e.target.value)}
                     />
                   </div>
+                  )}
                 </div>
                 <button className="primary mg-form-submit" type="submit" disabled={processing}>
                   {processing ? 'Salvando...' : 'Salvar Produto'}
@@ -641,6 +698,7 @@ export default function GestaoPage() {
 
             {showImport && user?.isOwner && (
               <ImportProductsPanel
+                stockControl={stockControl}
                 onImported={async (createdCount) => {
                   setShowImport(false);
                   setFeedback({
@@ -665,19 +723,21 @@ export default function GestaoPage() {
                     loadProducts(e.target.value);
                   }}
                 />
-                <div role="group" aria-label="Filtro de estoque" className="mg-filters">
-                  {stockFilters.map((f) => (
-                    <button
-                      key={f.value}
-                      type="button"
-                      className="mg-segment"
-                      aria-pressed={stockFilter === f.value}
-                      onClick={() => setStockFilter(f.value)}
-                    >
-                      {f.label}
-                    </button>
-                  ))}
-                </div>
+                {stockControl && (
+                  <div role="group" aria-label="Filtro de estoque" className="mg-filters">
+                    {stockFilters.map((f) => (
+                      <button
+                        key={f.value}
+                        type="button"
+                        className="mg-segment"
+                        aria-pressed={stockFilter === f.value}
+                        onClick={() => setStockFilter(f.value)}
+                      >
+                        {f.label}
+                      </button>
+                    ))}
+                  </div>
+                )}
                 {user?.isOwner && (
                   <button
                     type="button"
@@ -703,8 +763,8 @@ export default function GestaoPage() {
                     <tr>
                       <th scope="col">Produto</th>
                       <th scope="col" className="mg-num">Preço</th>
-                      <th scope="col" className="mg-num">Em estoque</th>
-                      <th scope="col" className="mg-num">Ação</th>
+                      {stockControl && <th scope="col" className="mg-num">Em estoque</th>}
+                      {stockControl && <th scope="col" className="mg-num">Ação</th>}
                     </tr>
                   </thead>
                   <tbody>
@@ -716,18 +776,21 @@ export default function GestaoPage() {
                           <tr>
                             <td>
                               <strong>{p.name}</strong>
-                              {status === 'low' && <span className="mg-tag mg-tag-warn">Estoque baixo</span>}
-                              {status === 'out' && <span className="mg-tag mg-tag-danger">Sem estoque</span>}
+                              {stockControl && status === 'low' && <span className="mg-tag mg-tag-warn">Estoque baixo</span>}
+                              {stockControl && status === 'out' && <span className="mg-tag mg-tag-danger">Sem estoque</span>}
                               <div className="muted mg-barcode num">{p.barcode}</div>
                             </td>
                             <td className="mg-num">
                               {formatMoney(p.salePrice)}
                               {byWeight ? ' /kg' : ''}
                             </td>
-                            <td className={`mg-num mg-stock mg-stock-${status}`}>
-                              {formatQuantity(p.availableQuantity, p.unit)}
-                              {byWeight ? '' : ' un'}
-                            </td>
+                            {stockControl && (
+                              <td className={`mg-num mg-stock mg-stock-${status}`}>
+                                {formatQuantity(p.availableQuantity, p.unit)}
+                                {byWeight ? '' : ' un'}
+                              </td>
+                            )}
+                            {stockControl && (
                             <td className="mg-num">
                               <button
                                 type="button"
@@ -743,10 +806,11 @@ export default function GestaoPage() {
                                 {restockingId === p.id ? 'Fechar' : 'Entrada'}
                               </button>
                             </td>
+                            )}
                           </tr>
 
                           {/* Box de Reposição */}
-                          {restockingId === p.id && (
+                          {stockControl && restockingId === p.id && (
                             <tr className="mg-restock-row">
                               <td colSpan={4}>
                                 <form onSubmit={(e) => handleRestock(e, p.id)} className="mg-restock">
@@ -790,7 +854,7 @@ export default function GestaoPage() {
                     })}
                     {visibleProducts.length === 0 && (
                       <tr>
-                        <td colSpan={4} className="mg-empty-cell">
+                        <td colSpan={stockControl ? 4 : 2} className="mg-empty-cell">
                           Nenhum produto cadastrado com os critérios pesquisados.
                         </td>
                       </tr>
@@ -800,7 +864,8 @@ export default function GestaoPage() {
               </div>
 
               <p className="mg-foot">
-                Mostrando {visibleProducts.length} de {catalog.length} produtos · Entrada registra compra ou reposição de estoque
+                Mostrando {visibleProducts.length} de {catalog.length} produtos
+                {stockControl && ' · Entrada registra compra ou reposição de estoque'}
               </p>
             </section>
           </section>

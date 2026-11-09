@@ -14,6 +14,8 @@ export interface SaleProps {
   payments: Payment[];
   discountAmount: Money;
   idempotencyKey?: string | null;
+  /** Whether the sale took its items out of the stock. Missing means it did, as every sale did before. */
+  stockTracked?: boolean;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -28,6 +30,7 @@ export class Sale {
   private _payments: Payment[];
   private _discountAmount: Money;
   public readonly idempotencyKey: string | null;
+  public readonly stockTracked: boolean;
   public readonly createdAt: Date;
   public updatedAt: Date;
 
@@ -54,6 +57,7 @@ export class Sale {
     this._payments = [...props.payments];
     this._discountAmount = props.discountAmount;
     this.idempotencyKey = props.idempotencyKey ?? null;
+    this.stockTracked = props.stockTracked ?? true;
     this.createdAt = props.createdAt;
     this.updatedAt = props.updatedAt;
 
@@ -69,6 +73,7 @@ export class Sale {
     options?: {
       idempotencyKey?: string | null;
       id?: string;
+      stockTracked?: boolean;
     }
   ): Sale {
     const now = new Date();
@@ -82,6 +87,7 @@ export class Sale {
       payments: [],
       discountAmount: Money.zero(),
       idempotencyKey: options?.idempotencyKey,
+      stockTracked: options?.stockTracked,
       createdAt: now,
       updatedAt: now,
     });
@@ -224,6 +230,7 @@ export class Sale {
       cashReceived: this.cashReceived.toDecimal(),
       changeAmount: this.changeAmount.toDecimal(),
       idempotencyKey: this.idempotencyKey,
+      stockTracked: this.stockTracked,
       createdAt: this.createdAt.toISOString(),
       updatedAt: this.updatedAt.toISOString(),
       items: this._items.map((item) => item.toJSON()),

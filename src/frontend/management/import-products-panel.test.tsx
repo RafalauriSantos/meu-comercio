@@ -8,7 +8,8 @@ describe('ImportProductsPanel', () => {
 
     expect(markup).toContain('Importar produtos de uma planilha');
     expect(markup).toContain('Baixar planilha-modelo');
-    expect(markup).toMatch(/<input[^>]*type="file"[^>]*accept="\.csv,text\/csv"/);
+    expect(markup).toMatch(/<input[^>]*type="file"[^>]*accept="\.xlsx,\.csv,text\/csv/);
+    expect(markup).toContain('Excel ou CSV');
     expect(markup).toContain('até 500 produtos');
     expect(markup).not.toContain('Importar 0 produtos');
     expect(markup).not.toContain('role="alert"');

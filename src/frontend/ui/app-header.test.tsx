@@ -22,6 +22,10 @@ describe('AppHeader', () => {
     expect(link(gestao, 'Venda')).not.toContain('aria-current');
   });
 
+  it('shows no install button until the browser says the app can be installed', () => {
+    expect(render()).not.toContain('Instalar app');
+  });
+
   it('links the sections to the PDV and to the management panel', () => {
     const markup = render();
     expect(link(markup, 'Venda')).toContain('href="/pdv"');

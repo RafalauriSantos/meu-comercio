@@ -4,6 +4,7 @@ import React, { useRef, useState } from 'react';
 import { apiClient, type ProductImportReport } from '@/frontend/lib/api-client';
 import { formatMoney, getErrorMessage } from '@/frontend/lib/formatters';
 import { PRODUCT_IMPORT_TEMPLATE } from './import-template';
+import { readSpreadsheetAsCsv } from './spreadsheet-to-csv';
 
 interface ImportProductsPanelProps {
   onImported: (createdCount: number) => void | Promise<void>;
@@ -26,7 +27,7 @@ export function ImportProductsPanel({ onImported }: ImportProductsPanelProps) {
     setFileName(file.name);
     setBusy(true);
     try {
-      const text = await file.text();
+      const text = await readSpreadsheetAsCsv(file);
       setCsv(text);
       setReport(await apiClient.importProducts({ csv: text, dryRun: true }));
     } catch (err) {
@@ -70,22 +71,23 @@ export function ImportProductsPanel({ onImported }: ImportProductsPanelProps) {
     <section className="card mg-stack" aria-label="Importar produtos de uma planilha">
       <h3>Importar produtos de uma planilha</h3>
       <p className="mg-help">
-        Salve a planilha do Excel ou do Google Planilhas como CSV, com as colunas código de barras, nome, preço e
-        estoque (até 500 produtos por vez). Produtos cujo código de barras já existe não são alterados.
+        Use uma planilha do Excel (.xlsx) ou um CSV, com as colunas código de barras, nome, preço e estoque (até 500
+        produtos por vez). Deixe a coluna do código de barras como Texto, para o Excel não cortar zeros do começo.
+        Produtos cujo código de barras já existe não são alterados.
       </p>
       <div className="mg-import-actions">
         <button type="button" className="outline" onClick={downloadTemplate}>
           Baixar planilha-modelo
         </button>
         <label className="field-label mg-import-file" htmlFor="import-file">
-          Escolher arquivo CSV
+          Escolher arquivo (Excel ou CSV)
         </label>
         <input
           id="import-file"
           ref={fileInput}
           className="input mg-import-input"
           type="file"
-          accept=".csv,text/csv"
+          accept=".xlsx,.csv,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
           onChange={handleFile}
           disabled={busy}
         />

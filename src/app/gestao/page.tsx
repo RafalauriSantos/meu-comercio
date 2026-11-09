@@ -16,6 +16,7 @@ import {
 import { formatMoney, parseCurrencyInput, getErrorMessage } from '@/frontend/lib/formatters';
 import { AppHeader } from '@/frontend/ui/app-header';
 import { ManagementSkeleton } from '@/frontend/management/management-skeleton';
+import { ImportProductsPanel } from '@/frontend/management/import-products-panel';
 import {
   countNeedingRestock,
   inventoryValue,
@@ -39,6 +40,7 @@ export default function GestaoPage() {
   const [stockFilter, setStockFilter] = useState<StockFilter>('all');
   const [productQuery, setProductQuery] = useState('');
   const [showNewProduct, setShowNewProduct] = useState(false);
+  const [showImport, setShowImport] = useState(false);
   const [newBarcode, setNewBarcode] = useState('');
   const [newName, setNewName] = useState('');
   const [newPrice, setNewPrice] = useState('');
@@ -601,6 +603,18 @@ export default function GestaoPage() {
               </form>
             )}
 
+            {showImport && user?.isOwner && (
+              <ImportProductsPanel
+                onImported={async (createdCount) => {
+                  setShowImport(false);
+                  setFeedback({
+                    text: createdCount === 1 ? '1 produto importado com sucesso!' : `${createdCount} produtos importados com sucesso!`,
+                  });
+                  await loadProducts();
+                }}
+              />
+            )}
+
             <section className="card mg-card-flush" aria-label="Catálogo de produtos">
               <div className="mg-toolbar">
                 <label htmlFor="product-search" className="sr-only">Buscar produto</label>
@@ -628,9 +642,19 @@ export default function GestaoPage() {
                     </button>
                   ))}
                 </div>
+                {user?.isOwner && (
+                  <button
+                    type="button"
+                    className="outline mg-toolbar-action"
+                    aria-expanded={showImport}
+                    onClick={() => setShowImport(!showImport)}
+                  >
+                    {showImport ? 'Fechar importação' : 'Importar planilha'}
+                  </button>
+                )}
                 <button
                   type="button"
-                  className="primary mg-toolbar-action"
+                  className="primary mg-toolbar-secondary"
                   onClick={() => setShowNewProduct(!showNewProduct)}
                 >
                   {showNewProduct ? 'Cancelar' : '＋ Novo Produto'}

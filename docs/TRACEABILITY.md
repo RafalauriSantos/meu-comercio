@@ -97,4 +97,4 @@ Mapeamento entre os critérios de negócio aprovados em `DECISIONS.md` e a suít
 | Sair apaga o cookie `__Host-` com `Secure` e `Path=/` | `shared` | `src/shared/infrastructure/auth/auth-context.test.ts` | Aprovado (3 testes) |
 | Tema só claro: nenhuma regra de tema escuro | `app` | `src/app/globals-tokens.test.ts` | Aprovado (2 testes) |
 
-**Total de Testes Automatizados:** 620 testes aprovados (83 suítes no Vitest, 0 falhas), mais 39 testes de integração com Postgres (7 arquivos) que rodam quando há `TEST_DATABASE_URL`. Hoje o CI roda só 1 desses 7 arquivos (item 13.7 do backlog). Contagem conferida em 09/11/2026.
+**Total de Testes Automatizados:** 620 testes aprovados (83 suítes no Vitest, 0 falhas), mais 39 testes de integração com Postgres (7 arquivos) que rodam quando há `TEST_DATABASE_URL`. O CI roda todos eles, com `npm run test:integration`. Contagem conferida em 09/11/2026.

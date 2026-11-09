@@ -161,7 +161,7 @@ Este documento rastreia formalmente as fatias verticais de entrega, critérios d
 - [x] 13.4 Redesenho visual de login e cadastro no mesmo mundo visual (desktop primeiro, duas colunas; componentes em `src/frontend/auth/`). A rota `/cadastro` não foi necessária: `/login?modo=cadastro` já abre o cadastro.
 - [ ] 13.5 Capturas reais do produto na landing, a partir de uma loja de demonstração criada pela dona (fase 2).
 - [ ] 13.6 Termos de uso e política de privacidade (LGPD), canal de ajuda e logo (fase 2). Primeiro item da fase 2: o cadastro já coleta nome, e-mail e senha sem aviso de privacidade.
-- [ ] 13.7 Rodar todos os `*.integration.test.ts` no job de Postgres do CI. Hoje o job roda só `drizzle-owner-pin-attempt-store.integration.test.ts`; os outros 6 arquivos (venda, importação, relatórios, vendas de hoje, configurações da loja e `create-sale`) não rodam no CI. *Conferido em 09/11/2026: os 7 arquivos (39 testes) passam num Postgres 18, então ligar todos no CI é seguro.*
+- [x] 13.7 Rodar todos os `*.integration.test.ts` no job de Postgres do CI. *Feito: o job roda `npm run test:integration` (todos os arquivos, um de cada vez). Antes rodava só `drizzle-owner-pin-attempt-store.integration.test.ts`. Conferido em 09/11/2026: os 7 arquivos (39 testes) passam num Postgres 18.*
 
 
 ---

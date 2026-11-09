@@ -24,7 +24,7 @@ This document defines how changes move from a branch to production. It is the so
 
 Required checks on `main`: `Lint & Security`, `TypeScript Check`, `Unit & Integration Tests`, `Production Build`. They run on every PR whose base is `main`. A PR merges only when all of them are green and the branch is up to date with `main`.
 
-The `Postgres Integration Tests` job also gates the build, but today it runs **one** of the seven `*.integration.test.ts` files (the owner PIN attempt store); the other six are not part of CI yet (backlog item 13.7). They all pass on a Postgres 18.
+The `Postgres Integration Tests` job also gates the build. It runs **every** `*.integration.test.ts` file with `npm run test:integration`, one file at a time (they all migrate the same database). A new integration test is picked up by its name, with nothing else to change.
 
 Known behaviour of the `Lint & Security` job:
 - It commits ESLint autofixes to the PR branch as `github-actions[bot]`, with the message `chore(ci): auto-fix linting and formatting`. Pull that commit before the next push.

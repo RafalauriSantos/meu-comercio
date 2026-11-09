@@ -1,6 +1,6 @@
 // Runs the same checks as .github/workflows/ci.yml, in the same order, without the
 // autofix commit, the deploy, or the GitHub-only steps. Stops at the first failure.
-// Set TEST_DATABASE_URL to also run the Postgres integration test (CI job "integration").
+// Set TEST_DATABASE_URL (a disposable local Postgres) to also run the Postgres integration tests (CI job "integration").
 import { spawnSync } from 'node:child_process';
 
 const steps = [
@@ -9,7 +9,7 @@ const steps = [
   { name: 'Unit and integration tests', cmd: 'npm test' },
   { name: 'Dependency audit (high)', cmd: 'npm audit --audit-level=high' },
   ...(process.env.TEST_DATABASE_URL
-    ? [{ name: 'Postgres integration', cmd: 'npx vitest run src/modules/customers/infrastructure/drizzle-owner-pin-attempt-store.integration.test.ts' }]
+    ? [{ name: 'Postgres integration', cmd: 'npm run test:integration' }]
     : [{ name: 'Postgres integration (skipped: TEST_DATABASE_URL not set)', cmd: null }]),
   { name: 'Production build (without DATABASE_URL)', cmd: 'npm run build:safe' },
 ];

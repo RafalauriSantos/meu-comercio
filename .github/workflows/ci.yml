@@ -127,7 +127,8 @@ jobs:
         run: npm ci
 
       - name: Run Postgres integration tests
-        run: npx vitest run src/modules/customers/infrastructure/drizzle-owner-pin-attempt-store.integration.test.ts
+        # Every *.integration.test.ts, one file at a time: they all migrate the same database.
+        run: npm run test:integration
 
   build:
     name: Production Build

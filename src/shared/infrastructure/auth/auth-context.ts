@@ -33,7 +33,16 @@ export async function setSessionCookie(
 
 export async function clearSessionCookie(): Promise<void> {
   const cookieStore = await cookies();
-  cookieStore.delete(getSessionCookieName());
+  // In production the cookie is named "__Host-...", and a browser ignores any Set-Cookie for such a name that
+  // is not Secure, an expiry included. cookieStore.delete() sends it without Secure, so the cookie stayed and
+  // the person was still signed in after "Sair". Expiring it with the same attributes it was set with works.
+  cookieStore.set(getSessionCookieName(), '', {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: 'lax',
+    path: '/',
+    maxAge: 0,
+  });
 }
 
 export class UnauthorizedError extends Error {

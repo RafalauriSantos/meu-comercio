@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import { BrandMark } from '@/frontend/ui/brand-mark';
+import { VersionLabel } from '@/frontend/ui/version-label';
 import { LANDING_CONTENT } from './landing-content';
 
 const { brand, header, hero, losses, steps, safety, faq, finalCall, footer } = LANDING_CONTENT;
@@ -116,6 +117,7 @@ export function LandingPage() {
         <div className="landing-wrap landing-footer-inner">
           <strong>{brand}</strong>
           <span>{footer}</span>
+          <VersionLabel />
         </div>
       </footer>
     </div>

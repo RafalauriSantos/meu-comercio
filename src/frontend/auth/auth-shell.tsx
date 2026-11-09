@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
 import Link from 'next/link';
 import { BrandMark } from '@/frontend/ui/brand-mark';
+import { VersionLabel } from '@/frontend/ui/version-label';
 
 interface AuthShellProps {
   // Wider card for the sign up form.
@@ -26,6 +27,9 @@ export function AuthShell({ wide, labelledBy, footer, children }: AuthShellProps
       </section>
 
       {footer && <p className="auth-foot">{footer}</p>}
+      <p className="auth-version">
+        <VersionLabel />
+      </p>
     </main>
   );
 }

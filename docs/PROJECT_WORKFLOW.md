@@ -48,6 +48,24 @@ Merging to `main` deploys to production. `.github/workflows/ci.yml` runs the fou
 
 The build does not touch the database. Schema changes reach production only through the `db-migrate` workflow, which is started by hand and waits for the owner's approval on the `production-db` environment.
 
+## Versions and releases
+
+The app follows [Semantic Versioning](https://semver.org) (`MAJOR.MINOR.PATCH`), the commits follow [Conventional Commits](https://www.conventionalcommits.org), and every release is written in `CHANGELOG.md` ([Keep a Changelog](https://keepachangelog.com)). The version lives in one place, `package.json`; the app shows it in the footer of its screens and at `/api/version`, together with the commit that was deployed.
+
+| Bump | When | Commit types that lead to it |
+| --- | --- | --- |
+| `PATCH` (0.1.0 → 0.1.1) | Fixes that change no behavior the owner relies on | `fix`, `perf`, `docs`, `refactor` |
+| `MINOR` (0.1.0 → 0.2.0) | A new feature, or a visible change in behavior | `feat` |
+| `MAJOR` (0.x → 1.0.0, then 1.x → 2.0.0) | An incompatible change in data or in how the owner works | a `!` after the type, or a `BREAKING CHANGE:` line |
+
+- **0.x:** the app is in production but still growing. Until 1.0.0, breaking changes bump `MINOR`. It becomes `1.0.0` when the merchant runs the day on it and the owner accepts the main flows (PDV, cash, fiado, reports).
+- **Merging is not releasing.** Every merge to `main` deploys (see Deploy), but a version is only cut on purpose, when there is something worth naming. Between releases the changes accumulate under "Não lançado" in `CHANGELOG.md`.
+- **To cut a release:**
+  1. Open a PR named `chore(release): vX.Y.Z` that bumps `version` in `package.json` (and `package-lock.json`) and moves "Não lançado" under a new `## [X.Y.Z] - AAAA-MM-DD` heading. A test fails when `package.json` and the CHANGELOG disagree.
+  2. After the merge and a green deploy, tag that commit `vX.Y.Z` on `main` and publish a GitHub Release whose notes are that CHANGELOG section.
+  3. Check `/api/version` and the footer show the new version.
+- **A release that includes a database migration:** the migration PR goes first and is applied with `db-migrate` (see Deploy), as always. The release PR comes after.
+
 ## Database baseline (one-time, owner-approved)
 
 Migration `0000` creates tables that already exist in production, so the first `db-migrate` run would fail. Before this baseline, the repository secret `DATABASE_URL` must exist in the `production-db` environment; the workflow reads it from there. Do not start `db-migrate` until the baseline is done:

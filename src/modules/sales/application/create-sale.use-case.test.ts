@@ -1030,6 +1030,76 @@ describe('CreateSaleUseCase — Slice 4: Vendas, Checkout e Split Payments', () 
       expect(sale.items.map((item) => item.unit)).toEqual(['UN', 'KG']);
     });
   });
+
+
+  describe('4.12 Controle de estoque opcional da loja', () => {
+    function useCaseWithStockControl(enabled: boolean) {
+      return new CreateSaleUseCase(saleRepo, productRepo, inventoryRepo, cashRepo, undefined, {
+        get: async () => ({ stockControlEnabled: enabled }),
+      });
+    }
+
+    function cashSale(items: CreateSaleDTO['items'], total: string): CreateSaleDTO {
+      return {
+        merchantId: MERCHANT_ID,
+        operatorId: OPERATOR_ID,
+        items,
+        payments: [{ method: 'CASH', amount: Money.fromDecimal(total), receivedAmount: Money.fromDecimal(total) }],
+      };
+    }
+
+    it('com o controle desligado, vende um produto que nunca teve estoque cadastrado', async () => {
+      const semEstoque = Product.create(MERCHANT_ID, '789999900001', 'Produto sem estoque', Money.fromDecimal('7.00'), 'prod-sem-estoque');
+      await productRepo.save(semEstoque);
+
+      const sale = await useCaseWithStockControl(false).execute(cashSale([{ productId: semEstoque.id, quantity: 3 }], '21.00'));
+
+      expect(sale.status).toBe('CONFIRMED');
+      expect(sale.total.toDecimal()).toBe('21.00');
+      expect(sale.stockTracked).toBe(false);
+      expect(await inventoryRepo.findByProductId(MERCHANT_ID, semEstoque.id)).toBeNull();
+    });
+
+    it('com o controle desligado, vende mais do que o saldo e não mexe no estoque nem grava movimento', async () => {
+      // O arroz tem 50 unidades: vender 80 passaria do saldo.
+      const sale = await useCaseWithStockControl(false).execute(cashSale([{ productId: riceProduct.id, quantity: 80 }], '2040.00'));
+
+      expect(sale.status).toBe('CONFIRMED');
+      expect(await inventoryRepo.getAvailableQuantity(MERCHANT_ID, riceProduct.id)).toBe(50);
+      expect(inventoryRepo.movements).toEqual([]);
+    });
+
+    it('com o controle desligado, a venda continua entrando no caixa e na auditoria', async () => {
+      const sale = await useCaseWithStockControl(false).execute(cashSale([{ productId: oilProduct.id, quantity: 2 }], '12.50'));
+
+      expect(cashRepo.movements.find((m) => m.movementType === 'SALE_RECEIPT')?.amount.toDecimal()).toBe('12.50');
+      expect(auditPort.records.map((r) => r.eventType)).toContain('SALE_CONFIRMED');
+      expect(sale.stockTracked).toBe(false);
+    });
+
+    it('com o controle desligado ainda recusa produto inexistente e inativo', async () => {
+      await expect(
+        useCaseWithStockControl(false).execute(cashSale([{ productId: 'nao-existe', quantity: 1 }], '1.00'))
+      ).rejects.toThrow(ProductNotFoundError);
+    });
+
+    it('com o controle ligado continua recusando o que passa do saldo, e tira do estoque o que vende', async () => {
+      const ligado = useCaseWithStockControl(true);
+
+      await expect(ligado.execute(cashSale([{ productId: oilProduct.id, quantity: 11 }], '68.75'))).rejects.toThrow(InsufficientStockError);
+
+      const sale = await ligado.execute(cashSale([{ productId: oilProduct.id, quantity: 4 }], '25.00'));
+      expect(sale.stockTracked).toBe(true);
+      expect(await inventoryRepo.getAvailableQuantity(MERCHANT_ID, oilProduct.id)).toBe(6);
+    });
+
+    it('sem configuração nenhuma (como as lojas de antes), o controle é o de sempre', async () => {
+      const sale = await useCase.execute(cashSale([{ productId: oilProduct.id, quantity: 1 }], '6.25'));
+
+      expect(sale.stockTracked).toBe(true);
+      expect(await inventoryRepo.getAvailableQuantity(MERCHANT_ID, oilProduct.id)).toBe(9);
+    });
+  });
 });
 
 class InMemoryCustomerRepo implements CustomerRepository {

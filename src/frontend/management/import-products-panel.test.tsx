@@ -3,7 +3,7 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { ImportProductsPanel } from './import-products-panel';
 
 describe('ImportProductsPanel', () => {
-  const markup = renderToStaticMarkup(<ImportProductsPanel onImported={() => {}} />);
+  const markup = renderToStaticMarkup(<ImportProductsPanel stockControl onImported={() => {}} />);
 
   it('has one place to import the sheet, with what it accepts', () => {
     expect(markup).toContain('Importar produtos de uma planilha');

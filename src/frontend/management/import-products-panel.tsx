@@ -9,10 +9,12 @@ import { PRODUCT_IMPORT_TEMPLATE } from './import-template';
 import { readSpreadsheetAsCsv } from './spreadsheet-to-csv';
 
 interface ImportProductsPanelProps {
+  /** Whether the shop controls its stock: off, the Estoque column of the sheet is ignored and not shown. */
+  stockControl: boolean;
   onImported: (createdCount: number) => void | Promise<void>;
 }
 
-export function ImportProductsPanel({ onImported }: ImportProductsPanelProps) {
+export function ImportProductsPanel({ stockControl, onImported }: ImportProductsPanelProps) {
   const fileInput = useRef<HTMLInputElement>(null);
   const [csv, setCsv] = useState<string | null>(null);
   const [fileName, setFileName] = useState('');
@@ -75,9 +77,11 @@ export function ImportProductsPanel({ onImported }: ImportProductsPanelProps) {
     <section className="card mg-stack" aria-label="Importar produtos de uma planilha">
       <h3>Importar produtos de uma planilha</h3>
       <p className="mg-help">
-        Colunas: código de barras, nome, preço, estoque e, se for vendido por peso, unidade kg (preço por quilo e
-        estoque em quilos). Deixe o código de barras como Texto, para o Excel não cortar zeros do começo. Produtos
-        cujo código já existe não são alterados.{' '}
+        {stockControl
+          ? 'Colunas: código de barras, nome, preço, estoque e, se for vendido por peso, unidade kg (preço por quilo e estoque em quilos). '
+          : 'Colunas: código de barras, nome, preço e, se for vendido por peso, unidade kg (preço por quilo). O controle de estoque está desligado: a coluna Estoque, se houver, é ignorada. '}
+        Deixe o código de barras como Texto, para o Excel não cortar zeros do começo. Produtos cujo código já existe não
+        são alterados.{' '}
         <button type="button" className="mg-link" onClick={downloadTemplate}>
           Baixar planilha-modelo
         </button>
@@ -133,7 +137,7 @@ export function ImportProductsPanel({ onImported }: ImportProductsPanelProps) {
                   <tr>
                     <th scope="col">Produto</th>
                     <th scope="col" className="mg-num">Preço</th>
-                    <th scope="col" className="mg-num">Estoque</th>
+                    {stockControl && <th scope="col" className="mg-num">Estoque</th>}
                   </tr>
                 </thead>
                 <tbody>
@@ -147,7 +151,7 @@ export function ImportProductsPanel({ onImported }: ImportProductsPanelProps) {
                         {formatMoney(Number(row.salePrice))}
                         {row.unit === 'KG' ? ' /kg' : ''}
                       </td>
-                      <td className="mg-num">{formatQuantity(row.initialStock, row.unit)}</td>
+                      {stockControl && <td className="mg-num">{formatQuantity(row.initialStock, row.unit)}</td>}
                     </tr>
                   ))}
                 </tbody>

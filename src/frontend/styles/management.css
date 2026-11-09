@@ -734,6 +734,21 @@
   }
 }
 
+/* Interruptor do controle de estoque */
+
+.management-page .mg-stock-switch {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px 16px;
+}
+
+.management-page .mg-stock-switch-note {
+  margin: 4px 0 0;
+  font-size: 14px;
+}
+
 /* Relatório de vendas */
 
 .management-page .mg-period-custom {

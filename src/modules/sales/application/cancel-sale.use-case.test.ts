@@ -482,4 +482,46 @@ describe('CancelSaleUseCase — Cancelamento e Estorno de Venda', () => {
       })
     ).rejects.toThrow(SaleNotFoundError);
   });
+
+  it('devolve ao estoque a venda que tirou os itens de lá (o controle estava ligado)', async () => {
+    const sale = createSampleConfirmedSale(Payment.create('CASH', Money.fromDecimal('40.00')));
+    await saleRepo.save(sale);
+    await cashRepo.addMovement(MERCHANT_ID, activeSession.id, 'SALE_RECEIPT', Money.fromDecimal('40.00'), sale.id);
+
+    expect(sale.stockTracked).toBe(true);
+    await cancelSaleUseCase.execute({
+      merchantId: MERCHANT_ID,
+      saleId: sale.id,
+      operatorId: OPERATOR_ID,
+      ownerPin: VALID_OWNER_PIN,
+      reason: 'Cliente desistiu da compra',
+    });
+
+    expect((await inventoryRepo.findByProductId(MERCHANT_ID, PRODUCT_ID))?.availableQuantity).toBe(12);
+    expect(inventoryRepo.movements.filter((m) => m.movementType === 'RETURN')).toHaveLength(1);
+  });
+
+  it('não devolve ao estoque a venda feita com o controle de estoque desligado: ela não tirou nada', async () => {
+    const sale = Sale.create(MERCHANT_ID, activeSession.id, OPERATOR_ID, { stockTracked: false });
+    sale.addItem(SaleItem.create(PRODUCT_ID, 'Arroz 5kg', Money.fromDecimal('20.00'), 2));
+    sale.confirmPayments([Payment.create('CASH', Money.fromDecimal('40.00'))]);
+    await saleRepo.save(sale);
+    await cashRepo.addMovement(MERCHANT_ID, activeSession.id, 'SALE_RECEIPT', Money.fromDecimal('40.00'), sale.id);
+
+    const result = await cancelSaleUseCase.execute({
+      merchantId: MERCHANT_ID,
+      saleId: sale.id,
+      operatorId: OPERATOR_ID,
+      ownerPin: VALID_OWNER_PIN,
+      reason: 'Cliente desistiu da compra',
+    });
+
+    expect(result.status).toBe('CANCELLED');
+    // O estoque continua com as 10 unidades: devolver 2 inflaria o saldo em algo que nunca saiu.
+    expect((await inventoryRepo.findByProductId(MERCHANT_ID, PRODUCT_ID))?.availableQuantity).toBe(10);
+    expect(inventoryRepo.movements).toEqual([]);
+    // O dinheiro, esse sim, volta para a gaveta e a venda fica cancelada.
+    const refund = cashRepo.movements.find((m) => m.movementType === 'CASH_CANCEL');
+    expect(refund?.amount.toDecimal()).toBe('40.00');
+  });
 });

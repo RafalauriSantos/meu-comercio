@@ -61,6 +61,7 @@ function toDomain(
     payments: paymentEntities,
     discountAmount: Money.fromDecimal(saleRow.discountAmount ?? '0'),
     idempotencyKey: saleRow.idempotencyKey,
+    stockTracked: saleRow.stockTracked,
     createdAt: saleRow.createdAt,
     updatedAt: saleRow.updatedAt,
   });
@@ -206,6 +207,7 @@ export class DrizzleSaleRepository implements SaleRepository {
         cashReceived: sale.cashReceived.toDecimal(),
         changeAmount: sale.changeAmount.toDecimal(),
         idempotencyKey: sale.idempotencyKey,
+        stockTracked: sale.stockTracked,
         createdAt: sale.createdAt,
         updatedAt: sale.updatedAt,
       })

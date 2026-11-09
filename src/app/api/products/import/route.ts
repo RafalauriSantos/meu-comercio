@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { requireAuthSession, UnauthorizedError } from '@/shared/infrastructure/auth/auth-context';
 import { isSessionOwner } from '@/shared/infrastructure/auth/session';
 import { db } from '@/shared/infrastructure/db/connection';
+import { DrizzleStoreSettingsRepository } from '@/modules/settings/infrastructure/drizzle-store-settings-repository';
 import { DrizzleProductImportStore } from '@/modules/products/infrastructure/drizzle-product-import-store';
 import { ImportProductsUseCase } from '@/modules/products/application/import-products.use-case';
 import { ImportFileError } from '@/modules/products/application/parse-product-csv';
@@ -30,8 +31,13 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ message: 'A planilha é grande demais. Divida em partes.' }, { status: 413 });
     }
 
+    // A shop that does not control its stock has no use for the Estoque column: it is ignored.
+    const { stockControlEnabled } = await new DrizzleStoreSettingsRepository(db).get(session.merchantId);
     const useCase = new ImportProductsUseCase(new DrizzleProductImportStore(db));
-    const report = await useCase.execute(session.merchantId, session.username, csv, { dryRun });
+    const report = await useCase.execute(session.merchantId, session.username, csv, {
+      dryRun,
+      stockControl: stockControlEnabled,
+    });
 
     // Confirming with a problem in the sheet creates nothing.
     if (!dryRun && report.errors.length > 0) {

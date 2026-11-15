@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { renderToStaticMarkup } from 'react-dom/server';
+import { readScreenFiles, readScreenSource } from '@/test-utils/read-screen-source';
 import { Skeleton } from './skeleton';
 import { AppHeaderSkeleton } from './app-header-skeleton';
 import { PdvMainSkeleton, PdvSideSkeleton, PdvStatusSkeleton } from '../pdv/pdv-skeleton';
@@ -128,8 +129,9 @@ describe('screen skeletons', () => {
 });
 
 describe('where the skeletons are used', () => {
-  const pdv = read('src', 'app', 'pdv', 'page.tsx');
-  const management = read('src', 'app', 'gestao', 'page.tsx');
+  // The whole screen: the page plus the files of the area folder.
+  const pdv = readScreenSource('pdv');
+  const management = readScreenSource('gestao');
   const login = read('src', 'app', 'login', 'page.tsx');
 
   it('shows them instead of the old white loading texts', () => {
@@ -160,13 +162,23 @@ describe('where the skeletons are used', () => {
     }
   });
 
+  // The order is read inside ONE file, the one that renders the AppHeader: in a text made of many files
+  // an indexOf would compare positions across files, which depend on the order they are joined in.
   it('puts the real header (and the management title) before the first loading condition in the page text', () => {
+    const screenFile = (screen: 'pdv' | 'gestao') => {
+      const withHeader = readScreenFiles(screen).filter((f) => /<AppHeader\b/.test(f.text));
+      expect(withHeader.map((f) => f.file), `${screen}: the file that renders the AppHeader`).toHaveLength(1);
+      return withHeader[0].text;
+    };
+    const pdvText = screenFile('pdv');
+    const managementText = screenFile('gestao');
     const first = (page: string) => page.indexOf('loading ?');
-    expect(first(pdv)).toBeGreaterThan(-1);
-    expect(first(management)).toBeGreaterThan(-1);
-    expect(pdv.indexOf('<AppHeader')).toBeLessThan(first(pdv));
-    expect(management.indexOf('<AppHeader')).toBeLessThan(first(management));
-    expect(management.indexOf('<h1>Painel de Gestão do Comércio</h1>')).toBeLessThan(first(management));
+    expect(first(pdvText)).toBeGreaterThan(-1);
+    expect(first(managementText)).toBeGreaterThan(-1);
+    expect(pdvText.indexOf('<AppHeader')).toBeLessThan(first(pdvText));
+    expect(managementText.indexOf('<AppHeader')).toBeLessThan(first(managementText));
+    expect(managementText.indexOf('<h1>Painel de Gestão do Comércio</h1>')).toBeGreaterThan(-1);
+    expect(managementText.indexOf('<h1>Painel de Gestão do Comércio</h1>')).toBeLessThan(first(managementText));
   });
 });
 

@@ -1,7 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { readFileSync } from 'node:fs';
-import { join } from 'node:path';
 import type { SalesReport } from '@/frontend/lib/api-client';
+import { readScreenSource } from '@/test-utils/read-screen-source';
 import {
   bestAndWorstDays,
   changeDirection,
@@ -118,7 +117,8 @@ describe('reportToCsv', () => {
 });
 
 describe('the reports tab of the management panel', () => {
-  const page = readFileSync(join(process.cwd(), 'src', 'app', 'gestao', 'page.tsx'), 'utf8').replace(/\r\n/g, '\n');
+  // The whole screen: the page plus the files of src/frontend/management.
+  const page = readScreenSource('gestao').replace(/\r\n/g, '\n');
 
   it('is for the owner only, in the tab and in the content', () => {
     expect(page).toMatch(/user\?\.isOwner && \(\s*<button[^>]*\s*type="button"[^>]*aria-pressed=\{activeTab === 'relatorios'\}/);

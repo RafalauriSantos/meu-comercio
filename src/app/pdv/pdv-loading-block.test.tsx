@@ -1,7 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
-import { readFileSync } from 'node:fs';
-import { join } from 'node:path';
 import { renderToStaticMarkup } from 'react-dom/server';
+import { readScreenSource } from '@/test-utils/read-screen-source';
 
 // While the first load is pending, nothing in the PDV can start a sale, a payment or a cash movement:
 // there is no control to click or type in, and the global shortcuts need a non-empty cart.
@@ -19,7 +18,8 @@ vi.mock('@/frontend/lib/use-skeleton-gate', async (importOriginal) => {
 
 import PdvPage from './page';
 
-const source = readFileSync(join(process.cwd(), 'src', 'app', 'pdv', 'page.tsx'), 'utf8');
+// The whole screen: the page plus the files of src/frontend/pdv.
+const source = readScreenSource('pdv');
 
 function html(override: typeof gate.override): string {
   gate.override = override;

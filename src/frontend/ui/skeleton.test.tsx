@@ -4,8 +4,8 @@ import { join } from 'node:path';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { Skeleton } from './skeleton';
 import { AppHeaderSkeleton } from './app-header-skeleton';
-import { PdvSkeleton } from '../pdv/pdv-skeleton';
-import { ManagementSkeleton } from '../management/management-skeleton';
+import { PdvMainSkeleton, PdvSideSkeleton, PdvStatusSkeleton } from '../pdv/pdv-skeleton';
+import { ManagementDataSkeleton } from '../management/management-skeleton';
 import { AuthFormSkeleton } from '../auth/auth-skeleton';
 
 function read(...parts: string[]): string {
@@ -42,34 +42,78 @@ describe('screen skeletons', () => {
     expect(markup).not.toContain('<button');
   });
 
-  it('draws the PDV with its own layout and announces the loading once', () => {
-    const markup = renderToStaticMarkup(<PdvSkeleton />);
+  it('draws the PDV main piece with the cart layout and announces the loading once', () => {
+    const markup = renderToStaticMarkup(<PdvMainSkeleton shape />);
 
     expect(markup).toContain('role="status"');
     expect(markup).toContain('aria-busy="true"');
     expect(count(markup, 'sr-only')).toBe(1);
     expect(markup).toContain('Carregando o terminal de vendas');
-    for (const part of ['pdv-app', 'pdv-main', 'pdv-total-card', 'pdv-methods-card', 'pdv-status']) {
-      expect(markup).toContain(part);
-    }
-    expect(count(markup, 'class="skeleton')).toBeGreaterThan(15);
-    // No spinner and no old loading title.
+    expect(markup).toContain('pdv-cart');
+    expect(count(markup, 'class="skeleton')).toBeGreaterThan(5);
+    // The header and the page frame belong to the real page now, and the placeholders are not content.
+    expect(markup).not.toContain('<header');
+    expect(markup).not.toContain('app-header');
     expect(markup).not.toContain('Iniciando terminal');
-    expect(markup).not.toContain('<h1');
+    expect(markup).not.toMatch(/<h[1-6][\s>]/);
   });
 
-  it('draws the management panel with its own layout and announces the loading once', () => {
-    const markup = renderToStaticMarkup(<ManagementSkeleton />);
+  it('draws the PDV side and status pieces in the same grid cells, silent for screen readers', () => {
+    const side = renderToStaticMarkup(<PdvSideSkeleton shape />);
+    const status = renderToStaticMarkup(<PdvStatusSkeleton shape />);
 
-    expect(markup).toContain('role="status"');
+    for (const part of ['<aside', 'pdv-side', 'pdv-total-card', 'pdv-methods-card']) expect(side).toContain(part);
+    for (const part of ['<footer', 'pdv-status']) expect(status).toContain(part);
+    for (const markup of [side, status]) {
+      expect(markup).not.toContain('role="status"');
+      expect(markup).not.toContain('sr-only');
+      expect(count(markup, 'class="skeleton')).toBeGreaterThan(3);
+      expect(markup).not.toContain('<header');
+    }
+  });
+
+  it('reserves the PDV space without anything visible when shape is false', () => {
+    const pieces = [
+      <PdvMainSkeleton key="main" shape={false} />,
+      <PdvSideSkeleton key="side" shape={false} />,
+      <PdvStatusSkeleton key="status" shape={false} />,
+    ];
+    for (const piece of pieces) {
+      const markup = renderToStaticMarkup(piece);
+
+      expect(markup).toMatch(/^<[a-z]+[^>]*style="[^"]*visibility:\s*hidden/);
+      expect(markup).not.toContain('role="status"');
+      expect(markup).not.toContain('aria-busy');
+      expect(markup).not.toContain('sr-only');
+      expect(markup).not.toContain('Carregando');
+    }
+  });
+
+  it('draws the management data area (no header, no title) and announces the loading once', () => {
+    const markup = renderToStaticMarkup(<ManagementDataSkeleton shape />);
+
+    expect(count(markup, 'role="status"')).toBe(1);
     expect(markup).toContain('aria-busy="true"');
     expect(count(markup, 'sr-only')).toBe(1);
     expect(markup).toContain('Carregando o painel de gestão');
-    for (const part of ['management-page', 'mg-titlebar', 'mg-tabs', 'mg-kpis', 'mg-card-flush']) {
+    for (const part of ['mg-tabs', 'mg-kpis', 'mg-card-flush']) {
       expect(markup).toContain(part);
     }
-    // No headings: the placeholders are not content.
-    expect(markup).not.toMatch(/<h[1-6][s>]/);
+    // The title and the header are real on the page: no gray block in their place.
+    expect(markup).not.toContain('<header');
+    expect(markup).not.toContain('mg-titlebar');
+    expect(markup).not.toMatch(/<h[1-6][\s>]/);
+  });
+
+  it('reserves the management data area without anything visible when shape is false', () => {
+    const markup = renderToStaticMarkup(<ManagementDataSkeleton shape={false} />);
+
+    expect(markup).toMatch(/^<[a-z]+[^>]*style="[^"]*visibility:\s*hidden/);
+    expect(markup).toContain('mg-tabs');
+    expect(markup).not.toContain('role="status"');
+    expect(markup).not.toContain('aria-busy');
+    expect(markup).not.toContain('sr-only');
+    expect(markup).not.toContain('Carregando');
   });
 
   it('draws the sign in card and announces the check once', () => {
@@ -84,17 +128,45 @@ describe('screen skeletons', () => {
 });
 
 describe('where the skeletons are used', () => {
-  it('shows them instead of the old white loading texts', () => {
-    const pdv = read('src', 'app', 'pdv', 'page.tsx');
-    const management = read('src', 'app', 'gestao', 'page.tsx');
-    const login = read('src', 'app', 'login', 'page.tsx');
+  const pdv = read('src', 'app', 'pdv', 'page.tsx');
+  const management = read('src', 'app', 'gestao', 'page.tsx');
+  const login = read('src', 'app', 'login', 'page.tsx');
 
-    expect(pdv).toContain('return <PdvSkeleton />;');
-    expect(management).toContain('return <ManagementSkeleton />;');
+  it('shows them instead of the old white loading texts', () => {
+    expect(pdv).toContain('<PdvMainSkeleton');
+    expect(pdv).toContain('<PdvSideSkeleton');
+    expect(pdv).toContain('<PdvStatusSkeleton');
+    expect(management).toContain('<ManagementDataSkeleton');
     expect(login).toContain('<AuthFormSkeleton />');
     expect(pdv).not.toContain('Iniciando terminal PDV');
     expect(management).not.toContain('Carregando Painel de Gestão');
     expect(login).not.toContain('Verificando o sistema');
+  });
+
+  it('feeds the delay gate into the skeletons, with the default delay', () => {
+    for (const page of [pdv, management]) {
+      expect(page).toContain('useSkeletonGate(loading)');
+      expect(page).toMatch(/const shape = skeletonGate === 'skeleton';/);
+      expect(page).toMatch(/shape=\{shape\}/);
+    }
+  });
+
+  it('has no early return for the loading state: the header and the title are always rendered', () => {
+    for (const page of [pdv, management]) {
+      expect(page).not.toMatch(/if \(skeletonGate/);
+      expect(page).not.toMatch(/if \(loading\)\s*\{?\s*return/);
+      expect(page).not.toMatch(/^  return null;/m); // the component body, not a helper inside a handler
+      expect(page).not.toMatch(/\b(PdvSkeleton|ManagementSkeleton)\b/);
+    }
+  });
+
+  it('puts the real header (and the management title) before the first loading condition in the page text', () => {
+    const first = (page: string) => page.indexOf('loading ?');
+    expect(first(pdv)).toBeGreaterThan(-1);
+    expect(first(management)).toBeGreaterThan(-1);
+    expect(pdv.indexOf('<AppHeader')).toBeLessThan(first(pdv));
+    expect(management.indexOf('<AppHeader')).toBeLessThan(first(management));
+    expect(management.indexOf('<h1>Painel de Gestão do Comércio</h1>')).toBeLessThan(first(management));
   });
 });
 

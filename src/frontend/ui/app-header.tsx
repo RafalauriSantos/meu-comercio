@@ -34,10 +34,12 @@ export function AppHeader({ active, username, isOwner, clock, onLogout }: AppHea
       </nav>
 
       <div className="app-userbox">
-        {username && (
+        {username ? (
           <span>
             {username} · {isOwner ? 'Dona' : 'Operador'}
           </span>
+        ) : (
+          <span aria-hidden="true" style={{ minWidth: 110 }} />
         )}
         {clock && <span className="app-clock">{clock}</span>}
         {canInstall && (

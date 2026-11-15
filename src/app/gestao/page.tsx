@@ -19,7 +19,9 @@ import { findProductWithBarcode, takenBarcodeMessage } from '@/frontend/manageme
 import { VersionLabel } from '@/frontend/ui/version-label';
 import { formatQuantity, type ProductUnit } from '@/shared/domain/product-unit';
 import { useAutoDismiss } from '@/frontend/lib/use-auto-dismiss';
-import { ManagementSkeleton } from '@/frontend/management/management-skeleton';
+import { LoadFailureNotice } from '@/frontend/ui/load-failure-notice';
+import { useSkeletonGate } from '@/frontend/lib/use-skeleton-gate';
+import { ManagementDataSkeleton } from '@/frontend/management/management-skeleton';
 import { ImportProductsPanel } from '@/frontend/management/import-products-panel';
 import { SalesReportPanel } from '@/frontend/management/sales-report-panel';
 import {
@@ -33,11 +35,14 @@ import {
 } from '@/frontend/management/stock';
 import '@/frontend/styles/management.css';
 
+type LoadKey = 'products' | 'customers' | 'balances' | 'cash' | 'metrics' | 'operators';
+
 export default function GestaoPage() {
   const router = useRouter();
   const [activeTab, setActiveTab] = useState<'produtos' | 'fiado' | 'caixa' | 'operadores' | 'relatorios'>('produtos');
   const [user, setUser] = useState<AuthUser | null>(null);
   const [loading, setLoading] = useState(true);
+  const skeletonGate = useSkeletonGate(loading);
   const [feedback, setFeedback] = useState<{ text: string; isError?: boolean } | null>(null);
 
   // Estados de Produtos
@@ -100,13 +105,19 @@ export default function GestaoPage() {
   const [newOpUsername, setNewOpUsername] = useState('');
   const [newOpPassword, setNewOpPassword] = useState('');
 
+  const [loadFailed, setLoadFailed] = useState<Partial<Record<LoadKey, boolean>>>({});
+  // Um pedido por vez (limite de 30 requisições por minuto): enquanto um retry roda, todos os botões ficam bloqueados.
+  const [retrying, setRetrying] = useState(false);
+
   const loadProducts = useCallback(async (query = '') => {
     try {
       const res = await apiClient.listProducts(query);
       const items = res.items || [];
       setProducts(items);
       if (!query) setCatalog(items);
+      setLoadFailed((f) => ({ ...f, products: false }));
     } catch (err) {
+      setLoadFailed((f) => ({ ...f, products: true }));
       console.error('Erro ao carregar produtos:', err);
     }
   }, []);
@@ -116,6 +127,8 @@ export default function GestaoPage() {
       const res = await apiClient.listCustomers();
       const list = res.items || [];
       setCustomers(list);
+      // A marca só vale para "saldo pedido e falhou", não para "saldo ainda não chegou".
+      setLoadFailed((f) => ({ ...f, balances: false }));
 
       // Carregar saldos devedores de cada cliente em paralelo
       const balancePromises = list.map(async (c) => {
@@ -132,7 +145,9 @@ export default function GestaoPage() {
         if (r) balances[r.id] = r.balance;
       }
       setCustomerBalances(balances);
+      setLoadFailed((f) => ({ ...f, customers: false, balances: list.some((c) => !balances[c.id]) }));
     } catch (err) {
+      setLoadFailed((f) => ({ ...f, customers: true }));
       console.error('Erro ao carregar clientes:', err);
     }
   }, []);
@@ -142,7 +157,9 @@ export default function GestaoPage() {
       const cash = await apiClient.getCurrentCash();
       setCashOpen(cash.open);
       setCashSession(cash.session);
+      setLoadFailed((f) => ({ ...f, cash: false }));
     } catch (err) {
+      setLoadFailed((f) => ({ ...f, cash: true }));
       console.error('Erro ao carregar caixa:', err);
     }
   }, []);
@@ -151,7 +168,9 @@ export default function GestaoPage() {
     try {
       const res = await apiClient.listOperators();
       setOperators(res.items || []);
+      setLoadFailed((f) => ({ ...f, operators: false }));
     } catch (err) {
+      setLoadFailed((f) => ({ ...f, operators: true }));
       console.error('Erro ao carregar operadores:', err);
     }
   }, []);
@@ -160,10 +179,39 @@ export default function GestaoPage() {
     try {
       const data = await apiClient.getCreditMetrics();
       setCreditMetrics(data);
+      setLoadFailed((f) => ({ ...f, metrics: false }));
     } catch (err) {
+      setLoadFailed((f) => ({ ...f, metrics: true }));
       console.error('Erro ao carregar métricas de fiado:', err);
     }
   }, []);
+
+  async function retry(load: () => Promise<void>) {
+    setRetrying(true);
+    try {
+      await load();
+    } finally {
+      setRetrying(false);
+    }
+  }
+
+  // Repete só os saldos que faltaram, sem refazer a lista de clientes.
+  async function loadMissingBalances() {
+    const found: Record<string, CustomerBalance> = {};
+    await Promise.all(
+      customers
+        .filter((c) => !customerBalances[c.id])
+        .map(async (c) => {
+          try {
+            found[c.id] = await apiClient.getCustomerBalance(c.id);
+          } catch {
+            // continua faltando; o aviso fica
+          }
+        }),
+    );
+    // O que já está no estado (ex.: de um loadCustomers mais novo) sempre vence o saldo do retry.
+    setCustomerBalances((prev) => ({ ...found, ...prev }));
+  }
 
   useEffect(() => {
     async function init() {
@@ -483,9 +531,8 @@ export default function GestaoPage() {
   }
 
 
-  if (loading) {
-    return <ManagementSkeleton />;
-  }
+  const missingBalances = customers.filter((c) => !customerBalances[c.id]).length;
+  const shape = skeletonGate === 'skeleton';
 
   const stockFilters: { value: StockFilter; label: string }[] = [
     { value: 'all', label: 'Todos' },
@@ -518,6 +565,7 @@ export default function GestaoPage() {
           </div>
         )}
 
+        {loading ? <ManagementDataSkeleton shape={shape} /> : (<>
         {/* Abas */}
         <div role="group" aria-label="Seções da gestão" className="mg-tabs">
           <button
@@ -569,6 +617,9 @@ export default function GestaoPage() {
         {/* TAB 1: PRODUTOS */}
         {activeTab === 'produtos' && (
           <section className="mg-section">
+            {loadFailed.products && (
+              <LoadFailureNotice what="os produtos" busy={retrying} onRetry={() => retry(() => loadProducts(productQuery))} />
+            )}
             <div className="mg-kpis">
               <div className="mg-kpi">
                 <div className="mg-kpi-label">Produtos cadastrados</div>
@@ -874,6 +925,19 @@ export default function GestaoPage() {
         {/* TAB 2: CLIENTES & FIADO */}
         {activeTab === 'fiado' && (
           <section className="mg-section">
+            {loadFailed.customers && (
+              <LoadFailureNotice what="a lista de clientes" busy={retrying} onRetry={() => retry(loadCustomers)} />
+            )}
+            {loadFailed.balances && missingBalances > 0 && (
+              <LoadFailureNotice
+                what={`o saldo de ${missingBalances} cliente(s)`}
+                busy={retrying}
+                onRetry={() => retry(loadMissingBalances)}
+              />
+            )}
+            {loadFailed.metrics && (
+              <LoadFailureNotice what="as métricas de fiado" busy={retrying} onRetry={() => retry(loadCreditMetrics)} />
+            )}
             {/* Indicadores: Fiado na Rua */}
             <div className="mg-kpis">
               <div className="mg-kpi">
@@ -1090,6 +1154,9 @@ export default function GestaoPage() {
         {/* TAB 3: CONTROLE & FECHAMENTO DE CAIXA */}
         {activeTab === 'caixa' && (
           <section className="mg-section">
+            {loadFailed.cash && (
+              <LoadFailureNotice what="o caixa" busy={retrying} onRetry={() => retry(loadCash)} />
+            )}
             {cashOpen && cashSession ? (
               <div className="mg-cash">
                 <div className="mg-col">
@@ -1258,6 +1325,9 @@ export default function GestaoPage() {
 
         {activeTab === 'operadores' && user?.isOwner && (
           <section className="mg-section">
+            {loadFailed.operators && (
+              <LoadFailureNotice what="os operadores" busy={retrying} onRetry={() => retry(loadOperators)} />
+            )}
             <div className="mg-section-head">
               <div>
                 <h2>Equipe & Operadores de Caixa</h2>
@@ -1444,6 +1514,8 @@ export default function GestaoPage() {
             </form>
           </div>
         )}
+
+        </>)}
 
         <p className="app-version-line">
           <VersionLabel />

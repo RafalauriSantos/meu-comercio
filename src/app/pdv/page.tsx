@@ -31,18 +31,20 @@ import {
   formatCreditNote,
 } from '@/frontend/lib/thermal-printer';
 import { createCheckoutKeyStore } from '@/frontend/lib/checkout-idempotency';
-import { PdvSkeleton } from '@/frontend/pdv/pdv-skeleton';
+import { PdvMainSkeleton, PdvSideSkeleton, PdvStatusSkeleton } from '@/frontend/pdv/pdv-skeleton';
 import { blocksImplicitSubmit } from '@/frontend/pdv/enter-submit';
 import { createEscapeDismiss } from '@/frontend/lib/dismiss-on-escape';
 import { isNameSearch, moveHighlight, SEARCH_DEBOUNCE_MS } from '@/frontend/pdv/product-search';
 import { SearchResults, SEARCH_LIST_ID, searchOptionId } from '@/frontend/pdv/search-results';
 import { useAutoDismiss } from '@/frontend/lib/use-auto-dismiss';
+import { useSkeletonGate } from '@/frontend/lib/use-skeleton-gate';
 import { settleOfflineSale } from '@/frontend/lib/offline-sale-sender';
 import {
   suggestCashAmounts,
   centsToInputValue,
   quickAmountLabel,
 } from '@/frontend/pdv/quick-amounts';
+import { LoadFailureNotice } from '@/frontend/ui/load-failure-notice';
 import { AppHeader } from '@/frontend/ui/app-header';
 import { WeightPrompt } from '@/frontend/pdv/weight-prompt';
 import { CancelSaleModal } from '@/frontend/pdv/cancel-sale-modal';
@@ -60,6 +62,7 @@ export default function PdvTerminalPage() {
   const router = useRouter();
   const [user, setUser] = useState<AuthUser | null>(null);
   const [loading, setLoading] = useState(true);
+  const skeletonGate = useSkeletonGate(loading);
 
   // Conexão e Offline
   const [isOnline, setIsOnline] = useState(() =>
@@ -112,6 +115,8 @@ export default function PdvTerminalPage() {
 
   // Fiado / Clientes
   const [customers, setCustomers] = useState<CustomerItem[]>([]);
+  const [customersFailed, setCustomersFailed] = useState(false);
+  const [retryingCustomers, setRetryingCustomers] = useState(false);
   const [selectedCustomerId, setSelectedCustomerId] = useState('');
 
   // Modal PIN Proprietária (quando fiado ultrapassa limite)
@@ -224,6 +229,21 @@ export default function PdvTerminalPage() {
     };
   }, []);
 
+  // Só por clique no aviso: repete a leitura da lista de clientes.
+  async function retryCustomers() {
+    if (retryingCustomers) return;
+    setRetryingCustomers(true);
+    try {
+      const res = await apiClient.listCustomers();
+      setCustomers(res.items || []);
+      setCustomersFailed(false);
+    } catch {
+      // o aviso continua
+    } finally {
+      setRetryingCustomers(false);
+    }
+  }
+
   // Carrega Usuário, Caixa e Clientes em paralelo para inicialização rápida
   useEffect(() => {
     async function init() {
@@ -231,7 +251,10 @@ export default function PdvTerminalPage() {
         const [me, cash, custResult, settings] = await Promise.all([
           apiClient.me(),
           apiClient.getCurrentCash(),
-          apiClient.listCustomers().catch(() => ({ items: [] })),
+          apiClient.listCustomers().catch(() => {
+            setCustomersFailed(true);
+            return { items: [] };
+          }),
           // Sem resposta, vale o controle de estoque ligado, como era antes.
           apiClient.getStoreSettings().catch(() => ({ stockControlEnabled: true })),
         ]);
@@ -818,9 +841,7 @@ export default function PdvTerminalPage() {
     }
   }
 
-  if (loading) {
-    return <PdvSkeleton />;
-  }
+  const shape = skeletonGate === 'skeleton';
 
   const openedTimeString = cashSession?.openedAt
     ? new Date(cashSession.openedAt).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
@@ -892,7 +913,7 @@ export default function PdvTerminalPage() {
           </div>
         )}
 
-        {!isOnline && (
+        {!loading && !isOnline && (
           <div className="pdv-offline" role="status">
             Sem conexão com a internet. Apenas vendas simples em dinheiro são aceitas; elas ficam salvas neste
             terminal e sincronizam quando a conexão voltar.
@@ -900,6 +921,7 @@ export default function PdvTerminalPage() {
         )}
 
         <section className="pdv-col" aria-label="Venda atual">
+          {loading ? <PdvMainSkeleton shape={shape} /> : (<>
           <div className="card pdv-scan">
             <label htmlFor="barcode-scanner" className="pdv-card-title">
               Adicionar produto
@@ -1035,8 +1057,10 @@ export default function PdvTerminalPage() {
               )}
             </div>
           </div>
+          </>)}
         </section>
 
+        {loading ? <PdvSideSkeleton shape={shape} /> : (
         <aside className="pdv-col pdv-side" aria-label="Pagamento">
           <div className="pdv-total-card">
             <div className="pdv-total-label">Total a pagar</div>
@@ -1112,8 +1136,10 @@ export default function PdvTerminalPage() {
             </div>
           </div>
         </aside>
+        )}
       </main>
 
+      {loading ? <PdvStatusSkeleton shape={shape} /> : (
       <footer className="pdv-status">
         <span className="pdv-conn">
           <span className={`pdv-dot${isOnline ? '' : ' is-offline'}`} aria-hidden="true" />
@@ -1172,6 +1198,7 @@ export default function PdvTerminalPage() {
         </span>
         <span className="pdv-hide-sm">Enter adicionar · F4 receber · Esc limpar · F2 nova venda</span>
       </footer>
+      )}
 
       {/* MODAL DE PAGAMENTO (FORMA ÚNICA OU DIVIDIDA) */}
       {isCheckoutOpen && (
@@ -1231,6 +1258,9 @@ export default function PdvTerminalPage() {
                   <label className="field-label" htmlFor="customer-select">
                     Cliente cadastrado no fiado
                   </label>
+                  {customersFailed && (
+                    <LoadFailureNotice what="a lista de clientes" busy={retryingCustomers} onRetry={retryCustomers} />
+                  )}
                   <select
                     id="customer-select"
                     className="input"

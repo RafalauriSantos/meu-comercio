@@ -1,64 +1,55 @@
-import { AppHeaderSkeleton } from '@/frontend/ui/app-header-skeleton';
 import { Skeleton } from '@/frontend/ui/skeleton';
 
 const TABS = [0, 1, 2, 3];
 const KPIS = [0, 1, 2];
 const TABLE_ROWS = [0, 1, 2, 3, 4];
 
-// The management panel while its data loads: header, title, tabs, indicators and a table, in gray.
-// The placeholders are direct children of the page, like the real content, so the spacing between
-// them is the same; each one is hidden from screen readers on its own. The tabs and the search field
-// share the row (flex) instead of copying the pixel width of today's labels, so a renamed tab does not
-// make the skeleton drift from the real screen.
-export function ManagementSkeleton() {
+// The management data area while its data loads: tabs, indicators and a table, in gray. The header and the
+// title are real on the page. The placeholders are direct children of the page (the wrapper adds no box), so
+// the spacing between them is the same as the real content. The tabs and the search field share the row (flex)
+// instead of copying the pixel width of today's labels, so a renamed tab does not make the skeleton drift.
+// `shape` false (before the delay) keeps the same markup invisible, so the space is reserved.
+export function ManagementDataSkeleton({ shape }: { shape: boolean }) {
   return (
-    <>
-      <AppHeaderSkeleton />
+    <div style={{ display: 'contents', visibility: shape ? undefined : 'hidden' }}>
+      {shape && (
+        <span className="sr-only" role="status" aria-busy="true">
+          Carregando o painel de gestão…
+        </span>
+      )}
 
-      <main className="management-page" role="status" aria-busy="true">
-        <span className="sr-only">Carregando o painel de gestão…</span>
+      <div className="mg-tabs" aria-hidden="true">
+        {TABS.map((tab) => (
+          <Skeleton key={tab} height={44} radius={12} style={{ flex: '1 1 190px', maxWidth: 241 }} />
+        ))}
+      </div>
 
-        <div className="mg-titlebar" aria-hidden="true">
-          <div>
-            <Skeleton width={300} height={26} />
-            <Skeleton width={160} height={17} style={{ marginTop: 5 }} />
-          </div>
-          <Skeleton width={164} height={48} radius={12} />
-        </div>
-
-        <div className="mg-tabs" aria-hidden="true">
-          {TABS.map((tab) => (
-            <Skeleton key={tab} height={44} radius={12} style={{ flex: '1 1 190px', maxWidth: 241 }} />
+      <section className="mg-section" aria-hidden="true">
+        <div className="mg-kpis">
+          {KPIS.map((kpi) => (
+            <div key={kpi} className="mg-kpi">
+              <Skeleton width={140} height={17} />
+              <span className="skeleton skeleton-kpi-value" aria-hidden="true" />
+            </div>
           ))}
         </div>
 
-        <section className="mg-section" aria-hidden="true">
-          <div className="mg-kpis">
-            {KPIS.map((kpi) => (
-              <div key={kpi} className="mg-kpi">
-                <Skeleton width={140} height={17} />
-                <span className="skeleton skeleton-kpi-value" aria-hidden="true" />
-              </div>
-            ))}
+        <div className="card mg-card-flush">
+          <div className="mg-toolbar">
+            <Skeleton height={48} radius={12} style={{ flex: '1 1 220px', maxWidth: 420 }} />
+            <Skeleton width={81} height={44} radius={12} />
+            <Skeleton width={141} height={44} radius={12} />
           </div>
-
-          <div className="card mg-card-flush">
-            <div className="mg-toolbar">
-              <Skeleton height={48} radius={12} style={{ flex: '1 1 220px', maxWidth: 420 }} />
-              <Skeleton width={81} height={44} radius={12} />
-              <Skeleton width={141} height={44} radius={12} />
+          {TABLE_ROWS.map((row) => (
+            <div key={row} className="skeleton-row skeleton-line">
+              <Skeleton width="34%" height={19} />
+              <Skeleton width={80} height={19} style={{ marginLeft: 'auto' }} />
+              <Skeleton width={60} height={19} />
+              <Skeleton width={82} height={40} radius={8} />
             </div>
-            {TABLE_ROWS.map((row) => (
-              <div key={row} className="skeleton-row skeleton-line">
-                <Skeleton width="34%" height={19} />
-                <Skeleton width={80} height={19} style={{ marginLeft: 'auto' }} />
-                <Skeleton width={60} height={19} />
-                <Skeleton width={82} height={40} radius={8} />
-              </div>
-            ))}
-          </div>
-        </section>
-      </main>
-    </>
+          ))}
+        </div>
+      </section>
+    </div>
   );
 }

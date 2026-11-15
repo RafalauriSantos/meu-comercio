@@ -1,12 +1,11 @@
 'use client';
 
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import {
   apiClient,
   AuthUser,
-  ProductItem,
   CustomerItem,
   CustomerBalance,
   CashSessionData,
@@ -14,26 +13,16 @@ import {
 } from '@/frontend/lib/api-client';
 import { formatMoney, parseCurrencyInput, getErrorMessage } from '@/frontend/lib/formatters';
 import { AppHeader } from '@/frontend/ui/app-header';
-import { findProductWithBarcode, takenBarcodeMessage } from '@/frontend/management/barcode-check';
 import { VersionLabel } from '@/frontend/ui/version-label';
-import { formatQuantity, type ProductUnit } from '@/shared/domain/product-unit';
 import { useAutoDismiss } from '@/frontend/lib/use-auto-dismiss';
 import { LoadFailureNotice } from '@/frontend/ui/load-failure-notice';
 import { useSkeletonGate } from '@/frontend/lib/use-skeleton-gate';
 import { ManagementDataSkeleton } from '@/frontend/management/management-skeleton';
-import { ImportProductsPanel } from '@/frontend/management/import-products-panel';
 import { SalesReportPanel } from '@/frontend/management/sales-report-panel';
 import { OperatorsTab } from '@/frontend/management/operators-tab';
 import { useOperatorsTab } from '@/frontend/management/use-operators-tab';
-import {
-  countNeedingRestock,
-  inventoryValue,
-  initialStockToQuantity,
-  matchesStockFilter,
-  restockToQuantity,
-  stockStatus,
-  type StockFilter,
-} from '@/frontend/management/stock';
+import { ProductsTab } from '@/frontend/management/products-tab';
+import { useProductsTab } from '@/frontend/management/use-products-tab';
 import '@/frontend/styles/management.css';
 
 type LoadKey = 'products' | 'customers' | 'balances' | 'cash' | 'metrics' | 'operators';
@@ -45,29 +34,7 @@ export default function GestaoPage() {
   const [loading, setLoading] = useState(true);
   const skeletonGate = useSkeletonGate(loading);
   const [feedback, setFeedback] = useState<{ text: string; isError?: boolean } | null>(null);
-
-  // Estados de Produtos
-  const [products, setProducts] = useState<ProductItem[]>([]);
-  // Catálogo completo (última carga sem busca): base dos indicadores, que não mudam com a busca.
-  const [catalog, setCatalog] = useState<ProductItem[]>([]);
-  const [stockFilter, setStockFilter] = useState<StockFilter>('all');
-  const [productQuery, setProductQuery] = useState('');
   useAutoDismiss(feedback, () => setFeedback(null));
-  // Se a loja controla o estoque. Desligado, somem o saldo, as entradas, os alertas e o valor em estoque.
-  const [stockControl, setStockControl] = useState(true);
-  const [showNewProduct, setShowNewProduct] = useState(false);
-  const [showImport, setShowImport] = useState(false);
-  const [newBarcode, setNewBarcode] = useState('');
-  const [newName, setNewName] = useState('');
-  const [newPrice, setNewPrice] = useState('');
-  const [newStock, setNewStock] = useState('0');
-  const [newUnit, setNewUnit] = useState<ProductUnit>('UN');
-  // Aviso de código de barras já cadastrado, e o campo do nome, para onde o foco vai depois do bipador.
-  const [barcodeNote, setBarcodeNote] = useState<string | null>(null);
-  const newNameRef = useRef<HTMLInputElement>(null);
-  const [restockingId, setRestockingId] = useState<string | null>(null);
-  const [restockQty, setRestockQty] = useState('1');
-  const [restockReason, setRestockReason] = useState('');
 
   // Estados de Clientes / Fiado
   const [customers, setCustomers] = useState<CustomerItem[]>([]);
@@ -105,20 +72,10 @@ export default function GestaoPage() {
   const [retrying, setRetrying] = useState(false);
   const operatorsTab = useOperatorsTab({ setFeedback, setProcessing, setLoadFailed });
   const { operators, loadOperators } = operatorsTab;
-
-
-  const loadProducts = useCallback(async (query = '') => {
-    try {
-      const res = await apiClient.listProducts(query);
-      const items = res.items || [];
-      setProducts(items);
-      if (!query) setCatalog(items);
-      setLoadFailed((f) => ({ ...f, products: false }));
-    } catch (err) {
-      setLoadFailed((f) => ({ ...f, products: true }));
-      console.error('Erro ao carregar produtos:', err);
-    }
-  }, []);
+  // Se a loja controla o estoque. Desligado, somem o saldo, as entradas, os alertas e o valor em estoque.
+  const [stockControl, setStockControl] = useState(true);
+  const productsTab = useProductsTab({ setFeedback, setProcessing, setLoadFailed, stockControl, setStockControl });
+  const { catalog, loadProducts } = productsTab;
 
   const loadCustomers = useCallback(async () => {
     try {
@@ -228,119 +185,6 @@ export default function GestaoPage() {
     }
     init();
   }, [router, loadProducts, loadCustomers, loadCash, loadCreditMetrics, loadOperators]);
-
-  // --- Handlers de Produtos ---
-
-  // A dona liga ou desliga o controle de estoque da loja.
-  async function handleToggleStockControl() {
-    const turningOff = stockControl;
-    const question = turningOff
-      ? 'Desligar o controle de estoque?\n\nAs vendas deixam de exigir saldo e de baixar o estoque, e as telas de estoque somem. Os saldos de hoje ficam guardados.'
-      : 'Ligar o controle de estoque?\n\nAs vendas voltam a exigir saldo e a baixar o estoque. As vendas feitas com o controle desligado não baixaram nada, então os saldos podem estar desatualizados: confira os produtos depois de ligar.';
-    if (!confirm(question)) return;
-
-    setProcessing(true);
-    setFeedback(null);
-    try {
-      const settings = await apiClient.updateStoreSettings({ stockControlEnabled: !stockControl });
-      setStockControl(settings.stockControlEnabled);
-      setFeedback({
-        text: settings.stockControlEnabled
-          ? 'Controle de estoque ligado. Confira os saldos dos produtos.'
-          : 'Controle de estoque desligado. As vendas não dependem mais do estoque.',
-      });
-    } catch (err) {
-      setFeedback({ text: getErrorMessage(err, 'Erro ao mudar o controle de estoque.'), isError: true });
-    } finally {
-      setProcessing(false);
-    }
-  }
-
-  // Confere se o código (digitado ou lido pelo bipador) já está cadastrado.
-  async function checkNewBarcode(code: string) {
-    try {
-      const existing = await findProductWithBarcode(apiClient.findProductByBarcode, code);
-      setBarcodeNote(existing ? takenBarcodeMessage(existing) : null);
-    } catch {
-      // Sem resposta do servidor: o cadastro em si avisa se o código for repetido.
-      setBarcodeNote(null);
-    }
-  }
-
-  // O bipador envia Enter depois do código: em vez de enviar o formulário vazio, confere o código e vai para o nome.
-  function handleNewBarcodeKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
-    if (e.key !== 'Enter') return;
-    e.preventDefault();
-    void checkNewBarcode(e.currentTarget.value);
-    newNameRef.current?.focus();
-  }
-
-  async function handleCreateProduct(e: React.FormEvent) {
-    e.preventDefault();
-    setProcessing(true);
-    setFeedback(null);
-    try {
-      const initialStock = initialStockToQuantity(newStock, newUnit);
-      if (initialStock === null) {
-        setFeedback({
-          text: newUnit === 'KG' ? 'Estoque inicial inválido. Use quilos, como 2,5.' : 'Estoque inicial inválido. Use um número inteiro.',
-          isError: true,
-        });
-        return;
-      }
-      await apiClient.createProduct({
-        barcode: newBarcode.trim(),
-        name: newName.trim(),
-        salePrice: parseCurrencyInput(newPrice),
-        initialStock,
-        unit: newUnit,
-      });
-      setFeedback({ text: 'Produto cadastrado com sucesso!' });
-      setShowNewProduct(false);
-      setNewBarcode('');
-      setNewName('');
-      setNewPrice('');
-      setNewStock('0');
-      setNewUnit('UN');
-      setBarcodeNote(null);
-      await loadProducts();
-    } catch (err) {
-      setFeedback({ text: getErrorMessage(err, 'Erro ao cadastrar produto.'), isError: true });
-    } finally {
-      setProcessing(false);
-    }
-  }
-
-  async function handleRestock(e: React.FormEvent, productId: string) {
-    e.preventDefault();
-    setProcessing(true);
-    setFeedback(null);
-    try {
-      const unit = products.find((p) => p.id === productId)?.unit ?? 'UN';
-      const restockQuantity = restockToQuantity(restockQty, unit);
-      if (restockQuantity === null) {
-        setFeedback({
-          text: unit === 'KG' ? 'Quantidade inválida. Use quilos, como 1,5.' : 'Quantidade inválida. Use um número inteiro de 1 em diante.',
-          isError: true,
-        });
-        return;
-      }
-      await apiClient.restockInventory({
-        productId,
-        quantity: restockQuantity,
-        reason: restockReason.trim() || 'Reposição manual de balcão',
-      });
-      setFeedback({ text: 'Estoque reposto com sucesso!' });
-      setRestockingId(null);
-      setRestockQty('1');
-      setRestockReason('');
-      await loadProducts();
-    } catch (err) {
-      setFeedback({ text: getErrorMessage(err, 'Erro ao repor estoque.'), isError: true });
-    } finally {
-      setProcessing(false);
-    }
-  }
 
   // --- Handlers de Clientes / Fiado ---
   async function handleCreateCustomer(e: React.FormEvent) {
@@ -479,12 +323,6 @@ export default function GestaoPage() {
   const countedNum = parseCurrencyInput(closingCounted);
   const difference = closingCounted ? countedNum - expectedCashNum : 0;
 
-  const lowStockCount = countNeedingRestock(catalog);
-  const stockValue = inventoryValue(catalog);
-  const visibleProducts = products.filter(
-    (p) => !stockControl || matchesStockFilter(p.availableQuantity, stockFilter, p.unit)
-  );
-
   async function handleLogout() {
     await apiClient.logout();
     router.push('/login');
@@ -499,12 +337,6 @@ export default function GestaoPage() {
 
   const missingBalances = customers.filter((c) => !customerBalances[c.id]).length;
   const shape = skeletonGate === 'skeleton';
-
-  const stockFilters: { value: StockFilter; label: string }[] = [
-    { value: 'all', label: 'Todos' },
-    { value: 'low', label: 'Estoque baixo' },
-    { value: 'out', label: 'Sem estoque' },
-  ];
 
   return (
     <>
@@ -582,310 +414,7 @@ export default function GestaoPage() {
 
         {/* TAB 1: PRODUTOS */}
         {activeTab === 'produtos' && (
-          <section className="mg-section">
-            {loadFailed.products && (
-              <LoadFailureNotice what="os produtos" busy={retrying} onRetry={() => retry(() => loadProducts(productQuery))} />
-            )}
-            <div className="mg-kpis">
-              <div className="mg-kpi">
-                <div className="mg-kpi-label">Produtos cadastrados</div>
-                <div className="mg-kpi-value num">{catalog.length}</div>
-              </div>
-              {stockControl && (
-                <>
-                  <div className="mg-kpi mg-kpi-warn">
-                    <div className="mg-kpi-label">Precisam de reposição</div>
-                    <div className="mg-kpi-value num">{lowStockCount}</div>
-                  </div>
-                  <div className="mg-kpi">
-                    <div className="mg-kpi-label">Valor em estoque (a preço de venda)</div>
-                    <div className="mg-kpi-value num">{formatMoney(stockValue)}</div>
-                  </div>
-                </>
-              )}
-            </div>
-
-            {/* Interruptor do controle de estoque (só a dona) */}
-            {user?.isOwner && (
-              <section className="card mg-stock-switch" aria-label="Controle de estoque">
-                <div>
-                  <strong>Controle de estoque: {stockControl ? 'ligado' : 'desligado'}</strong>
-                  <p className="muted mg-stock-switch-note">
-                    {stockControl
-                      ? 'As vendas baixam o estoque e não passam do saldo.'
-                      : 'As vendas não dependem do estoque: não precisam de saldo e não baixam nada.'}
-                  </p>
-                </div>
-                <button type="button" className="outline" onClick={handleToggleStockControl} disabled={processing}>
-                  {stockControl ? 'Desligar' : 'Ligar'}
-                </button>
-              </section>
-            )}
-
-            {/* Form Novo Produto */}
-            {showNewProduct && (
-              <form onSubmit={handleCreateProduct} className="card">
-                <h3>Cadastrar Novo Produto</h3>
-                <div className="mg-form-grid">
-                  <div>
-                    <label className="field-label" htmlFor="np-barcode">Código de Barras</label>
-                    <input
-                      id="np-barcode"
-                      className="input"
-                      required
-                      autoFocus
-                      autoComplete="off"
-                      value={newBarcode}
-                      onChange={(e) => {
-                        setNewBarcode(e.target.value);
-                        setBarcodeNote(null);
-                      }}
-                      onKeyDown={handleNewBarcodeKeyDown}
-                      onBlur={(e) => void checkNewBarcode(e.target.value)}
-                      placeholder="Bipe o produto ou digite o código"
-                    />
-                    {barcodeNote && (
-                      <span className="mg-help mg-help-warn" role="alert">
-                        {barcodeNote}
-                      </span>
-                    )}
-                  </div>
-                  <div>
-                    <label className="field-label" htmlFor="np-name">Nome do Produto</label>
-                    <input
-                      id="np-name"
-                      ref={newNameRef}
-                      className="input"
-                      required
-                      value={newName}
-                      onChange={(e) => setNewName(e.target.value)}
-                      placeholder="Ex: Arroz Tipo 1 5kg"
-                    />
-                  </div>
-                  <div>
-                    <label className="field-label" htmlFor="np-unit">Como é vendido</label>
-                    <select
-                      id="np-unit"
-                      className="input"
-                      value={newUnit}
-                      onChange={(e) => setNewUnit(e.target.value === 'KG' ? 'KG' : 'UN')}
-                    >
-                      <option value="UN">Por unidade</option>
-                      <option value="KG">Por peso (preço por quilo)</option>
-                    </select>
-                  </div>
-                  <div>
-                    <label className="field-label" htmlFor="np-price">
-                      {newUnit === 'KG' ? 'Preço por Quilo (R$)' : 'Preço de Venda (R$)'}
-                    </label>
-                    <input
-                      id="np-price"
-                      className="input num"
-                      type="number"
-                      step="0.01"
-                      min="0.01"
-                      required
-                      value={newPrice}
-                      onChange={(e) => setNewPrice(e.target.value)}
-                      placeholder="24.90"
-                    />
-                  </div>
-                  {stockControl && (
-                  <div>
-                    <label className="field-label" htmlFor="np-stock">
-                      {newUnit === 'KG' ? 'Estoque Inicial (kg)' : 'Estoque Inicial'}
-                    </label>
-                    <input
-                      id="np-stock"
-                      className="input num"
-                      type={newUnit === 'KG' ? 'text' : 'number'}
-                      inputMode={newUnit === 'KG' ? 'decimal' : undefined}
-                      min={newUnit === 'KG' ? undefined : '0'}
-                      value={newStock}
-                      onChange={(e) => setNewStock(e.target.value)}
-                    />
-                  </div>
-                  )}
-                </div>
-                <button className="primary mg-form-submit" type="submit" disabled={processing}>
-                  {processing ? 'Salvando...' : 'Salvar Produto'}
-                </button>
-              </form>
-            )}
-
-            {showImport && user?.isOwner && (
-              <ImportProductsPanel
-                stockControl={stockControl}
-                onImported={async (createdCount) => {
-                  setShowImport(false);
-                  setFeedback({
-                    text: createdCount === 1 ? '1 produto importado com sucesso!' : `${createdCount} produtos importados com sucesso!`,
-                  });
-                  await loadProducts();
-                }}
-              />
-            )}
-
-            <section className="card mg-card-flush" aria-label="Catálogo de produtos">
-              <div className="mg-toolbar">
-                <label htmlFor="product-search" className="sr-only">Buscar produto</label>
-                <input
-                  id="product-search"
-                  type="text"
-                  className="input mg-search"
-                  placeholder="Buscar por código de barras ou nome do produto..."
-                  value={productQuery}
-                  onChange={(e) => {
-                    setProductQuery(e.target.value);
-                    loadProducts(e.target.value);
-                  }}
-                />
-                {stockControl && (
-                  <div role="group" aria-label="Filtro de estoque" className="mg-filters">
-                    {stockFilters.map((f) => (
-                      <button
-                        key={f.value}
-                        type="button"
-                        className="mg-segment"
-                        aria-pressed={stockFilter === f.value}
-                        onClick={() => setStockFilter(f.value)}
-                      >
-                        {f.label}
-                      </button>
-                    ))}
-                  </div>
-                )}
-                {user?.isOwner && (
-                  <button
-                    type="button"
-                    className="outline mg-toolbar-action"
-                    aria-expanded={showImport}
-                    onClick={() => setShowImport(!showImport)}
-                  >
-                    {showImport ? 'Fechar importação' : 'Importar planilha'}
-                  </button>
-                )}
-                <button
-                  type="button"
-                  className="primary mg-toolbar-secondary"
-                  onClick={() => setShowNewProduct(!showNewProduct)}
-                >
-                  {showNewProduct ? 'Cancelar' : '＋ Novo Produto'}
-                </button>
-              </div>
-
-              <div className="mg-table-wrap">
-                <table className="mg-table">
-                  <thead>
-                    <tr>
-                      <th scope="col">Produto</th>
-                      <th scope="col" className="mg-num">Preço</th>
-                      {stockControl && <th scope="col" className="mg-num">Em estoque</th>}
-                      {stockControl && <th scope="col" className="mg-num">Ação</th>}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {visibleProducts.map((p) => {
-                      const status = stockStatus(p.availableQuantity, p.unit);
-                      const byWeight = p.unit === 'KG';
-                      return (
-                        <React.Fragment key={p.id}>
-                          <tr>
-                            <td>
-                              <strong>{p.name}</strong>
-                              {stockControl && status === 'low' && <span className="mg-tag mg-tag-warn">Estoque baixo</span>}
-                              {stockControl && status === 'out' && <span className="mg-tag mg-tag-danger">Sem estoque</span>}
-                              <div className="muted mg-barcode num">{p.barcode}</div>
-                            </td>
-                            <td className="mg-num">
-                              {formatMoney(p.salePrice)}
-                              {byWeight ? ' /kg' : ''}
-                            </td>
-                            {stockControl && (
-                              <td className={`mg-num mg-stock mg-stock-${status}`}>
-                                {formatQuantity(p.availableQuantity, p.unit)}
-                                {byWeight ? '' : ' un'}
-                              </td>
-                            )}
-                            {stockControl && (
-                            <td className="mg-num">
-                              <button
-                                type="button"
-                                className="outline mg-row-action"
-                                aria-expanded={restockingId === p.id}
-                                aria-label={
-                                  restockingId === p.id
-                                    ? `Fechar entrada de estoque de ${p.name}`
-                                    : `Registrar entrada de estoque de ${p.name}`
-                                }
-                                onClick={() => setRestockingId(restockingId === p.id ? null : p.id)}
-                              >
-                                {restockingId === p.id ? 'Fechar' : 'Entrada'}
-                              </button>
-                            </td>
-                            )}
-                          </tr>
-
-                          {/* Box de Reposição */}
-                          {stockControl && restockingId === p.id && (
-                            <tr className="mg-restock-row">
-                              <td colSpan={4}>
-                                <form onSubmit={(e) => handleRestock(e, p.id)} className="mg-restock">
-                                  <div>
-                                    <label className="field-label" htmlFor={`restock-qty-${p.id}`}>
-                                      {byWeight ? 'Quantidade a Adicionar (kg)' : 'Quantidade a Adicionar'}
-                                    </label>
-                                    <input
-                                      id={`restock-qty-${p.id}`}
-                                      className="input num"
-                                      type={byWeight ? 'text' : 'number'}
-                                      inputMode={byWeight ? 'decimal' : undefined}
-                                      min={byWeight ? undefined : '1'}
-                                      placeholder={byWeight ? 'Ex: 2,5' : undefined}
-                                      required
-                                      value={restockQty}
-                                      onChange={(e) => setRestockQty(e.target.value)}
-                                    />
-                                  </div>
-                                  <div className="mg-restock-reason">
-                                    <label className="field-label" htmlFor={`restock-reason-${p.id}`}>Motivo da Reposição</label>
-                                    <input
-                                      id={`restock-reason-${p.id}`}
-                                      className="input"
-                                      type="text"
-                                      required
-                                      placeholder="Ex: Entrega de fornecedor, acerto semanal"
-                                      value={restockReason}
-                                      onChange={(e) => setRestockReason(e.target.value)}
-                                    />
-                                  </div>
-                                  <button className="primary" type="submit" disabled={processing}>
-                                    Confirmar Reposição
-                                  </button>
-                                </form>
-                              </td>
-                            </tr>
-                          )}
-                        </React.Fragment>
-                      );
-                    })}
-                    {visibleProducts.length === 0 && (
-                      <tr>
-                        <td colSpan={stockControl ? 4 : 2} className="mg-empty-cell">
-                          Nenhum produto cadastrado com os critérios pesquisados.
-                        </td>
-                      </tr>
-                    )}
-                  </tbody>
-                </table>
-              </div>
-
-              <p className="mg-foot">
-                Mostrando {visibleProducts.length} de {catalog.length} produtos
-                {stockControl && ' · Entrada registra compra ou reposição de estoque'}
-              </p>
-            </section>
-          </section>
+          <ProductsTab tab={productsTab} stockControl={stockControl} user={user} setFeedback={setFeedback} loadFailed={loadFailed} retrying={retrying} processing={processing} retry={retry} />
         )}
 
         {/* TAB 2: CLIENTES & FIADO */}

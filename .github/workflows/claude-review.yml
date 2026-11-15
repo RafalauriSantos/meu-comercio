@@ -1,0 +1,52 @@
+name: Claude Review
+
+# Reviews each pull request once when it is opened, reopened or marked ready.
+# It does not run on every push, to spare the Claude subscription. To review again, close and reopen the PR.
+# The review only comments. It never approves, blocks or pushes, so the merge gates in
+# docs/PROJECT_WORKFLOW.md stay as they are.
+
+on:
+  pull_request:
+    branches: [main]
+    types: [opened, reopened, ready_for_review]
+
+concurrency:
+  group: claude-review-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  review:
+    name: Claude review
+    # Skips drafts, forks and Dependabot: none of them can read the secret, and the action refuses bot actors.
+    if: >-
+      github.event.pull_request.draft == false &&
+      github.actor != 'dependabot[bot]' &&
+      github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      pull-requests: read
+      issues: read
+      id-token: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 1
+
+      - name: Review the pull request
+        uses: anthropics/claude-code-action@61a9c274fa7110a66dfafc1bbbced03833eb25fe # v1.0.269
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          plugin_marketplaces: "https://github.com/anthropics/claude-plugins-official.git"
+          plugins: "code-review@claude-plugins-official"
+          prompt: "/code-review:code-review --comment ${{ github.repository }}/pull/${{ github.event.pull_request.number }}"
+          claude_args: |
+            --model claude-haiku-5-5
+            --effort high
+            --allowedTools "mcp__github_inline_comment__create_inline_comment"
+            --append-system-prompt "Project rules for this review: money must use the Money value object (integer cents), never number. Every query must be scoped to the tenant (merchant). Business rules live in DECISIONS.md and the code must match them. Changes to money, authentication, permissions or the database schema are high risk: call them out first. Do not comment on formatting or style."

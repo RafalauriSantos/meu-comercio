@@ -200,3 +200,21 @@ Este documento rastreia formalmente as fatias verticais de entrega, critérios d
 - [ ] 15.4 **Homologação:** emitir no ambiente de testes da SEFAZ antes de qualquer nota real.
 - [ ] 15.5 **Cupom com QR Code** da NFC-e e marcação "com nota" nos relatórios.
 - [ ] 15.6 **Cancelamento** da nota junto com o cancelamento da venda (dentro do prazo), inutilização de numeração e contingência sem internet.
+
+### [ ] Slice 16: Reorganização do front end (urgente, para manutenção)
+> `src/app/pdv/page.tsx` (1.600 linhas) e `src/app/gestao/page.tsx` (1.454) misturam dados, estado, regras de venda e tela. Análise: `.dev-team/architecture-frontend.md` (local). Escrever a spec desta fase antes de começar.
+
+- [ ] 16.1 **Rede de segurança:** os testes de tela leem o texto de `page.tsx`. Criar um jeito de testar a tela inteira (pasta da área) antes de mover código.
+- [ ] 16.2 **Peças sem dinheiro primeiro:** cabeçalho, avisos e modais simples, movidos sem editar o corpo.
+- [ ] 16.3 **Gestão por aba:** um componente e um hook de dados por aba (Produtos, Fiado, Caixa, Operadores).
+- [ ] 16.4 **PDV por partes:** hooks de sessão e de carrinho, depois o checkout. O checkout mexe em dinheiro e PIN: PR próprio e aprovação sua.
+- Regra: um PR por passo, código movido sem reescrever, `git diff -w` conferido e as mesmas requisições antes e depois.
+- Fora de escopo por enquanto: CSS, `api-client.ts`, Login, rota por aba, e unificar duplicações de duas cópias.
+
+### [ ] Slice 17: Carga enxuta das telas
+> Região `gru1` já feita (PR #67): a primeira visita à Gestão caiu de 3,0 s para 0,6 s. Os itens abaixo só valem se a medição com muitos clientes ainda mostrar lentidão.
+
+- [ ] 17.1 **Saldos de fiado em lote** (uma consulta em vez de uma por cliente). Mexe em dinheiro: aprovação sua. Também evita o limite de 30 requisições por minuto.
+- [ ] 17.2 **Gestão carrega só a aba aberta**; o resto ao clicar.
+- [ ] 17.3 **Produtos em uma consulta** (hoje `/api/products` faz uma consulta de estoque por produto).
+- [ ] 17.4 **PDV usável assim que sessão e caixa chegarem**, sem esperar clientes e configurações.

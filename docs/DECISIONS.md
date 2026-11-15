@@ -390,3 +390,26 @@ Este documento registra formalmente as decisões de arquitetura e de produto do 
 - **Trade-offs / Consequências**:
   - *Positivo*: o caixa cancela sem digitar código nenhum, e só vendas de hoje aparecem.
   - *Negativo*: o operador passa a ver a lista das vendas de hoje, com valores (o PIN da dona continua sendo exigido para cancelar). Cancelar vendas de dias anteriores deixa de ter tela.
+
+## ADR-020: Arquitetura do Front End (Página Fina, Hook e Componente por Funcionalidade)
+
+- **Data**: 2026-11-15
+- **Status**: Aprovado. Em implementação pelo Slice 16 (Gestão: abas Operadores, Produtos e Clientes e Fiado já movidas; faltam a aba Caixa, a página da Gestão e o PDV).
+- **Contexto**: `src/app/pdv/page.tsx` (cerca de 1.600 linhas) e `src/app/gestao/page.tsx` (cerca de 1.500) juntavam carga de dados, estado, regras de venda, ações e tela no mesmo componente. Isso dificultava entender e mudar o app, e travava a melhoria da carga. O back end já segue o ADR-001 (monólito modular, Ports & Adapters); este ADR decide o front, que não precisa do mesmo desenho.
+- **Decisão**:
+  1. **Página fina.** Cada `src/app/<tela>/page.tsx` só junta as peças da tela e guarda o estado compartilhado entre elas (`processing`, `feedback`, `retrying`, `loadFailed`, `retry`).
+  2. **Uma pasta por funcionalidade em `src/frontend/<área>/`** (`pdv`, `management`, `auth`). Cada aba ou parte vira um **hook** (`use-<aba>.ts`: estado, carga e ações, que recebe os setters compartilhados da página) e um **componente** (`<aba>.tsx`: só desenha, recebe valores e funções por props).
+  3. **Peças compartilhadas** em `src/frontend/ui/` (cabeçalho, skeleton, aviso de falha) e **lógica pura** em `src/frontend/lib/`, incluindo o `api-client`, que é o **único** ponto que fala com a API.
+  4. **Regras de dependência:** página usa funcionalidade; funcionalidade usa hook; hook usa `api-client`. `ui` e `lib` não importam de nenhuma funcionalidade. Uma funcionalidade não importa de outra.
+  5. **Dinheiro e regra de negócio ficam no back end.** O front mostra e envia; não decide. Dinheiro nunca é `number` novo no front (o que já existe é tratado fora do Slice 16).
+  6. **Como se refatora:** o código é **movido sem reescrever**, um passo por PR, com os testes que leem a tela inteira (`src/test-utils/read-screen-source.ts`) e os que travam as requisições (`apiClient.` e `router.push('/login')`) como rede de segurança. Nenhum passo mistura mover código com mudar comportamento. Mover código que toca dinheiro, permissão ou PIN, sem mudar o comportamento, segue o mesmo caminho; mudar esse comportamento é PR próprio com aprovação do dono do repositório.
+- **Alternativas descartadas**:
+  - Pasta `_components` dentro de `src/app`: o projeto já usa `src/frontend/<área>`.
+  - Uma rota por aba da Gestão: mudaria as URLs e a vida do estado (rascunhos). Pode ser reavaliada depois, com ADR próprio.
+  - Camadas de domínio e portas no front, como no back end: sem problema concreto que justifique, e duplicaria regras que são do servidor.
+  - Estado global ou biblioteca de dados (React Query ou SWR): só quando 3 ou mais telas lerem o mesmo dado; hoje misturaria reorganização com mudança de comportamento e de dinheiro.
+  - Service Worker: proibido pelo ADR-017.
+- **Trade-offs / Consequências**:
+  - *Positivo*: arquivos pequenos e com uma responsabilidade; cada mudança toca só o lugar certo; a carga de dados fica num hook por aba, o que facilita o Slice 17.
+  - *Negativo*: o estado de cada aba ainda mora na página, via hook, para o rascunho sobreviver à troca de aba e os estados compartilhados continuarem únicos; a página ainda orquestra bastante. Os hooks passam da meta de ~150 linhas (o de Produtos tem 206). Os testes ainda leem texto do código (Slice 18 troca isso por testes de comportamento).
+  - *A fazer*: impor essas regras no CI (limite de linhas e fronteiras de importação), terminar a Gestão e o PDV, e um ADR próprio para a camada de dados do front (tempo limite, erro de rede sem logout, cache) quando o Slice 19 chegar nela.

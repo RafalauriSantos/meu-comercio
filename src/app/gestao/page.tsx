@@ -6,10 +6,7 @@ import { useRouter } from 'next/navigation';
 import {
   apiClient,
   AuthUser,
-  CustomerItem,
-  CustomerBalance,
   CashSessionData,
-  CreditMetricsData,
 } from '@/frontend/lib/api-client';
 import { formatMoney, parseCurrencyInput, getErrorMessage } from '@/frontend/lib/formatters';
 import { AppHeader } from '@/frontend/ui/app-header';
@@ -22,6 +19,8 @@ import { SalesReportPanel } from '@/frontend/management/sales-report-panel';
 import { OperatorsTab } from '@/frontend/management/operators-tab';
 import { useOperatorsTab } from '@/frontend/management/use-operators-tab';
 import { ProductsTab } from '@/frontend/management/products-tab';
+import { CustomersTab } from '@/frontend/management/customers-tab';
+import { useCustomersTab } from '@/frontend/management/use-customers-tab';
 import { useProductsTab } from '@/frontend/management/use-products-tab';
 import '@/frontend/styles/management.css';
 
@@ -35,23 +34,6 @@ export default function GestaoPage() {
   const skeletonGate = useSkeletonGate(loading);
   const [feedback, setFeedback] = useState<{ text: string; isError?: boolean } | null>(null);
   useAutoDismiss(feedback, () => setFeedback(null));
-
-  // Estados de Clientes / Fiado
-  const [customers, setCustomers] = useState<CustomerItem[]>([]);
-  const [customerBalances, setCustomerBalances] = useState<Record<string, CustomerBalance>>({});
-  const [customerQuery, setCustomerQuery] = useState('');
-  const [showNewCustomer, setShowNewCustomer] = useState(false);
-  const [newCustName, setNewCustName] = useState('');
-  const [newCustPhone, setNewCustPhone] = useState('');
-  const [newCustLimit, setNewCustLimit] = useState('100.00');
-
-  // Quitação de Fiado
-  const [settlingCustomer, setSettlingCustomer] = useState<CustomerBalance | null>(null);
-  const [settleAmount, setSettleAmount] = useState('');
-  const [settleNote, setSettleNote] = useState('');
-
-  // Métricas de Fiado na Rua
-  const [creditMetrics, setCreditMetrics] = useState<CreditMetricsData | null>(null);
 
   // Estados de Caixa
   const [cashSession, setCashSession] = useState<CashSessionData | null>(null);
@@ -77,36 +59,6 @@ export default function GestaoPage() {
   const productsTab = useProductsTab({ setFeedback, setProcessing, setLoadFailed, stockControl, setStockControl });
   const { catalog, loadProducts } = productsTab;
 
-  const loadCustomers = useCallback(async () => {
-    try {
-      const res = await apiClient.listCustomers();
-      const list = res.items || [];
-      setCustomers(list);
-      // A marca só vale para "saldo pedido e falhou", não para "saldo ainda não chegou".
-      setLoadFailed((f) => ({ ...f, balances: false }));
-
-      // Carregar saldos devedores de cada cliente em paralelo
-      const balancePromises = list.map(async (c) => {
-        try {
-          const b = await apiClient.getCustomerBalance(c.id);
-          return { id: c.id, balance: b };
-        } catch {
-          return null;
-        }
-      });
-      const results = await Promise.all(balancePromises);
-      const balances: Record<string, CustomerBalance> = {};
-      for (const r of results) {
-        if (r) balances[r.id] = r.balance;
-      }
-      setCustomerBalances(balances);
-      setLoadFailed((f) => ({ ...f, customers: false, balances: list.some((c) => !balances[c.id]) }));
-    } catch (err) {
-      setLoadFailed((f) => ({ ...f, customers: true }));
-      console.error('Erro ao carregar clientes:', err);
-    }
-  }, []);
-
   const loadCash = useCallback(async () => {
     try {
       const cash = await apiClient.getCurrentCash();
@@ -119,16 +71,8 @@ export default function GestaoPage() {
     }
   }, []);
 
-  const loadCreditMetrics = useCallback(async () => {
-    try {
-      const data = await apiClient.getCreditMetrics();
-      setCreditMetrics(data);
-      setLoadFailed((f) => ({ ...f, metrics: false }));
-    } catch (err) {
-      setLoadFailed((f) => ({ ...f, metrics: true }));
-      console.error('Erro ao carregar métricas de fiado:', err);
-    }
-  }, []);
+  const customersTab = useCustomersTab({ setFeedback, setProcessing, setLoadFailed, loadCash });
+  const { customers, loadCustomers, loadCreditMetrics } = customersTab;
 
   async function retry(load: () => Promise<void>) {
     setRetrying(true);
@@ -137,24 +81,6 @@ export default function GestaoPage() {
     } finally {
       setRetrying(false);
     }
-  }
-
-  // Repete só os saldos que faltaram, sem refazer a lista de clientes.
-  async function loadMissingBalances() {
-    const found: Record<string, CustomerBalance> = {};
-    await Promise.all(
-      customers
-        .filter((c) => !customerBalances[c.id])
-        .map(async (c) => {
-          try {
-            found[c.id] = await apiClient.getCustomerBalance(c.id);
-          } catch {
-            // continua faltando; o aviso fica
-          }
-        }),
-    );
-    // O que já está no estado (ex.: de um loadCustomers mais novo) sempre vence o saldo do retry.
-    setCustomerBalances((prev) => ({ ...found, ...prev }));
   }
 
   useEffect(() => {
@@ -185,53 +111,6 @@ export default function GestaoPage() {
     }
     init();
   }, [router, loadProducts, loadCustomers, loadCash, loadCreditMetrics, loadOperators]);
-
-  // --- Handlers de Clientes / Fiado ---
-  async function handleCreateCustomer(e: React.FormEvent) {
-    e.preventDefault();
-    setProcessing(true);
-    setFeedback(null);
-    try {
-      await apiClient.createCustomer({
-        name: newCustName.trim(),
-        phone: newCustPhone.trim(),
-        creditLimit: parseCurrencyInput(newCustLimit),
-      });
-      setFeedback({ text: 'Cliente cadastrado com sucesso!' });
-      setShowNewCustomer(false);
-      setNewCustName('');
-      setNewCustPhone('');
-      setNewCustLimit('100.00');
-      await loadCustomers();
-    } catch (err) {
-      setFeedback({ text: getErrorMessage(err, 'Erro ao cadastrar cliente.'), isError: true });
-    } finally {
-      setProcessing(false);
-    }
-  }
-
-  async function handleSettleDebt(e: React.FormEvent) {
-    e.preventDefault();
-    if (!settlingCustomer) return;
-    setProcessing(true);
-    setFeedback(null);
-    try {
-      const val = parseCurrencyInput(settleAmount);
-      await apiClient.settleCustomerDebt(settlingCustomer.customerId, {
-        amount: val,
-        note: settleNote.trim() || undefined,
-      });
-      setFeedback({ text: `Quitação de ${formatMoney(val)} realizada com sucesso e registrada no caixa!` });
-      setSettlingCustomer(null);
-      setSettleAmount('');
-      setSettleNote('');
-      await Promise.all([loadCustomers(), loadCash(), loadCreditMetrics()]);
-    } catch (err) {
-      setFeedback({ text: getErrorMessage(err, 'Erro ao quitar débito de fiado.'), isError: true });
-    } finally {
-      setProcessing(false);
-    }
-  }
 
   // --- Handlers de Caixa ---
   async function handleOpenCash(e: React.FormEvent) {
@@ -335,7 +214,6 @@ export default function GestaoPage() {
   }
 
 
-  const missingBalances = customers.filter((c) => !customerBalances[c.id]).length;
   const shape = skeletonGate === 'skeleton';
 
   return (
@@ -419,231 +297,7 @@ export default function GestaoPage() {
 
         {/* TAB 2: CLIENTES & FIADO */}
         {activeTab === 'fiado' && (
-          <section className="mg-section">
-            {loadFailed.customers && (
-              <LoadFailureNotice what="a lista de clientes" busy={retrying} onRetry={() => retry(loadCustomers)} />
-            )}
-            {loadFailed.balances && missingBalances > 0 && (
-              <LoadFailureNotice
-                what={`o saldo de ${missingBalances} cliente(s)`}
-                busy={retrying}
-                onRetry={() => retry(loadMissingBalances)}
-              />
-            )}
-            {loadFailed.metrics && (
-              <LoadFailureNotice what="as métricas de fiado" busy={retrying} onRetry={() => retry(loadCreditMetrics)} />
-            )}
-            {/* Indicadores: Fiado na Rua */}
-            <div className="mg-kpis">
-              <div className="mg-kpi">
-                <div className="mg-kpi-label">Total de Fiado na Rua</div>
-                <div className="mg-kpi-value num">
-                  {formatMoney(creditMetrics ? creditMetrics.totalOutstandingCredit : 0)}
-                </div>
-              </div>
-              <div className="mg-kpi">
-                <div className="mg-kpi-label">Clientes com dívida ativa na caderneta</div>
-                <div className="mg-kpi-value num">{creditMetrics?.activeDebtorsCount ?? 0}</div>
-              </div>
-              {creditMetrics && (
-                <div className="mg-kpi">
-                  <div className="mg-kpi-label">Total já liquidado/recebido</div>
-                  <div className="mg-kpi-value num">{formatMoney(creditMetrics.totalSettledCredit)}</div>
-                </div>
-              )}
-            </div>
-
-            <div className="card mg-card-flush">
-              <div className="mg-toolbar">
-                <label htmlFor="customer-search" className="sr-only">Buscar cliente</label>
-                <input
-                  id="customer-search"
-                  type="text"
-                  className="input mg-search"
-                  placeholder="Buscar cliente por nome ou telefone..."
-                  value={customerQuery}
-                  onChange={(e) => setCustomerQuery(e.target.value)}
-                />
-                <button type="button" className="outline mg-row-action" onClick={loadCreditMetrics}>
-                  ↻ Atualizar Indicadores
-                </button>
-                <button
-                  type="button"
-                  className="primary mg-toolbar-action"
-                  onClick={() => setShowNewCustomer(!showNewCustomer)}
-                >
-                  {showNewCustomer ? 'Cancelar' : '＋ Novo Cliente'}
-                </button>
-              </div>
-            </div>
-
-            {/* Form Novo Cliente */}
-            {showNewCustomer && (
-              <form onSubmit={handleCreateCustomer} className="card">
-                <h3>Cadastrar Cliente para Fiado</h3>
-                <div className="mg-form-grid">
-                  <div>
-                    <label className="field-label" htmlFor="nc-name">Nome Completo</label>
-                    <input
-                      id="nc-name"
-                      className="input"
-                      required
-                      value={newCustName}
-                      onChange={(e) => setNewCustName(e.target.value)}
-                      placeholder="Ex: Seu Antenor da Esquina"
-                    />
-                  </div>
-                  <div>
-                    <label className="field-label" htmlFor="nc-phone">Telefone / WhatsApp</label>
-                    <input
-                      id="nc-phone"
-                      className="input num"
-                      required
-                      value={newCustPhone}
-                      onChange={(e) => setNewCustPhone(e.target.value)}
-                      placeholder="11999998888"
-                    />
-                  </div>
-                  <div>
-                    <label className="field-label" htmlFor="nc-limit">Limite de Fiado (R$)</label>
-                    <input
-                      id="nc-limit"
-                      className="input num"
-                      type="number"
-                      step="0.01"
-                      min="0"
-                      required
-                      value={newCustLimit}
-                      onChange={(e) => setNewCustLimit(e.target.value)}
-                    />
-                  </div>
-                </div>
-                <button className="primary mg-form-submit" type="submit" disabled={processing}>
-                  {processing ? 'Salvando...' : 'Cadastrar Cliente'}
-                </button>
-              </form>
-            )}
-
-            {/* Grid de Clientes e Dívidas */}
-            <div className="mg-grid">
-              {customers
-                .filter(
-                  (c) =>
-                    c.name.toLowerCase().includes(customerQuery.toLowerCase()) ||
-                    c.phone.includes(customerQuery)
-                )
-                .map((c) => {
-                  const bal = customerBalances[c.id];
-                  const debt = bal ? parseCurrencyInput(bal.currentDebt) : 0;
-                  const limit = bal ? parseCurrencyInput(bal.creditLimit) : parseCurrencyInput(c.creditLimit);
-                  const ratio = limit > 0 ? Math.min(100, (debt / limit) * 100) : debt > 0 ? 100 : 0;
-
-                  return (
-                    <div key={c.id} className="card mg-customer">
-                      <div className="mg-customer-head">
-                        <strong>{c.name}</strong>
-                        <span className="muted num">{c.phone}</span>
-                      </div>
-
-                      <div>
-                        <span className="mg-meta">Dívida Atual em Aberto</span>
-                        <div className={`mg-debt num ${debt === 0 ? 'zero' : ''}`}>
-                          {formatMoney(debt)}
-                        </div>
-                      </div>
-
-                      <div className="mg-limit-bar">
-                        <div
-                          className={`mg-limit-fill ${ratio >= 100 ? 'exceeded' : ratio >= 80 ? 'warning' : ''}`}
-                          style={{ width: `${ratio}%` }}
-                        />
-                      </div>
-                      <div className="mg-limit-legend num">
-                        <span>Limite: {formatMoney(limit)}</span>
-                        <span>Disponível: {formatMoney(bal ? bal.availableCredit : limit - debt)}</span>
-                      </div>
-
-                      {debt > 0 && (
-                        <button
-                          type="button"
-                          className="primary"
-                          onClick={() => {
-                            setSettlingCustomer(bal || null);
-                            setSettleAmount(String(debt));
-                          }}
-                        >
-                          Quitar Fiado no Caixa
-                        </button>
-                      )}
-                    </div>
-                  );
-                })}
-            </div>
-
-            {/* Modal de Quitação de Dívida */}
-            {settlingCustomer && (
-              <div className="mg-backdrop">
-                <form
-                  onSubmit={handleSettleDebt}
-                  className="mg-dialog"
-                  role="dialog"
-                  aria-modal="true"
-                  aria-labelledby="settle-title"
-                >
-                  <div className="mg-dialog-head">
-                    <h2 id="settle-title">Quitação de Fiado no Caixa</h2>
-                    <button
-                      type="button"
-                      className="mg-dialog-close"
-                      aria-label="Fechar"
-                      onClick={() => setSettlingCustomer(null)}
-                    >
-                      ×
-                    </button>
-                  </div>
-                  <p className="muted">
-                    Cliente: <strong>{settlingCustomer.name}</strong><br />
-                    Saldo Devedor Atual: <strong className="num">{formatMoney(settlingCustomer.currentDebt)}</strong>
-                  </p>
-
-                  <div>
-                    <label className="field-label" htmlFor="settle-val">Valor Pago em Dinheiro (R$)</label>
-                    <input
-                      id="settle-val"
-                      className="input mg-amount num"
-                      type="number"
-                      step="0.01"
-                      min="0.01"
-                      max={parseCurrencyInput(settlingCustomer.currentDebt)}
-                      required
-                      value={settleAmount}
-                      onChange={(e) => setSettleAmount(e.target.value)}
-                    />
-                  </div>
-
-                  <div>
-                    <label className="field-label" htmlFor="settle-note">Observação / Recibo (opcional)</label>
-                    <input
-                      id="settle-note"
-                      className="input"
-                      value={settleNote}
-                      onChange={(e) => setSettleNote(e.target.value)}
-                      placeholder="Ex: Pago em dinheiro no balcão"
-                    />
-                  </div>
-
-                  <div className="mg-dialog-actions">
-                    <button className="soft" type="button" onClick={() => setSettlingCustomer(null)}>
-                      Cancelar
-                    </button>
-                    <button className="primary" type="submit" disabled={processing}>
-                      {processing ? 'Processando...' : 'Confirmar Recebimento e Entrada no Caixa'}
-                    </button>
-                  </div>
-                </form>
-              </div>
-            )}
-          </section>
+          <CustomersTab tab={customersTab} loadFailed={loadFailed} retrying={retrying} processing={processing} retry={retry} />
         )}
 
         {/* TAB 3: CONTROLE & FECHAMENTO DE CAIXA */}

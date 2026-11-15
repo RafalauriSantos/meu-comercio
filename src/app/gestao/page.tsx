@@ -10,7 +10,6 @@ import {
   CustomerItem,
   CustomerBalance,
   CashSessionData,
-  OperatorItem,
   CreditMetricsData,
 } from '@/frontend/lib/api-client';
 import { formatMoney, parseCurrencyInput, getErrorMessage } from '@/frontend/lib/formatters';
@@ -24,6 +23,8 @@ import { useSkeletonGate } from '@/frontend/lib/use-skeleton-gate';
 import { ManagementDataSkeleton } from '@/frontend/management/management-skeleton';
 import { ImportProductsPanel } from '@/frontend/management/import-products-panel';
 import { SalesReportPanel } from '@/frontend/management/sales-report-panel';
+import { OperatorsTab } from '@/frontend/management/operators-tab';
+import { useOperatorsTab } from '@/frontend/management/use-operators-tab';
 import {
   countNeedingRestock,
   inventoryValue,
@@ -99,15 +100,12 @@ export default function GestaoPage() {
   const [cashOpAmount, setCashOpAmount] = useState('');
   const [cashOpReason, setCashOpReason] = useState('');
 
-  // Estados de Operadores (Equipe)
-  const [operators, setOperators] = useState<OperatorItem[]>([]);
-  const [showNewOperator, setShowNewOperator] = useState(false);
-  const [newOpUsername, setNewOpUsername] = useState('');
-  const [newOpPassword, setNewOpPassword] = useState('');
-
   const [loadFailed, setLoadFailed] = useState<Partial<Record<LoadKey, boolean>>>({});
   // Um pedido por vez (limite de 30 requisições por minuto): enquanto um retry roda, todos os botões ficam bloqueados.
   const [retrying, setRetrying] = useState(false);
+  const operatorsTab = useOperatorsTab({ setFeedback, setProcessing, setLoadFailed });
+  const { operators, loadOperators } = operatorsTab;
+
 
   const loadProducts = useCallback(async (query = '') => {
     try {
@@ -161,17 +159,6 @@ export default function GestaoPage() {
     } catch (err) {
       setLoadFailed((f) => ({ ...f, cash: true }));
       console.error('Erro ao carregar caixa:', err);
-    }
-  }, []);
-
-  const loadOperators = useCallback(async () => {
-    try {
-      const res = await apiClient.listOperators();
-      setOperators(res.items || []);
-      setLoadFailed((f) => ({ ...f, operators: false }));
-    } catch (err) {
-      setLoadFailed((f) => ({ ...f, operators: true }));
-      console.error('Erro ao carregar operadores:', err);
     }
   }, []);
 
@@ -438,27 +425,6 @@ export default function GestaoPage() {
       await loadCash();
     } catch (err) {
       setFeedback({ text: getErrorMessage(err, 'Erro ao fechar caixa.'), isError: true });
-    } finally {
-      setProcessing(false);
-    }
-  }
-
-  async function handleCreateOperator(e: React.FormEvent) {
-    e.preventDefault();
-    setProcessing(true);
-    setFeedback(null);
-    try {
-      await apiClient.createOperator({
-        username: newOpUsername.trim(),
-        password: newOpPassword,
-      });
-      setFeedback({ text: `Operador '${newOpUsername.trim()}' cadastrado com sucesso!` });
-      setShowNewOperator(false);
-      setNewOpUsername('');
-      setNewOpPassword('');
-      await loadOperators();
-    } catch (err) {
-      setFeedback({ text: getErrorMessage(err, 'Erro ao cadastrar operador.'), isError: true });
     } finally {
       setProcessing(false);
     }
@@ -1324,107 +1290,7 @@ export default function GestaoPage() {
         {activeTab === 'relatorios' && user?.isOwner && <SalesReportPanel />}
 
         {activeTab === 'operadores' && user?.isOwner && (
-          <section className="mg-section">
-            {loadFailed.operators && (
-              <LoadFailureNotice what="os operadores" busy={retrying} onRetry={() => retry(loadOperators)} />
-            )}
-            <div className="mg-section-head">
-              <div>
-                <h2>Equipe & Operadores de Caixa</h2>
-                <p className="muted">
-                  Cadastre e gerencie operadores para registrar vendas e abrir turnos de caixa no balcão.
-                </p>
-              </div>
-              <button
-                type="button"
-                className="primary"
-                onClick={() => setShowNewOperator(!showNewOperator)}
-              >
-                {showNewOperator ? 'Cancelar' : '＋ Novo Operador'}
-              </button>
-            </div>
-
-            {/* Form Novo Operador */}
-            {showNewOperator && (
-              <form onSubmit={handleCreateOperator} className="card mg-narrow">
-                <h3>Cadastrar Novo Operador</h3>
-                <div className="mg-stack">
-                  <div>
-                    <label className="field-label" htmlFor="op-username">Usuário de Acesso</label>
-                    <input
-                      id="op-username"
-                      className="input"
-                      required
-                      value={newOpUsername}
-                      onChange={(e) => setNewOpUsername(e.target.value)}
-                      placeholder="Ex: joao.caixa ou maria"
-                    />
-                    <small className="mg-help">
-                      O usuário que o operador usará para entrar no PDV.
-                    </small>
-                  </div>
-                  <div>
-                    <label className="field-label" htmlFor="op-password">Senha de Acesso</label>
-                    <input
-                      id="op-password"
-                      className="input"
-                      type="password"
-                      required
-                      minLength={6}
-                      value={newOpPassword}
-                      onChange={(e) => setNewOpPassword(e.target.value)}
-                      placeholder="Mínimo 6 caracteres"
-                    />
-                  </div>
-                </div>
-                <button className="primary mg-form-submit" type="submit" disabled={processing}>
-                  {processing ? 'Salvando...' : 'Salvar Operador'}
-                </button>
-              </form>
-            )}
-
-            {/* Tabela de Operadores */}
-            <div className="card mg-card-flush">
-              <div className="mg-table-wrap">
-                <table className="mg-table">
-                  <thead>
-                    <tr>
-                      <th scope="col">Usuário</th>
-                      <th scope="col">Função</th>
-                      <th scope="col">Status</th>
-                      <th scope="col">Cadastrado em</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {operators.length === 0 ? (
-                      <tr>
-                        <td colSpan={4} className="mg-empty-cell">
-                          Nenhum operador cadastrado ainda. Clique em &quot;＋ Novo Operador&quot; para adicionar funcionários ao caixa.
-                        </td>
-                      </tr>
-                    ) : (
-                      operators.map((op) => (
-                        <tr key={op.username}>
-                          <td><strong>{op.username}</strong></td>
-                          <td>
-                            <span className="mg-pill">Operador de Caixa</span>
-                          </td>
-                          <td>
-                            <span className={`mg-status ${op.enabled ? 'on' : 'off'}`}>
-                              {op.enabled ? '● Ativo' : '● Inativo'}
-                            </span>
-                          </td>
-                          <td className="muted num">
-                            {new Date(op.createdAt).toLocaleDateString('pt-BR')}
-                          </td>
-                        </tr>
-                      ))
-                    )}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          </section>
+          <OperatorsTab tab={operatorsTab} loadFailed={loadFailed} retrying={retrying} processing={processing} retry={retry} />
         )}
 
         {/* MODAL DE SANGRIA E SUPRIMENTO DE CAIXA */}

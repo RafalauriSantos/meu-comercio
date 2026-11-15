@@ -1,8 +1,10 @@
 import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { readScreenSource } from '@/test-utils/read-screen-source';
 
-const source = readFileSync(join(process.cwd(), 'src', 'app', 'pdv', 'page.tsx'), 'utf8');
+// The whole screen: the page plus the files of src/frontend/pdv.
+const source = readScreenSource('pdv');
 const css = readFileSync(join(process.cwd(), 'src', 'frontend', 'styles', 'pdv.css'), 'utf8');
 
 describe('PDV: fiado is hidden from the main buttons but easy to find', () => {

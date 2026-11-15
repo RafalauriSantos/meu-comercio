@@ -1,8 +1,11 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { useEffect, useState } from 'react';
 
 // No DOM: React is replaced by a small harness (state in slots, effects after each render only when their
 // dependencies changed, setState re-renders at once). The page is called as a function and the returned
-// element tree is read; child components are not run. The failure notice is found by the function name
+// element tree is read. The page may be thin: the screen (and its tabs) can live in components of other
+// files, so the function components of the tree are run too, in the same render and with the same hooks
+// (see `expand`), except the ones in KEPT. The failure notice is found by the function name
 // `LoadFailureNotice` and its props (`what`, `onRetry`, `busy`), so this file does not import it.
 type Slot = {
   value?: unknown;
@@ -96,11 +99,33 @@ import { formatMoney } from '@/frontend/lib/formatters';
 type El = { type: unknown; props: { children?: unknown; [key: string]: unknown } };
 type Notice = El & { props: { what: string; onRetry: () => unknown; busy?: boolean } };
 
+// Pieces that stay as elements: the notice (read by its name and props), the shared header and version label, the skeleton and
+// the two panels that have their own state and requests. Anything else that is a function component is a
+// part of the screen and is run. An error while running one is not caught: a screen piece that this
+// harness cannot run must fail the test, never make a `whats()` of [] pass without looking.
+//
+// Known limits of `expand` (the test 'harness: expand' below proves what it does):
+//  - the hooks of a child share the slots of the page by call order, so a child that appears or disappears
+//    by a condition shifts the slots of every hook after it;
+//  - only plain function components are run: memo(...) and forwardRef(...) are objects and stay as elements;
+//  - KEPT compares the function name, so a renamed component, or another one with the same name, is also kept.
+// gestao-request-order.test.ts has a copy of this harness; the test of `expand` lives only here.
+const KEPT = new Set(['LoadFailureNotice', 'AppHeader', 'ManagementDataSkeleton', 'VersionLabel', 'SalesReportPanel', 'ImportProductsPanel']);
+
+function expand(node: unknown): unknown {
+  if (Array.isArray(node)) return node.map(expand);
+  if (!node || typeof node !== 'object' || !('props' in node)) return node;
+  const el = node as El;
+  if (typeof el.type === 'function' && !KEPT.has(el.type.name)) return expand((el.type as (props: unknown) => unknown)(el.props));
+  if (!('children' in el.props)) return el;
+  return { ...el, props: { ...el.props, children: expand(el.props.children) } };
+}
+
 let tree: unknown;
 let rendering = false;
 let dirty = false;
 
-function render() {
+function render(root: () => unknown = () => GestaoPage()) {
   if (rendering) {
     dirty = true;
     return;
@@ -111,7 +136,7 @@ function render() {
       dirty = false;
       h.index = 0;
       h.pending = [];
-      tree = GestaoPage();
+      tree = expand(root());
       for (const { slot, effect, deps } of h.pending) {
         const changed = !deps || !slot.deps || deps.some((d, i) => !Object.is(d, slot.deps![i]));
         if (!changed) continue;
@@ -217,6 +242,57 @@ beforeEach(() => {
   h.api.getCreditMetrics.mockResolvedValue({ totalOutstandingCredit: '60.00', totalSettledCredit: '0.00', activeDebtorsCount: 3 });
   h.api.listOperators.mockResolvedValue({ items: [] });
   h.api.createCustomer.mockResolvedValue({});
+});
+
+describe('harness: expand', () => {
+  const log: string[] = [];
+  let setCount: (n: number) => void = () => {};
+
+  // A child with its own hooks, and a piece that is in KEPT (by name) and must not run.
+  function Child({ label }: { label: string }) {
+    const [count, set] = useState(0);
+    setCount = set;
+    useEffect(() => {
+      log.push(`effect ${count}`);
+    }, [count]);
+    return { type: 'span', props: { children: `${label}${count}` } };
+  }
+  function LoadFailureNotice() {
+    log.push('kept ran');
+    return null;
+  }
+  const Root = () => ({
+    type: 'div',
+    props: { children: [{ type: Child, props: { label: 'c' } }, { type: LoadFailureNotice, props: { what: 'x', onRetry: () => {} } }] },
+  });
+
+  beforeEach(() => {
+    log.length = 0;
+    h.slots.length = 0;
+    h.run = () => render(Root); // a setState of the fake child re-renders the fake root, not the page
+  });
+  afterEach(() => {
+    h.run = render;
+  });
+
+  it('runs a child function component: its state and its effect work through the harness hooks', () => {
+    render(Root);
+    expect(text(tree)).toBe('c0');
+    expect(log).toEqual(['effect 0']);
+
+    setCount(2);
+    expect(text(tree)).toBe('c2');
+    expect(log).toEqual(['effect 0', 'effect 2']);
+  });
+
+  it('does not run a piece of KEPT: it stays in the tree as an element, found by its name', () => {
+    render(Root);
+    setCount(1);
+
+    expect(log).not.toContain('kept ran');
+    expect(notices()).toHaveLength(1);
+    expect(notices()[0].props.what).toBe('x');
+  });
 });
 
 describe('/gestao without failures (control: nothing changes at HEAD)', () => {

@@ -1,6 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { readFileSync } from 'node:fs';
-import { join } from 'node:path';
+import { readScreenSource } from '@/test-utils/read-screen-source';
 import { isNameSearch, moveHighlight } from './product-search';
 
 describe('isNameSearch', () => {
@@ -39,7 +38,8 @@ describe('moveHighlight', () => {
 });
 
 describe('PDV search by name', () => {
-  const page = readFileSync(join(process.cwd(), 'src', 'app', 'pdv', 'page.tsx'), 'utf8').replace(/\r\n/g, '\n');
+  // The whole screen: the page plus the files of src/frontend/pdv.
+  const page = readScreenSource('pdv').replace(/\r\n/g, '\n');
 
   it('keeps Enter as a barcode lookup when the list is not showing (the scanner sends Enter at once)', () => {
     expect(page).toContain('if (showSearch && searchResults[highlighted]) {');

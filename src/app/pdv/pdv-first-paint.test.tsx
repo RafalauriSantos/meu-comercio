@@ -1,7 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
-import { readFileSync } from 'node:fs';
-import { join } from 'node:path';
 import { renderToStaticMarkup } from 'react-dom/server';
+import { readScreenSource } from '@/test-utils/read-screen-source';
 
 // The server HTML of /pdv is what renderToStaticMarkup gives: effects do not run, so the page is in its
 // initial state (no user, loading). `gate.override` lets a test force the 'wait' phase of the delay gate.
@@ -19,7 +18,8 @@ vi.mock('@/frontend/lib/use-skeleton-gate', async (importOriginal) => {
 
 import PdvPage from './page';
 
-const source = readFileSync(join(process.cwd(), 'src', 'app', 'pdv', 'page.tsx'), 'utf8');
+// The whole screen: the page plus the files of src/frontend/pdv.
+const source = readScreenSource('pdv');
 
 function count(text: string, needle: string | RegExp): number {
   return typeof needle === 'string' ? text.split(needle).length - 1 : (text.match(needle) ?? []).length;
@@ -105,9 +105,10 @@ describe('/pdv loading failures and requests (locked as at HEAD, baseline.md)', 
   });
 
   // HEAD has 12 (baseline.md). Step 6 adds exactly one on purpose: retryCustomers (apiClient.listCustomers,
-  // only on click). Nothing else in the PDV gets a new call.
-  it('has 13 apiClient calls: the 12 of HEAD plus the single retry of the customer list', () => {
-    expect(count(source, 'apiClient.')).toBe(13);
+  // only on click). Nothing else in the PDV gets a new call. Counted over the whole screen: the 13 of
+  // page.tsx plus the 1 of cancel-sale-modal.tsx, which is its own file and does not move.
+  it('has 13 apiClient calls: the 12 of HEAD plus the single retry of the customer list (and 1 in cancel-sale-modal)', () => {
+    expect(count(source, 'apiClient.')).toBe(13 + 1);
     expect(count(source, 'apiClient.listCustomers(')).toBe(2);
     expect(count(source, 'apiClient.me()')).toBe(1);
     expect(count(source, 'apiClient.getCurrentCash()')).toBe(2);

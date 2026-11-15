@@ -1,7 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
-import { readFileSync } from 'node:fs';
-import { join } from 'node:path';
 import { ApiError, type ProductItem } from '@/frontend/lib/api-client';
+import { readScreenSource } from '@/test-utils/read-screen-source';
 import { findProductWithBarcode, takenBarcodeMessage } from './barcode-check';
 
 const rice: ProductItem = { id: 'p1', barcode: '789', name: 'Arroz 5kg', salePrice: 25.5, availableQuantity: 10 };
@@ -39,7 +38,8 @@ describe('findProductWithBarcode', () => {
 });
 
 describe('registering a product with the barcode scanner', () => {
-  const page = readFileSync(join(process.cwd(), 'src', 'app', 'gestao', 'page.tsx'), 'utf8').replace(/\r\n/g, '\n');
+  // The whole screen: the page plus the files of src/frontend/management.
+  const page = readScreenSource('gestao').replace(/\r\n/g, '\n');
 
   it('puts the cursor in the barcode field when the form opens', () => {
     expect(page).toMatch(/id="np-barcode"[\s\S]*?autoFocus/);

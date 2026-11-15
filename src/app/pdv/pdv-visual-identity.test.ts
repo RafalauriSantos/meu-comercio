@@ -1,10 +1,12 @@
 import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { readScreenSource } from '@/test-utils/read-screen-source';
 
 const root = process.cwd();
 const css = readFileSync(join(root, 'src', 'frontend', 'styles', 'pdv.css'), 'utf8');
-const page = readFileSync(join(root, 'src', 'app', 'pdv', 'page.tsx'), 'utf8');
+// The whole screen: the page plus the files of src/frontend/pdv.
+const page = readScreenSource('pdv');
 
 // Everything outside the thermal-receipt @media print block, which may use plain black and white.
 const screenCss = css.slice(0, css.indexOf('@media print'));

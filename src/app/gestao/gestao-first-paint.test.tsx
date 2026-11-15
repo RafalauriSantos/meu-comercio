@@ -1,7 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
-import { readFileSync } from 'node:fs';
-import { join } from 'node:path';
 import { renderToStaticMarkup } from 'react-dom/server';
+import { readScreenSource } from '@/test-utils/read-screen-source';
 
 // The server HTML of /gestao is what renderToStaticMarkup gives: effects do not run, so the page is in its
 // initial state (no user, loading). `gate.override` lets a test force the 'wait' phase of the delay gate.
@@ -19,7 +18,8 @@ vi.mock('@/frontend/lib/use-skeleton-gate', async (importOriginal) => {
 
 import GestaoPage from './page';
 
-const source = readFileSync(join(process.cwd(), 'src', 'app', 'gestao', 'page.tsx'), 'utf8');
+// The whole screen: the page plus the files of src/frontend/management.
+const source = readScreenSource('gestao');
 
 function count(text: string, needle: string | RegExp): number {
   return typeof needle === 'string' ? text.split(needle).length - 1 : (text.match(needle) ?? []).length;
@@ -100,8 +100,10 @@ describe('/gestao loading failures and requests (locked as at HEAD, baseline.md)
 
   // HEAD has 19 (baseline.md). Step 5 adds exactly one on purpose: the retry of the missing balances
   // (apiClient.getCustomerBalance inside the retry). Every other retry reuses the existing loadX functions.
-  it('has 20 apiClient calls: the 19 of HEAD plus the single retry of the missing balances', () => {
-    expect(count(source, 'apiClient.')).toBe(20);
+  // Counted over the whole screen: the 20 of page.tsx plus the 2 of import-products-panel.tsx, which is its
+  // own file and does not move.
+  it('has 20 apiClient calls: the 19 of HEAD plus the single retry of the missing balances (and 2 in import-products-panel)', () => {
+    expect(count(source, 'apiClient.')).toBe(20 + 2);
     expect(count(source, 'apiClient.getCustomerBalance(')).toBe(2);
     expect(count(source, 'apiClient.listCustomers(')).toBe(1);
     expect(count(source, 'apiClient.listProducts(')).toBe(1);

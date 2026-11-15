@@ -22,7 +22,7 @@ const SCREENS: Record<Screen, ScreenConfig> = {
   pdv: {
     page: ['src', 'app', 'pdv', 'page.tsx'],
     folder: ['src', 'frontend', 'pdv'],
-    expected: ['cancel-sale-modal.tsx', 'pdv-skeleton.tsx', 'search-results.tsx', 'weight-prompt.tsx'],
+    expected: ['cancel-sale-modal.tsx', 'pdv-skeleton.tsx', 'receipt-modal.tsx', 'search-results.tsx', 'weight-prompt.tsx'],
   },
   gestao: {
     page: ['src', 'app', 'gestao', 'page.tsx'],

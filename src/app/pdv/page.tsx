@@ -48,6 +48,7 @@ import { LoadFailureNotice } from '@/frontend/ui/load-failure-notice';
 import { AppHeader } from '@/frontend/ui/app-header';
 import { WeightPrompt } from '@/frontend/pdv/weight-prompt';
 import { CancelSaleModal } from '@/frontend/pdv/cancel-sale-modal';
+import { ReceiptModal, type PrintModalData } from '@/frontend/pdv/receipt-modal';
 import { VersionLabel } from '@/frontend/ui/version-label';
 import { WEIGHT_STEP_GRAMS } from '@/frontend/pdv/weight-input';
 import { formatQuantity, lineSubtotal } from '@/shared/domain/product-unit';
@@ -134,11 +135,7 @@ export default function PdvTerminalPage() {
   const [cashOpReason, setCashOpReason] = useState('');
 
   // Impressão Térmica pós-venda
-  const [printModalData, setPrintModalData] = useState<{
-    receiptText: string;
-    creditNoteText?: string;
-    activeTab: 'receipt' | 'creditNote';
-  } | null>(null);
+  const [printModalData, setPrintModalData] = useState<PrintModalData | null>(null);
 
   // Notificações e Feedback
   const [message, setMessage] = useState<{ text: string; isError?: boolean } | null>(null);
@@ -1567,64 +1564,7 @@ export default function PdvTerminalPage() {
         </div>
       )}
 
-      {/* MODAL DE IMPRESSÃO TÉRMICA PÓS-VENDA */}
-      {printModalData && (
-        <div className="pdv-overlay no-print">
-          <div className="pdv-modal is-narrow" role="dialog" aria-modal="true" aria-labelledby="pdv-print-title">
-            <div className="pdv-modal-body">
-              <p className="pdv-eyebrow">Pós-venda · impressão térmica</p>
-              <h2 id="pdv-print-title" className="pdv-title">
-                Comprovante da venda
-              </h2>
-
-              {printModalData.creditNoteText && (
-                <div role="group" aria-label="Tipo de comprovante" className="pdv-choices is-two">
-                  <button
-                    type="button"
-                    className="pdv-choice"
-                    aria-pressed={printModalData.activeTab === 'receipt'}
-                    onClick={() => setPrintModalData({ ...printModalData, activeTab: 'receipt' })}
-                  >
-                    Cupom não fiscal
-                  </button>
-                  <button
-                    type="button"
-                    className="pdv-choice"
-                    aria-pressed={printModalData.activeTab === 'creditNote'}
-                    onClick={() => setPrintModalData({ ...printModalData, activeTab: 'creditNote' })}
-                  >
-                    Canhoto fiado (assinatura)
-                  </button>
-                </div>
-              )}
-
-              <pre className="pdv-receipt">
-                {printModalData.activeTab === 'receipt'
-                  ? printModalData.receiptText
-                  : printModalData.creditNoteText}
-              </pre>
-            </div>
-
-            <footer className="pdv-modal-foot">
-              <button className="outline pdv-back" type="button" onClick={() => setPrintModalData(null)}>
-                Fechar
-              </button>
-              <button className="primary pdv-confirm" type="button" onClick={() => window.print()}>
-                Imprimir (Ctrl+P)
-              </button>
-            </footer>
-          </div>
-        </div>
-      )}
-
-      {/* Elemento de impressão térmica invisível em tela e renderizado no print */}
-      {printModalData && (
-        <div className="thermal-print-area" aria-hidden="true">
-          {printModalData.activeTab === 'receipt'
-            ? printModalData.receiptText
-            : printModalData.creditNoteText}
-        </div>
-      )}
+      <ReceiptModal printModalData={printModalData} setPrintModalData={setPrintModalData} />
     </div>
   );
 }

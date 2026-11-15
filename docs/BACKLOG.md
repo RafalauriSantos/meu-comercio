@@ -225,3 +225,27 @@ Este documento rastreia formalmente as fatias verticais de entrega, critérios d
 - [ ] 18.1 Decidir e adicionar a ferramenta de teste de tela (jsdom e Testing Library). É dependência nova: só com aprovação do dono do repositório.
 - [ ] 18.2 Testar o comportamento do PDV (carrinho, pagamento, ações bloqueadas até a carga) e da Gestão (abas, avisos, "Tentar de novo") com a tela montada.
 - [ ] 18.3 Trocar os testes de texto pelos de comportamento aos poucos e remover os que ficarem redundantes. Mostrar a lista antes de apagar.
+
+### [ ] Slice 19: Preparar para crescer (problemas das auditorias, em ordem de prioridade)
+> Vem das auditorias de back end, front end e escala (leitura do código; nada foi executado). Etiquetas: **[fato]** visto no código, **[reproduzir]** reproduzir com teste antes de corrigir, **[hipótese]** conta ainda não medida. **[$]** dinheiro, **[P]** permissão ou PIN, **[A]** aprovação do dono do repositório por PR. Itens 19.1 a 19.9 doem hoje ou logo; do 19.10 em diante é melhoria.
+
+- [ ] 19.1 **Conferir o ambiente (só olhar):** plano da Vercel e do Neon, uso do pooler, backup com recuperação por ponto no tempo, versão do Postgres e se o staging tem banco próprio.
+- [ ] 19.2 **Monitoramento e alertas:** rastreio de erros (sem dado sensível), monitor de site no ar e alerta de 5xx. Hoje só há Vercel Analytics. [fato]
+- [ ] 19.3 **Testes de permissão nas rotas, sem mudar código:** nenhuma das 7 rotas "só dona", nem `cash/open` e `cash/close`, testa permissão; só 8 de 29 rotas têm teste. [fato]
+- [ ] 19.4 **Saldos de fiado em lote e produtos em uma consulta** (= 17.1 e 17.3). A Gestão com mais de ~30 clientes dá 429 (30 chamadas/min) e `/api/products` faz até 1 consulta de estoque por produto. [$][A] [fato; o 429 é conta, não observado]
+- [ ] 19.5 **Transação nos fluxos de dinheiro,** um PR por fluxo e teste de banco antes: cancelamento de venda, quitação de fiado, fechamento de caixa, sangria e suprimento. Criar venda já faz certo (`commitSale`). Candidata a ADR em `docs/DECISIONS.md`. [$][A] [fato]
+- [ ] 19.6 **Estoque sob concorrência:** reposição e cancelamento leem, somam e gravam sem travar a linha; uma venda ao mesmo tempo pode se perder. [$][A] [reproduzir]
+- [ ] 19.7 **PIN de cancelamento:** o usuário padrão `'owner'` é fixo e o verificador está no módulo errado (`customers` lendo `users`). Mover para `users/infrastructure` e tirar o padrão. [P][A] [reproduzir]
+- [ ] 19.8 **Não devolver SQL em mensagem de erro** (4 rotas) e um tratamento de erro comum para as rotas (`handleRouteError`, `parseJsonBody`); 22 a 26 das 29 rotas repetem o mesmo bloco. [fato; se o Drizzle sempre põe o SQL na mensagem: reproduzir]
+- [ ] 19.9 **Erro de rede não vira logout:** só 401 vai para `/login`; `apiClient` ganha tempo limite e mensagem clara. Hoje qualquer erro no PDV leva ao login e perde o carrinho. [P][A] [fato]
+- [ ] 19.10 **Limitador de requisições:** hoje é um `Map` por instância (não protege em escala), nunca limpa a memória, confia no primeiro `X-Forwarded-For` e lojas atrás do mesmo IP dividem o balde. Mover para armazenamento compartilhado, limitar por usuário e renomear `middleware.ts` para `proxy.ts`. [fato]
+- [ ] 19.11 **LGPD:** texto de privacidade e termos, e um procedimento para pedido de titular (= 13.6). O cadastro coleta e-mail sem aviso. [fato]
+- [ ] 19.12 **Duplicações:** 3 pares de classes de erro com o mesmo nome, validação de dinheiro copiada em 8 arquivos, `requireOwnerSession` no lugar de 8 checagens, `aggregateType` da auditoria com variações. [P][A nos de permissão] [fato]
+- [ ] 19.13 **Joins de relatório e de vendas recentes com `merchant_id`,** conferindo com `EXPLAIN` numa branch do Neon. Sem migração. [hipótese]
+- [ ] 19.14 **`getExpectedCash` somando no banco,** e `max` e `idleTimeout` no Pool. Sessão de caixa aberta por semanas deixa a venda lenta. [$] [hipótese]
+- [ ] 19.15 **Financeiro apagado fisicamente:** salvar uma venda apaga e recria `sale_items` e `payments`, contra a regra do projeto. [$][A] [fato]
+- [ ] 19.16 **Painéis pesados sob demanda** (`next/dynamic`: relatórios, importação) e CSP em modo Report-Only. [fato]
+
+**Quando chegar em X (não fazer antes):** pooler do Neon com ~200 lojas ou primeiro erro de conexão; teste de carga com ~500 lojas; chave de idempotência obrigatória no PDV com 500 a 1 mil lojas; política de retenção de `audit_events` com o banco acima de 20 a 50 GB; usuário por loja ou login por e-mail com ~1 mil lojas ou "usuário já existe" acima de 2% (hoje `username` é único no mundo todo; pede ADR e migração); réplica de leitura e resumo diário com relatório anual lento; partição de tabelas com ~10 mil lojas.
+
+**Não fazer antes da hora:** microserviços, sharding, fila para a venda, cache de dinheiro, estoque, saldo ou sessão (nunca), Row Level Security, Redis ou CDN de API antes de medir, trocar Neon, Drizzle ou Vercel por precaução, e planejar para 1 milhão de lojas.

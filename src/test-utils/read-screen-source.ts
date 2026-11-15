@@ -27,7 +27,7 @@ const SCREENS: Record<Screen, ScreenConfig> = {
   gestao: {
     page: ['src', 'app', 'gestao', 'page.tsx'],
     folder: ['src', 'frontend', 'management'],
-    expected: ['import-products-panel.tsx', 'management-skeleton.tsx', 'sales-report-panel.tsx'],
+    expected: ['import-products-panel.tsx', 'management-skeleton.tsx', 'operators-tab.tsx', 'sales-report-panel.tsx', 'use-operators-tab.ts'],
   },
 };
 

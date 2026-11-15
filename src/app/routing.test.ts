@@ -3,6 +3,12 @@ import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 
 const APP_DIR = join(process.cwd(), 'src', 'app');
+const FRONTEND_DIR = join(process.cwd(), 'src', 'frontend');
+// The brand of the sign in card links to the landing page (/) on purpose; auth-shell.test.tsx locks it.
+// The exception is narrow: this file must have exactly one `href="/"` and no `router.push('/')`. Any other
+// link to / (in this file or in any other swept file) fails.
+const AUTH_SHELL = join(FRONTEND_DIR, 'auth', 'auth-shell.tsx');
+const allowedLandingLinks = (file: string) => (file === AUTH_SHELL ? 1 : 0);
 
 function sourceFilesUnder(dir: string): string[] {
   return readdirSync(dir, { withFileTypes: true, recursive: true })
@@ -16,12 +22,19 @@ describe('routing: the PDV lives at /pdv', () => {
   });
 
   it('has no link from the PDV, management or login screens back to / as if it were the PDV', () => {
-    const offenders = ['pdv', 'gestao', 'login']
-      .filter((folder) => existsSync(join(APP_DIR, folder)))
-      .flatMap((folder) => sourceFilesUnder(join(APP_DIR, folder)))
+    // The pages in src/app and the code of the same screens in src/frontend (it moves out of the pages).
+    const folders = [
+      ...['pdv', 'gestao', 'login'].map((folder) => join(APP_DIR, folder)),
+      ...['pdv', 'management', 'auth'].map((folder) => join(FRONTEND_DIR, folder)),
+    ];
+    expect(folders.slice(3).filter((folder) => !existsSync(folder))).toEqual([]); // not vacuous: the frontend folders are there
+    const offenders = folders
+      .filter((folder) => existsSync(folder))
+      .flatMap((folder) => sourceFilesUnder(folder))
       .filter((file) => {
         const text = readFileSync(file, 'utf8');
-        return text.includes('href="/"') || text.includes("router.push('/')");
+        const links = text.split('href="/"').length - 1;
+        return links !== allowedLandingLinks(file) || text.includes("router.push('/')");
       });
 
     expect(offenders).toEqual([]);

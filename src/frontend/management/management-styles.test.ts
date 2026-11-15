@@ -1,17 +1,12 @@
 import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { readScreenSource } from '@/test-utils/read-screen-source';
 
 const root = process.cwd();
 const css = readFileSync(join(root, 'src', 'frontend', 'styles', 'management.css'), 'utf8');
-// The classes of the page and of the pieces it is built from.
-const page = [
-  join(root, 'src', 'app', 'gestao', 'page.tsx'),
-  join(root, 'src', 'frontend', 'management', 'import-products-panel.tsx'),
-  join(root, 'src', 'frontend', 'management', 'sales-report-panel.tsx'),
-]
-  .map((file) => readFileSync(file, 'utf8'))
-  .join('\n');
+// The classes of the whole screen: the page plus every file of src/frontend/management (no fixed list).
+const page = readScreenSource('gestao');
 
 function classesInCss(text: string): Set<string> {
   const withoutComments = text.replace(/\/\*[\s\S]*?\*\//g, '');

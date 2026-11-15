@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { readScreenSource } from '@/test-utils/read-screen-source';
 
 // There is no DOM in these tests, so effects are run by hand: the effect runs at once, and its cleanup is
 // kept to be called when the notice changes or the screen goes away.
@@ -77,8 +78,8 @@ describe('where the notices go away by themselves', () => {
   });
 
   it('is used for the notices of the management panel, the PDV and the import panel', () => {
-    expect(read('src', 'app', 'gestao', 'page.tsx')).toContain('useAutoDismiss(feedback, () => setFeedback(null));');
-    expect(read('src', 'app', 'pdv', 'page.tsx')).toContain('useAutoDismiss(message, () => setMessage(null));');
+    expect(readScreenSource('gestao')).toContain('useAutoDismiss(feedback, () => setFeedback(null));');
+    expect(readScreenSource('pdv')).toContain('useAutoDismiss(message, () => setMessage(null));');
     expect(read('src', 'frontend', 'management', 'import-products-panel.tsx')).toContain(
       'useAutoDismiss(message, () => setMessage(null));'
     );

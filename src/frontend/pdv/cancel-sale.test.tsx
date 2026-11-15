@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { renderToStaticMarkup } from 'react-dom/server';
+import { readScreenSource } from '@/test-utils/read-screen-source';
 import { CancelSaleModal } from './cancel-sale-modal';
 import { formatSaleTime, isOwnerPin, isReasonValid } from './cancel-sale';
 
@@ -48,8 +49,9 @@ describe('CancelSaleModal', () => {
 });
 
 describe('where the button is', () => {
-  const pdv = read('src', 'app', 'pdv', 'page.tsx');
-  const gestao = read('src', 'app', 'gestao', 'page.tsx');
+  // The whole screen: the page plus the files of the area folder.
+  const pdv = readScreenSource('pdv').replace(/\r\n/g, '\n');
+  const gestao = readScreenSource('gestao').replace(/\r\n/g, '\n');
 
   it('is on the sales screen, with the other counter operations, and needs an open cash register', () => {
     expect(pdv).toContain('Cancelar venda finalizada');

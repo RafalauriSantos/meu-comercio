@@ -1,13 +1,13 @@
 import { describe, it, expect } from 'vitest';
-import { readFileSync } from 'node:fs';
-import { join } from 'node:path';
 import { renderToStaticMarkup } from 'react-dom/server';
 import type { ProductItem } from '@/frontend/lib/api-client';
+import { readScreenSource } from '@/test-utils/read-screen-source';
 import { SearchResults } from '@/frontend/pdv/search-results';
 import { WeightPrompt } from '@/frontend/pdv/weight-prompt';
 import { ImportProductsPanel } from './import-products-panel';
 
-const read = (...parts: string[]) => readFileSync(join(process.cwd(), ...parts), 'utf8').replace(/\r\n/g, '\n');
+// The whole screen: the page plus the files of the area folder.
+const read = (screen: 'pdv' | 'gestao') => readScreenSource(screen).replace(/\r\n/g, '\n');
 
 const cheese: ProductItem = { id: 'q', barcode: '9', name: 'Queijo Mussarela', salePrice: 42.9, availableQuantity: 2500, unit: 'KG' };
 const rice: ProductItem = { id: 'a', barcode: '1', name: 'Arroz 5kg', salePrice: 25.5, availableQuantity: 12 };
@@ -33,7 +33,7 @@ describe('the PDV when the shop does not control its stock', () => {
   });
 
   it('asks the settings of the shop when it opens, and falls back to "controls the stock" if they do not arrive', () => {
-    const pdv = read('src', 'app', 'pdv', 'page.tsx');
+    const pdv = read('pdv');
 
     expect(pdv).toContain("apiClient.getStoreSettings().catch(() => ({ stockControlEnabled: true }))");
     expect(pdv).toContain('showStock={stockControl}');
@@ -42,7 +42,7 @@ describe('the PDV when the shop does not control its stock', () => {
 });
 
 describe('the management panel when the shop does not control its stock', () => {
-  const page = read('src', 'app', 'gestao', 'page.tsx');
+  const page = read('gestao');
 
   it('hides what is about stock: the indicators, the filters, the balance, the entry and the tags', () => {
     expect(page).toMatch(/\{stockControl && \(\s*<>\s*<div className="mg-kpi mg-kpi-warn">/);

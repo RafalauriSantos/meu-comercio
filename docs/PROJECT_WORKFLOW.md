@@ -24,6 +24,8 @@ This document defines how changes move from a branch to production. It is the so
 
 Required checks on `main`: `Lint & Security`, `TypeScript Check`, `Unit & Integration Tests`, `Production Build`. They run on every PR whose base is `main`. A PR merges only when all of them are green and the branch is up to date with `main`.
 
+The `Claude review` job (`.github/workflows/claude-review.yml`) is not a required check. When a PR is opened, reopened or marked ready, it runs the `code-review` plugin and comments on the PR. It only comments: it never approves, blocks or pushes. It skips drafts, forks and Dependabot. Read its comments and fix every blocking and important finding before merging. To review again after a fix, close and reopen the PR. The workflow only works once its file is on `main`, so the PR that changes it is not reviewed.
+
 The `Postgres Integration Tests` job also gates the build. It runs **every** `*.integration.test.ts` file with `npm run test:integration`, one file at a time (they all migrate the same database). A new integration test is picked up by its name, with nothing else to change.
 
 Known behaviour of the `Lint & Security` job:
@@ -35,10 +37,10 @@ Known behaviour of the `Lint & Security` job:
 | Change type | Merge |
 | --- | --- |
 | Docs, tests, UI text, refactors, non-financial features | Automatic: auto-merge once the local gate and the remote gate are green and `pr-reviewer` has no open findings |
-| Database schema, migration or data change | Own PR, never bundled with other changes. Only with the owner's approval |
-| Money, authentication, authorization, permissions | Stops for the owner's approval on GitHub, even when green |
+| Database schema, migration or data change | Own PR, never bundled with other changes. Only with the repository owner's approval |
+| Money, authentication, authorization, permissions | Stops for the repository owner's approval on GitHub, even when green |
 
-The owner reviews a PR only when it falls in the second or third row. Other PRs do not wait for the owner. Rows are ordered from least to most strict. If a change matches more than one row, the stricter row applies.
+The repository owner is the developer who owns this repository and decides on these approvals. The repository owner reviews a PR only when it falls in the second or third row. Other PRs do not wait for the owner. Rows are ordered from least to most strict. If a change matches more than one row, the stricter row applies.
 
 Auto-merge is enabled with `gh pr merge --auto` after the PR is opened. GitHub merges it once the required checks pass.
 

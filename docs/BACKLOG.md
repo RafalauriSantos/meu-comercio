@@ -218,3 +218,10 @@ Este documento rastreia formalmente as fatias verticais de entrega, critérios d
 - [ ] 17.2 **Gestão carrega só a aba aberta**; o resto ao clicar.
 - [ ] 17.3 **Produtos em uma consulta** (hoje `/api/products` faz uma consulta de estoque por produto).
 - [ ] 17.4 **PDV usável assim que sessão e caixa chegarem**, sem esperar clientes e configurações.
+
+### [ ] Slice 18: Testes de tela por comportamento
+> Cerca de 200 dos ~730 testes leem o texto do código (`readFileSync`, `readScreenSource`) em vez de montar a tela. Eles conferem que certo texto existe, não que a tela funciona, e quebram quando o código é movido. São a rede de segurança da reorganização (Slice 16), então ficam até ela terminar.
+
+- [ ] 18.1 Decidir e adicionar a ferramenta de teste de tela (jsdom e Testing Library). É dependência nova: só com aprovação do dono do repositório.
+- [ ] 18.2 Testar o comportamento do PDV (carrinho, pagamento, ações bloqueadas até a carga) e da Gestão (abas, avisos, "Tentar de novo") com a tela montada.
+- [ ] 18.3 Trocar os testes de texto pelos de comportamento aos poucos e remover os que ficarem redundantes. Mostrar a lista antes de apagar.

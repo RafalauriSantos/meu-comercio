@@ -39,6 +39,31 @@ describe('AppHeader', () => {
     expect(render({ clock: '13:16' })).toContain('13:16');
   });
 
+  it('reserves the width of the user name while the user is unknown, without any text', () => {
+    const markup = render({ username: undefined, isOwner: undefined });
+    const reserve = markup.match(/<span[^>]*min-width:\s*110px[^>]*>/)?.[0] ?? '';
+
+    expect(reserve).toContain('aria-hidden="true"');
+    expect(markup).not.toContain('Dona');
+    expect(markup).not.toContain('Operador');
+    expect(markup).not.toContain('·');
+  });
+
+  it('has no reserve once the user name is known', () => {
+    const markup = render({ username: 'maria', isOwner: true });
+
+    expect(markup).not.toMatch(/min-width:\s*110px/);
+    expect(markup).toContain('maria · Dona');
+  });
+
+  it('keeps the links, the active mark and Sair while the user is unknown', () => {
+    const markup = render({ active: 'gestao' });
+
+    expect(link(markup, 'Gestão')).toContain('aria-current="page"');
+    expect(link(markup, 'Venda')).toContain('href="/pdv"');
+    expect(markup).toMatch(/<button[^>]*>Sair<\/button>/);
+  });
+
   it('has a logout button and a labelled navigation', () => {
     const markup = render();
     expect(markup).toContain('aria-label="Principal"');

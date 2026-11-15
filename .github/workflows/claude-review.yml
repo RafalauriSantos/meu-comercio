@@ -46,5 +46,7 @@ jobs:
           plugins: "code-review@claude-plugins-official"
           prompt: "/code-review:code-review --comment ${{ github.repository }}/pull/${{ github.event.pull_request.number }}"
           claude_args: |
+            --model claude-haiku-5-5
+            --effort high
             --allowedTools "mcp__github_inline_comment__create_inline_comment"
             --append-system-prompt "Project rules for this review: money must use the Money value object (integer cents), never number. Every query must be scoped to the tenant (merchant). Business rules live in DECISIONS.md and the code must match them. Changes to money, authentication, permissions or the database schema are high risk: call them out first. Do not comment on formatting or style."

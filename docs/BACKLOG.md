@@ -249,3 +249,15 @@ Este documento rastreia formalmente as fatias verticais de entrega, critérios d
 **Quando chegar em X (não fazer antes):** pooler do Neon com ~200 lojas ou primeiro erro de conexão; teste de carga com ~500 lojas; chave de idempotência obrigatória no PDV com 500 a 1 mil lojas; política de retenção de `audit_events` com o banco acima de 20 a 50 GB; usuário por loja ou login por e-mail com ~1 mil lojas ou "usuário já existe" acima de 2% (hoje `username` é único no mundo todo; pede ADR e migração); réplica de leitura e resumo diário com relatório anual lento; partição de tabelas com ~10 mil lojas.
 
 **Não fazer antes da hora:** microserviços, sharding, fila para a venda, cache de dinheiro, estoque, saldo ou sessão (nunca), Row Level Security, Redis ou CDN de API antes de medir, trocar Neon, Drizzle ou Vercel por precaução, e planejar para 1 milhão de lojas.
+
+### [ ] Slice 20: Fundações do front end (para o front crescer sem apodrecer)
+> Decisão de arquitetura no ADR-020 (`docs/DECISIONS.md`). Este slice torna essa arquitetura imposta, medida e testada, além de organizada. Vem junto com o Slice 16 (reorganização), o 18 (testes por comportamento) e o 19 (problemas das auditorias); itens que se repetem apontam para eles. Etiquetas: **[$]** dinheiro, **[P]** permissão ou PIN, **[A]** aprovação do dono do repositório por PR.
+
+- [ ] 20.1 **Regras de arquitetura impostas no CI:** limite de linhas por arquivo da tela (meta ~400) e fronteiras de importação do ADR-020 (`ui` e `lib` não importam de funcionalidade; uma funcionalidade não importa de outra). Hoje só são combinadas.
+- [ ] 20.2 **Camada de dados do front decidida:** tempo limite nas chamadas e mensagem clara de erro; erro de rede sem logout, só 401 vai para `/login` (= 19.9) [P][A]; critério de quando entra cache ou uma biblioteca de dados (3 ou mais telas lendo o mesmo dado). ADR próprio.
+- [ ] 20.3 **Testes de comportamento no lugar dos que leem texto do código** (= Slice 18).
+- [ ] 20.4 **Orçamento de desempenho:** tamanho máximo do JS por tela (hoje ~204 KB comprimido) e uma medição repetível do tempo de carga, com o resultado registrado a cada PR de carga. Painéis pesados sob demanda (`next/dynamic`, = 19.16).
+- [ ] 20.5 **Tratamento de erro padrão:** uma tela de erro por rota (`error.tsx`) para um erro não derrubar a página inteira.
+- [ ] 20.6 **Acessibilidade dos modais:** `role="dialog"`, `aria-modal`, foco preso dentro e devolvido ao fechar, e Esc. Hoje quase nenhum modal tem.
+- [ ] 20.7 **Contratos de tipos entre o front e o back end:** hoje `salePrice` é `number` no tipo do front e a API devolve texto (`toDecimal()`); tipos escritos à mão podem divergir. Conferir quanto já divergem e escolher uma fonte única. Dinheiro como `number` no cliente: conferir `pdv/page.tsx` (`Number(...) * 100`) em PR próprio. [$][A]
+- [ ] 20.8 **Monitoramento de erros do front em produção** (= 19.2), sem dado sensível.

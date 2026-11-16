@@ -261,3 +261,10 @@ Este documento rastreia formalmente as fatias verticais de entrega, critérios d
 - [ ] 20.6 **Acessibilidade dos modais:** `role="dialog"`, `aria-modal`, foco preso dentro e devolvido ao fechar, e Esc. Hoje quase nenhum modal tem.
 - [ ] 20.7 **Contratos de tipos entre o front e o back end:** hoje `salePrice` é `number` no tipo do front e a API devolve texto (`toDecimal()`); tipos escritos à mão podem divergir. Conferir quanto já divergem e escolher uma fonte única. Dinheiro como `number` no cliente: conferir `pdv/page.tsx` (`Number(...) * 100`) em PR próprio. [$][A]
 - [ ] 20.8 **Monitoramento de erros do front em produção** (= 19.2), sem dado sensível.
+
+### [ ] Slice 21: Operação segura em produção (saber que está no ar e voltar rápido)
+> Hoje o deploy termina verde, mas ninguém confere se o site funciona em produção, e não há alerta se ele cair. Ordem de prioridade: monitoramento, reversão, verificação depois do deploy. O lançamento gradual (Rolling Releases) fica de fora por depender de plano pago. O que o plano Hobby da Vercel inclui **não foi verificado**: confirmar no painel antes de contar com cada recurso. Etiqueta: **[A]** aprovação do dono do repositório (dependência nova).
+
+- [ ] 21.1 **Monitor de disponibilidade e rastreio de erros** (= 19.2): alerta no celular ou e-mail se o site cair ou os erros subirem, sem dado sensível nos logs. Escolher a ferramenta, de preferência com plano gratuito. [A]
+- [ ] 21.2 **Como reverter rápido:** escrever um passo a passo curto em `docs/` de como voltar a versão anterior na Vercel (painel e comando), e testar uma vez com a loja fora do horário.
+- [ ] 21.3 **Verificação depois do deploy** (smoke test no `ci.yml`, depois do passo de deploy): conferir que `/login` responde, que `/api/version` responde e que a versão publicada é a que acabou de ir. Só lê páginas públicas, sem tocar em dados nem dinheiro. Se falhar, o CI fica vermelho e avisa; reverter sozinho fica para depois.

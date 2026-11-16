@@ -3,7 +3,8 @@ import { db } from '@/shared/infrastructure/db/connection';
 import { products } from './products.schema';
 import { Product } from '../domain/product';
 import { inventoryItems } from '@/modules/inventory/infrastructure/inventory.schema';
-import { ProductRepository, ProductListPage, ProductListPageParams } from '../domain/product-repository.port';
+import { ProductRepository, ProductListPage, ProductListPageParams, ProductsSummary } from '../domain/product-repository.port';
+import { RESTOCK_THRESHOLD_UNITS, RESTOCK_THRESHOLD_GRAMS } from '../domain/product-stock-rule';
 import { Money } from '@/shared/domain/money';
 import { isProductUnit } from '@/shared/domain/product-unit';
 
@@ -127,6 +128,34 @@ export class DrizzleProductRepository implements ProductRepository {
         availableQuantity: row.availableQuantity,
       })),
       hasMore: rows.length > pageSize,
+    };
+  }
+
+  // One aggregate query. The value mirrors the screen (stock.ts inventoryValue): price at 2 decimals as the
+  // API sends it, in cents; by weight, price x grams / 1000 rounded half up per product (numeric round is half
+  // away from zero, the same for the non-negative quantities used here).
+  async getSummary(merchantId: string): Promise<ProductsSummary> {
+    const quantity = sql`coalesce(${inventoryItems.availableQuantity}, 0)`;
+    const priceCents = sql`round(${products.salePrice}, 2) * 100`;
+    const [row] = await db
+      .select({
+        total: sql<number>`count(*)`.mapWith(Number),
+        lowStockCount: sql<number>`count(*) filter (where ${quantity} <= case when ${products.unit} = 'KG' then ${sql.raw(String(RESTOCK_THRESHOLD_GRAMS))} else ${sql.raw(String(RESTOCK_THRESHOLD_UNITS))} end)`.mapWith(Number),
+        outOfStockCount: sql<number>`count(*) filter (where ${quantity} <= 0)`.mapWith(Number),
+        stockValueCents: sql<string>`coalesce(sum(case when ${products.unit} = 'KG' then round(${priceCents} * greatest(${quantity}, 0) / 1000) else ${priceCents} * greatest(${quantity}, 0) end), 0)::text`,
+      })
+      .from(products)
+      .leftJoin(
+        inventoryItems,
+        and(eq(inventoryItems.merchantId, products.merchantId), eq(inventoryItems.productId, products.id))
+      )
+      .where(and(eq(products.merchantId, merchantId), eq(products.active, true)));
+
+    return {
+      total: row.total,
+      lowStockCount: row.lowStockCount,
+      outOfStockCount: row.outOfStockCount,
+      stockValue: Money.fromCents(Number(row.stockValueCents)),
     };
   }
 }

@@ -9,7 +9,7 @@ import { Money } from '@/shared/domain/money';
 import { Sale } from '../domain/sale';
 import { SaleCommit, SaleRepository } from '../domain/sale-repository.port';
 import { Product } from '@/modules/products/domain/product';
-import { ProductRepository, ProductListPage } from '@/modules/products/domain/product-repository.port';
+import { ProductRepository, ProductListPage, ProductsSummary } from '@/modules/products/domain/product-repository.port';
 import { InventoryItem, InsufficientStockError } from '@/modules/inventory/domain/inventory-item';
 import { InventoryRepository, InventoryMovementType } from '@/modules/inventory/domain/inventory-repository.port';
 import { CashSession, CashMovementType, applyCashMovement } from '@/modules/cash/domain/cash-session';
@@ -124,6 +124,10 @@ class InMemoryProductRepository implements ProductRepository {
 
   async listPage(): Promise<ProductListPage> {
     throw new Error('listPage is not used in this test.');
+  }
+
+  async getSummary(): Promise<ProductsSummary> {
+    throw new Error('getSummary is not used in this test.');
   }
 
   async searchByNameOrBarcode(merchantId: string, query: string, limit = 20): Promise<Product[]> {

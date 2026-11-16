@@ -73,6 +73,14 @@ export interface ProductItem {
   active?: boolean;
 }
 
+/** Over all active products. With stock control off the three stock fields are null. stockValue is a decimal string. */
+export interface ProductsSummary {
+  total: number;
+  lowStockCount: number | null;
+  outOfStockCount: number | null;
+  stockValue: string | null;
+}
+
 export interface CustomerItem {
   id: string;
   name: string;
@@ -290,8 +298,15 @@ export const apiClient = {
     apiRequest<ProductItem>(`/api/products/barcode/${encodeURIComponent(barcode)}`),
   searchProducts: (query: string) =>
     apiRequest<{ items: ProductItem[] }>(`/api/products/search?q=${encodeURIComponent(query)}`),
-  listProducts: (query = '') =>
-    apiRequest<{ items: ProductItem[] }>(`/api/products${query ? `?q=${encodeURIComponent(query)}` : ''}`),
+  listProducts: (query = '', page?: number, pageSize?: number) => {
+    const params = new URLSearchParams();
+    if (query) params.set('q', query);
+    if (page !== undefined) params.set('page', String(page));
+    if (pageSize !== undefined) params.set('pageSize', String(pageSize));
+    const qs = params.toString();
+    return apiRequest<{ items: ProductItem[]; hasMore?: boolean }>(`/api/products${qs ? `?${qs}` : ''}`);
+  },
+  getProductsSummary: () => apiRequest<ProductsSummary>('/api/products/summary'),
   createProduct: (payload: {
     barcode: string;
     name: string;

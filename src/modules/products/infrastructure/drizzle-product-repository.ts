@@ -2,7 +2,8 @@ import { eq, and, or, ilike, sql } from 'drizzle-orm';
 import { db } from '@/shared/infrastructure/db/connection';
 import { products } from './products.schema';
 import { Product } from '../domain/product';
-import { ProductRepository } from '../domain/product-repository.port';
+import { inventoryItems } from '@/modules/inventory/infrastructure/inventory.schema';
+import { ProductRepository, ProductListPage, ProductListPageParams } from '../domain/product-repository.port';
 import { Money } from '@/shared/domain/money';
 import { isProductUnit } from '@/shared/domain/product-unit';
 
@@ -95,5 +96,37 @@ export class DrizzleProductRepository implements ProductRepository {
       .limit(limit);
 
     return rows.map(toDomain);
+  }
+
+  async listPage(merchantId: string, { query, page, pageSize }: ProductListPageParams): Promise<ProductListPage> {
+    const searchPattern = `%${query.trim()}%`;
+    const rows = await db
+      .select({
+        product: products,
+        availableQuantity: sql<number>`coalesce(${inventoryItems.availableQuantity}, 0)`.mapWith(Number),
+      })
+      .from(products)
+      .leftJoin(
+        inventoryItems,
+        and(eq(inventoryItems.merchantId, products.merchantId), eq(inventoryItems.productId, products.id))
+      )
+      .where(
+        and(
+          eq(products.merchantId, merchantId),
+          eq(products.active, true),
+          or(ilike(products.barcode, searchPattern), ilike(products.name, searchPattern))
+        )
+      )
+      .orderBy(products.name, products.id)
+      .limit(pageSize + 1)
+      .offset((page - 1) * pageSize);
+
+    return {
+      items: rows.slice(0, pageSize).map((row) => ({
+        product: toDomain(row.product),
+        availableQuantity: row.availableQuantity,
+      })),
+      hasMore: rows.length > pageSize,
+    };
   }
 }

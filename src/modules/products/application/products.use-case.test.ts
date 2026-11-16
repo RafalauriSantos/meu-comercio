@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { Product } from '../domain/product';
-import { ProductRepository } from '../domain/product-repository.port';
+import { ProductRepository, ProductListPage } from '../domain/product-repository.port';
 import { InventoryRepository, InventoryMovementType } from '@/modules/inventory/domain/inventory-repository.port';
 import { InventoryItem, InsufficientStockError } from '@/modules/inventory/domain/inventory-item';
 import { AuditPort } from '@/modules/audit/domain/audit.port';
@@ -31,6 +31,10 @@ class InMemoryProductRepository implements ProductRepository {
 
   async findById(merchantId: string, id: string): Promise<Product | null> {
     return this.products.get(`${merchantId}:${id}`) ?? null;
+  }
+
+  async listPage(): Promise<ProductListPage> {
+    throw new Error('listPage is not used in this test.');
   }
 
   async searchByNameOrBarcode(merchantId: string, query: string, limit = 20): Promise<Product[]> {

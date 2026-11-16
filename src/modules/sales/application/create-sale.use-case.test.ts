@@ -9,7 +9,7 @@ import { Money } from '@/shared/domain/money';
 import { Sale } from '../domain/sale';
 import { SaleCommit, SaleRepository } from '../domain/sale-repository.port';
 import { Product } from '@/modules/products/domain/product';
-import { ProductRepository } from '@/modules/products/domain/product-repository.port';
+import { ProductRepository, ProductListPage } from '@/modules/products/domain/product-repository.port';
 import { InventoryItem, InsufficientStockError } from '@/modules/inventory/domain/inventory-item';
 import { InventoryRepository, InventoryMovementType } from '@/modules/inventory/domain/inventory-repository.port';
 import { CashSession, CashMovementType, applyCashMovement } from '@/modules/cash/domain/cash-session';
@@ -120,6 +120,10 @@ class InMemoryProductRepository implements ProductRepository {
 
   async findById(merchantId: string, id: string): Promise<Product | null> {
     return this.products.get(`${merchantId}:${id}`) ?? null;
+  }
+
+  async listPage(): Promise<ProductListPage> {
+    throw new Error('listPage is not used in this test.');
   }
 
   async searchByNameOrBarcode(merchantId: string, query: string, limit = 20): Promise<Product[]> {

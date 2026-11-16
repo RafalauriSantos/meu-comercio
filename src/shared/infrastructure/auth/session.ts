@@ -6,6 +6,7 @@ export interface SessionData {
   merchantId: string;
   authorities: UserAuthority[];
   expiresAt: number; // Unix timestamp in milliseconds
+  startedAt?: number; // login time in milliseconds; absent in tokens issued before the sliding session
 }
 
 export function isSessionOwner(session: SessionData): boolean {
@@ -16,7 +17,13 @@ export function hasSessionAuthority(session: SessionData, authority: UserAuthori
   return isSessionOwner(session) || session.authorities.includes(authority);
 }
 
-const DEFAULT_TIMEOUT_MINUTES = 30;
+// DECISIONS.md D-09 and D-16: expires after 2 h without use, never beyond 12 h since login.
+export const INACTIVITY_MINUTES = 120;
+export const ABSOLUTE_MAX_HOURS = 12;
+const INACTIVITY_MS = INACTIVITY_MINUTES * 60 * 1000;
+const ABSOLUTE_MAX_MS = ABSOLUTE_MAX_HOURS * 60 * 60 * 1000;
+// Renew only when more than half of the inactivity window has passed, to avoid rewriting the cookie on every request.
+const RENEW_BELOW_MS = INACTIVITY_MS / 2;
 
 function getSessionSecret(): string {
   const secret = process.env.SESSION_SECRET;
@@ -39,18 +46,41 @@ function signPayload(payload: string, secret: string): string {
   return crypto.createHmac('sha256', secret).update(payload).digest('base64url');
 }
 
-export function createSessionToken(
-  data: Omit<SessionData, 'expiresAt'>,
-  timeoutMinutes = DEFAULT_TIMEOUT_MINUTES
-): string {
-  const secret = getSessionSecret();
-  const session: SessionData = {
-    ...data,
-    expiresAt: Date.now() + timeoutMinutes * 60 * 1000,
-  };
-
+function signSession(session: SessionData): string {
   const payload = Buffer.from(JSON.stringify(session)).toString('base64url');
-  return `${payload}.${signPayload(payload, secret)}`;
+  return `${payload}.${signPayload(payload, getSessionSecret())}`;
+}
+
+export function createSessionToken(
+  data: Omit<SessionData, 'expiresAt' | 'startedAt'>,
+  timeoutMinutes = INACTIVITY_MINUTES
+): string {
+  const now = Date.now();
+  return signSession({ ...data, startedAt: now, expiresAt: now + timeoutMinutes * 60 * 1000 });
+}
+
+/**
+ * Sliding renewal: returns a new token (and its cookie maxAge) when more than half of the inactivity window
+ * has passed, or null when there is nothing to renew. The new expiry never goes past startedAt + 12 h.
+ * Tokens without startedAt are never renewed: they run until their own expiry.
+ */
+export function renewSessionToken(
+  session: SessionData
+): { token: string; maxAgeSeconds: number } | null {
+  const now = Date.now();
+  if (session.startedAt === undefined || session.expiresAt - now >= RENEW_BELOW_MS) {
+    return null;
+  }
+
+  const expiresAt = Math.min(now + INACTIVITY_MS, session.startedAt + ABSOLUTE_MAX_MS);
+  if (expiresAt <= session.expiresAt) {
+    return null;
+  }
+
+  return {
+    token: signSession({ ...session, expiresAt }),
+    maxAgeSeconds: Math.floor((expiresAt - now) / 1000),
+  };
 }
 
 export function verifySessionToken(token: string): SessionData | null {

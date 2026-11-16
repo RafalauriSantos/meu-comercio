@@ -3,7 +3,10 @@ import { db } from '@/shared/infrastructure/db/connection';
 import { products } from './products.schema';
 import { Product } from '../domain/product';
 import { inventoryItems } from '@/modules/inventory/infrastructure/inventory.schema';
-import { ProductRepository, ProductListPage, ProductListPageParams, ProductsSummary } from '../domain/product-repository.port';
+import { ProductRepository, ProductListPage, ProductListPageParams, ProductsSummary, ProductChanges, ProductUpdateContext } from '../domain/product-repository.port';
+import { ProductBarcodeConflictError, ProductChangedError } from '../domain/product-errors';
+import { auditEvents } from '@/modules/audit/infrastructure/audit.schema';
+import { toAuditEventRow } from '@/modules/audit/infrastructure/audit-event-row';
 import { RESTOCK_THRESHOLD_UNITS, RESTOCK_THRESHOLD_GRAMS } from '../domain/product-stock-rule';
 import { Money } from '@/shared/domain/money';
 import { isProductUnit } from '@/shared/domain/product-unit';
@@ -20,6 +23,14 @@ function toDomain(row: typeof products.$inferSelect): Product {
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
   });
+}
+
+const UNIQUE_VIOLATION = '23505';
+
+// Drizzle wraps driver errors: the SQLSTATE is in `cause`.
+function isBarcodeConflict(error: unknown): boolean {
+  const driverError = (error as { cause?: { code?: string; constraint?: string } } | null)?.cause;
+  return driverError?.code === UNIQUE_VIOLATION && driverError.constraint === 'uq_products_merchant_barcode';
 }
 
 export class DrizzleProductRepository implements ProductRepository {
@@ -47,6 +58,59 @@ export class DrizzleProductRepository implements ProductRepository {
           updatedAt: sql`CURRENT_TIMESTAMP`,
         },
       });
+  }
+
+  async updateDetails(
+    merchantId: string,
+    productId: string,
+    changes: ProductChanges,
+    { actorId, expectedUpdatedAt }: ProductUpdateContext
+  ): Promise<Product | null> {
+    return db.transaction(async (tx) => {
+      const where = and(eq(products.merchantId, merchantId), eq(products.id, productId));
+      const [locked] = await tx.select().from(products).where(where).for('update');
+      if (!locked) return null;
+
+      const before = toDomain(locked);
+      if (expectedUpdatedAt && expectedUpdatedAt.getTime() !== before.updatedAt.getTime()) {
+        throw new ProductChangedError();
+      }
+
+      const after = before.withChanges(changes);
+      const diff = before.changesTo(after);
+      if (Object.keys(diff).length === 0) return before;
+
+      let row: typeof products.$inferSelect;
+      try {
+        [row] = await tx
+          .update(products)
+          .set({
+            ...(diff.name && { name: after.name }),
+            ...(diff.salePrice && { salePrice: after.salePrice.toDecimal() }),
+            ...(diff.barcode && { barcode: after.barcode }),
+            updatedAt: sql`CURRENT_TIMESTAMP`,
+          })
+          .where(where)
+          .returning();
+      } catch (error) {
+        if (isBarcodeConflict(error)) throw new ProductBarcodeConflictError(after.barcode);
+        throw error;
+      }
+
+      await tx
+        .insert(auditEvents)
+        .values(
+          toAuditEventRow(merchantId, {
+            eventType: 'PRODUCT_UPDATED',
+            actorId,
+            aggregateType: 'PRODUCT',
+            aggregateId: productId,
+            details: { changes: diff },
+          })
+        );
+
+      return toDomain(row);
+    });
   }
 
   async findByBarcode(merchantId: string, barcode: string): Promise<Product | null> {

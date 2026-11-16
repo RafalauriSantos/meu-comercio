@@ -53,6 +53,38 @@ export class Product {
     this.updatedAt = props.updatedAt;
   }
 
+  /**
+   * Rebuilds the product with the given fields, validated like the constructor. Only name, price and barcode
+   * can change: the unit and active are not parameters. The price of an edit must be above zero.
+   */
+  public withChanges(changes: { name?: string; salePrice?: Money; barcode?: string }): Product {
+    if (changes.salePrice && !changes.salePrice.isPositive()) {
+      throw new Error('Preço de venda deve ser maior que zero.');
+    }
+    return new Product({
+      id: this.id,
+      merchantId: this.merchantId,
+      barcode: changes.barcode ?? this.barcode,
+      name: changes.name ?? this.name,
+      salePrice: changes.salePrice ?? this.salePrice,
+      unit: this.unit,
+      active: this.active,
+      createdAt: this.createdAt,
+      updatedAt: this.updatedAt,
+    });
+  }
+
+  /** From and to of the editable fields that differ in `next` (the price as decimal text). */
+  public changesTo(next: Product): Record<string, { from: string; to: string }> {
+    const changes: Record<string, { from: string; to: string }> = {};
+    if (this.name !== next.name) changes.name = { from: this.name, to: next.name };
+    if (!this.salePrice.equals(next.salePrice)) {
+      changes.salePrice = { from: this.salePrice.toDecimal(), to: next.salePrice.toDecimal() };
+    }
+    if (this.barcode !== next.barcode) changes.barcode = { from: this.barcode, to: next.barcode };
+    return changes;
+  }
+
   public static create(
     merchantId: string,
     barcode: string,

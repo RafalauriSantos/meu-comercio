@@ -130,6 +130,10 @@ class InMemoryProductRepository implements ProductRepository {
     throw new Error('getSummary is not used in this test.');
   }
 
+  async updateDetails(): Promise<Product | null> {
+    throw new Error('updateDetails is not used in this test.');
+  }
+
   async searchByNameOrBarcode(merchantId: string, query: string, limit = 20): Promise<Product[]> {
     const q = query.trim().toLowerCase();
     const results: Product[] = [];

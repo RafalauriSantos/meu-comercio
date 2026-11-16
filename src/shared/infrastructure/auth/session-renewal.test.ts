@@ -15,6 +15,7 @@ describe('session renewal on use', () => {
   let token: string;
 
   beforeEach(() => {
+    vi.stubEnv('SESSION_SECRET', 'test-session-secret-with-at-least-32-chars');
     store.set.mockReset();
     store.get.mockReset();
     vi.useFakeTimers();

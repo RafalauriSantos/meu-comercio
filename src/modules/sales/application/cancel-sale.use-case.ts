@@ -39,10 +39,9 @@ export class CancelSaleUseCase {
   ) {}
 
   async execute(dto: CancelSaleDTO): Promise<Sale> {
-    const ownerUsername = dto.ownerUsername ?? 'owner';
     const isPinValid = await this.ownerPinVerifier.verifyOwnerPin(
       dto.merchantId,
-      ownerUsername,
+      dto.ownerUsername ?? '',
       dto.ownerPin
     );
     if (!isPinValid) {

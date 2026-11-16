@@ -204,7 +204,10 @@ class InMemoryCashSessionRepository implements CashSessionRepository {
 class InMemoryOwnerPinVerifier implements OwnerPinVerifier {
   public validPins: Map<string, string> = new Map(); // merchantId -> validPin
 
-  async verifyOwnerPin(merchantId: string, _ownerUsername: string, pin: string): Promise<boolean> {
+  public lastOwnerUsername: string | undefined;
+
+  async verifyOwnerPin(merchantId: string, ownerUsername: string, pin: string): Promise<boolean> {
+    this.lastOwnerUsername = ownerUsername;
     return this.validPins.get(merchantId) === pin;
   }
 
@@ -387,6 +390,37 @@ describe('CancelSaleUseCase — Cancelamento e Estorno de Venda', () => {
         reason: 'Tentativa não autorizada',
       })
     ).rejects.toThrow(InvalidOwnerPinError);
+  });
+
+  it('sem ownerUsername, não presume o usuário "owner": o verificador recebe nome vazio', async () => {
+    const sale = createSampleConfirmedSale(Payment.create('CASH', Money.fromDecimal('40.00')));
+    await saleRepo.save(sale);
+
+    await cancelSaleUseCase.execute({
+      merchantId: MERCHANT_ID,
+      saleId: sale.id,
+      operatorId: OPERATOR_ID,
+      ownerPin: VALID_OWNER_PIN,
+      reason: 'Cliente desistiu',
+    });
+
+    expect(pinVerifier.lastOwnerUsername).toBe('');
+  });
+
+  it('com ownerUsername explícito, repassa o nome ao verificador', async () => {
+    const sale = createSampleConfirmedSale(Payment.create('CASH', Money.fromDecimal('40.00')));
+    await saleRepo.save(sale);
+
+    await cancelSaleUseCase.execute({
+      merchantId: MERCHANT_ID,
+      saleId: sale.id,
+      operatorId: OPERATOR_ID,
+      ownerPin: VALID_OWNER_PIN,
+      ownerUsername: 'maria',
+      reason: 'Cliente desistiu',
+    });
+
+    expect(pinVerifier.lastOwnerUsername).toBe('maria');
   });
 
   it('deve rejeitar cancelamento se a venda já estiver cancelada', async () => {

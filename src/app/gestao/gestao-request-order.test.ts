@@ -184,6 +184,7 @@ function loadAs(me: { isOwner: boolean }) {
 }
 
 beforeEach(() => {
+  vi.stubGlobal('window', { addEventListener: vi.fn(), removeEventListener: vi.fn() }); // the products tab listens to the scanner
   h.calls.length = 0;
   h.router.push.mockReset();
   vi.spyOn(console, 'error').mockImplementation(() => {});
@@ -244,13 +245,13 @@ describe('/gestao first load: the list and the order of the apiClient calls', ()
 });
 
 describe('/gestao: the apiClient calls and the /login redirects in the source of the whole screen', () => {
-  // The whole screen: the page plus the files of src/frontend/management. Counts as at HEAD: 20 apiClient. and
+  // The whole screen: the page plus the files of src/frontend/management. Counts as at HEAD plus the barcode scan: 21 apiClient. and
   // 2 router.push('/login') in page.tsx, plus 2 apiClient. of import-products-panel.tsx (its own file).
   const source = readScreenSource('gestao');
   const count = (needle: string) => source.split(needle).length - 1;
 
-  it('has 20 + 2 apiClient. and 2 router.push(/login)', () => {
-    expect(count('apiClient.')).toBe(20 + 2);
+  it('has 21 + 2 apiClient. and 2 router.push(/login)', () => {
+    expect(count('apiClient.')).toBe(21 + 2);
     expect(count("router.push('/login')")).toBe(2);
   });
 
@@ -263,7 +264,7 @@ describe('/gestao: the apiClient calls and the /login redirects in the source of
       createCustomer: 1,
       createOperator: 1,
       createProduct: 1,
-      findProductByBarcode: 1,
+      findProductByBarcode: 2, // products tab: the barcode field and the scan that opens the form
       getCreditMetrics: 1,
       getCurrentCash: 1,
       getCustomerBalance: 2,

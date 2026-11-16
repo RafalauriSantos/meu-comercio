@@ -228,6 +228,7 @@ async function mount() {
 }
 
 beforeEach(() => {
+  vi.stubGlobal('window', { addEventListener: vi.fn(), removeEventListener: vi.fn() }); // the products tab listens to the scanner
   for (const fn of Object.values(h.api)) fn.mockReset();
   h.router.push.mockReset();
   vi.spyOn(console, 'error').mockImplementation(() => {});

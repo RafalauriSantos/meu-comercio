@@ -4,7 +4,7 @@ import React, { useState, useCallback } from 'react';
 import { apiClient, OperatorItem } from '@/frontend/lib/api-client';
 import { getErrorMessage } from '@/frontend/lib/formatters';
 
-type Feedback = { text: string; isError?: boolean } | null;
+type Feedback = { text: string; isError?: boolean; isSuccess?: boolean } | null;
 
 interface UseOperatorsTabParams {
   setFeedback: (feedback: Feedback) => void;
@@ -40,7 +40,7 @@ export function useOperatorsTab({ setFeedback, setProcessing, setLoadFailed }: U
         username: newOpUsername.trim(),
         password: newOpPassword,
       });
-      setFeedback({ text: `Operador '${newOpUsername.trim()}' cadastrado com sucesso!` });
+      setFeedback({ text: `Operador '${newOpUsername.trim()}' cadastrado com sucesso!`, isSuccess: true });
       setShowNewOperator(false);
       setNewOpUsername('');
       setNewOpPassword('');

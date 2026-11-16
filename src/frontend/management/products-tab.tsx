@@ -16,7 +16,7 @@ interface ProductsTabProps {
   tab: ReturnType<typeof useProductsTab>;
   stockControl: boolean;
   user: AuthUser | null;
-  setFeedback: (feedback: { text: string; isError?: boolean } | null) => void;
+  setFeedback: (feedback: { text: string; isError?: boolean; isSuccess?: boolean } | null) => void;
   loadFailed: { products?: boolean };
   retrying: boolean;
   processing: boolean;
@@ -219,6 +219,7 @@ export function ProductsTab({ tab, stockControl, user, setFeedback, loadFailed, 
                   setShowImport(false);
                   setFeedback({
                     text: createdCount === 1 ? '1 produto importado com sucesso!' : `${createdCount} produtos importados com sucesso!`,
+                    isSuccess: true,
                   });
                   await loadProducts();
                 }}

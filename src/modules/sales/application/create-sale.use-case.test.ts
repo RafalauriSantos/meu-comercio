@@ -84,6 +84,10 @@ class InMemorySaleRepository implements SaleRepository {
     await this.save(sale);
   }
 
+  async commitCancellation(commit: { sale: Sale }): Promise<void> {
+    await this.save(commit.sale);
+  }
+
   async findById(merchantId: string, id: string): Promise<Sale | null> {
     return this.sales.get(`${merchantId}:${id}`) ?? null;
   }

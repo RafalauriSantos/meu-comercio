@@ -7,9 +7,15 @@ import { sales, saleItems, payments } from './sales.schema';
 import { Sale, SaleStatus } from '../domain/sale';
 import { SaleItem } from '../domain/sale-item';
 import { Payment, PaymentMethod, PaymentStatus } from '../domain/payment';
-import { CreditDebitCommit, SaleCommit, SaleRepository } from '../domain/sale-repository.port';
+import {
+  CancellationCommit,
+  CreditDebitCommit,
+  SaleCommit,
+  SaleRepository,
+} from '../domain/sale-repository.port';
 import { cashMovements, cashSessions } from '@/modules/cash/infrastructure/cash.schema';
-import { CashSessionNotOpenError } from '../domain/errors';
+import { CashSessionNotOpenError, SaleAlreadyCancelledError } from '../domain/errors';
+import { CreditMovement } from '@/modules/customers/domain/credit-movement';
 import { isProductUnit } from '@/shared/domain/product-unit';
 import { Money } from '@/shared/domain/money';
 import { inventoryItems, inventoryMovements } from '@/modules/inventory/infrastructure/inventory.schema';
@@ -176,7 +182,10 @@ export class DrizzleSaleRepository implements SaleRepository {
     );
     await credit.ensureWithinLimit(rawDebt.isNegative() ? Money.zero() : rawDebt);
 
-    const movement = credit.movement;
+    await this.insertCreditMovement(tx, credit.movement);
+  }
+
+  private async insertCreditMovement(tx: SaleDatabase, movement: CreditMovement): Promise<void> {
     await tx.insert(customerCreditLedger).values({
       id: movement.id,
       merchantId: movement.merchantId,
@@ -190,6 +199,89 @@ export class DrizzleSaleRepository implements SaleRepository {
       note: movement.note ?? null,
       createdAt: movement.createdAt,
     });
+  }
+
+  /**
+   * Lock order, same as commitSale: sale, cash session, stock by productId, customer.
+   * Only status and updatedAt are written to the sale; sale_items and payments are never touched.
+   */
+  async commitCancellation(commit: CancellationCommit): Promise<void> {
+    const { sale } = commit;
+    await this.database.transaction(async (tx) => {
+      const [current] = await tx
+        .select({ status: sales.status })
+        .from(sales)
+        .where(and(eq(sales.merchantId, sale.merchantId), eq(sales.id, sale.id)))
+        .for('update');
+      if (current?.status === 'CANCELLED') {
+        throw new SaleAlreadyCancelledError();
+      }
+      if (current?.status !== 'CONFIRMED') {
+        throw new Error('Apenas vendas confirmadas podem ser canceladas.');
+      }
+
+      if (commit.cashRefund) {
+        await this.ensureCashSessionOpen(tx, sale.merchantId, commit.cashRefund.cashSessionId);
+      }
+
+      await tx
+        .update(sales)
+        .set({ status: sale.status, updatedAt: sale.updatedAt })
+        .where(and(eq(sales.merchantId, sale.merchantId), eq(sales.id, sale.id), eq(sales.status, 'CONFIRMED')));
+
+      await this.applyStockReturns(tx, commit);
+
+      if (commit.creditRefund) {
+        await tx
+          .select({ id: customers.id })
+          .from(customers)
+          .where(and(eq(customers.merchantId, sale.merchantId), eq(customers.id, commit.creditRefund.customerId)))
+          .for('update');
+        await this.insertCreditMovement(tx, commit.creditRefund.movement);
+      }
+      if (commit.cashRefund) {
+        await tx.insert(cashMovements).values({
+          merchantId: sale.merchantId,
+          cashSessionId: commit.cashRefund.cashSessionId,
+          movementType: 'CASH_CANCEL',
+          amount: commit.cashRefund.amount.toDecimal(),
+          saleId: sale.id,
+        });
+      }
+      for (const audit of commit.audits) {
+        await tx.insert(auditEvents).values(toAuditEventRow(sale.merchantId, audit));
+      }
+    });
+  }
+
+  private async applyStockReturns(tx: SaleDatabase, commit: CancellationCommit): Promise<void> {
+    const { merchantId } = commit.sale;
+    // Same fixed code-unit order as applyStockDeductions.
+    const ordered = [...commit.stockReturns].sort((a, b) =>
+      a.productId < b.productId ? -1 : a.productId > b.productId ? 1 : 0
+    );
+    for (const stockReturn of ordered) {
+      const [row] = await tx
+        .select({ available: inventoryItems.availableQuantity })
+        .from(inventoryItems)
+        .where(and(eq(inventoryItems.merchantId, merchantId), eq(inventoryItems.productId, stockReturn.productId)))
+        .for('update');
+      if (row) {
+        await tx
+          .update(inventoryItems)
+          .set({ availableQuantity: row.available + stockReturn.quantity, updatedAt: new Date() })
+          .where(and(eq(inventoryItems.merchantId, merchantId), eq(inventoryItems.productId, stockReturn.productId)));
+      }
+      // The movement is written even without a stock row, as the use case did before.
+      await tx.insert(inventoryMovements).values({
+        merchantId,
+        productId: stockReturn.productId,
+        movementType: 'RETURN',
+        quantity: stockReturn.quantity,
+        reason: stockReturn.reason,
+        actorId: commit.actorId,
+      });
+    }
   }
 
   private async writeSale(tx: SaleDatabase, sale: Sale): Promise<void> {

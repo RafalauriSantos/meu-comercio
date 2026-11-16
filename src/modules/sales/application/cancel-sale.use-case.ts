@@ -1,24 +1,17 @@
 import { Sale } from '../domain/sale';
 import { SaleRepository } from '../domain/sale-repository.port';
-import { InventoryRepository } from '@/modules/inventory/domain/inventory-repository.port';
+import { CashSessionNotOpenError, SaleAlreadyCancelledError } from '../domain/errors';
 import { CashSessionRepository } from '@/modules/cash/domain/cash-session-repository.port';
 import { OwnerPinVerifier } from '@/modules/customers/domain/owner-pin-verifier.port';
-import { CustomerCreditRepository } from '@/modules/customers/domain/customer-credit-repository.port';
 import { CreditMovement } from '@/modules/customers/domain/credit-movement';
-import { AuditPort } from '@/modules/audit/domain/audit.port';
 import { InvalidOwnerPinError, NoOpenCashSessionError } from '@/modules/customers/domain/errors';
+
+export { SaleAlreadyCancelledError };
 
 export class SaleNotFoundError extends Error {
   constructor(saleId: string) {
     super(`Venda [${saleId}] não encontrada.`);
     this.name = 'SaleNotFoundError';
-  }
-}
-
-export class SaleAlreadyCancelledError extends Error {
-  constructor(message = 'Venda já se encontra cancelada.') {
-    super(message);
-    this.name = 'SaleAlreadyCancelledError';
   }
 }
 
@@ -41,11 +34,8 @@ export interface CancelSaleDTO {
 export class CancelSaleUseCase {
   constructor(
     private readonly saleRepository: SaleRepository,
-    private readonly inventoryRepository: InventoryRepository,
     private readonly cashSessionRepository: CashSessionRepository,
-    private readonly ownerPinVerifier: OwnerPinVerifier,
-    private readonly auditPort: AuditPort,
-    private readonly customerCreditRepository?: CustomerCreditRepository
+    private readonly ownerPinVerifier: OwnerPinVerifier
   ) {}
 
   async execute(dto: CancelSaleDTO): Promise<Sale> {
@@ -95,72 +85,62 @@ export class CancelSaleUseCase {
       }
     }
 
-    // Marca a venda como cancelada
     sale.cancel();
-    await this.saleRepository.save(sale);
 
-    // Devolve os itens ao estoque com movimento RETURN, mas só se a venda os tirou de lá: uma venda feita
+    // Devolve os itens ao estoque (RETURN), mas só se a venda os tirou de lá: uma venda feita
     // com o controle de estoque desligado não tirou nada, e devolver inflaria o estoque.
-    for (const item of sale.stockTracked ? sale.items : []) {
-      const inventoryItem = await this.inventoryRepository.findByProductId(
-        dto.merchantId,
-        item.productId
-      );
+    const stockReturns = (sale.stockTracked ? sale.items : []).map((item) => ({
+      productId: item.productId,
+      quantity: item.quantity,
+      reason: `Cancelamento da venda ${sale.id}: ${dto.reason}`,
+    }));
 
-      if (inventoryItem) {
-        inventoryItem.restock(item.quantity);
-        await this.inventoryRepository.save(inventoryItem);
-      }
-
-      await this.inventoryRepository.addMovement(
-        dto.merchantId,
-        item.productId,
-        'RETURN',
-        item.quantity,
-        `Cancelamento da venda ${sale.id}: ${dto.reason}`,
-        dto.operatorId
-      );
-    }
-
-    // Estorna dinheiro físico da gaveta do caixa
-    if (cashPaid.isPositive() && openSession) {
-      await this.cashSessionRepository.addMovement(
-        dto.merchantId,
-        openSession.id,
-        'CASH_CANCEL',
-        cashPaid,
-        sale.id
-      );
-    }
-
-    // Estorna fiado (se houver pagamento do tipo TAB)
+    // Estorno de fiado (se houver pagamento do tipo TAB)
     const tabPayment = sale.getTabPayment();
-    if (tabPayment?.externalReference && this.customerCreditRepository) {
-      const compensationMovement = CreditMovement.create({
-        merchantId: dto.merchantId,
-        customerId: tabPayment.externalReference,
-        type: 'CREDIT',
-        amount: tabPayment.amount,
-        operatorId: dto.operatorId,
-        saleId: sale.id,
-        note: `Estorno de venda cancelada ${sale.id}: ${dto.reason}`,
-      });
-      await this.customerCreditRepository.saveMovement(compensationMovement);
-    }
+    const creditRefund = tabPayment?.externalReference
+      ? {
+          customerId: tabPayment.externalReference,
+          movement: CreditMovement.create({
+            merchantId: dto.merchantId,
+            customerId: tabPayment.externalReference,
+            type: 'CREDIT',
+            amount: tabPayment.amount,
+            operatorId: dto.operatorId,
+            saleId: sale.id,
+            note: `Estorno de venda cancelada ${sale.id}: ${dto.reason}`,
+          }),
+        }
+      : undefined;
 
-    // Trilha imutável de auditoria
-    await this.auditPort.record(
-      dto.merchantId,
-      'SALE_CANCELLED',
-      dto.operatorId,
-      'sale',
-      sale.id,
-      {
-        reason: dto.reason,
-        total: sale.total.toDecimal(),
-        refundedCash: cashPaid.toDecimal(),
+    try {
+      await this.saleRepository.commitCancellation({
+        sale,
+        actorId: dto.operatorId,
+        stockReturns,
+        cashRefund: openSession ? { cashSessionId: openSession.id, amount: cashPaid } : undefined,
+        creditRefund,
+        audits: [
+          {
+            eventType: 'SALE_CANCELLED',
+            actorId: dto.operatorId,
+            aggregateType: 'sale',
+            aggregateId: sale.id,
+            details: {
+              reason: dto.reason,
+              total: sale.total.toDecimal(),
+              refundedCash: cashPaid.toDecimal(),
+            },
+          },
+        ],
+      });
+    } catch (error) {
+      if (error instanceof CashSessionNotOpenError) {
+        throw new NoOpenCashSessionError(
+          'Sessão de caixa aberta é obrigatória para efetuar o estorno de dinheiro físico.'
+        );
       }
-    );
+      throw error;
+    }
 
     return sale;
   }

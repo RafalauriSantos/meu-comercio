@@ -4,3 +4,10 @@ export class CashSessionNotOpenError extends Error {
     this.name = 'CashSessionNotOpenError';
   }
 }
+
+export class SaleAlreadyCancelledError extends Error {
+  constructor(message = 'Venda já se encontra cancelada.') {
+    super(message);
+    this.name = 'SaleAlreadyCancelledError';
+  }
+}

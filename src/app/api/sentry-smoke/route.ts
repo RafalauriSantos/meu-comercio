@@ -1,6 +1,7 @@
 // Temporary route to check Sentry in production. Removed right after the check.
-export const dynamic = "force-dynamic";
+import { connection } from "next/server";
 
-export function GET() {
+export async function GET() {
+  await connection();
   throw new Error("Sentry smoke test (temporary route)");
 }

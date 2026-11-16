@@ -434,3 +434,18 @@ Este documento registra formalmente as decisões de arquitetura e de produto do 
   - *Positivo*: o caixa, o estoque e o fiado nunca ficam inconsistentes por falha no meio; o cancelamento duplo é impedido pela trava; a regra fica igual para os próximos fluxos.
   - *Negativo*: a transação é um pouco mais longa no Neon (não medida); os testes usam o driver `pg`, não o `@neondatabase/serverless` de produção; a conferência de dinheiro suficiente na gaveta continua fora da transação (uma sangria simultânea ainda pode deixar a gaveta negativa).
   - *A fazer*: aplicar a mesma regra à quitação de fiado, ao fechamento de caixa, à sangria e suprimento e à reposição de estoque; ajustar o `scripts/ci-local.mjs` para passar `TEST_DATABASE_URL` só ao passo de integração.
+
+## ADR-022: Sentry Só no Servidor, Sem Envio do Navegador
+
+- **Data**: 2026-11-16
+- **Status**: Aprovado. Implementado no PR 84 (configuração, filtro de privacidade e testes) e confirmado em produção com rota temporária (PRs 85 e 86, já removida).
+- **Contexto**: o app precisa saber quando o servidor falha (erro 500 em venda, caixa, estoque). Um rastreador de erros coleta o IP de quem envia. No navegador, quem envia é o cliente, então o painel calcula a cidade de cada cliente. Testamos a opção "Prevent Storing of IP Addresses" da organização: ela não impede o cálculo da cidade. Nos erros do servidor, quem envia é a função da Vercel, e a cidade vira o datacenter (São Paulo).
+- **Decisão**: o Sentry envia só erros do servidor e do edge. O navegador não carrega o SDK. Sem `NEXT_PUBLIC_SENTRY_DSN` nada é enviado, e o envio só acontece em produção (`NODE_ENV=production` e `VERCEL_ENV=production`). Todo evento passa por um filtro que reconstrói o evento a partir de uma lista de permissão (`src/shared/infrastructure/observability/sentry-privacy.ts`): mensagem só para as 5 classes de erro conhecidas e só com o texto fixo; segmentos dinâmicos de rota viram `:id` ou `[param]`; IP, usuário, cookies, cabeçalhos, corpo, variáveis e breadcrumbs não saem.
+- **Alternativas descartadas**:
+  - Sentry também no navegador, com o IP desligado no painel: a cidade continua sendo calculada, e não há como impedir do lado do app.
+  - Só logs da Vercel: não agrupam erros nem avisam por e-mail; ficam como complemento.
+  - Filtro de texto livre com mais regras: cada revisão achava um vazamento novo; regex para texto livre não fecha, então o filtro é rede de segurança, não a defesa principal.
+- **Trade-offs / Consequências**:
+  - *Positivo*: a localização de clientes não chega ao Sentry; a configuração fica pequena e tem um teste real de ponta a ponta.
+  - *Negativo*: erros que só acontecem no navegador (tela travada sem chamar o servidor) não aparecem no Sentry. O stack trace fica minificado até enviar os source maps. Texto livre que não bate com a lista de permissão pode passar (risco aceito, descrito no PR 84).
+  - *A fazer*: enviar source maps; capturar explicitamente os 500 tratados em `catch` das rotas (as de dinheiro e login exigem aprovação do dono); o monitor de disponibilidade (UptimeRobot) é feito pelo dono.

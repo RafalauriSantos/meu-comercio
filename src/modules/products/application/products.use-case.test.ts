@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { Product } from '../domain/product';
-import { ProductRepository, ProductListPage } from '../domain/product-repository.port';
+import { ProductRepository, ProductListPage, ProductsSummary } from '../domain/product-repository.port';
 import { InventoryRepository, InventoryMovementType } from '@/modules/inventory/domain/inventory-repository.port';
 import { InventoryItem, InsufficientStockError } from '@/modules/inventory/domain/inventory-item';
 import { AuditPort } from '@/modules/audit/domain/audit.port';
@@ -35,6 +35,10 @@ class InMemoryProductRepository implements ProductRepository {
 
   async listPage(): Promise<ProductListPage> {
     throw new Error('listPage is not used in this test.');
+  }
+
+  async getSummary(): Promise<ProductsSummary> {
+    throw new Error('getSummary is not used in this test.');
   }
 
   async searchByNameOrBarcode(merchantId: string, query: string, limit = 20): Promise<Product[]> {

@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
-import { apiRequest, ApiError } from './api-client';
+import { apiRequest, ApiError, apiClient } from './api-client';
 
 describe('apiRequest errors', () => {
   afterEach(() => {
@@ -63,5 +63,38 @@ describe('apiRequest errors', () => {
 
     expect((error as ApiError).status).toBe(502);
     expect((error as ApiError).message).toBe('Falha ao processar solicitação.');
+  });
+});
+
+describe('apiClient products', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  function stubFetch() {
+    const fetchMock = vi.fn().mockImplementation(async () => new Response(JSON.stringify({ items: [] }), { status: 200 }));
+    vi.stubGlobal('fetch', fetchMock);
+    return () => String(fetchMock.mock.calls[0][0]);
+  }
+
+  it.each<[[string?, number?, number?], string]>([
+    [[], '/api/products'],
+    [['arroz'], '/api/products?q=arroz'],
+    [['a b', 2, 50], '/api/products?q=a+b&page=2&pageSize=50'],
+    [['', 3], '/api/products?page=3'],
+  ])('listProducts(%j) calls %s', async (args, url) => {
+    const called = stubFetch();
+
+    await apiClient.listProducts(...args);
+
+    expect(called()).toBe(url);
+  });
+
+  it('getProductsSummary calls the summary route', async () => {
+    const called = stubFetch();
+
+    await apiClient.getProductsSummary();
+
+    expect(called()).toBe('/api/products/summary');
   });
 });

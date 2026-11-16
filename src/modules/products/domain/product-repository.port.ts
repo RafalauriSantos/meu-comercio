@@ -27,6 +27,19 @@ export interface ProductsSummary {
   stockValue: Money;
 }
 
+/** The only fields an edit can change. */
+export interface ProductChanges {
+  name?: string;
+  salePrice?: Money;
+  barcode?: string;
+}
+
+export interface ProductUpdateContext {
+  actorId: string;
+  /** When given and different from the stored updated_at, the edit is refused (ProductChangedError). */
+  expectedUpdatedAt?: Date;
+}
+
 export interface ProductRepository {
   save(product: Product): Promise<void>;
   findByBarcode(merchantId: string, barcode: string): Promise<Product | null>;
@@ -34,4 +47,10 @@ export interface ProductRepository {
   searchByNameOrBarcode(merchantId: string, query: string, limit?: number): Promise<Product[]>;
   listPage(merchantId: string, params: ProductListPageParams): Promise<ProductListPage>;
   getSummary(merchantId: string): Promise<ProductsSummary>;
+  /**
+   * Edits name, price and barcode of one product in a single transaction (row locked, only the changed columns
+   * written, PRODUCT_UPDATED recorded in the same transaction). Returns null when the product is not in the shop.
+   * Throws ProductBarcodeConflictError and ProductChangedError.
+   */
+  updateDetails(merchantId: string, productId: string, changes: ProductChanges, context: ProductUpdateContext): Promise<Product | null>;
 }

@@ -4,6 +4,7 @@ import { UnauthorizedError } from '@/shared/infrastructure/auth/auth-context';
 import type { SessionData } from '@/shared/infrastructure/auth/session';
 
 import { POST as productsPost } from './products/route';
+import { PATCH as productPatch } from './products/[id]/route';
 import { POST as productsImportPost } from './products/import/route';
 import { POST as restockPost } from './inventory/restock/route';
 import { GET as salesReportGet } from './reports/sales/route';
@@ -81,6 +82,11 @@ describe('rotas só da dona (ROLE_OWNER)', () => {
       name: 'POST /api/products',
       call: () => productsPost(req('POST', '/api/products')),
       message: 'Apenas a proprietária pode cadastrar novos produtos no catálogo.',
+    },
+    {
+      name: 'PATCH /api/products/[id]',
+      call: () => productPatch(req('PATCH', `/api/products/${SALE_ID}`), params),
+      message: 'Apenas a proprietária pode editar produtos do catálogo.',
     },
     {
       name: 'POST /api/products/import',

@@ -270,3 +270,16 @@ Este documento rastreia formalmente as fatias verticais de entrega, critérios d
 - [ ] 21.2 **Como reverter rápido:** escrever um passo a passo curto em `docs/` de como voltar a versão anterior na Vercel (painel e comando), e testar uma vez com a loja fora do horário.
 - [ ] 21.3 **Verificação depois do deploy** (smoke test no `ci.yml`, depois do passo de deploy): conferir que `/login` responde, que `/api/version` responde e que a versão publicada é a que acabou de ir. Só lê páginas públicas, sem tocar em dados nem dinheiro. Se falhar, o CI fica vermelho e avisa; reverter sozinho fica para depois.
 - [ ] 21.4 **Sentry: source maps e captura de 500 nas rotas**: enviar os source maps para o stack trace sair legível; capturar explicitamente os 500 tratados em `catch` (um helper único). Rotas de dinheiro e login pedem aprovação do dono.
+
+### [ ] Slice 22: Catálogo e cadastro de produtos (pedidos da dona, uso real da loja)
+> Surgiu do uso: mais de 100 produtos cadastrados, preço digitado com vírgula à mão, bipar o produto no cadastro. O controle de estoque opcional já existe (11.11): cada loja liga ou desliga. Spec e análise de arquitetura da lista paginada: `.dev-team/` (local).
+
+- [x] 22.1 **Máscara de centavos no preço do produto:** digitar `125` mostra `1,25`. Só a digitação; `Money` e API não mudaram (PR #90).
+- [x] 22.2 **Bipar abre o cadastro:** na aba Catálogo e Estoque, o bip abre o formulário com o código preenchido e o cursor no Nome; código já cadastrado mostra o aviso (PR #91). Os 50 ms e os 4 caracteres do reconhecimento são valores de partida, sem teste com leitor físico.
+- [ ] 22.3 **Lista de produtos paginada** (hoje mostra só 100, sem ordem; GET `/api/products` tem limite fixo): em passos pequenos, sem migração.
+  - [ ] 22.3a API: ordem por nome e id, `page`, `pageSize` e `hasMore`, estoque na mesma consulta (acaba com a consulta por produto). Compatível: sem `page`, devolve a primeira página de 100. Em andamento.
+  - [ ] 22.3b Cliente da API e endpoint de resumo (total, "Precisam de reposição", "Valor em estoque", este com `Money`). Os números do topo hoje contam só os 100 carregados.
+  - [ ] 22.3c Tela: botão "Carregar mais" (50 por vez), busca em todos os produtos, indicadores corretos, produto novo limpa a busca e avisa o nome. Extrair `use-products-list.ts` (ADR-020).
+  - [ ] 22.3d (fase 2, se medir lento) Filtros "Estoque baixo" e "Sem estoque" no servidor. Hoje valem só para o que está carregado.
+- [ ] 22.4 **Produto sem código de barras:** hoje o código é obrigatório (tela, validação e banco). Opção recomendada: código interno gerado pelo app (ex.: `SEM-000123`, formato que nunca coincide com um EAN), sem mudar o banco. Decisão da dona: gerado ou digitado.
+- [ ] 22.5 **Máscara de centavos nos outros campos de dinheiro:** só o preço do produto foi feito. Há outros `type="number"` em `gestao/page.tsx`, `pdv/page.tsx`, `customers-tab.tsx` e `cash-open-screen.tsx` (saldo de abertura). Listar quais são dinheiro antes de mexer.

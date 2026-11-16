@@ -3,6 +3,7 @@
 import React from 'react';
 import type { AuthUser } from '@/frontend/lib/api-client';
 import { formatMoney } from '@/frontend/lib/formatters';
+import { maskCurrencyDigits } from '@/frontend/lib/currency-mask';
 import { formatQuantity } from '@/shared/domain/product-unit';
 import { LoadFailureNotice } from '@/frontend/ui/load-failure-notice';
 import { ImportProductsPanel } from '@/frontend/management/import-products-panel';
@@ -172,13 +173,12 @@ export function ProductsTab({ tab, stockControl, user, setFeedback, loadFailed, 
                     <input
                       id="np-price"
                       className="input num"
-                      type="number"
-                      step="0.01"
-                      min="0.01"
+                      type="text"
+                      inputMode="numeric"
                       required
                       value={newPrice}
-                      onChange={(e) => setNewPrice(e.target.value)}
-                      placeholder="24.90"
+                      onChange={(e) => setNewPrice(maskCurrencyDigits(e.target.value))}
+                      placeholder="24,90"
                     />
                   </div>
                   {stockControl && (

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useCallback, useRef } from 'react';
+import React, { useState, useCallback, useRef, useEffect } from 'react';
 import { apiClient, ProductItem } from '@/frontend/lib/api-client';
 import { parseCurrencyInput, getErrorMessage } from '@/frontend/lib/formatters';
 import { findProductWithBarcode, takenBarcodeMessage } from '@/frontend/management/barcode-check';
@@ -36,6 +36,8 @@ export function useProductsTab({ setFeedback, setProcessing, setLoadFailed, stoc
   // Aviso de código de barras já cadastrado, e o campo do nome, para onde o foco vai depois do bipador.
   const [barcodeNote, setBarcodeNote] = useState<string | null>(null);
   const newNameRef = useRef<HTMLInputElement>(null);
+  // Each scan that opens the form bumps this, and the effect below moves the cursor to the name once the form is on screen.
+  const [nameFocusRequest, setNameFocusRequest] = useState(0);
   const [restockingId, setRestockingId] = useState<string | null>(null);
   const [restockQty, setRestockQty] = useState('1');
   const [restockReason, setRestockReason] = useState('');
@@ -98,6 +100,28 @@ export function useProductsTab({ setFeedback, setProcessing, setLoadFailed, stoc
     void checkNewBarcode(e.currentTarget.value);
     newNameRef.current?.focus();
   }
+
+  // The owner scanned a product with the tab open: a free code opens the form with it filled in; a taken one only warns.
+  const handleScannedBarcode = useCallback(async (code: string) => {
+    try {
+      const existing = await findProductWithBarcode(apiClient.findProductByBarcode, code);
+      if (existing) {
+        setFeedback({ text: takenBarcodeMessage(existing), isError: true });
+        return;
+      }
+    } catch {
+      // Sem resposta do servidor: não perde o bip. O formulário abre e o cadastro avisa se o código for repetido.
+    }
+    setFeedback(null);
+    setBarcodeNote(null);
+    setNewBarcode(code);
+    setShowNewProduct(true);
+    setNameFocusRequest((n) => n + 1);
+  }, [setFeedback]);
+
+  useEffect(() => {
+    if (nameFocusRequest > 0) newNameRef.current?.focus();
+  }, [nameFocusRequest]);
 
   async function handleCreateProduct(e: React.FormEvent) {
     e.preventDefault();
@@ -200,6 +224,7 @@ export function useProductsTab({ setFeedback, setProcessing, setLoadFailed, stoc
     handleToggleStockControl,
     checkNewBarcode,
     handleNewBarcodeKeyDown,
+    handleScannedBarcode,
     handleCreateProduct,
     handleRestock,
   };

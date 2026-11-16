@@ -8,6 +8,7 @@ import { formatQuantity } from '@/shared/domain/product-unit';
 import { LoadFailureNotice } from '@/frontend/ui/load-failure-notice';
 import { ImportProductsPanel } from '@/frontend/management/import-products-panel';
 import { countNeedingRestock, inventoryValue, matchesStockFilter, stockStatus, type StockFilter } from '@/frontend/management/stock';
+import { useBarcodeScan } from '@/frontend/management/use-barcode-scan';
 import type { useProductsTab } from './use-products-tab';
 
 interface ProductsTabProps {
@@ -57,9 +58,12 @@ export function ProductsTab({ tab, stockControl, user, setFeedback, loadFailed, 
     handleToggleStockControl,
     checkNewBarcode,
     handleNewBarcodeKeyDown,
+    handleScannedBarcode,
     handleCreateProduct,
     handleRestock,
   } = tab;
+
+  useBarcodeScan(handleScannedBarcode);
 
   const lowStockCount = countNeedingRestock(catalog);
   const stockValue = inventoryValue(catalog);

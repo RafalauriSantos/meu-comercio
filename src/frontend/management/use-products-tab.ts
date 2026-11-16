@@ -1,10 +1,11 @@
 'use client';
 
 import React, { useState, useCallback, useRef, useEffect } from 'react';
-import { apiClient, ProductItem } from '@/frontend/lib/api-client';
+import { apiClient } from '@/frontend/lib/api-client';
 import { parseCurrencyInput, getErrorMessage } from '@/frontend/lib/formatters';
 import { findProductWithBarcode, takenBarcodeMessage } from '@/frontend/management/barcode-check';
 import type { ProductUnit } from '@/shared/domain/product-unit';
+import { useProductsList } from '@/frontend/management/use-products-list';
 import { initialStockToQuantity, restockToQuantity, type StockFilter } from '@/frontend/management/stock';
 
 type Feedback = { text: string; isError?: boolean } | null;
@@ -21,9 +22,8 @@ interface UseProductsTabParams {
 /** State, load and handlers of the products tab. Called by the page, so a draft survives a tab change. */
 export function useProductsTab({ setFeedback, setProcessing, setLoadFailed, stockControl, setStockControl }: UseProductsTabParams) {
   // Estados de Produtos
-  const [products, setProducts] = useState<ProductItem[]>([]);
-  // Catálogo completo (última carga sem busca): base dos indicadores, que não mudam com a busca.
-  const [catalog, setCatalog] = useState<ProductItem[]>([]);
+  const list = useProductsList({ setLoadFailed });
+  const { products, loadProducts } = list;
   const [stockFilter, setStockFilter] = useState<StockFilter>('all');
   const [productQuery, setProductQuery] = useState('');
   const [showNewProduct, setShowNewProduct] = useState(false);
@@ -41,19 +41,6 @@ export function useProductsTab({ setFeedback, setProcessing, setLoadFailed, stoc
   const [restockingId, setRestockingId] = useState<string | null>(null);
   const [restockQty, setRestockQty] = useState('1');
   const [restockReason, setRestockReason] = useState('');
-
-  const loadProducts = useCallback(async (query = '') => {
-    try {
-      const res = await apiClient.listProducts(query);
-      const items = res.items || [];
-      setProducts(items);
-      if (!query) setCatalog(items);
-      setLoadFailed((f) => ({ ...f, products: false }));
-    } catch (err) {
-      setLoadFailed((f) => ({ ...f, products: true }));
-      console.error('Erro ao carregar produtos:', err);
-    }
-  }, [setLoadFailed]);
 
   // --- Handlers de Produtos ---
 
@@ -143,7 +130,10 @@ export function useProductsTab({ setFeedback, setProcessing, setLoadFailed, stoc
         initialStock,
         unit: newUnit,
       });
-      setFeedback({ text: 'Produto cadastrado com sucesso!' });
+      setFeedback({
+        text: `Produto "${newName.trim()}" cadastrado com sucesso! Ele aparece em ordem alfabética: se não o vir, use Carregar mais.`,
+      });
+      setProductQuery('');
       setShowNewProduct(false);
       setNewBarcode('');
       setNewName('');
@@ -182,7 +172,7 @@ export function useProductsTab({ setFeedback, setProcessing, setLoadFailed, stoc
       setRestockingId(null);
       setRestockQty('1');
       setRestockReason('');
-      await loadProducts();
+      list.applyRestock(productId, restockQuantity);
     } catch (err) {
       setFeedback({ text: getErrorMessage(err, 'Erro ao repor estoque.'), isError: true });
     } finally {
@@ -192,7 +182,11 @@ export function useProductsTab({ setFeedback, setProcessing, setLoadFailed, stoc
 
   return {
     products,
-    catalog,
+    hasMore: list.hasMore,
+    summary: list.summary,
+    loadingMore: list.loadingMore,
+    loadMoreFailed: list.loadMoreFailed,
+    loadMore: list.loadMore,
     stockFilter,
     setStockFilter,
     productQuery,

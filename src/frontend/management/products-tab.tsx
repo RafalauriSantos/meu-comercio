@@ -7,7 +7,8 @@ import { maskCurrencyDigits } from '@/frontend/lib/currency-mask';
 import { formatQuantity } from '@/shared/domain/product-unit';
 import { LoadFailureNotice } from '@/frontend/ui/load-failure-notice';
 import { ImportProductsPanel } from '@/frontend/management/import-products-panel';
-import { countNeedingRestock, inventoryValue, matchesStockFilter, stockStatus, type StockFilter } from '@/frontend/management/stock';
+import { matchesStockFilter, stockStatus, type StockFilter } from '@/frontend/management/stock';
+import { needingRestockCount, shownText, stockValueText } from '@/frontend/management/products-list';
 import { useBarcodeScan } from '@/frontend/management/use-barcode-scan';
 import type { useProductsTab } from './use-products-tab';
 
@@ -26,7 +27,11 @@ interface ProductsTabProps {
 export function ProductsTab({ tab, stockControl, user, setFeedback, loadFailed, retrying, processing, retry }: ProductsTabProps) {
   const {
     products,
-    catalog,
+    hasMore,
+    summary,
+    loadingMore,
+    loadMoreFailed,
+    loadMore,
     stockFilter,
     setStockFilter,
     productQuery,
@@ -65,8 +70,7 @@ export function ProductsTab({ tab, stockControl, user, setFeedback, loadFailed, 
 
   useBarcodeScan(handleScannedBarcode);
 
-  const lowStockCount = countNeedingRestock(catalog);
-  const stockValue = inventoryValue(catalog);
+  const lowStockCount = needingRestockCount(summary);
   const visibleProducts = products.filter(
     (p) => !stockControl || matchesStockFilter(p.availableQuantity, stockFilter, p.unit)
   );
@@ -85,17 +89,17 @@ export function ProductsTab({ tab, stockControl, user, setFeedback, loadFailed, 
             <div className="mg-kpis">
               <div className="mg-kpi">
                 <div className="mg-kpi-label">Produtos cadastrados</div>
-                <div className="mg-kpi-value num">{catalog.length}</div>
+                <div className="mg-kpi-value num">{summary ? summary.total : '—'}</div>
               </div>
               {stockControl && (
                 <>
                   <div className="mg-kpi mg-kpi-warn">
                     <div className="mg-kpi-label">Precisam de reposição</div>
-                    <div className="mg-kpi-value num">{lowStockCount}</div>
+                    <div className="mg-kpi-value num">{lowStockCount ?? '—'}</div>
                   </div>
                   <div className="mg-kpi">
                     <div className="mg-kpi-label">Valor em estoque (a preço de venda)</div>
-                    <div className="mg-kpi-value num">{formatMoney(stockValue)}</div>
+                    <div className="mg-kpi-value num">{stockValueText(summary)}</div>
                   </div>
                 </>
               )}
@@ -375,10 +379,27 @@ export function ProductsTab({ tab, stockControl, user, setFeedback, loadFailed, 
                 </table>
               </div>
 
+              {stockControl && stockFilter !== 'all' && hasMore && (
+                <p className="mg-help mg-foot" role="status">
+                  O filtro vale só para os produtos já carregados; use Carregar mais.
+                </p>
+              )}
               <p className="mg-foot">
-                Mostrando {visibleProducts.length} de {catalog.length} produtos
+                {shownText(visibleProducts.length, summary ? summary.total : null)}
                 {stockControl && ' · Entrada registra compra ou reposição de estoque'}
               </p>
+              {(hasMore || loadMoreFailed) && (
+                <div className="mg-foot">
+                  {loadMoreFailed && (
+                    <span className="mg-help mg-help-warn" role="alert">
+                      Não foi possível carregar mais produtos. A lista acima continua aqui.
+                    </span>
+                  )}
+                  <button type="button" className="outline" onClick={loadMore} disabled={loadingMore}>
+                    {loadingMore ? 'Carregando...' : loadMoreFailed ? 'Tentar de novo' : 'Carregar mais'}
+                  </button>
+                </div>
+              )}
             </section>
           </section>
   );

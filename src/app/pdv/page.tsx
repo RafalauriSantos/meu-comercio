@@ -52,6 +52,7 @@ import { ReceiptModal, type PrintModalData } from '@/frontend/pdv/receipt-modal'
 import { VersionLabel } from '@/frontend/ui/version-label';
 import { WEIGHT_STEP_GRAMS } from '@/frontend/pdv/weight-input';
 import { formatQuantity, lineSubtotal } from '@/shared/domain/product-unit';
+import { noticeView } from '@/frontend/ui/notice-view';
 import '@/frontend/styles/pdv.css';
 
 interface CartLine {
@@ -138,7 +139,7 @@ export default function PdvTerminalPage() {
   const [printModalData, setPrintModalData] = useState<PrintModalData | null>(null);
 
   // Notificações e Feedback
-  const [message, setMessage] = useState<{ text: string; isError?: boolean } | null>(null);
+  const [message, setMessage] = useState<{ text: string; isError?: boolean; isSuccess?: boolean } | null>(null);
   useAutoDismiss(message, () => setMessage(null));
   const [processing, setProcessing] = useState(false);
 
@@ -174,6 +175,7 @@ export default function PdvTerminalPage() {
       if (result.syncedCount > 0) {
         setMessage({
           text: `${result.syncedCount} venda(s) offline sincronizada(s) com o servidor com sucesso!`,
+          isSuccess: true,
         });
       }
       const count = offlineManagerRef.current.getQueue(
@@ -749,6 +751,7 @@ export default function PdvTerminalPage() {
 
       setMessage({
         text: `Venda #${saleRes.id.slice(0, 8)} confirmada com sucesso!${changeMsg}`,
+        isSuccess: true,
       });
       resetCartAndCheckout();
     } catch (err) {
@@ -812,6 +815,7 @@ export default function PdvTerminalPage() {
         });
         setMessage({
           text: `Sangria de ${formatMoney(res.amount)} realizada com sucesso! Saldo em caixa: ${formatMoney(res.expectedCash)}.`,
+          isSuccess: true,
         });
       } else {
         const res = await apiClient.recordDeposit({
@@ -820,6 +824,7 @@ export default function PdvTerminalPage() {
         });
         setMessage({
           text: `Suprimento de ${formatMoney(res.amount)} realizado com sucesso! Saldo em caixa: ${formatMoney(res.expectedCash)}.`,
+          isSuccess: true,
         });
       }
 
@@ -902,7 +907,7 @@ export default function PdvTerminalPage() {
 
       <main className="pdv-main">
         {message && (
-          <div className={message.isError ? 'error' : 'notice'} role="alert">
+          <div {...noticeView(message)}>
             <span>{message.text}</span>
             <button className="soft" type="button" onClick={() => setMessage(null)}>
               Fechar
@@ -1396,6 +1401,7 @@ export default function PdvTerminalPage() {
             setIsCancelSaleOpen(false);
             setMessage({
               text: `Venda ${shortId} cancelada. Os produtos voltaram ao estoque e os valores foram estornados.`,
+              isSuccess: true,
             });
             barcodeInputRef.current?.focus();
           }}

@@ -57,7 +57,7 @@ export default function GestaoPage() {
   // Se a loja controla o estoque. Desligado, somem o saldo, as entradas, os alertas e o valor em estoque.
   const [stockControl, setStockControl] = useState(true);
   const productsTab = useProductsTab({ setFeedback, setProcessing, setLoadFailed, stockControl, setStockControl });
-  const { catalog, loadProducts } = productsTab;
+  const { summary, loadProducts } = productsTab;
 
   const loadCash = useCallback(async () => {
     try {
@@ -250,7 +250,7 @@ export default function GestaoPage() {
             aria-pressed={activeTab === 'produtos'}
             onClick={() => setActiveTab('produtos')}
           >
-            Catálogo & Estoque ({catalog.length})
+            Catálogo & Estoque ({summary ? summary.total : '—'})
           </button>
           <button
             type="button"

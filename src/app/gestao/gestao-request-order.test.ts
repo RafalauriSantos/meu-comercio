@@ -32,6 +32,7 @@ const h = vi.hoisted(() => ({
     me: vi.fn(),
     getStoreSettings: vi.fn(),
     listProducts: vi.fn(),
+    getProductsSummary: vi.fn(),
     listCustomers: vi.fn(),
     getCustomerBalance: vi.fn(),
     getCurrentCash: vi.fn(),
@@ -164,6 +165,7 @@ function loadAs(me: { isOwner: boolean }) {
   respond('me', () => ({ username: 'user', merchantId: 'm', authorities: [], ...me }));
   respond('getStoreSettings', () => ({ stockControlEnabled: true }));
   respond('listProducts', () => ({ items: [] }));
+  respond('getProductsSummary', () => ({ total: 0, lowStockCount: 0, outOfStockCount: 0, stockValue: '0.00' }));
   respond('listCustomers', () => ({
     items: ['c1', 'c2', 'c3'].map((id) => ({ id, name: `Cliente ${id}`, phone: `9${id}`, creditLimit: '100.00' })),
   }));
@@ -198,7 +200,8 @@ describe('/gestao first load: the list and the order of the apiClient calls', ()
     expect(h.calls).toEqual([
       'me',
       'getStoreSettings',
-      'listProducts:', // the first load asks for the whole catalog: listProducts('')
+      'listProducts:', // the first load asks for page 1 of the list: listProducts('', 1, 50)
+      'getProductsSummary', // started together with the list, right after it
       'listCustomers',
       'getCurrentCash',
       'getCreditMetrics',
@@ -217,7 +220,8 @@ describe('/gestao first load: the list and the order of the apiClient calls', ()
     expect(h.calls).toEqual([
       'me',
       'getStoreSettings',
-      'listProducts:', // the first load asks for the whole catalog: listProducts('')
+      'listProducts:', // the first load asks for page 1 of the list: listProducts('', 1, 50)
+      'getProductsSummary', // started together with the list, right after it
       'listCustomers',
       'getCurrentCash',
       'getCreditMetrics',
@@ -251,7 +255,7 @@ describe('/gestao: the apiClient calls and the /login redirects in the source of
   const count = (needle: string) => source.split(needle).length - 1;
 
   it('has 21 + 2 apiClient. and 2 router.push(/login)', () => {
-    expect(count('apiClient.')).toBe(21 + 2);
+    expect(count('apiClient.')).toBe(21 + 2 + 2);
     expect(count("router.push('/login')")).toBe(2);
   });
 
@@ -273,7 +277,8 @@ describe('/gestao: the apiClient calls and the /login redirects in the source of
       importProducts: 2,
       listCustomers: 1,
       listOperators: 1,
-      listProducts: 1,
+      getProductsSummary: 1,
+      listProducts: 2, // page 1 and Carregar mais: same method, two calls
       logout: 1,
       me: 1,
       openCash: 1,

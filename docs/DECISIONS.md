@@ -413,3 +413,24 @@ Este documento registra formalmente as decisões de arquitetura e de produto do 
   - *Positivo*: arquivos pequenos e com uma responsabilidade; cada mudança toca só o lugar certo; a carga de dados fica num hook por aba, o que facilita o Slice 17.
   - *Negativo*: o estado de cada aba ainda mora na página, via hook, para o rascunho sobreviver à troca de aba e os estados compartilhados continuarem únicos; a página ainda orquestra bastante. Os hooks passam da meta de ~150 linhas (o de Produtos tem 206). Os testes ainda leem texto do código (Slice 18 troca isso por testes de comportamento).
   - *A fazer*: impor essas regras no CI (limite de linhas e fronteiras de importação), terminar a Gestão e o PDV, e um ADR próprio para a camada de dados do front (tempo limite, erro de rede sem logout, cache) quando o Slice 19 chegar nela.
+
+## ADR-021: Fluxos de Dinheiro Gravam numa Transação Única do Repositório
+
+- **Data**: 2026-11-15
+- **Status**: Aprovado. Implementado para o cancelamento de venda (`commitCancellation`); a quitação de fiado, o fechamento de caixa, a sangria e o suprimento e a reposição de estoque seguem a mesma regra nos próximos PRs (item 19.5 do backlog).
+- **Contexto**: O cancelamento de venda fazia cinco escritas soltas, cada uma confirmada sozinha: marcar a venda como cancelada, devolver o estoque, estornar o caixa, desfazer o fiado e gravar a auditoria. Uma falha no meio deixava a venda cancelada sem estorno, sem estoque e sem fiado desfeito, e uma nova tentativa recebia "já cancelada", então não havia como completar. Dois cancelamentos ao mesmo tempo da mesma venda passavam pelas validações e estornavam duas vezes. Criar venda já fazia certo (`commitSale`: uma transação, travas em ordem fixa, testado contra banco).
+- **Decisão**:
+  1. **Cada fluxo de dinheiro tem um método do repositório que grava tudo numa só transação** (`commitSale`, `commitCancellation`). Se qualquer escrita falhar, nada fica gravado.
+  2. **As travas seguem uma ordem fixa** para não travar uma operação contra a outra: a venda (`FOR UPDATE`, reconferindo o estado), a sessão de caixa (`FOR SHARE`), o estoque em ordem por produto (`FOR UPDATE`) e o cliente (`FOR UPDATE`). A trava da venda é o que impede o estorno duplo.
+  3. **Validações e PIN da proprietária ficam antes da transação.** O contador de tentativas do PIN é gravado fora dela e **não é desfeito** por um rollback.
+  4. **Financeiro nunca é apagado:** o cancelamento só atualiza o estado da venda; `sale_items` e `payments` não são apagados nem recriados.
+  5. **Mensagens, erros de domínio e códigos HTTP não mudam.** O caso de uso continua em `application`, que não importa `infrastructure`; o adaptador de `sales` grava as tabelas de caixa, estoque, fiado e auditoria dentro da mesma transação, como o `commitSale` já fazia.
+  6. **Cada fluxo é provado por testes de integração com banco real descartável** que forçam a falha em cada escrita, a concorrência e a ordem de travas (`cancel-sale.use-case.integration.test.ts` e `cancel-sale.use-case.cancellation.integration.test.ts`).
+- **Alternativas descartadas**:
+  - Um gerenciador de transação genérico injetado nos casos de uso: mais cerimônia e acoplaria `application` à transação, sem ganho num banco só.
+  - Compensação ao estilo saga: só se paga quando os passos estão em serviços separados; aqui é um banco.
+  - Um índice único por venda e tipo de movimento como defesa extra: exige migração, fica em PR próprio com checagem de duplicatas antes.
+- **Trade-offs / Consequências**:
+  - *Positivo*: o caixa, o estoque e o fiado nunca ficam inconsistentes por falha no meio; o cancelamento duplo é impedido pela trava; a regra fica igual para os próximos fluxos.
+  - *Negativo*: a transação é um pouco mais longa no Neon (não medida); os testes usam o driver `pg`, não o `@neondatabase/serverless` de produção; a conferência de dinheiro suficiente na gaveta continua fora da transação (uma sangria simultânea ainda pode deixar a gaveta negativa).
+  - *A fazer*: aplicar a mesma regra à quitação de fiado, ao fechamento de caixa, à sangria e suprimento e à reposição de estoque; ajustar o `scripts/ci-local.mjs` para passar `TEST_DATABASE_URL` só ao passo de integração.

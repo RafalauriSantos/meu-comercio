@@ -3,7 +3,7 @@ import { Money } from '@/shared/domain/money';
 import { Sale } from '../domain/sale';
 import { SaleItem } from '../domain/sale-item';
 import { Payment } from '../domain/payment';
-import { SaleRepository } from '../domain/sale-repository.port';
+import { CancellationCommit, SaleRepository } from '../domain/sale-repository.port';
 import { InventoryRepository, InventoryMovementType } from '@/modules/inventory/domain/inventory-repository.port';
 import { InventoryItem } from '@/modules/inventory/domain/inventory-item';
 import { CashSessionRepository, CurrentCashSessionSummary } from '@/modules/cash/domain/cash-session-repository.port';
@@ -41,6 +41,56 @@ class InMemorySaleRepository implements SaleRepository {
 
   async commitSale(commit: { sale: Sale }): Promise<void> {
     await this.save(commit.sale);
+  }
+
+  // Applies the same effects the Drizzle repository writes in one transaction.
+  constructor(
+    private readonly inventory: InMemoryInventoryRepository,
+    private readonly cash: InMemoryCashSessionRepository,
+    private readonly credit: InMemoryCustomerCreditRepository,
+    private readonly audit: InMemoryAuditService
+  ) {}
+
+  async commitCancellation(commit: CancellationCommit): Promise<void> {
+    const { sale } = commit;
+    await this.save(sale);
+    for (const stockReturn of commit.stockReturns) {
+      const item = await this.inventory.findByProductId(sale.merchantId, stockReturn.productId);
+      if (item) {
+        item.restock(stockReturn.quantity);
+        await this.inventory.save(item);
+      }
+      await this.inventory.addMovement(
+        sale.merchantId,
+        stockReturn.productId,
+        'RETURN',
+        stockReturn.quantity,
+        stockReturn.reason,
+        commit.actorId
+      );
+    }
+    if (commit.cashRefund) {
+      await this.cash.addMovement(
+        sale.merchantId,
+        commit.cashRefund.cashSessionId,
+        'CASH_CANCEL',
+        commit.cashRefund.amount,
+        sale.id
+      );
+    }
+    if (commit.creditRefund) {
+      await this.credit.saveMovement(commit.creditRefund.movement);
+    }
+    for (const entry of commit.audits) {
+      await this.audit.record(
+        sale.merchantId,
+        entry.eventType,
+        entry.actorId,
+        entry.aggregateType,
+        entry.aggregateId,
+        entry.details
+      );
+    }
   }
 }
 
@@ -234,23 +284,16 @@ describe('CancelSaleUseCase — Cancelamento e Estorno de Venda', () => {
   let activeSession: CashSession;
 
   beforeEach(async () => {
-    saleRepo = new InMemorySaleRepository();
     inventoryRepo = new InMemoryInventoryRepository();
     cashRepo = new InMemoryCashSessionRepository();
     pinVerifier = new InMemoryOwnerPinVerifier();
     creditRepo = new InMemoryCustomerCreditRepository();
     audit = new InMemoryAuditService();
+    saleRepo = new InMemorySaleRepository(inventoryRepo, cashRepo, creditRepo, audit);
 
     pinVerifier.validPins.set(MERCHANT_ID, VALID_OWNER_PIN);
 
-    cancelSaleUseCase = new CancelSaleUseCase(
-      saleRepo,
-      inventoryRepo,
-      cashRepo,
-      pinVerifier,
-      audit,
-      creditRepo
-    );
+    cancelSaleUseCase = new CancelSaleUseCase(saleRepo, cashRepo, pinVerifier);
 
     // Abre sessão de caixa com R$ 200,00
     activeSession = CashSession.create(MERCHANT_ID, OPERATOR_ID, Money.fromDecimal('200.00'));

@@ -2,11 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { z, ZodError } from 'zod';
 import { requireAuthenticatedSession, UnauthorizedError } from '@/shared/infrastructure/auth/auth-context';
 import { DrizzleSaleRepository } from '@/modules/sales/infrastructure/drizzle-sale-repository';
-import { DrizzleInventoryRepository } from '@/modules/inventory/infrastructure/drizzle-inventory-repository';
 import { DrizzleCashSessionRepository } from '@/modules/cash/infrastructure/drizzle-cash-session-repository';
 import { BcryptOwnerPinVerifier } from '@/modules/customers/infrastructure/bcrypt-owner-pin-verifier';
-import { DrizzleAuditService } from '@/modules/audit/infrastructure/drizzle-audit-service';
-import { DrizzleCustomerCreditRepository } from '@/modules/customers/infrastructure/drizzle-customer-credit-repository';
 import {
   CancelSaleUseCase,
   SaleNotFoundError,
@@ -32,11 +29,8 @@ export async function POST(
 
     const useCase = new CancelSaleUseCase(
       new DrizzleSaleRepository(),
-      new DrizzleInventoryRepository(),
       new DrizzleCashSessionRepository(),
-      new BcryptOwnerPinVerifier(),
-      new DrizzleAuditService(),
-      new DrizzleCustomerCreditRepository()
+      new BcryptOwnerPinVerifier()
     );
 
     const cancelledSale = await useCase.execute({

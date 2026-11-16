@@ -55,6 +55,7 @@
 
 .pdv-main > .notice,
 .pdv-main > .error,
+.pdv-main > .success,
 .pdv-main > .pdv-offline {
   grid-column: 1 / -1;
   margin: 0;

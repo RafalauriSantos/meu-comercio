@@ -8,7 +8,7 @@ import type { ProductUnit } from '@/shared/domain/product-unit';
 import { useProductsList } from '@/frontend/management/use-products-list';
 import { initialStockToQuantity, restockToQuantity, type StockFilter } from '@/frontend/management/stock';
 
-type Feedback = { text: string; isError?: boolean } | null;
+type Feedback = { text: string; isError?: boolean; isSuccess?: boolean } | null;
 
 interface UseProductsTabParams {
   setFeedback: (feedback: Feedback) => void;
@@ -61,6 +61,7 @@ export function useProductsTab({ setFeedback, setProcessing, setLoadFailed, stoc
         text: settings.stockControlEnabled
           ? 'Controle de estoque ligado. Confira os saldos dos produtos.'
           : 'Controle de estoque desligado. As vendas não dependem mais do estoque.',
+        isSuccess: true,
       });
     } catch (err) {
       setFeedback({ text: getErrorMessage(err, 'Erro ao mudar o controle de estoque.'), isError: true });
@@ -132,6 +133,7 @@ export function useProductsTab({ setFeedback, setProcessing, setLoadFailed, stoc
       });
       setFeedback({
         text: `Produto "${newName.trim()}" cadastrado com sucesso! Ele aparece em ordem alfabética: se não o vir, use Carregar mais.`,
+        isSuccess: true,
       });
       setProductQuery('');
       setShowNewProduct(false);
@@ -168,7 +170,7 @@ export function useProductsTab({ setFeedback, setProcessing, setLoadFailed, stoc
         quantity: restockQuantity,
         reason: restockReason.trim() || 'Reposição manual de balcão',
       });
-      setFeedback({ text: 'Estoque reposto com sucesso!' });
+      setFeedback({ text: 'Estoque reposto com sucesso!', isSuccess: true });
       setRestockingId(null);
       setRestockQty('1');
       setRestockReason('');

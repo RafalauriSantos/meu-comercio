@@ -22,6 +22,7 @@ import { ProductsTab } from '@/frontend/management/products-tab';
 import { CustomersTab } from '@/frontend/management/customers-tab';
 import { useCustomersTab } from '@/frontend/management/use-customers-tab';
 import { useProductsTab } from '@/frontend/management/use-products-tab';
+import { noticeView } from '@/frontend/ui/notice-view';
 import '@/frontend/styles/management.css';
 
 type LoadKey = 'products' | 'customers' | 'balances' | 'cash' | 'metrics' | 'operators';
@@ -32,7 +33,7 @@ export default function GestaoPage() {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [loading, setLoading] = useState(true);
   const skeletonGate = useSkeletonGate(loading);
-  const [feedback, setFeedback] = useState<{ text: string; isError?: boolean } | null>(null);
+  const [feedback, setFeedback] = useState<{ text: string; isError?: boolean; isSuccess?: boolean } | null>(null);
   useAutoDismiss(feedback, () => setFeedback(null));
 
   // Estados de Caixa
@@ -119,7 +120,7 @@ export default function GestaoPage() {
     setFeedback(null);
     try {
       await apiClient.openCash({ openingBalance: parseCurrencyInput(openingBalance) });
-      setFeedback({ text: 'Caixa aberto com sucesso!' });
+      setFeedback({ text: 'Caixa aberto com sucesso!', isSuccess: true });
       await loadCash();
     } catch (err) {
       setFeedback({ text: getErrorMessage(err, 'Erro ao abrir caixa.'), isError: true });
@@ -142,7 +143,7 @@ export default function GestaoPage() {
       });
       const diff = parseCurrencyInput(res.difference);
       const diffMsg = diff === 0 ? 'sem quebra' : diff > 0 ? `com sobra de ${formatMoney(diff)}` : `com quebra de ${formatMoney(Math.abs(diff))}`;
-      setFeedback({ text: `Caixa fechado com sucesso (${diffMsg}).` });
+      setFeedback({ text: `Caixa fechado com sucesso (${diffMsg}).`, isSuccess: true });
       setClosingCounted('');
       setDiscrepancyReason('');
       await loadCash();
@@ -174,6 +175,7 @@ export default function GestaoPage() {
         });
         setFeedback({
           text: `Sangria de ${formatMoney(res.amount)} realizada com sucesso! Novo saldo esperado: ${formatMoney(res.expectedCash)}.`,
+          isSuccess: true,
         });
       } else {
         const res = await apiClient.recordDeposit({
@@ -182,6 +184,7 @@ export default function GestaoPage() {
         });
         setFeedback({
           text: `Suprimento de ${formatMoney(res.amount)} registrado com sucesso! Novo saldo esperado: ${formatMoney(res.expectedCash)}.`,
+          isSuccess: true,
         });
       }
       setIsCashOpModalOpen(false);
@@ -235,7 +238,7 @@ export default function GestaoPage() {
 
         {/* Alertas */}
         {feedback && (
-          <div className={feedback.isError ? 'error' : 'notice'} role={feedback.isError ? 'alert' : 'status'}>
+          <div {...noticeView(feedback)}>
             <span>{feedback.text}</span>
             <button type="button" className="soft" onClick={() => setFeedback(null)}>Fechar</button>
           </div>

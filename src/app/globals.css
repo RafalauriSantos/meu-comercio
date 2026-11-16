@@ -30,6 +30,8 @@
   --warn-soft: #fff4e0;
   --danger: #b42318;
   --danger-soft: #fde7e4;
+  --success: #146c2e;
+  --success-soft: #e3f5e9;
   --input: #ffffff;
   --overlay: rgba(20, 40, 75, 0.55);
   --font-sans: var(--font-inter), system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
@@ -262,7 +264,8 @@ a:focus-visible {
 }
 
 .notice,
-.error {
+.error,
+.success {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -282,6 +285,11 @@ a:focus-visible {
 .error {
   background: var(--danger-soft);
   color: var(--danger);
+}
+
+.success {
+  background: var(--success-soft);
+  color: var(--success);
 }
 
 /* Campos */

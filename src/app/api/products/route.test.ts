@@ -1,6 +1,10 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { NextRequest } from 'next/server';
-import { GET } from './route';
+import { GET, POST } from './route';
+import {
+  BarcodeAlreadyExistsError,
+  BarcodeGenerationFailedError,
+} from '@/modules/products/application/create-product.use-case';
 import { Money } from '@/shared/domain/money';
 import { Product } from '@/modules/products/domain/product';
 import { UnauthorizedError } from '@/shared/infrastructure/auth/auth-context';
@@ -23,8 +27,23 @@ vi.mock('@/modules/products/infrastructure/drizzle-product-repository', () => ({
   },
 }));
 
+const mockGetAvailableQuantity = vi.fn();
 vi.mock('@/modules/inventory/infrastructure/drizzle-inventory-repository', () => ({
-  DrizzleInventoryRepository: class MockDrizzleInventoryRepository {},
+  DrizzleInventoryRepository: class MockDrizzleInventoryRepository {
+    getAvailableQuantity = mockGetAvailableQuantity;
+  },
+}));
+
+vi.mock('@/modules/audit/infrastructure/drizzle-audit-service', () => ({
+  DrizzleAuditService: class MockDrizzleAuditService {},
+}));
+
+const mockExecute = vi.fn();
+vi.mock('@/modules/products/application/create-product.use-case', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/modules/products/application/create-product.use-case')>()),
+  CreateProductUseCase: class MockCreateProductUseCase {
+    execute = mockExecute;
+  },
 }));
 
 function get(search = '') {
@@ -97,5 +116,57 @@ describe('GET /api/products', () => {
     expect(response.status).toBe(400);
     expect(body.message).toMatch(/página|tamanho/i);
     expect(mockListPage).not.toHaveBeenCalled();
+  });
+});
+
+describe('POST /api/products', () => {
+  function post(body: unknown) {
+    return POST(
+      new NextRequest('http://localhost/api/products', { method: 'POST', body: JSON.stringify(body) })
+    );
+  }
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+    mockRequireAuthSession.mockResolvedValue({ merchantId: 'merchant-1', username: 'dona', authorities: ['ROLE_OWNER'] });
+    mockGetAvailableQuantity.mockResolvedValue(0);
+  });
+
+  it('answers 403 to a non-owner and does not create', async () => {
+    mockRequireAuthSession.mockResolvedValue({ merchantId: 'merchant-1', username: 'ana', authorities: [] });
+
+    const response = await post({ name: 'Arroz', salePrice: '10.00' });
+
+    expect(response.status).toBe(403);
+    expect(mockExecute).not.toHaveBeenCalled();
+  });
+
+  it('answers 201 with the generated barcode in the body', async () => {
+    mockExecute.mockResolvedValue(
+      Product.create('merchant-1', '2912345678903', 'Arroz', Money.fromDecimal('10.00'), 'p1')
+    );
+
+    const response = await post({ name: 'Arroz', salePrice: '10.00' });
+
+    expect(response.status).toBe(201);
+    expect((await response.json()).barcode).toBe('2912345678903');
+    expect(mockExecute).toHaveBeenCalledWith('merchant-1', 'dona', { name: 'Arroz', salePrice: '10.00' });
+  });
+
+  it('answers 409 for a repeated typed barcode', async () => {
+    mockExecute.mockRejectedValue(new BarcodeAlreadyExistsError('123'));
+
+    expect((await post({ barcode: '123', name: 'Arroz', salePrice: '10.00' })).status).toBe(409);
+  });
+
+  it('answers a generic 500 when the barcode could not be generated', async () => {
+    mockExecute.mockRejectedValue(new BarcodeGenerationFailedError());
+
+    const response = await post({ name: 'Arroz', salePrice: '10.00' });
+    const body = await response.json();
+
+    expect(response.status).toBe(500);
+    expect(JSON.stringify(body)).not.toMatch(/23505|constraint|uq_products/i);
   });
 });

@@ -7,7 +7,7 @@ const steps = [
   { name: 'Lint', cmd: 'npm run lint' },
   { name: 'TypeScript', cmd: 'npx tsc --noEmit' },
   { name: 'Unit and integration tests', cmd: 'npm test' },
-  { name: 'Dependency audit (high)', cmd: 'npm audit --audit-level=high' },
+  { name: 'Dependency audit (high)', cmd: 'node scripts/audit-gate.mjs' },
   ...(process.env.TEST_DATABASE_URL
     ? [{ name: 'Postgres integration', cmd: 'npm run test:integration' }]
     : [{ name: 'Postgres integration (skipped: TEST_DATABASE_URL not set)', cmd: null }]),

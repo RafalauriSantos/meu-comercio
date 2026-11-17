@@ -8,6 +8,7 @@ import { DrizzleAuditService } from '@/modules/audit/infrastructure/drizzle-audi
 import {
   CreateProductUseCase,
   BarcodeAlreadyExistsError,
+  BarcodeGenerationFailedError,
 } from '@/modules/products/application/create-product.use-case';
 
 export async function POST(request: NextRequest) {
@@ -49,6 +50,10 @@ export async function POST(request: NextRequest) {
     }
     if (error instanceof BarcodeAlreadyExistsError) {
       return NextResponse.json({ message: error.message }, { status: 409 });
+    }
+    if (error instanceof BarcodeGenerationFailedError) {
+      console.error('Error creating product:', error);
+      return NextResponse.json({ message: error.message }, { status: 500 });
     }
     if (error instanceof ZodError) {
       return NextResponse.json(

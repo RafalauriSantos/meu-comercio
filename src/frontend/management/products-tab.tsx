@@ -10,7 +10,7 @@ import { matchesStockFilter, stockStatus, type StockFilter } from '@/frontend/ma
 import { needingRestockCount, shownText, stockValueText } from '@/frontend/management/products-list';
 import { ProductEditPanel } from '@/frontend/management/product-edit-panel';
 import { NewProductPanel } from '@/frontend/management/new-product-panel';
-import { useBarcodeScan } from '@/frontend/management/use-barcode-scan';
+import { useBarcodeScan } from '@/frontend/lib/use-barcode-scan';
 import type { useProductsTab } from './use-products-tab';
 
 interface ProductsTabProps {

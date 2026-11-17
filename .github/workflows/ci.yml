@@ -50,7 +50,7 @@ jobs:
         run: npm run lint
 
       - name: Dependency security audit
-        run: npm audit --audit-level=high
+        run: node scripts/audit-gate.mjs
 
   typecheck:
     name: TypeScript Check

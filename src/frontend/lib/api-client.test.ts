@@ -335,3 +335,25 @@ describe('apiClient products', () => {
     });
   });
 });
+
+describe('createProduct barcode', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  async function postedBody(barcode?: string) {
+    const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify({ barcode: '2912345678903' }), { status: 201 }));
+    vi.stubGlobal('fetch', fetchMock);
+    await apiClient.createProduct({ barcode, name: 'Arroz', salePrice: '24,90' });
+    return JSON.parse(fetchMock.mock.calls[0][1].body as string) as Record<string, unknown>;
+  }
+
+  it('sends a typed or scanned code as is', async () => {
+    expect((await postedBody('7891234567895')).barcode).toBe('7891234567895');
+  });
+
+  it('leaves barcode out of the body when empty or absent', async () => {
+    expect(await postedBody('')).not.toHaveProperty('barcode');
+    expect(await postedBody()).not.toHaveProperty('barcode');
+  });
+});

@@ -55,4 +55,9 @@ describe('new product panel (source locks)', () => {
   it('the scanner Enter in the barcode field does not submit the form', () => {
     expect(source).toMatch(/if \(e\.key !== 'Enter'\) return;\s*e\.preventDefault\(\);\s*void checkNewBarcode/);
   });
+
+  it('sends the trimmed typed code, and the success notice shows the generated one only when none was typed', () => {
+    expect(source).toMatch(/const typedBarcode = newBarcode\.trim\(\);\s*const created = await apiClient\.createProduct\(\{\s*barcode: typedBarcode,/);
+    expect(source).toContain("${typedBarcode ? '' : ` Código gerado: ${created.barcode}.`}");
+  });
 });

@@ -4,7 +4,7 @@ import { requireAuthSession, UnauthorizedError } from '@/shared/infrastructure/a
 import { isSessionOwner } from '@/shared/infrastructure/auth/session';
 import { DrizzleProductRepository } from '@/modules/products/infrastructure/drizzle-product-repository';
 import { DrizzleInventoryRepository } from '@/modules/inventory/infrastructure/drizzle-inventory-repository';
-import { BarcodeAlreadyExistsError } from '@/modules/products/application/create-product.use-case';
+import { BarcodeAlreadyExistsError, BarcodeGenerationFailedError } from '@/modules/products/application/create-product.use-case';
 import { UpdateProductUseCase, ProductNotFoundError } from '@/modules/products/application/update-product.use-case';
 import { ProductChangedError } from '@/modules/products/domain/product-errors';
 
@@ -60,6 +60,10 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     }
     if (error instanceof BarcodeAlreadyExistsError) {
       return NextResponse.json({ message: error.message }, { status: 409 });
+    }
+    if (error instanceof BarcodeGenerationFailedError) {
+      console.error('Error generating product barcode:', error);
+      return NextResponse.json({ message: error.message }, { status: 500 });
     }
     if (error instanceof ProductChangedError) {
       return NextResponse.json({ code: 'PRODUCT_CHANGED', message: error.message }, { status: 409 });

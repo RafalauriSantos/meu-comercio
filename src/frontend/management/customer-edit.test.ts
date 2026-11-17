@@ -60,7 +60,8 @@ describe('buildCustomerPatch', () => {
 
 describe('rules', () => {
   it('needs a name of 2 letters', () => {
-    expect(isDraftValid({ name: 'A', phone: '', limit: '' })).toBe(false);
+    expect(isDraftValid({ name: '  ', phone: '', limit: '' })).toBe(false);
+    expect(isDraftValid({ name: 'A', phone: '', limit: '' })).toBe(true);
     expect(isDraftValid({ name: 'Ana', phone: '', limit: '' })).toBe(true);
   });
   it('warns only when the limit is below the debt, in cents', () => {

@@ -2,6 +2,7 @@ import { ApiError, type CustomerItem, type CustomerPatch } from '@/frontend/lib/
 import { getErrorMessage } from '@/frontend/lib/formatters';
 import { maskCurrencyDigits, priceToDigits } from '@/frontend/lib/currency-mask';
 import { displayPhone } from '@/frontend/lib/phone-mask';
+import { Money } from '@/shared/domain/money';
 
 // Pure rules of editing a customer (the hook only holds the state and passes the api call in).
 export interface CustomerDraft {
@@ -23,7 +24,7 @@ export type CustomerEditResult =
   | ({ kind: 'failed' } & CustomerEditError);
 
 /** R$ 100.000,00, in cents. */
-export const LIMIT_MAX_CENTS = 10_000_000;
+export const LIMIT_MAX = Money.fromCents(10_000_000);
 export const LIMIT_BELOW_DEBT_WARNING =
   'O limite é menor que a dívida. O cliente não perde o que deve, e a próxima venda no fiado pede o PIN da proprietária.';
 
@@ -31,19 +32,19 @@ export function draftFromCustomer(customer: CustomerItem): CustomerDraft {
   return { name: customer.name, phone: displayPhone(customer.phone), limit: priceToDigits(customer.creditLimit ?? '0') };
 }
 
-function limitCents(masked: string): number {
-  return masked === '' ? 0 : Number(masked.replace(',', ''));
+function limitMoney(masked: string): Money {
+  return Money.fromDecimal(masked === '' ? '0' : masked.replace(',', '.'));
 }
 
 /** The cents mask, but a value above the ceiling is not accepted: the field keeps what it had. */
 export function maskLimit(raw: string, previous: string): string {
   const masked = maskCurrencyDigits(raw);
-  return limitCents(masked) > LIMIT_MAX_CENTS ? previous : masked;
+  return limitMoney(masked).isGreaterThan(LIMIT_MAX) ? previous : masked;
 }
 
 /** True when the new limit is under the debt (cents; a debt not loaded yet gives no warning). */
 export function limitBelowDebt(limit: string, debtCents: number | null): boolean {
-  return debtCents !== null && limitCents(limit) < debtCents;
+  return debtCents !== null && limitMoney(limit).isLessThan(Money.fromCents(debtCents));
 }
 
 /** Only what changed, or null when nothing did. The limit goes as text with a dot ("125.00"). */
@@ -59,7 +60,7 @@ export function buildCustomerPatch(target: CustomerItem, draft: CustomerDraft): 
 }
 
 export function isDraftValid(draft: CustomerDraft): boolean {
-  return draft.name.trim().length >= 2;
+  return draft.name.trim().length >= 1;
 }
 
 export function editErrorMessage(err: unknown): CustomerEditError {

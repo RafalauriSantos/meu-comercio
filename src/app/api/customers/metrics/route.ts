@@ -1,10 +1,13 @@
-import { NextResponse } from 'next/server';
+import { NextResponse, connection } from 'next/server';
 import { requireAuthenticatedSession, UnauthorizedError } from '@/shared/infrastructure/auth/auth-context';
 import { DrizzleCustomerCreditRepository } from '@/modules/customers/infrastructure/drizzle-customer-credit-repository';
 import { DrizzleCustomerRepository } from '@/modules/customers/infrastructure/drizzle-customer-repository';
 import { GetCreditMetricsUseCase } from '@/modules/customers/application/get-credit-metrics.use-case';
 
 export async function GET() {
+  // Cache Components prerenders a handler that reads no request data and `cookies()` then rejects at build.
+  await connection();
+
   try {
     const session = await requireAuthenticatedSession();
 

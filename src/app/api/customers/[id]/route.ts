@@ -8,6 +8,7 @@ import {
   CustomerAlreadyExistsError,
   CustomerChangedError,
   CustomerNotFoundError,
+  InvalidCreditLimitError,
   InvalidPhoneError,
 } from '@/modules/customers/domain/errors';
 
@@ -52,7 +53,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
         { status: 400 }
       );
     }
-    if (error instanceof InvalidPhoneError) {
+    if (error instanceof InvalidPhoneError || error instanceof InvalidCreditLimitError) {
       return NextResponse.json({ message: error.message }, { status: 400 });
     }
     if (error instanceof CustomerNotFoundError) {

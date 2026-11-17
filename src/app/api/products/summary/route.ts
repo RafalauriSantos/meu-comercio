@@ -1,4 +1,4 @@
-import { NextResponse } from 'next/server';
+import { NextResponse, connection } from 'next/server';
 import { requireAuthSession, UnauthorizedError } from '@/shared/infrastructure/auth/auth-context';
 import { db } from '@/shared/infrastructure/db/connection';
 import { DrizzleProductRepository } from '@/modules/products/infrastructure/drizzle-product-repository';
@@ -7,6 +7,9 @@ import { DrizzleStoreSettingsRepository } from '@/modules/settings/infrastructur
 // Numbers of the products tab over ALL active products of the shop (not one page). With stock control off the
 // screen shows only the total, so the stock numbers go as null.
 export async function GET() {
+  // Cache Components prerenders a handler that reads no request data and `cookies()` then rejects at build.
+  await connection();
+
   try {
     const session = await requireAuthSession();
     const [summary, settings] = await Promise.all([

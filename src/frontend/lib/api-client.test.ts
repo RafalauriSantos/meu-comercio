@@ -163,12 +163,22 @@ describe('apiRequest error kinds', () => {
     it('a write waits 30 s', async () => {
       vi.useFakeTimers();
       vi.stubGlobal('fetch', hangingFetch());
-      const pending = apiRequest('/api/cash/open', { method: 'POST', body: '{}' }).catch((e: unknown) => e as ApiError) as Promise<ApiError>;
+      const pending = apiRequest('/api/products/abc', { method: 'PATCH', body: '{}' }).catch((e: unknown) => e as ApiError) as Promise<ApiError>;
 
       expect(await settledAfter(pending, 29_999)).toBe(false);
       await vi.advanceTimersByTimeAsync(1);
 
       expect((await pending).kind).toBe('timeout');
+    });
+
+    it('a write that moves money (cash open) is never aborted by time', async () => {
+      vi.useFakeTimers();
+      const fetchMock = hangingFetch();
+      vi.stubGlobal('fetch', fetchMock);
+      const pending = apiRequest('/api/cash/open', { method: 'POST', body: '{}' }).catch(() => undefined);
+
+      expect(await settledAfter(pending, 10 * 60_000)).toBe(false);
+      expect((fetchMock.mock.calls[0][1] as RequestInit).signal?.aborted).toBe(false);
     });
 
     it('a sale is never aborted by time', async () => {

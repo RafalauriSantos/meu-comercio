@@ -29,9 +29,11 @@ export const fallbackMessage = (kind: ApiErrorKind): string => MESSAGES[kind];
 export const READ_TIMEOUT_MS = 15_000;
 export const WRITE_TIMEOUT_MS = 30_000;
 
-// A sale and its cancel are never given up on by the client: aborting only stops the wait, the server may
-// still save it, and the person would not know. The idempotency key makes a resend safe.
-const SALE_WRITE = /^\/api\/sales(\/[^/]+\/cancel)?$/;
+// A sale, its cancel and every write that moves money (cash open/close, withdrawal, deposit, settling a debt)
+// are never given up on by the client: aborting only stops the wait, the server may still save it, and the
+// person would not know. A sale has an idempotency key that makes a resend safe; the cash and debt writes do
+// not, so a resend after a client timeout could repeat them.
+const SALE_WRITE = /^\/api\/(sales(\/[^/]+\/cancel)?|cash\/(open|close|withdrawal|deposit)|customers\/[^/]+\/settle)$/;
 
 /** Milliseconds a call may wait, or null for no limit. */
 export function timeoutFor(method: string, path: string): number | null {

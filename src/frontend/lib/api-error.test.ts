@@ -52,8 +52,21 @@ describe('timeoutFor: the time limit by route', () => {
     expect(WRITE_TIMEOUT_MS).toBe(30_000);
     expect(timeoutFor('GET', '/api/products?q=a')).toBe(15_000);
     expect(timeoutFor('HEAD', '/api/products')).toBe(15_000);
-    expect(timeoutFor('POST', '/api/cash/open')).toBe(30_000);
+    expect(timeoutFor('POST', '/api/auth/login')).toBe(30_000);
     expect(timeoutFor('PATCH', '/api/products/1')).toBe(30_000);
+  });
+
+  it('every write that moves money has NO time limit: cash open/close, withdrawal, deposit and settling a debt have no idempotency key, so a resend after a timeout could repeat it', () => {
+    expect(timeoutFor('POST', '/api/cash/open')).toBeNull();
+    expect(timeoutFor('POST', '/api/cash/close')).toBeNull();
+    expect(timeoutFor('POST', '/api/cash/withdrawal')).toBeNull();
+    expect(timeoutFor('POST', '/api/cash/deposit')).toBeNull();
+    expect(timeoutFor('POST', '/api/customers/abc-123/settle')).toBeNull();
+  });
+
+  it('reading the cash or a customer balance keeps the read limit', () => {
+    expect(timeoutFor('GET', '/api/cash/current')).toBe(15_000);
+    expect(timeoutFor('GET', '/api/customers/abc-123/balance')).toBe(15_000);
   });
 
   it('a sale and the cancel of a sale have NO time limit: the client must not give up on a sale that may be saved', () => {

@@ -1,8 +1,8 @@
 'use client';
 
 import { useState, useCallback, useRef } from 'react';
-import { apiClient, ProductsSummary } from '@/frontend/lib/api-client';
-import { PRODUCTS_PAGE_SIZE, addToStock, applyPage, emptyList } from '@/frontend/management/products-list';
+import { apiClient, ProductsSummary, type ProductItem } from '@/frontend/lib/api-client';
+import { PRODUCTS_PAGE_SIZE, addToStock, applyPage, emptyList, replaceProduct } from '@/frontend/management/products-list';
 
 interface UseProductsListParams {
   setLoadFailed: (update: (f: { products?: boolean }) => { products?: boolean }) => void;
@@ -80,5 +80,11 @@ export function useProductsList({ setLoadFailed }: UseProductsListParams) {
     void loadSummary();
   }
 
-  return { products: list.items, hasMore: list.hasMore, summary, loadingMore, loadMoreFailed, loadProducts, loadMore, applyRestock };
+  // A saved edit swaps the item for the one the server answered with; the stock value depends on the price, so the summary is read again.
+  function applyEdit(item: ProductItem) {
+    setList((cur) => ({ ...cur, items: replaceProduct(cur.items, item) }));
+    void loadSummary();
+  }
+
+  return { products: list.items, hasMore: list.hasMore, summary, loadingMore, loadMoreFailed, loadProducts, loadMore, applyRestock, applyEdit };
 }

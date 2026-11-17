@@ -42,6 +42,11 @@ export function addToStock(items: ProductItem[], productId: string, quantity: nu
   return items.map((p) => (p.id === productId ? { ...p, availableQuantity: p.availableQuantity + quantity } : p));
 }
 
+/** A saved edit swaps the item in place: the order and the loaded pages stay. */
+export function replaceProduct(items: ProductItem[], updated: ProductItem): ProductItem[] {
+  return items.map((p) => (p.id === updated.id ? updated : p));
+}
+
 export function shownText(shown: number, total: number | null): string {
   const noun = (total ?? shown) === 1 ? 'produto' : 'produtos';
   return total === null ? `Mostrando ${shown} ${noun}` : `Mostrando ${shown} de ${total} ${noun}`;

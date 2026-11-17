@@ -1,11 +1,13 @@
 'use client';
 
 import React, { useState, useCallback, useRef, useEffect } from 'react';
-import { apiClient } from '@/frontend/lib/api-client';
+import { apiClient, type ProductItem } from '@/frontend/lib/api-client';
 import { parseCurrencyInput, getErrorMessage } from '@/frontend/lib/formatters';
 import { findProductWithBarcode, takenBarcodeMessage } from '@/frontend/management/barcode-check';
 import type { ProductUnit } from '@/shared/domain/product-unit';
 import { useProductsList } from '@/frontend/management/use-products-list';
+import { useProductEdit } from '@/frontend/management/use-product-edit';
+import { SCAN_DURING_EDIT_NOTICE } from '@/frontend/management/product-edit';
 import { initialStockToQuantity, restockToQuantity, type StockFilter } from '@/frontend/management/stock';
 
 type Feedback = { text: string; isError?: boolean; isSuccess?: boolean } | null;
@@ -41,8 +43,25 @@ export function useProductsTab({ setFeedback, setProcessing, setLoadFailed, stoc
   const [restockingId, setRestockingId] = useState<string | null>(null);
   const [restockQty, setRestockQty] = useState('1');
   const [restockReason, setRestockReason] = useState('');
+  const edit = useProductEdit({
+    setFeedback,
+    setProcessing,
+    applyEdit: list.applyEdit,
+    reload: () => loadProducts(productQuery),
+  });
 
   // --- Handlers de Produtos ---
+
+  // Edit and new product are never open together.
+  function startEdit(product: ProductItem) {
+    if (edit.targetId === product.id) {
+      edit.close();
+      return;
+    }
+    setShowNewProduct(false);
+    setFeedback(null);
+    edit.open(product);
+  }
 
   // A dona liga ou desliga o controle de estoque da loja.
   async function handleToggleStockControl() {
@@ -91,6 +110,10 @@ export function useProductsTab({ setFeedback, setProcessing, setLoadFailed, stoc
 
   // The owner scanned a product with the tab open: a free code opens the form with it filled in; a taken one only warns.
   const handleScannedBarcode = useCallback(async (code: string) => {
+    if (edit.targetId) {
+      setFeedback({ text: SCAN_DURING_EDIT_NOTICE });
+      return;
+    }
     try {
       const existing = await findProductWithBarcode(apiClient.findProductByBarcode, code);
       if (existing) {
@@ -105,7 +128,7 @@ export function useProductsTab({ setFeedback, setProcessing, setLoadFailed, stoc
     setNewBarcode(code);
     setShowNewProduct(true);
     setNameFocusRequest((n) => n + 1);
-  }, [setFeedback]);
+  }, [setFeedback, edit.targetId]);
 
   useEffect(() => {
     if (nameFocusRequest > 0) newNameRef.current?.focus();
@@ -223,5 +246,7 @@ export function useProductsTab({ setFeedback, setProcessing, setLoadFailed, stoc
     handleScannedBarcode,
     handleCreateProduct,
     handleRestock,
+    edit,
+    startEdit,
   };
 }

@@ -7,6 +7,7 @@ import {
   applyPage,
   emptyList,
   needingRestockCount,
+  replaceProduct,
   shownText,
   stockValueText,
 } from './products-list';
@@ -82,6 +83,16 @@ describe('summary numbers', () => {
     expect(stockValueText(summary({}))).toMatch(/1.234,50$/);
     expect(stockValueText(null)).toBe('—');
     expect(stockValueText(summary({ stockValue: null }))).toBe('—');
+  });
+});
+
+describe('replaceProduct', () => {
+  it('swaps only the item with that id, keeping order and size', () => {
+    const items = [p('a'), p('b'), p('c')];
+    const out = replaceProduct(items, { ...p('b'), name: 'Novo' });
+    expect(ids(out)).toEqual(['a', 'b', 'c']);
+    expect(out[1].name).toBe('Novo');
+    expect(out[0]).toBe(items[0]);
   });
 });
 

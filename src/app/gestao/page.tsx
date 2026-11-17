@@ -23,6 +23,8 @@ import { CustomersTab } from '@/frontend/management/customers-tab';
 import { useCustomersTab } from '@/frontend/management/use-customers-tab';
 import { useProductsTab } from '@/frontend/management/use-products-tab';
 import { noticeView } from '@/frontend/ui/notice-view';
+import { useSessionExpired } from '@/frontend/auth/use-session-expired';
+import { SessionExpiredNotice } from '@/frontend/auth/session-expired-notice';
 import '@/frontend/styles/management.css';
 
 type LoadKey = 'products' | 'customers' | 'balances' | 'cash' | 'metrics' | 'operators';
@@ -35,6 +37,7 @@ export default function GestaoPage() {
   const skeletonGate = useSkeletonGate(loading);
   const [feedback, setFeedback] = useState<{ text: string; isError?: boolean; isSuccess?: boolean } | null>(null);
   useAutoDismiss(feedback, () => setFeedback(null));
+  const sessionExpired = useSessionExpired(user);
 
   // Estados de Caixa
   const [cashSession, setCashSession] = useState<CashSessionData | null>(null);
@@ -237,6 +240,7 @@ export default function GestaoPage() {
         </div>
 
         {/* Alertas */}
+        <SessionExpiredNotice session={sessionExpired} />
         {feedback && (
           <div {...noticeView(feedback)}>
             <span>{feedback.text}</span>

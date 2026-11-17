@@ -47,6 +47,8 @@ export interface SyncResult {
   failedCount: number;
   remainingCount: number;
   errors: Array<{ idempotencyKey: string; error: string; status?: number }>;
+  /** True when a 401 stopped the sync: the sales stay in the queue until the person logs in again. */
+  sessionExpired?: boolean;
 }
 
 export type OfflineSaleSender = (
@@ -214,11 +216,13 @@ export class OfflineSyncManager {
     const errors: Array<{ idempotencyKey: string; error: string; status?: number }> = [];
 
     let networkAborted = false;
+    // A 401 stops the loop like a network failure, but it is not one: the sales wait for a new login.
+    let sessionExpired = false;
 
     for (let i = 0; i < queue.length; i++) {
       const sale = queue[i];
 
-      if (networkAborted) {
+      if (networkAborted || sessionExpired) {
         remainingQueue.push(sale);
         continue;
       }
@@ -230,6 +234,11 @@ export class OfflineSyncManager {
         if (status === 200 || status === 201 || status === 409) {
           // Venda sincronizada ou idempotentemente já existente
           syncedCount++;
+        } else if (status === 401) {
+          sessionExpired = true;
+          failedCount++;
+          errors.push({ idempotencyKey: sale.idempotencyKey, error: 'Sessão expirada.', status });
+          remainingQueue.push(sale);
         } else if (status === 400 || status === 422) {
           // Erro de domínio ou inconsistência de preço/estoque
           failedCount++;
@@ -277,6 +286,7 @@ export class OfflineSyncManager {
       failedCount,
       remainingCount: remainingQueue.length,
       errors,
+      sessionExpired,
     };
   }
 }

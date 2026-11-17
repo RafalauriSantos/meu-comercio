@@ -53,6 +53,8 @@ import { VersionLabel } from '@/frontend/ui/version-label';
 import { WEIGHT_STEP_GRAMS } from '@/frontend/pdv/weight-input';
 import { formatQuantity, lineSubtotal } from '@/shared/domain/product-unit';
 import { noticeView } from '@/frontend/ui/notice-view';
+import { useSessionExpired } from '@/frontend/auth/use-session-expired';
+import { SessionExpiredNotice } from '@/frontend/auth/session-expired-notice';
 import '@/frontend/styles/pdv.css';
 
 interface CartLine {
@@ -141,6 +143,7 @@ export default function PdvTerminalPage() {
   // Notificações e Feedback
   const [message, setMessage] = useState<{ text: string; isError?: boolean; isSuccess?: boolean } | null>(null);
   useAutoDismiss(message, () => setMessage(null));
+  const sessionExpired = useSessionExpired(user, triggerOfflineSync);
   const [processing, setProcessing] = useState(false);
 
   // Relógio
@@ -906,6 +909,7 @@ export default function PdvTerminalPage() {
       />
 
       <main className="pdv-main">
+        <SessionExpiredNotice session={sessionExpired} />
         {message && (
           <div {...noticeView(message)}>
             <span>{message.text}</span>

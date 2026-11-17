@@ -315,6 +315,26 @@ describe('OfflineSyncManager', () => {
       expect(remainingQueue).toHaveLength(2);
     });
 
+    it('deve parar no 401 (sessão expirada), manter todas as vendas na fila e não tentar as outras', async () => {
+      for (const key of ['idemp-401-1', 'idemp-401-2', 'idemp-401-3']) {
+        offlineSync.enqueueSale(merchantA, operatorA, {
+          idempotencyKey: key,
+          items: [{ productId: 'p-1', quantity: 1 }],
+          payments: [{ method: 'CASH', amount: '10.00' }],
+        });
+      }
+      const senderMock = vi.fn().mockResolvedValueOnce({ status: 201 }).mockResolvedValue({ status: 401, error: 'Não autorizado' });
+
+      const result = await offlineSync.syncQueue(merchantA, operatorA, senderMock);
+
+      expect(senderMock).toHaveBeenCalledTimes(2);
+      expect(result.sessionExpired).toBe(true);
+      expect(result.syncedCount).toBe(1);
+      expect(result.failedCount).toBe(1);
+      expect(result.remainingCount).toBe(2);
+      expect(offlineSync.getQueue(merchantA, operatorA).map((s) => s.idempotencyKey)).toEqual(['idemp-401-2', 'idemp-401-3']);
+    });
+
     it('deve detectar inconsistência de preço/estoque (400) e registrar erro sem travar fila silenciosamente', async () => {
       const sale: OfflineSale = {
         idempotencyKey: 'idemp-stock-error',

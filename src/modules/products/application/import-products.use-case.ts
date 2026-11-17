@@ -1,4 +1,4 @@
-import { CreateProductSchema } from './create-product.use-case';
+import { ProductRowSchema } from './create-product.use-case';
 import { normalizePriceText, parseProductCsv } from './parse-product-csv';
 import { ProductImportItem, ProductImportStore } from '../domain/product-import-store.port';
 import { parseKilosToGrams, type ProductUnit } from '@/shared/domain/product-unit';
@@ -97,7 +97,7 @@ export class ImportProductsUseCase {
           continue;
         }
       }
-      const parsed = CreateProductSchema.safeParse({
+      const parsed = ProductRowSchema.safeParse({
         barcode: row.barcode,
         name: row.name,
         salePrice: price,

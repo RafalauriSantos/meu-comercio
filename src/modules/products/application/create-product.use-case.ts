@@ -1,12 +1,16 @@
 import { z } from 'zod';
 import { Money } from '@/shared/domain/money';
 import { Product } from '../domain/product';
+import { ProductBarcodeConflictError } from '../domain/product-errors';
+import { generateBarcode } from '../domain/generated-barcode';
+import type { ProductUnit } from '@/shared/domain/product-unit';
 import { ProductRepository } from '../domain/product-repository.port';
 import { InventoryRepository } from '@/modules/inventory/domain/inventory-repository.port';
 import { InventoryItem } from '@/modules/inventory/domain/inventory-item';
 import { AuditPort } from '@/modules/audit/domain/audit.port';
 
-export const CreateProductSchema = z.object({
+// Fields shared by the single create and the CSV import; the import still requires the barcode.
+export const ProductRowSchema = z.object({
   barcode: z.string().trim().min(1, 'Código de barras é obrigatório').max(64),
   name: z.string().trim().min(2, 'Nome deve ter no mínimo 2 caracteres').max(160),
   salePrice: z.union([z.number(), z.string()]).refine(val => {
@@ -22,6 +26,11 @@ export const CreateProductSchema = z.object({
   initialStock: z.number().int('Estoque inicial deve ser um número inteiro').min(0).optional().default(0),
 });
 
+// On create the barcode is optional: absent, empty or only spaces means the server generates it (D-23).
+export const CreateProductSchema = ProductRowSchema.extend({
+  barcode: z.string().trim().max(64).optional().transform(value => value || undefined),
+});
+
 export type CreateProductInput = z.infer<typeof CreateProductSchema>;
 
 export class BarcodeAlreadyExistsError extends Error {
@@ -31,26 +40,33 @@ export class BarcodeAlreadyExistsError extends Error {
   }
 }
 
+export class BarcodeGenerationFailedError extends Error {
+  constructor() {
+    super('Não foi possível gerar um código de barras. Tente novamente.');
+    this.name = 'BarcodeGenerationFailedError';
+  }
+}
+
+const MAX_GENERATION_ATTEMPTS = 5;
+
 export class CreateProductUseCase {
   constructor(
     private readonly productRepository: ProductRepository,
     private readonly inventoryRepository: InventoryRepository,
-    private readonly auditPort: AuditPort
+    private readonly auditPort: AuditPort,
+    private readonly random: () => number = Math.random
   ) {}
 
   public async execute(merchantId: string, actorId: string, rawInput: unknown): Promise<Product> {
     const input = CreateProductSchema.parse(rawInput);
-    const normalizedBarcode = input.barcode.trim();
-
-    const existing = await this.productRepository.findByBarcode(merchantId, normalizedBarcode);
-    if (existing) {
-      throw new BarcodeAlreadyExistsError(normalizedBarcode);
-    }
-
     const salePrice = Money.fromDecimal(input.salePrice);
-    const product = Product.create(merchantId, normalizedBarcode, input.name.trim(), salePrice, undefined, input.unit);
+    const name = input.name.trim();
+    const barcodeGenerated = input.barcode === undefined;
 
-    await this.productRepository.save(product);
+    // A typed or scanned barcode is never replaced; a generated one is redrawn on collision.
+    const product = input.barcode === undefined
+      ? await this.createWithGeneratedBarcode(merchantId, name, salePrice, input.unit)
+      : await this.createWithTypedBarcode(merchantId, input.barcode, name, salePrice, input.unit);
 
     const initialStock = input.initialStock ?? 0;
     const inventoryItem = new InventoryItem({
@@ -69,6 +85,7 @@ export class CreateProductUseCase {
       product.id,
       {
         barcode: product.barcode,
+        barcodeGenerated,
         name: product.name,
         salePrice: product.salePrice.toDecimal(),
         unit: product.unit,
@@ -101,5 +118,34 @@ export class CreateProductUseCase {
     }
 
     return product;
+  }
+
+  private async createWithTypedBarcode(merchantId: string, barcode: string, name: string, salePrice: Money, unit: ProductUnit): Promise<Product> {
+    if (await this.productRepository.findByBarcode(merchantId, barcode)) {
+      throw new BarcodeAlreadyExistsError(barcode);
+    }
+    const product = Product.create(merchantId, barcode, name, salePrice, undefined, unit);
+    try {
+      await this.productRepository.create(product);
+    } catch (error) {
+      if (error instanceof ProductBarcodeConflictError) throw new BarcodeAlreadyExistsError(barcode);
+      throw error;
+    }
+    return product;
+  }
+
+  private async createWithGeneratedBarcode(merchantId: string, name: string, salePrice: Money, unit: ProductUnit): Promise<Product> {
+    for (let attempt = 0; attempt < MAX_GENERATION_ATTEMPTS; attempt++) {
+      const barcode = generateBarcode(this.random);
+      if (await this.productRepository.findByBarcode(merchantId, barcode)) continue;
+      const product = Product.create(merchantId, barcode, name, salePrice, undefined, unit);
+      try {
+        await this.productRepository.create(product);
+        return product;
+      } catch (error) {
+        if (!(error instanceof ProductBarcodeConflictError)) throw error;
+      }
+    }
+    throw new BarcodeGenerationFailedError();
   }
 }

@@ -109,6 +109,10 @@ class InMemoryProductRepository implements ProductRepository {
     this.products.set(`${product.merchantId}:${product.id}`, product);
   }
 
+  async create(product: Product): Promise<void> {
+    await this.save(product);
+  }
+
   async findByBarcode(merchantId: string, barcode: string): Promise<Product | null> {
     for (const p of this.products.values()) {
       if (p.merchantId === merchantId && p.barcode === barcode.trim() && p.active) {

@@ -61,3 +61,10 @@ export class InvalidPhoneError extends Error {
     this.name = 'InvalidPhoneError';
   }
 }
+
+export class InvalidCreditLimitError extends Error {
+  constructor(message = 'O limite de fiado deve ser de R$ 0,00 a R$ 100.000,00.') {
+    super(message);
+    this.name = 'InvalidCreditLimitError';
+  }
+}

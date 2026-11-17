@@ -256,7 +256,7 @@ describe('/gestao: the apiClient calls and the /login redirects in the source of
 
   it('has 21 + 2 + 2 apiClient. (the product edit adds updateProduct and its barcode lookup) and 2 router.push(/login)', () => {
     expect(count('apiClient.')).toBe(21 + 2 + 2 + 2);
-    expect(count("router.push('/login')")).toBe(2);
+    expect(count("router.push('/login')") + count('router.push(loginUrlHere())')).toBe(2);
   });
 
   it('calls exactly these apiClient methods, this many times each (a call may move to another file, never appear or vanish)', () => {

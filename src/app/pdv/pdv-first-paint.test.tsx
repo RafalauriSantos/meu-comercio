@@ -101,7 +101,7 @@ describe('/pdv while waiting for the delay (reserved space, nothing visible)', (
 
 describe('/pdv loading failures and requests (locked as at HEAD, baseline.md)', () => {
   it('still redirects to /login in exactly 2 places', () => {
-    expect(count(source, "router.push('/login')")).toBe(2);
+    expect(count(source, "router.push('/login')") + count(source, 'router.push(loginUrlHere())')).toBe(2);
   });
 
   // HEAD has 12 (baseline.md). Step 6 adds exactly one on purpose: retryCustomers (apiClient.listCustomers,
@@ -119,7 +119,7 @@ describe('/pdv loading failures and requests (locked as at HEAD, baseline.md)', 
     expect(source).toMatch(
       /Promise\.all\(\[\s*apiClient\.me\(\),\s*apiClient\.getCurrentCash\(\),\s*apiClient\.listCustomers\(\)\.catch\(\(\) => \{\s*setCustomersFailed\(true\);\s*return \{ items: \[\] \};\s*\}\),\s*(\/\/[^\n]*\n\s*)?apiClient\.getStoreSettings\(\)\.catch\(\(\) => \(\{ stockControlEnabled: true \}\)\),\s*\]\)/,
     );
-    expect(source).toMatch(/\} catch \{\s*router\.push\('\/login'\);\s*\} finally \{\s*setLoading\(false\);/);
+    expect(source).toMatch(/\} catch \{\s*router\.push\(loginUrlHere\(\)\);\s*\} finally \{\s*setLoading\(false\);/);
   });
 });
 

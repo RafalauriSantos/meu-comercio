@@ -25,6 +25,7 @@ import { useProductsTab } from '@/frontend/management/use-products-tab';
 import { noticeView } from '@/frontend/ui/notice-view';
 import { useSessionExpired } from '@/frontend/auth/use-session-expired';
 import { SessionExpiredNotice } from '@/frontend/auth/session-expired-notice';
+import { loginUrlHere } from '@/frontend/auth/safe-return-path';
 import '@/frontend/styles/management.css';
 
 type LoadKey = 'products' | 'customers' | 'balances' | 'cash' | 'metrics' | 'operators';
@@ -37,7 +38,7 @@ export default function GestaoPage() {
   const skeletonGate = useSkeletonGate(loading);
   const [feedback, setFeedback] = useState<{ text: string; isError?: boolean; isSuccess?: boolean } | null>(null);
   useAutoDismiss(feedback, () => setFeedback(null));
-  const sessionExpired = useSessionExpired(user);
+  const sessionExpired = useSessionExpired();
 
   // Estados de Caixa
   const [cashSession, setCashSession] = useState<CashSessionData | null>(null);
@@ -108,7 +109,7 @@ export default function GestaoPage() {
         }
         await Promise.all(tasks);
       } catch {
-        router.push('/login');
+        router.push(loginUrlHere());
       } finally {
         setLoading(false);
       }

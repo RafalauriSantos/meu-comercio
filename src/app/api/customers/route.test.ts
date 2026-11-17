@@ -208,6 +208,7 @@ describe('Customers API Routes', () => {
       const json = await response.json();
       expect(json.items).toHaveLength(1);
       expect(json.items[0].name).toBe('Maria Silva');
+      expect(json.items[0].updatedAt).toBe(cust.updatedAt.toISOString());
     });
 
     it('deve pesquisar clientes por query em /api/customers/search', async () => {

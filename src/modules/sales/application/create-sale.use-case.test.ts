@@ -1120,6 +1120,9 @@ describe('CreateSaleUseCase — Slice 4: Vendas, Checkout e Split Payments', () 
 
 class InMemoryCustomerRepo implements CustomerRepository {
   public customers: Map<string, Customer> = new Map();
+  async updateDetails(): Promise<Customer | null> {
+    throw new Error('not used in these tests');
+  }
   async save(customer: Customer): Promise<void> {
     this.customers.set(`${customer.merchantId}:${customer.id}`, customer);
   }

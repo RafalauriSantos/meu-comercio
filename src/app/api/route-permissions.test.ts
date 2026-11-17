@@ -18,6 +18,7 @@ import { POST as withdrawalPost } from './cash/withdrawal/route';
 import { POST as depositPost } from './cash/deposit/route';
 import { POST as settlePost } from './customers/[id]/settle/route';
 import { POST as customersPost } from './customers/route';
+import { PATCH as customerPatch } from './customers/[id]/route';
 
 // Permission contract of the API routes. Every "passes" case stops at the invalid body (400) before any
 // database call: the db module is replaced by an empty object, so a call to it would turn into a 500.
@@ -87,6 +88,11 @@ describe('rotas só da dona (ROLE_OWNER)', () => {
       name: 'PATCH /api/products/[id]',
       call: () => productPatch(req('PATCH', `/api/products/${SALE_ID}`), params),
       message: 'Apenas a proprietária pode editar produtos do catálogo.',
+    },
+    {
+      name: 'PATCH /api/customers/[id]',
+      call: () => customerPatch(req('PATCH', `/api/customers/${SALE_ID}`), params),
+      message: 'Apenas a proprietária pode editar clientes.',
     },
     {
       name: 'POST /api/products/import',

@@ -29,6 +29,10 @@ import { SettleCustomerDebtUseCase } from './settle-customer-debt.use-case';
 class InMemoryCustomerRepository implements CustomerRepository {
   public customers: Map<string, Customer> = new Map();
 
+  async updateDetails(): Promise<Customer | null> {
+    throw new Error('not used in these tests');
+  }
+
   async save(customer: Customer): Promise<void> {
     this.customers.set(`${customer.merchantId}:${customer.id}`, customer);
   }

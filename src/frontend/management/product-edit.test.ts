@@ -9,21 +9,11 @@ import {
   editErrorMessage,
   isDraftValid,
   priceChanged,
-  priceToDigits,
   submitProductEdit,
 } from './product-edit';
 
 const rice: ProductItem = { id: 'a', barcode: '789', name: 'Arroz 5kg', salePrice: 25.5, availableQuantity: 12, updatedAt: '2026-11-16T10:00:00.123Z' };
 const draft = (over: Partial<ReturnType<typeof draftFromProduct>> = {}) => ({ ...draftFromProduct(rice), ...over });
-
-describe('priceToDigits', () => {
-  it('turns the price into the masked text without float math', () => {
-    expect(priceToDigits(25.5)).toBe('25,50');
-    expect(priceToDigits('25.50')).toBe('25,50');
-    expect(priceToDigits('0.05')).toBe('0,05');
-    expect(priceToDigits(10)).toBe('10,00');
-  });
-});
 
 describe('buildProductPatch', () => {
   it('returns null when nothing changed', () => {

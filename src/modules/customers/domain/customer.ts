@@ -1,8 +1,15 @@
 import { Money } from '@/shared/domain/money';
-import { CustomerInactiveError } from './errors';
+import { CustomerInactiveError, InvalidCreditLimitError } from './errors';
 import { Phone } from './phone';
 
 const NAME_MAX_LENGTH = 160;
+export const CREDIT_LIMIT_MAX_CENTS = 10_000_000; // R$ 100.000,00
+
+export function toValidCreditLimit(limit: Money): Money {
+  const cents = limit.toCents();
+  if (cents < 0 || cents > CREDIT_LIMIT_MAX_CENTS) throw new InvalidCreditLimitError();
+  return Money.fromCents(cents);
+}
 
 export interface CustomerProps {
   id: string;
@@ -73,11 +80,11 @@ export class Customer {
   }
 
   /**
-   * Rebuilds the customer with a new name and/or phone. Only these two can change here: the credit limit and
-   * active are not parameters. A phone that was not sent stays as stored (legacy text is never revalidated);
-   * a phone that was sent follows the D-21 rule.
+   * Rebuilds the customer with a new name, phone and/or credit limit. Active is not a parameter. A phone that
+   * was not sent stays as stored (legacy text is never revalidated); a phone that was sent follows the D-21
+   * rule. The limit is rounded to cents and must be from 0 to CREDIT_LIMIT_MAX (D-22); it may be below the debt.
    */
-  public withChanges(changes: { name?: string; phone?: string }): Customer {
+  public withChanges(changes: { name?: string; phone?: string; creditLimit?: Money }): Customer {
     const name = changes.name === undefined ? this.name : changes.name.trim();
     if (name.length < 1 || name.length > NAME_MAX_LENGTH) {
       throw new Error(`Customer name must have 1 to ${NAME_MAX_LENGTH} characters`);
@@ -87,7 +94,7 @@ export class Customer {
       merchantId: this.merchantId,
       name,
       phone: changes.phone === undefined ? this.phone : Phone.create(changes.phone).value,
-      creditLimit: this.creditLimit,
+      creditLimit: changes.creditLimit === undefined ? this.creditLimit : toValidCreditLimit(changes.creditLimit),
       active: this.active,
       createdAt: this.createdAt,
       updatedAt: this.updatedAt,
@@ -99,6 +106,9 @@ export class Customer {
     const changes: Record<string, { from: string; to: string }> = {};
     if (this.name !== next.name) changes.name = { from: this.name, to: next.name };
     if (this.phone !== next.phone) changes.phone = { from: this.phone, to: next.phone };
+    if (!this.creditLimit.equals(next.creditLimit)) {
+      changes.creditLimit = { from: this.creditLimit.toDecimal(), to: next.creditLimit.toDecimal() };
+    }
     return changes;
   }
 

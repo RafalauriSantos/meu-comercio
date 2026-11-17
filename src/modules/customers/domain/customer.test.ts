@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { Money } from '@/shared/domain/money';
 import { Customer } from './customer';
-import { InvalidPhoneError } from './errors';
+import { InvalidCreditLimitError, InvalidPhoneError } from './errors';
 
 function existing(phone = '11999998888') {
   return new Customer({
@@ -51,11 +51,36 @@ describe('Customer.withChanges', () => {
     expect(legacy.changesTo(next)).toEqual({ name: { from: 'Maria Silva', to: 'Novo Nome' } });
   });
 
-  it('não aceita limite de crédito nem ativo: o valor fica como estava', () => {
-    const next = existing().withChanges({ name: 'X', creditLimit: Money.fromDecimal('1'), active: false } as never);
+  it('troca só o limite e mantém nome, telefone e ativo', () => {
+    const next = existing().withChanges({ creditLimit: Money.fromDecimal('150.05') });
 
-    expect(next.creditLimit.toDecimal()).toBe('150.00');
+    expect(next.creditLimit.toDecimal()).toBe('150.05');
+    expect(next.name).toBe('Maria Silva');
+    expect(next.phone).toBe('11999998888');
     expect(next.active).toBe(true);
+  });
+
+  it('não aceita ativo: o valor fica como estava', () => {
+    expect(existing().withChanges({ name: 'X', active: false } as never).active).toBe(true);
+  });
+
+  it.each(['0', '0.00', '100000', '100000.00', '99999.99', '100000.004'])('aceita o limite %s', (value) => {
+    const next = existing().withChanges({ creditLimit: Money.fromDecimal(value) });
+
+    expect(next.creditLimit.toDecimal()).toBe(Money.fromDecimal(value).toDecimal());
+  });
+
+  it.each(['100000.01', '100000.005', '1000000', '-0.01', '-1'])('recusa o limite %s com mensagem em português', (value) => {
+    const change = () => existing().withChanges({ creditLimit: Money.fromDecimal(value) });
+
+    expect(change).toThrow(InvalidCreditLimitError);
+    expect(change).toThrow('O limite de fiado deve ser de R$ 0,00 a R$ 100.000,00.');
+  });
+
+  it('o limite é medido em centavos, sem ponto flutuante: 0.1 + 0.2 vira 0.30', () => {
+    const next = existing().withChanges({ creditLimit: Money.fromDecimal('0.1').add(Money.fromDecimal('0.2')) });
+
+    expect(next.creditLimit.toCents()).toBe(30);
   });
 });
 
@@ -68,6 +93,20 @@ describe('Customer.changesTo', () => {
       name: { from: 'Maria Silva', to: 'Maria Souza' },
       phone: { from: '11999998888', to: '11988887777' },
     });
+  });
+
+  it('o limite entra na lista de/para em texto com duas casas', () => {
+    const before = existing();
+
+    expect(before.changesTo(before.withChanges({ creditLimit: Money.fromDecimal('150.05') }))).toEqual({
+      creditLimit: { from: '150.00', to: '150.05' },
+    });
+  });
+
+  it('o mesmo limite, escrito de outro jeito, não é mudança', () => {
+    const before = existing();
+
+    expect(before.changesTo(before.withChanges({ creditLimit: Money.fromDecimal('150') }))).toEqual({});
   });
 
   it('o mesmo valor não é mudança', () => {

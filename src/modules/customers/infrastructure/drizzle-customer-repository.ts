@@ -115,6 +115,7 @@ export class DrizzleCustomerRepository implements CustomerRepository {
           .set({
             ...(diff.name && { name: after.name }),
             ...(diff.phone && { phone: after.phone }),
+            ...(diff.creditLimit && { creditLimit: after.creditLimit.toDecimal() }),
             // Strictly greater than the previous value, in whole milliseconds (the precision of expectedUpdatedAt).
             updatedAt: sql`GREATEST(date_trunc('milliseconds', clock_timestamp()), date_trunc('milliseconds', ${customers.updatedAt}) + interval '1 millisecond')`,
           })

@@ -79,8 +79,8 @@ describe('PATCH /api/customers/[id]', () => {
   });
 
   it.each([
-    ['creditLimit', { creditLimit: '10' }],
     ['active', { name: 'A', active: false }],
+    ['limite mal formado', { creditLimit: 'dez' }],
     ['campo desconhecido', { name: 'A', foo: 1 }],
     ['corpo vazio', {}],
   ])('400 strict: %s', async (_label, body) => {
@@ -89,6 +89,31 @@ describe('PATCH /api/customers/[id]', () => {
     expect(response.status).toBe(400);
     expect((await response.json()).errors.length).toBeGreaterThan(0);
     expect(mockUpdateDetails).not.toHaveBeenCalled();
+  });
+
+  it.each(['100000.01', '-1'])('400 com mensagem em português para limite %s fora do intervalo, sem chamar o repositório', async (creditLimit) => {
+    const response = await patch({ creditLimit });
+
+    expect(response.status).toBe(400);
+    expect((await response.json()).message).toBe('O limite de fiado deve ser de R$ 0,00 a R$ 100.000,00.');
+    expect(mockUpdateDetails).not.toHaveBeenCalled();
+  });
+
+  it('403 para operadora também ao editar o limite, e não grava', async () => {
+    mockRequireAuthSession.mockResolvedValue(operator);
+
+    expect((await patch({ creditLimit: '10' })).status).toBe(403);
+    expect(mockUpdateDetails).not.toHaveBeenCalled();
+  });
+
+  it('200 ao editar só o limite: repassa Money em centavos e devolve o limite em texto', async () => {
+    const response = await patch({ creditLimit: '150.05' });
+
+    expect(response.status).toBe(200);
+    expect((await response.json()).creditLimit).toBe('150.00');
+    const sent = mockUpdateDetails.mock.calls[0][2];
+    expect(Object.keys(sent)).toEqual(['creditLimit']);
+    expect(sent.creditLimit.toDecimal()).toBe('150.05');
   });
 
   it('400 para corpo que não é JSON', async () => {

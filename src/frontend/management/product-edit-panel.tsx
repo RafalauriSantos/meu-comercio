@@ -13,7 +13,7 @@ import {
   type EditDraft,
   type EditError,
 } from '@/frontend/management/product-edit';
-import { useDialogPanel } from '@/frontend/management/use-dialog-panel';
+import { useDialogPanel } from '@/frontend/lib/use-dialog-panel';
 
 interface ProductEditPanelProps {
   target: ProductItem;

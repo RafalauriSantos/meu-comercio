@@ -3,7 +3,7 @@ import { ZodError } from 'zod';
 import { Money } from '@/shared/domain/money';
 import { Customer } from '../domain/customer';
 import { CustomerRepository } from '../domain/customer-repository.port';
-import { CustomerAlreadyExistsError, CustomerChangedError, CustomerNotFoundError, InvalidPhoneError } from '../domain/errors';
+import { CustomerAlreadyExistsError, CustomerChangedError, CustomerNotFoundError, InvalidCreditLimitError, InvalidPhoneError } from '../domain/errors';
 import { UpdateCustomerUseCase } from './update-customer.use-case';
 
 const customer = Customer.create({ id: 'c1', merchantId: 'm1', name: 'Maria', phone: '11999998888', creditLimit: Money.fromDecimal('50') });
@@ -32,6 +32,33 @@ describe('UpdateCustomerUseCase', () => {
     );
   });
 
+  it.each([
+    ['string com centavos', '150.05', '150.05'],
+    ['string inteira', '150', '150.00'],
+    ['zero', '0', '0.00'],
+    ['o teto', '100000.00', '100000.00'],
+    ['número JSON', 150.5, '150.50'],
+  ])('aceita só o limite (%s) e manda Money em centavos', async (_label, creditLimit, expected) => {
+    await useCase.execute('m1', 'dona', 'c1', { creditLimit });
+
+    const sent = updateDetails.mock.calls[0][2];
+    expect(Object.keys(sent)).toEqual(['creditLimit']);
+    expect(sent.creditLimit).toBeInstanceOf(Money);
+    expect(sent.creditLimit.toDecimal()).toBe(expected);
+  });
+
+  it.each(['100000.01', '-0.01', '-5', '999999999'])('limite %s fora do intervalo: InvalidCreditLimitError e não chama o repositório', async (creditLimit) => {
+    await expect(useCase.execute('m1', 'dona', 'c1', { creditLimit })).rejects.toBeInstanceOf(InvalidCreditLimitError);
+    expect(updateDetails).not.toHaveBeenCalled();
+  });
+
+  it('nome e limite juntos vão na mesma chamada', async () => {
+    await useCase.execute('m1', 'dona', 'c1', { name: 'Maria', creditLimit: '20' });
+
+    expect(updateDetails.mock.calls[0][2].name).toBe('Maria');
+    expect(updateDetails.mock.calls[0][2].creditLimit.toDecimal()).toBe('20.00');
+  });
+
   it('aceita só o telefone e deixa a regra D-21 para o domínio', async () => {
     await useCase.execute('m1', 'dona', 'c1', { phone: '(11) 98888-7777' });
 
@@ -41,8 +68,13 @@ describe('UpdateCustomerUseCase', () => {
   it.each([
     ['corpo vazio', {}],
     ['só expectedUpdatedAt', { expectedUpdatedAt: '2026-11-17T10:00:00.000Z' }],
-    ['creditLimit', { name: 'A', creditLimit: '10' }],
     ['active', { name: 'A', active: false }],
+    ['limite mal formado', { creditLimit: 'dez' }],
+    ['limite vazio', { creditLimit: '' }],
+    ['limite em notação científica', { creditLimit: '1e3' }],
+    ['limite hexadecimal', { creditLimit: '0x10' }],
+    ['limite nulo', { creditLimit: null }],
+    ['limite infinito', { creditLimit: Infinity }],
     ['campo desconhecido', { name: 'A', foo: 1 }],
     ['nome vazio', { name: '   ' }],
     ['nome com 161 caracteres', { name: 'a'.repeat(161) }],

@@ -69,7 +69,7 @@ describe('GET /api/products', () => {
       unit: 'UN',
       active: true,
       createdAt: new Date(),
-      updatedAt: new Date(),
+      updatedAt: new Date('2026-05-01T12:00:00.123Z'),
     });
     mockListPage.mockResolvedValue({ items: [{ product, availableQuantity: 7 }], hasMore: true });
 
@@ -77,7 +77,7 @@ describe('GET /api/products', () => {
 
     expect(response.status).toBe(200);
     expect(await response.json()).toEqual({
-      items: [{ id: 'p1', barcode: '1001', name: 'Arroz', salePrice: '24.90', unit: 'UN', availableQuantity: 7, active: true }],
+      items: [{ id: 'p1', barcode: '1001', name: 'Arroz', salePrice: '24.90', unit: 'UN', availableQuantity: 7, active: true, updatedAt: '2026-05-01T12:00:00.123Z' }],
       hasMore: true,
     });
   });

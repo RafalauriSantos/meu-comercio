@@ -255,6 +255,21 @@ describe.skipIf(!TEST_DATABASE_URL)('DrizzleProductRepository.updateDetails (Pos
     expect((await row(product.id)).name).toBe('Edição da A');
   });
 
+  it('the updatedAt the list returns (ISO) is the stored one: it passes as expectedUpdatedAt, then goes stale', async () => {
+    const merchantId = await freshMerchant();
+    const product = await seed(merchantId, 'L1');
+
+    const { items } = await repo.listPage(merchantId, { query: 'L1', page: 1, pageSize: 10 });
+    const listed = items[0].product.updatedAt.toISOString();
+    expect(listed).toBe(product.updatedAt.toISOString());
+
+    await repo.updateDetails(merchantId, product.id, { name: 'Pela lista' }, { ...ACTOR, expectedUpdatedAt: new Date(listed) });
+    await expect(
+      repo.updateDetails(merchantId, product.id, { name: 'De novo' }, { ...ACTOR, expectedUpdatedAt: new Date(listed) })
+    ).rejects.toBeInstanceOf(ProductChangedError);
+    expect((await row(product.id)).name).toBe('Pela lista');
+  });
+
   it('two simultaneous edits from the same state: one wins and the other is warned', async () => {
     const merchantId = await freshMerchant();
     const product = await seed(merchantId, 'C3');

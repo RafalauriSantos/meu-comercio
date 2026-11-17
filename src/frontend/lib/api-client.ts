@@ -71,6 +71,16 @@ export interface ProductItem {
   /** Missing means by the unit. */
   unit?: ProductUnit;
   active?: boolean;
+  /** ISO. Sent back as expectedUpdatedAt when editing. */
+  updatedAt?: string;
+}
+
+export interface ProductPatch {
+  name?: string;
+  /** Decimal string, never a number. */
+  salePrice?: string;
+  barcode?: string;
+  expectedUpdatedAt?: string;
 }
 
 /** Over all active products. With stock control off the three stock fields are null. stockValue is a decimal string. */
@@ -323,6 +333,11 @@ export const apiClient = {
         initialStock: payload.initialStock ?? 0,
         unit: payload.unit ?? 'UN',
       }),
+    }),
+  updateProduct: (id: string, patch: ProductPatch) =>
+    apiRequest<ProductItem>(`/api/products/${encodeURIComponent(id)}`, {
+      method: 'PATCH',
+      body: JSON.stringify(patch),
     }),
   getSalesReport: (params: { period: PeriodKind; from?: string; to?: string }) => {
     const query = new URLSearchParams({ period: params.period });

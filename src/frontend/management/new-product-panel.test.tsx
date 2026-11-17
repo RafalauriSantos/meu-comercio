@@ -56,7 +56,9 @@ describe('NewProductPanel', () => {
       expect(html).toContain(`for="np-${field}"`);
       expect(html).toContain(`id="np-${field}"`);
     }
-    expect(html).toContain('placeholder="Bipe o produto ou digite o código"');
+    expect(html).toContain('placeholder="Gerado automaticamente se ficar vazio"');
+    expect(html).not.toMatch(/<input[^>]*id="np-barcode"[^>]*required/);
+    expect(html).not.toMatch(/<input[^>]*required[^>]*id="np-barcode"/);
     expect(html).toContain('Por unidade');
     expect(html).toContain('Por peso (preço por quilo)');
     expect(html).toContain('placeholder="24,90"');

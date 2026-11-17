@@ -171,15 +171,16 @@ export function useProductsTab({ setFeedback, setProcessing, setLoadFailed, stoc
         setCreateError(newUnit === 'KG' ? 'Estoque inicial inválido. Use quilos, como 2,5.' : 'Estoque inicial inválido. Use um número inteiro.');
         return;
       }
-      await apiClient.createProduct({
-        barcode: newBarcode.trim(),
+      const typedBarcode = newBarcode.trim();
+      const created = await apiClient.createProduct({
+        barcode: typedBarcode,
         name: newName.trim(),
         salePrice: parseCurrencyInput(newPrice),
         initialStock,
         unit: newUnit,
       });
       setFeedback({
-        text: `Produto "${newName.trim()}" cadastrado com sucesso! Ele aparece em ordem alfabética: se não o vir, use Carregar mais.`,
+        text: `Produto "${newName.trim()}" cadastrado com sucesso!${typedBarcode ? '' : ` Código gerado: ${created.barcode}.`} Ele aparece em ordem alfabética: se não o vir, use Carregar mais.`,
         isSuccess: true,
       });
       setProductQuery('');

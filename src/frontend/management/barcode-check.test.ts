@@ -44,7 +44,7 @@ describe('registering a product with the barcode scanner', () => {
   it('puts the cursor in the barcode field when the panel opens', () => {
     // The dialog is closed when React mounts it, so autoFocus would do nothing: useDialogPanel focuses it after showModal().
     expect(page).toMatch(/id="np-barcode"[\s\S]*?ref=\{barcodeRef\}/);
-    expect(page).toContain('useDialogPanel(dialogRef, barcodeRef)');
+    expect(page).toContain('useDialogPanel(dialogRef, barcodeRef, closing, onClosed)');
   });
 
   it('does not submit the form on the scanner Enter: it checks the code and goes to the name', () => {

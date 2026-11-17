@@ -23,6 +23,8 @@ function render(over: Partial<React.ComponentProps<typeof NewProductPanel>> = {}
       onPrice={noop}
       onStock={noop}
       onSubmit={noop}
+      closing={false}
+      onClosed={noop}
       onCancel={noop}
       onBarcodeBlur={noop}
       onBarcodeKeyDown={noop}
@@ -32,6 +34,11 @@ function render(over: Partial<React.ComponentProps<typeof NewProductPanel>> = {}
 }
 
 describe('NewProductPanel', () => {
+  it('while closing it is marked data-closing and inert (no second save during the exit), and not marked otherwise', () => {
+    expect(render()).not.toMatch(/<dialog[^>]*(data-closing|inert)/);
+    expect(render({ closing: true })).toMatch(/<dialog[^>]*data-closing="true"[^>]*inert=""|<dialog[^>]*inert=""[^>]*data-closing="true"/);
+  });
+
   it('is a modal dialog named by its title, closed by a button labelled Fechar', () => {
     const html = render();
     const labelledBy = html.match(/<dialog[^>]*aria-labelledby="([^"]+)"/)?.[1];

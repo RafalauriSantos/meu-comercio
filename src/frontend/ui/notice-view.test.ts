@@ -62,7 +62,7 @@ describe('screens choose success for confirmations', () => {
         'Cliente cadastrado com sucesso',
         'realizada com sucesso e registrada',
         'cadastrado com sucesso!`',
-        'cadastrado com sucesso! Ele aparece',
+        'cadastrado com sucesso!${typedBarcode',
         'Estoque reposto com sucesso',
         'produtos importados com sucesso',
         'Controle de estoque ligado',

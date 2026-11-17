@@ -117,6 +117,16 @@ export interface CustomerItem {
   creditLimit?: number | string;
   active?: boolean;
   createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface CustomerPatch {
+  name?: string;
+  /** Digits or any text the backend accepts as a phone. */
+  phone?: string;
+  /** Decimal string, never a number. */
+  creditLimit?: string;
+  expectedUpdatedAt?: string;
 }
 
 export interface OperatorItem {
@@ -420,6 +430,11 @@ export const apiClient = {
     apiRequest<CustomerItem>('/api/customers', {
       method: 'POST',
       body: JSON.stringify(payload),
+    }),
+  updateCustomer: (id: string, patch: CustomerPatch) =>
+    apiRequest<CustomerItem>(`/api/customers/${encodeURIComponent(id)}`, {
+      method: 'PATCH',
+      body: JSON.stringify(patch),
     }),
   getCustomerBalance: (customerId: string) =>
     apiRequest<CustomerBalance>(`/api/customers/${encodeURIComponent(customerId)}/balance`),

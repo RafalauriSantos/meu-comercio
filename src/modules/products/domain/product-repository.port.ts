@@ -42,6 +42,8 @@ export interface ProductUpdateContext {
 
 export interface ProductRepository {
   save(product: Product): Promise<void>;
+  /** Inserts a new product and never touches an existing row. Throws ProductBarcodeConflictError when the barcode is taken in the shop. */
+  create(product: Product): Promise<void>;
   findByBarcode(merchantId: string, barcode: string): Promise<Product | null>;
   findById(merchantId: string, id: string): Promise<Product | null>;
   searchByNameOrBarcode(merchantId: string, query: string, limit?: number): Promise<Product[]>;

@@ -60,6 +60,25 @@ export class DrizzleProductRepository implements ProductRepository {
       });
   }
 
+  async create(product: Product): Promise<void> {
+    try {
+      await db.insert(products).values({
+        id: product.id,
+        merchantId: product.merchantId,
+        barcode: product.barcode,
+        name: product.name,
+        salePrice: product.salePrice.toDecimal(),
+        unit: product.unit,
+        active: product.active,
+        createdAt: product.createdAt,
+        updatedAt: product.updatedAt,
+      });
+    } catch (error) {
+      if (isBarcodeConflict(error)) throw new ProductBarcodeConflictError(product.barcode);
+      throw error;
+    }
+  }
+
   async updateDetails(
     merchantId: string,
     productId: string,

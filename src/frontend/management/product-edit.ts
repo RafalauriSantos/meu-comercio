@@ -1,4 +1,4 @@
-import { ApiError, type ProductItem, type ProductPatch } from '@/frontend/lib/api-client';
+import { ApiError, type GenerateBarcodePatch, type ProductItem, type ProductPatch } from '@/frontend/lib/api-client';
 import { getErrorMessage } from '@/frontend/lib/formatters';
 import { priceToDigits } from '@/frontend/lib/currency-mask';
 
@@ -21,6 +21,8 @@ export const BARCODE_CHANGE_WARNING =
   'Você está trocando o código de barras. As etiquetas impressas com o código antigo deixam de funcionar: imprima de novo ou cole o código novo.';
 export const PRICE_CHANGE_WARNING =
   'Caixas sem internet ainda vendem pelo preço antigo. Essas vendas podem ficar paradas na fila. Antes de mudar o preço, deixe os caixas sincronizarem.';
+export const GENERATE_BARCODE_QUESTION =
+  'A etiqueta antiga deixa de valer. O código atual fica registrado no histórico. Gerar um novo código?';
 export const SCAN_DURING_EDIT_NOTICE = 'Termine ou cancele a edição antes de cadastrar um produto novo.';
 
 export function draftFromProduct(product: ProductItem): EditDraft {
@@ -60,6 +62,20 @@ export function editErrorMessage(err: unknown): EditError {
     if (err.status === 403) return { text: 'Só a proprietária pode editar produtos.', reload: false };
   }
   return { text: getErrorMessage(err, 'Erro ao editar produto.'), reload: false };
+}
+
+/** The server picks the new code: only the flag and the version read on open go. */
+export async function submitGenerateBarcode(
+  update: (id: string, patch: GenerateBarcodePatch) => Promise<ProductItem>,
+  target: ProductItem
+): Promise<EditResult> {
+  const patch: GenerateBarcodePatch = { generateBarcode: true };
+  if (target.updatedAt) patch.expectedUpdatedAt = target.updatedAt;
+  try {
+    return { kind: 'saved', item: await update(target.id, patch) };
+  } catch (err) {
+    return { kind: 'failed', ...editErrorMessage(err) };
+  }
 }
 
 /** Builds the patch and sends it with the given update function (the api call is injected, so this runs without a screen). */

@@ -382,6 +382,7 @@ export function ProductsTab({ tab, stockControl, user, setFeedback, loadFailed, 
                 onReload={edit.handleReload}
                 onBarcodeBlur={edit.checkBarcode}
                 onBarcodeKeyDown={edit.handleBarcodeKeyDown}
+                onGenerateBarcode={edit.handleGenerateBarcode}
               />
             )}
           </section>

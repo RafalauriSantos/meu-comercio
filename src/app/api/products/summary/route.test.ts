@@ -3,6 +3,11 @@ import { GET } from './route';
 import { Money } from '@/shared/domain/money';
 import { UnauthorizedError } from '@/shared/infrastructure/auth/auth-context';
 
+vi.mock('next/server', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('next/server')>()),
+  connection: () => Promise.resolve(),
+}));
+
 const mockRequireAuthSession = vi.fn();
 vi.mock('@/shared/infrastructure/auth/auth-context', () => ({
   requireAuthSession: () => mockRequireAuthSession(),

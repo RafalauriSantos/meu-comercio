@@ -9,6 +9,9 @@ import {
   ProductItem,
   CustomerItem,
   CashSessionData,
+  isConnectionError,
+  loadErrorMessage,
+  shouldGoToLogin,
 } from '@/frontend/lib/api-client';
 import { Money } from '@/shared/domain/money';
 import {
@@ -68,6 +71,9 @@ export default function PdvTerminalPage() {
   const router = useRouter();
   const [user, setUser] = useState<AuthUser | null>(null);
   const [loading, setLoading] = useState(true);
+  // The first load failed for a reason other than an expired session: the error stays on the screen with a retry.
+  const [initError, setInitError] = useState<string | null>(null);
+  const [attempt, setAttempt] = useState(0); // each retry of the first load adds one, so the effect runs again
   const skeletonGate = useSkeletonGate(loading);
 
   // Conexão e Offline
@@ -293,14 +299,23 @@ export default function PdvTerminalPage() {
           const count = offlineManagerRef.current.getQueue(me.merchantId, me.username).length;
           setOfflineCount(count);
         }
-      } catch {
-        router.push(loginUrlHere());
+      } catch (err) {
+        if (shouldGoToLogin(err)) router.push(loginUrlHere());
+        else setInitError(loadErrorMessage(err));
       } finally {
         setLoading(false);
       }
     }
     init();
-  }, [router]);
+  }, [router, attempt]);
+
+  // Only on the click. The cart and the saved draft stay as they are: the draft is taken back when the load works.
+  function retryInit() {
+    setInitError(null);
+    setCustomersFailed(false);
+    setLoading(true);
+    setAttempt((n) => n + 1);
+  }
 
   // The fiado menu closes on an outside click or on Escape. Escape is stopped here, so it does not
   // also reach the global shortcut that clears the sale.
@@ -802,7 +817,7 @@ export default function PdvTerminalPage() {
       if (
         paymentMethod === 'CASH' &&
         !isSplit &&
-        err instanceof TypeError &&
+        isConnectionError(err) &&
         offlineManagerRef.current &&
         user
       ) {
@@ -949,7 +964,9 @@ export default function PdvTerminalPage() {
         )}
 
         <section className="pdv-col" aria-label="Venda atual">
-          {loading ? <PdvMainSkeleton shape={shape} /> : (<>
+          {loading ? <PdvMainSkeleton shape={shape} /> : initError ? (
+            <LoadFailureNotice what="o PDV" reason={initError} onRetry={retryInit} />
+          ) : (<>
           <div className="card pdv-scan">
             <label htmlFor="barcode-scanner" className="pdv-card-title">
               Adicionar produto
@@ -1088,7 +1105,7 @@ export default function PdvTerminalPage() {
           </>)}
         </section>
 
-        {loading ? <PdvSideSkeleton shape={shape} /> : (
+        {loading ? <PdvSideSkeleton shape={shape} /> : initError ? null : (
         <aside className="pdv-col pdv-side" aria-label="Pagamento">
           <div className="pdv-total-card">
             <div className="pdv-total-label">Total a pagar</div>
@@ -1167,7 +1184,7 @@ export default function PdvTerminalPage() {
         )}
       </main>
 
-      {loading ? <PdvStatusSkeleton shape={shape} /> : (
+      {loading ? <PdvStatusSkeleton shape={shape} /> : initError ? null : (
       <footer className="pdv-status">
         <span className="pdv-conn">
           <span className={`pdv-dot${isOnline ? '' : ' is-offline'}`} aria-hidden="true" />

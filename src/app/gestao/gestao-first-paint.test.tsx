@@ -112,9 +112,11 @@ describe('/gestao loading failures and requests (locked as at HEAD, baseline.md)
     expect(count(source, 'apiClient.listOperators(')).toBe(1);
   });
 
-  it('keeps the first load: me() first, a failure of the load goes to /login and then loading ends', () => {
+  it('keeps the first load: me() first, only an expired session goes to /login, any other failure is an in-screen error, and then loading ends', () => {
     expect(count(source, 'apiClient.me()')).toBe(1);
-    expect(source).toMatch(/\} catch \{\s*router\.push\(loginUrlHere\(\)\);\s*\} finally \{\s*setLoading\(false\);/);
+    expect(source).toMatch(
+      /\} catch \(err\) \{\s*if \(shouldGoToLogin\(err\)\) router\.push\(loginUrlHere\(\)\);\s*else setInitError\(loadErrorMessage\(err\)\);\s*\} finally \{\s*setLoading\(false\);/
+    );
   });
 });
 
@@ -141,10 +143,11 @@ describe('/gestao failure notice (step 5, source)', () => {
     },
   );
 
-  it('keeps the first-load requests in the same order and the effect dependencies unchanged (no new automatic run)', () => {
+  it('keeps the first-load requests in the same order and the effect dependencies unchanged but for the retry counter (no new automatic run)', () => {
     expect(source).toMatch(/loadProducts\(\),\s*loadCustomers\(\),\s*loadCash\(\),\s*loadCreditMetrics\(\),\s*\];/);
     expect(source).toMatch(/tasks\.push\(loadOperators\(\)\)/);
-    expect(source).toContain('}, [router, loadProducts, loadCustomers, loadCash, loadCreditMetrics, loadOperators]);');
+    // `attempt` only changes on the click of Tentar de novo (retryInit), so there is still no new automatic run.
+    expect(source).toContain('}, [router, loadProducts, loadCustomers, loadCash, loadCreditMetrics, loadOperators, attempt]);');
   });
 
   it('has no notice and no failure text in the server HTML of the first visit (failures only exist after the load)', () => {
@@ -154,5 +157,13 @@ describe('/gestao failure notice (step 5, source)', () => {
       expect(markup).not.toContain('Não foi possível');
       expect(markup).not.toContain('role="alert"');
     }
+  });
+});
+
+describe('/gestao first load retry (source)', () => {
+  it('attempt only changes in retryInit, which is only wired to the Tentar de novo of the failed first load', () => {
+    expect(count(source, 'setAttempt(')).toBe(1);
+    expect(count(source, 'retryInit')).toBe(2); // the definition and the onRetry
+    expect(source).toMatch(/<LoadFailureNotice what="o painel" reason=\{initError\} onRetry=\{retryInit\}/);
   });
 });

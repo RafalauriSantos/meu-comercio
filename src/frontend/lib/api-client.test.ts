@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
-import { apiRequest, ApiError, apiClient } from './api-client';
+import { apiRequest, ApiError, apiClient, shouldGoToLogin, loadErrorMessage } from './api-client';
+import { subscribeSessionExpired } from './session-expired';
 
 describe('apiRequest errors', () => {
   afterEach(() => {
@@ -62,7 +63,152 @@ describe('apiRequest errors', () => {
     const error = await apiRequest('/api/sales').catch((e: unknown) => e);
 
     expect((error as ApiError).status).toBe(502);
-    expect((error as ApiError).message).toBe('Falha ao processar solicitação.');
+    expect((error as ApiError).message).toBe('O sistema teve um problema. Tente de novo em instantes.');
+  });
+});
+
+describe('shouldGoToLogin and loadErrorMessage', () => {
+  it('only an ApiError of an expired session goes to the login', () => {
+    expect(shouldGoToLogin(new ApiError(401, 'x'))).toBe(true);
+    expect(shouldGoToLogin(new ApiError(0, 'x', undefined, undefined, 'network'))).toBe(false);
+    expect(shouldGoToLogin(new ApiError(0, 'x', undefined, undefined, 'timeout'))).toBe(false);
+    expect(shouldGoToLogin(new ApiError(429, 'x'))).toBe(false);
+    expect(shouldGoToLogin(new ApiError(500, 'x'))).toBe(false);
+    expect(shouldGoToLogin(new ApiError(403, 'x'))).toBe(false);
+    expect(shouldGoToLogin(new TypeError('Failed to fetch'))).toBe(false);
+    expect(shouldGoToLogin(new Error('bug'))).toBe(false);
+  });
+
+  it('the message is the one of the ApiError, or the generic server one for an unexpected error', () => {
+    expect(loadErrorMessage(new ApiError(0, 'A conexão está lenta. Tente de novo.', undefined, undefined, 'timeout'))).toBe(
+      'A conexão está lenta. Tente de novo.'
+    );
+    expect(loadErrorMessage(new Error('bug'))).toBe('O sistema teve um problema. Tente de novo em instantes.');
+  });
+});
+
+describe('apiRequest error kinds', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    vi.useRealTimers();
+  });
+
+  const failWith = (status: number, path: string, body = '{}') => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(body, { status })));
+    return apiRequest(path).catch((e: unknown) => e as ApiError) as Promise<ApiError>;
+  };
+
+  it('sets kind from the status and the path, and keeps status and code', async () => {
+    expect((await failWith(401, '/api/products')).kind).toBe('session-expired');
+    expect((await failWith(401, '/api/auth/login')).kind).toBe('business');
+    expect((await failWith(429, '/api/products')).kind).toBe('rate-limit');
+    expect((await failWith(500, '/api/products')).kind).toBe('server');
+    const business = await failWith(409, '/api/sales', JSON.stringify({ message: 'Caixa fechado.', code: 'X' }));
+    expect(business.kind).toBe('business');
+    expect(business.status).toBe(409);
+    expect(business.code).toBe('X');
+    expect(business.message).toBe('Caixa fechado.');
+  });
+
+  it('a fetch that throws is a network error, status 0, and is never an expired session', async () => {
+    const notify = vi.fn();
+    const unsubscribe = subscribeSessionExpired(notify);
+    vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new TypeError('Failed to fetch')));
+
+    const error = (await apiRequest('/api/auth/me').catch((e: unknown) => e)) as ApiError;
+
+    expect(error).toBeInstanceOf(ApiError);
+    expect(error.kind).toBe('network');
+    expect(error.status).toBe(0);
+    expect(error.message).toBe('Sem conexão com a internet. Confira a conexão e tente de novo.');
+    expect(notify).not.toHaveBeenCalled();
+    unsubscribe();
+  });
+
+  describe('time limit (fake fetch and fake clock)', () => {
+    // A fetch that never answers and rejects like the browser when its signal is aborted.
+    const hangingFetch = () =>
+      vi.fn(
+        (_path: string, init: RequestInit) =>
+          new Promise<Response>((_resolve, reject) => {
+            init.signal?.addEventListener('abort', () => reject(new DOMException('Aborted', 'AbortError')));
+          })
+      );
+
+    async function settledAfter(pending: Promise<unknown>, ms: number) {
+      let settled = false;
+      void pending.then(() => (settled = true));
+      await vi.advanceTimersByTimeAsync(ms);
+      return settled;
+    }
+
+    it('a GET that hangs ends after 15 s as a timeout, never as an expired session', async () => {
+      vi.useFakeTimers();
+      const notify = vi.fn();
+      const unsubscribe = subscribeSessionExpired(notify);
+      vi.stubGlobal('fetch', hangingFetch());
+
+      const pending = apiRequest('/api/products').catch((e: unknown) => e as ApiError) as Promise<ApiError>;
+      expect(await settledAfter(pending, 14_999)).toBe(false);
+      await vi.advanceTimersByTimeAsync(1);
+
+      const error = await pending;
+      expect(error.kind).toBe('timeout');
+      expect(error.status).toBe(0);
+      expect(error.message).toBe('A conexão está lenta. Tente de novo.');
+      expect(notify).not.toHaveBeenCalled();
+      unsubscribe();
+    });
+
+    it('a write waits 30 s', async () => {
+      vi.useFakeTimers();
+      vi.stubGlobal('fetch', hangingFetch());
+      const pending = apiRequest('/api/products/abc', { method: 'PATCH', body: '{}' }).catch((e: unknown) => e as ApiError) as Promise<ApiError>;
+
+      expect(await settledAfter(pending, 29_999)).toBe(false);
+      await vi.advanceTimersByTimeAsync(1);
+
+      expect((await pending).kind).toBe('timeout');
+    });
+
+    it('a write that moves money (cash open) is never aborted by time', async () => {
+      vi.useFakeTimers();
+      const fetchMock = hangingFetch();
+      vi.stubGlobal('fetch', fetchMock);
+      const pending = apiRequest('/api/cash/open', { method: 'POST', body: '{}' }).catch(() => undefined);
+
+      expect(await settledAfter(pending, 10 * 60_000)).toBe(false);
+      expect((fetchMock.mock.calls[0][1] as RequestInit).signal?.aborted).toBe(false);
+    });
+
+    it('a sale is never aborted by time', async () => {
+      vi.useFakeTimers();
+      const fetchMock = hangingFetch();
+      vi.stubGlobal('fetch', fetchMock);
+      const pending = apiRequest('/api/sales', { method: 'POST', body: '{}' }).catch(() => undefined);
+
+      expect(await settledAfter(pending, 10 * 60_000)).toBe(false);
+      expect((fetchMock.mock.calls[0][1] as RequestInit).signal?.aborted).toBe(false);
+    });
+
+    it('timeoutMs overrides the limit of one call', async () => {
+      vi.useFakeTimers();
+      vi.stubGlobal('fetch', hangingFetch());
+      const pending = apiRequest('/api/products', { timeoutMs: 1_000 }).catch((e: unknown) => e as ApiError) as Promise<ApiError>;
+
+      await vi.advanceTimersByTimeAsync(1_000);
+
+      expect((await pending).kind).toBe('timeout');
+    });
+
+    it('an answer in time clears the timer: no late abort', async () => {
+      vi.useFakeTimers();
+      vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response('{"ok":true}', { status: 200 })));
+
+      await expect(apiRequest('/api/products')).resolves.toEqual({ ok: true });
+
+      expect(vi.getTimerCount()).toBe(0);
+    });
   });
 });
 

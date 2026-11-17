@@ -7,6 +7,8 @@ import {
   apiClient,
   AuthUser,
   CashSessionData,
+  loadErrorMessage,
+  shouldGoToLogin,
 } from '@/frontend/lib/api-client';
 import { formatMoney, parseCurrencyInput, getErrorMessage } from '@/frontend/lib/formatters';
 import { AppHeader } from '@/frontend/ui/app-header';
@@ -35,6 +37,9 @@ export default function GestaoPage() {
   const [activeTab, setActiveTab] = useState<'produtos' | 'fiado' | 'caixa' | 'operadores' | 'relatorios'>('produtos');
   const [user, setUser] = useState<AuthUser | null>(null);
   const [loading, setLoading] = useState(true);
+  // The first load failed for a reason other than an expired session: the error stays on the screen with a retry.
+  const [initError, setInitError] = useState<string | null>(null);
+  const [attempt, setAttempt] = useState(0); // each retry of the first load adds one, so the effect runs again
   const skeletonGate = useSkeletonGate(loading);
   const [feedback, setFeedback] = useState<{ text: string; isError?: boolean; isSuccess?: boolean } | null>(null);
   useAutoDismiss(feedback, () => setFeedback(null));
@@ -108,14 +113,22 @@ export default function GestaoPage() {
           tasks.push(loadOperators());
         }
         await Promise.all(tasks);
-      } catch {
-        router.push(loginUrlHere());
+      } catch (err) {
+        if (shouldGoToLogin(err)) router.push(loginUrlHere());
+        else setInitError(loadErrorMessage(err));
       } finally {
         setLoading(false);
       }
     }
     init();
-  }, [router, loadProducts, loadCustomers, loadCash, loadCreditMetrics, loadOperators]);
+  }, [router, loadProducts, loadCustomers, loadCash, loadCreditMetrics, loadOperators, attempt]);
+
+  // Only on the click: loads everything again.
+  function retryInit() {
+    setInitError(null);
+    setLoading(true);
+    setAttempt((n) => n + 1);
+  }
 
   // --- Handlers de Caixa ---
   async function handleOpenCash(e: React.FormEvent) {
@@ -249,7 +262,9 @@ export default function GestaoPage() {
           </div>
         )}
 
-        {loading ? <ManagementDataSkeleton shape={shape} /> : (<>
+        {loading ? <ManagementDataSkeleton shape={shape} /> : initError ? (
+          <LoadFailureNotice what="o painel" reason={initError} onRetry={retryInit} />
+        ) : (<>
         {/* Abas */}
         <div role="group" aria-label="Seções da gestão" className="mg-tabs">
           <button

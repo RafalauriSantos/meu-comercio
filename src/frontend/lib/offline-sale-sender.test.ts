@@ -106,4 +106,28 @@ describe('settleOfflineSale with the offline queue', () => {
     expect(result.syncedCount).toBe(0);
     expect(manager.getQueue(MERCHANT, OPERATOR)).toHaveLength(2);
   });
+
+  it.each(['network', 'timeout'] as const)(
+    'stops the queue on a %s ApiError (what apiRequest throws now), keeps every sale and does not try the next',
+    async (kind) => {
+      const sent: string[] = [];
+      const result = await sync(async (sale) => {
+        sent.push(sale.idempotencyKey);
+        throw new ApiError(0, 'Sem conexão.', undefined, undefined, kind);
+      });
+
+      expect(sent).toEqual(['first']);
+      expect(result.syncedCount).toBe(0);
+      expect(manager.getQueue(MERCHANT, OPERATOR).map((s) => s.idempotencyKey)).toEqual(['first', 'second']);
+    }
+  );
+
+  it('a 401 still stops the queue and keeps the sales', async () => {
+    const result = await sync(async () => {
+      throw new ApiError(401, 'Não autenticado.');
+    });
+
+    expect(result.sessionExpired).toBe(true);
+    expect(manager.getQueue(MERCHANT, OPERATOR)).toHaveLength(2);
+  });
 });

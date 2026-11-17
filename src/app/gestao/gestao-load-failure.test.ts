@@ -96,6 +96,7 @@ vi.mock('@/frontend/lib/use-auto-dismiss', () => ({ useAutoDismiss: () => {} }))
 
 import GestaoPage from './page';
 import { formatMoney } from '@/frontend/lib/formatters';
+import { ApiError } from '@/frontend/lib/api-client';
 
 type El = { type: unknown; props: { children?: unknown; [key: string]: unknown } };
 type Notice = El & { props: { what: string; onRetry: () => unknown; busy?: boolean } };
@@ -554,8 +555,17 @@ describe('/gestao: no new automatic requests and no change in the login redirect
     expect(whats().length).toBe(1);
   });
 
-  it('a failure of me() still goes to /login once, with no notice and no other read', async () => {
-    h.api.me.mockRejectedValue(new Error('401'));
+  it('a failure of me() that is not an expired session stays on the screen with one notice and no other read', async () => {
+    h.api.me.mockRejectedValue(new Error('429'));
+    await mount();
+    expect(h.router.push).not.toHaveBeenCalled();
+    expect(whats()).toEqual(['o painel']);
+    expect(counts().me).toBe(1);
+    expect(counts().listProducts).toBe(0);
+  });
+
+  it('a 401 of me() (expired session) still goes to /login once, with no notice and no other read', async () => {
+    h.api.me.mockRejectedValue(new ApiError(401, 'Não autenticado.'));
     await mount();
     expect(h.router.push).toHaveBeenCalledTimes(1);
     expect(h.router.push).toHaveBeenCalledWith('/login');

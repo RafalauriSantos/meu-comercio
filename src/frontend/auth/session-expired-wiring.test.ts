@@ -49,10 +49,12 @@ describe('session expired notice wiring', () => {
     expect(hook).not.toContain('confirmLogin');
   });
 
-  it('the first load that fails goes to the login with voltar, in the Gestão and in the PDV', () => {
+  it('the first load that fails with an expired session goes to the login with voltar, in the Gestão and in the PDV; any other failure stays on the screen', () => {
     for (const screen of ['gestao', 'pdv'] as const) {
       const source = readScreenSource(screen);
-      expect(source).toMatch(/\} catch \{\s*router\.push\(loginUrlHere\(\)\);\s*\} finally \{\s*setLoading\(false\);/);
+      expect(source).toMatch(
+        /\} catch \(err\) \{\s*if \(shouldGoToLogin\(err\)\) router\.push\(loginUrlHere\(\)\);\s*else setInitError\(loadErrorMessage\(err\)\);\s*\} finally \{\s*setLoading\(false\);/
+      );
     }
   });
 

@@ -27,6 +27,7 @@ const h = vi.hoisted(() => ({
     me: vi.fn(),
     getStoreSettings: vi.fn(),
     listProducts: vi.fn(),
+    getProductsSummary: vi.fn(),
     listCustomers: vi.fn(),
     getCustomerBalance: vi.fn(),
     getCurrentCash: vi.fn(),
@@ -95,6 +96,7 @@ vi.mock('@/frontend/lib/use-auto-dismiss', () => ({ useAutoDismiss: () => {} }))
 
 import GestaoPage from './page';
 import { formatMoney } from '@/frontend/lib/formatters';
+import { ApiError } from '@/frontend/lib/api-client';
 
 type El = { type: unknown; props: { children?: unknown; [key: string]: unknown } };
 type Notice = El & { props: { what: string; onRetry: () => unknown; busy?: boolean } };
@@ -228,12 +230,14 @@ async function mount() {
 }
 
 beforeEach(() => {
+  vi.stubGlobal('window', { addEventListener: vi.fn(), removeEventListener: vi.fn() }); // the products tab listens to the scanner
   for (const fn of Object.values(h.api)) fn.mockReset();
   h.router.push.mockReset();
   vi.spyOn(console, 'error').mockImplementation(() => {});
   h.api.me.mockResolvedValue({ username: 'dona', merchantId: 'm', authorities: [], isOwner: true });
   h.api.getStoreSettings.mockResolvedValue({ stockControlEnabled: true });
   h.api.listProducts.mockResolvedValue({ items: [] });
+  h.api.getProductsSummary.mockResolvedValue({ total: 0, lowStockCount: 0, outOfStockCount: 0, stockValue: '0.00' });
   h.api.listCustomers.mockResolvedValue({
     items: ['c1', 'c2', 'c3'].map((id) => ({ id, name: `Cliente ${id}`, phone: `9${id}`, creditLimit: '100.00' })),
   });
@@ -303,7 +307,7 @@ describe('/gestao without failures (control: nothing changes at HEAD)', () => {
       expect(whats(), tab).toEqual([]);
     }
     expect(counts()).toEqual({
-      me: 1, getStoreSettings: 1, listProducts: 1, listCustomers: 1, getCustomerBalance: 3,
+      me: 1, getStoreSettings: 1, listProducts: 1, getProductsSummary: 1, listCustomers: 1, getCustomerBalance: 3,
       getCurrentCash: 1, getCreditMetrics: 1, listOperators: 1,
     });
     expect(h.router.push).not.toHaveBeenCalled();
@@ -330,8 +334,8 @@ describe('/gestao: products fail', () => {
     await notices()[0].props.onRetry();
     await settle();
     expect(h.api.listProducts).toHaveBeenCalledTimes(2);
-    expect(h.api.listProducts).toHaveBeenLastCalledWith('');
-    expect(counts()).toEqual({ ...before, listProducts: 2 });
+    expect(h.api.listProducts).toHaveBeenLastCalledWith('', 1, 50);
+    expect(counts()).toEqual({ ...before, listProducts: 2, getProductsSummary: 2 });
     expect(whats()).toEqual([]);
   });
 
@@ -347,7 +351,7 @@ describe('/gestao: products fail', () => {
     expect(whats().length).toBe(1);
     await notices()[0].props.onRetry();
     await settle();
-    expect(h.api.listProducts).toHaveBeenLastCalledWith('cola');
+    expect(h.api.listProducts).toHaveBeenLastCalledWith('cola', 1, 50);
     expect(whats()).toEqual([]);
   });
 
@@ -537,7 +541,7 @@ describe('/gestao: no new automatic requests and no change in the login redirect
     await new Promise((resolve) => setTimeout(resolve, 50));
     expect(h.router.push).not.toHaveBeenCalled();
     expect(counts()).toEqual({
-      me: 1, getStoreSettings: 1, listProducts: 1, listCustomers: 1, getCustomerBalance: 0,
+      me: 1, getStoreSettings: 1, listProducts: 1, getProductsSummary: 1, listCustomers: 1, getCustomerBalance: 0,
       getCurrentCash: 1, getCreditMetrics: 1, listOperators: 1,
     });
     expect(whats().length).toBe(1); // Produtos tab
@@ -551,14 +555,23 @@ describe('/gestao: no new automatic requests and no change in the login redirect
     expect(whats().length).toBe(1);
   });
 
-  it('a failure of me() still goes to /login once, with no notice and no other read', async () => {
-    h.api.me.mockRejectedValue(new Error('401'));
+  it('a failure of me() that is not an expired session stays on the screen with one notice and no other read', async () => {
+    h.api.me.mockRejectedValue(new Error('429'));
+    await mount();
+    expect(h.router.push).not.toHaveBeenCalled();
+    expect(whats()).toEqual(['o painel']);
+    expect(counts().me).toBe(1);
+    expect(counts().listProducts).toBe(0);
+  });
+
+  it('a 401 of me() (expired session) still goes to /login once, with no notice and no other read', async () => {
+    h.api.me.mockRejectedValue(new ApiError(401, 'Não autenticado.'));
     await mount();
     expect(h.router.push).toHaveBeenCalledTimes(1);
     expect(h.router.push).toHaveBeenCalledWith('/login');
     expect(whats()).toEqual([]);
     expect(counts()).toEqual({
-      me: 1, getStoreSettings: 0, listProducts: 0, listCustomers: 0, getCustomerBalance: 0,
+      me: 1, getStoreSettings: 0, listProducts: 0, getProductsSummary: 0, listCustomers: 0, getCustomerBalance: 0,
       getCurrentCash: 0, getCreditMetrics: 0, listOperators: 0,
     });
   });
@@ -694,7 +707,7 @@ describe('/gestao: more races of the balance retry (A2 acceptance gaps)', () => 
   function clickSettle() {
     let button: El | undefined;
     walk(tree, (el) => {
-      if (!button && el.type === 'button' && text(el).includes('Quitar Fiado no Caixa')) button = el;
+      if (!button && el.type === 'button' && text(el).includes('Receber')) button = el;
     });
     if (!button) throw new Error('settle button not found');
     (button.props.onClick as () => void)();

@@ -9,7 +9,7 @@ import { Money } from '@/shared/domain/money';
 import { Sale } from '../domain/sale';
 import { SaleCommit, SaleRepository } from '../domain/sale-repository.port';
 import { Product } from '@/modules/products/domain/product';
-import { ProductRepository } from '@/modules/products/domain/product-repository.port';
+import { ProductRepository, ProductListPage, ProductsSummary } from '@/modules/products/domain/product-repository.port';
 import { InventoryItem, InsufficientStockError } from '@/modules/inventory/domain/inventory-item';
 import { InventoryRepository, InventoryMovementType } from '@/modules/inventory/domain/inventory-repository.port';
 import { CashSession, CashMovementType, applyCashMovement } from '@/modules/cash/domain/cash-session';
@@ -120,6 +120,18 @@ class InMemoryProductRepository implements ProductRepository {
 
   async findById(merchantId: string, id: string): Promise<Product | null> {
     return this.products.get(`${merchantId}:${id}`) ?? null;
+  }
+
+  async listPage(): Promise<ProductListPage> {
+    throw new Error('listPage is not used in this test.');
+  }
+
+  async getSummary(): Promise<ProductsSummary> {
+    throw new Error('getSummary is not used in this test.');
+  }
+
+  async updateDetails(): Promise<Product | null> {
+    throw new Error('updateDetails is not used in this test.');
   }
 
   async searchByNameOrBarcode(merchantId: string, query: string, limit = 20): Promise<Product[]> {
@@ -1108,6 +1120,9 @@ describe('CreateSaleUseCase — Slice 4: Vendas, Checkout e Split Payments', () 
 
 class InMemoryCustomerRepo implements CustomerRepository {
   public customers: Map<string, Customer> = new Map();
+  async updateDetails(): Promise<Customer | null> {
+    throw new Error('not used in these tests');
+  }
   async save(customer: Customer): Promise<void> {
     this.customers.set(`${customer.merchantId}:${customer.id}`, customer);
   }
@@ -1305,7 +1320,7 @@ describe('CreateSaleUseCase — venda fiado (TAB)', () => {
     const inactive = Customer.create({
       merchantId: MERCHANT_ID,
       name: 'Inativo',
-      phone: '11888880000',
+      phone: '11988880000',
       creditLimit: Money.fromDecimal('100.00'),
       active: false,
     });
@@ -1390,7 +1405,7 @@ describe('CreateSaleUseCase — venda fiado (TAB)', () => {
     const otherMerchant = Customer.create({
       merchantId: 'merch-outra-loja',
       name: 'Outra loja',
-      phone: '11777770000',
+      phone: '11977770000',
       creditLimit: Money.fromDecimal('100.00'),
     });
     await customerRepo.save(otherMerchant);

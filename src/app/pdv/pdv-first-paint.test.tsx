@@ -101,7 +101,7 @@ describe('/pdv while waiting for the delay (reserved space, nothing visible)', (
 
 describe('/pdv loading failures and requests (locked as at HEAD, baseline.md)', () => {
   it('still redirects to /login in exactly 2 places', () => {
-    expect(count(source, "router.push('/login')")).toBe(2);
+    expect(count(source, "router.push('/login')") + count(source, 'router.push(loginUrlHere())')).toBe(2);
   });
 
   // HEAD has 12 (baseline.md). Step 6 adds exactly one on purpose: retryCustomers (apiClient.listCustomers,
@@ -119,14 +119,17 @@ describe('/pdv loading failures and requests (locked as at HEAD, baseline.md)', 
     expect(source).toMatch(
       /Promise\.all\(\[\s*apiClient\.me\(\),\s*apiClient\.getCurrentCash\(\),\s*apiClient\.listCustomers\(\)\.catch\(\(\) => \{\s*setCustomersFailed\(true\);\s*return \{ items: \[\] \};\s*\}\),\s*(\/\/[^\n]*\n\s*)?apiClient\.getStoreSettings\(\)\.catch\(\(\) => \(\{ stockControlEnabled: true \}\)\),\s*\]\)/,
     );
-    expect(source).toMatch(/\} catch \{\s*router\.push\('\/login'\);\s*\} finally \{\s*setLoading\(false\);/);
+    expect(source).toMatch(
+      /\} catch \(err\) \{\s*if \(shouldGoToLogin\(err\)\) router\.push\(loginUrlHere\(\)\);\s*else setInitError\(loadErrorMessage\(err\)\);\s*\} finally \{\s*setLoading\(false\);/
+    );
   });
 });
 
 describe('/pdv customer list failure notice (step 6, source)', () => {
-  it('uses LoadFailureNotice from ui/load-failure-notice, once, and only for the customer list', () => {
+  it('uses LoadFailureNotice from ui/load-failure-notice for the customer list once (the other use is the failed first load)', () => {
     expect(source).toContain("from '@/frontend/ui/load-failure-notice'");
-    expect(count(source, '<LoadFailureNotice')).toBe(1);
+    expect(count(source, '<LoadFailureNotice')).toBe(2);
+    expect(count(source, 'what="a lista de clientes"')).toBe(1);
     expect(source).toMatch(/<LoadFailureNotice[^>]*what="a lista de clientes"/);
     expect(source).toMatch(/<LoadFailureNotice[^>]*onRetry=\{retryCustomers\}/);
   });

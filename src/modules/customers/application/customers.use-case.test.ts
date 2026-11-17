@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { Money } from '@/shared/domain/money';
 import { Customer } from '../domain/customer';
+import { phoneDigits } from '../domain/phone';
 import { CreditMovement } from '../domain/credit-movement';
 import { CustomerRepository } from '../domain/customer-repository.port';
 import {
@@ -17,6 +18,7 @@ import { AuditPort } from '@/modules/audit/domain/audit.port';
 import {
   CustomerNotFoundError,
   CustomerAlreadyExistsError,
+  InvalidPhoneError,
   DebtSettlementExceedsBalanceError,
   NoOpenCashSessionError,
 } from '../domain/errors';
@@ -27,6 +29,10 @@ import { SettleCustomerDebtUseCase } from './settle-customer-debt.use-case';
 class InMemoryCustomerRepository implements CustomerRepository {
   public customers: Map<string, Customer> = new Map();
 
+  async updateDetails(): Promise<Customer | null> {
+    throw new Error('not used in these tests');
+  }
+
   async save(customer: Customer): Promise<void> {
     this.customers.set(`${customer.merchantId}:${customer.id}`, customer);
   }
@@ -36,9 +42,9 @@ class InMemoryCustomerRepository implements CustomerRepository {
   }
 
   async findByPhone(merchantId: string, phone: string): Promise<Customer | null> {
-    const normalized = phone.trim();
+    const normalized = phoneDigits(phone);
     for (const customer of this.customers.values()) {
-      if (customer.merchantId === merchantId && customer.phone === normalized) {
+      if (customer.merchantId === merchantId && phoneDigits(customer.phone) === normalized) {
         return customer;
       }
     }
@@ -279,6 +285,56 @@ describe('Slice 5: Customers & Credit / Fiado Use Cases', () => {
         createCustomerUseCase.execute({
           merchantId: MERCHANT_ID,
           name: 'Maria Silva',
+          phone: '11988887777',
+          operatorId: OPERATOR_ID,
+        })
+      ).rejects.toThrow(CustomerAlreadyExistsError);
+    });
+
+    it('should store the phone as national digits', async () => {
+      const customer = await createCustomerUseCase.execute({
+        merchantId: MERCHANT_ID,
+        name: 'Dona Maria',
+        phone: '+55 (11) 98888-7777',
+        operatorId: OPERATOR_ID,
+      });
+
+      expect(customer.phone).toBe('11988887777');
+    });
+
+    it('should reject an invalid phone without saving or auditing', async () => {
+      await expect(
+        createCustomerUseCase.execute({
+          merchantId: MERCHANT_ID,
+          name: 'Dona Maria',
+          phone: '123',
+          operatorId: OPERATOR_ID,
+        })
+      ).rejects.toThrow(InvalidPhoneError);
+
+      expect(customerRepo.customers.size).toBe(0);
+      expect(audit.records).toHaveLength(0);
+    });
+
+    it('should reject a duplicate phone written in another format, even a legacy one', async () => {
+      const now = new Date();
+      await customerRepo.save(
+        new Customer({
+          id: 'legacy-1',
+          merchantId: MERCHANT_ID,
+          name: 'Antiga',
+          phone: '(11) 98888-7777',
+          creditLimit: Money.zero(),
+          active: true,
+          createdAt: now,
+          updatedAt: now,
+        })
+      );
+
+      await expect(
+        createCustomerUseCase.execute({
+          merchantId: MERCHANT_ID,
+          name: 'Nova',
           phone: '11988887777',
           operatorId: OPERATOR_ID,
         })

@@ -1,5 +1,11 @@
 import { cookies } from 'next/headers';
-import { getSessionCookieName, verifySessionToken, SessionData } from './session';
+import {
+  getSessionCookieName,
+  verifySessionToken,
+  renewSessionToken,
+  INACTIVITY_MINUTES,
+  SessionData,
+} from './session';
 
 export async function getCurrentSession(): Promise<SessionData | null> {
   const cookieStore = await cookies();
@@ -12,6 +18,14 @@ export async function requireAuthSession(): Promise<SessionData> {
   if (!session) {
     throw new UnauthorizedError();
   }
+  const renewed = renewSessionToken(session);
+  if (renewed) {
+    try {
+      await setSessionCookie(renewed.token, renewed.maxAgeSeconds);
+    } catch {
+      // Cookies can only be written in a Route Handler or Server Function. The session is still valid, so do not fail the request.
+    }
+  }
   return session;
 }
 
@@ -19,7 +33,7 @@ export const requireAuthenticatedSession = requireAuthSession;
 
 export async function setSessionCookie(
   sessionToken: string,
-  maxAgeSeconds = 30 * 60
+  maxAgeSeconds = INACTIVITY_MINUTES * 60
 ): Promise<void> {
   const cookieStore = await cookies();
   cookieStore.set(getSessionCookieName(), sessionToken, {

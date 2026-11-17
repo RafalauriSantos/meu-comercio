@@ -11,7 +11,7 @@ describe('/pdv: the apiClient calls and the /login redirects in the source of th
 
   it('has 13 + 1 apiClient. and 2 router.push(/login)', () => {
     expect(count('apiClient.')).toBe(13 + 1);
-    expect(count("router.push('/login')")).toBe(2);
+    expect(count("router.push('/login')") + count('router.push(loginUrlHere())')).toBe(2);
   });
 
   it('calls exactly these apiClient methods, this many times each (a call may move to another file, never appear or vanish)', () => {

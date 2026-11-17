@@ -45,14 +45,15 @@ describe('the management panel when the shop does not control its stock', () => 
   const page = read('gestao');
 
   it('hides what is about stock: the indicators, the filters, the balance, the entry and the tags', () => {
-    expect(page).toMatch(/\{stockControl && \(\s*<>\s*<div className="mg-kpi mg-kpi-warn">/);
+    expect(page).toMatch(/\{stockControl && \(\s*<div className="mg-summary-warn">\s*<strong className="num">\{lowStockCount \?\? '—'\}/);
+    expect(page).toMatch(/\{stockControl && \(\s*<div>\s*<strong className="num">\{stockValueText\(summary\)\}/);
     expect(page).toMatch(/\{stockControl && \(\s*<div role="group" aria-label="Filtro de estoque"/);
-    expect(page).toContain('{stockControl && <th scope="col" className="mg-num">Em estoque</th>}');
-    expect(page).toContain('{stockControl && <th scope="col" className="mg-num">Ação</th>}');
+    expect(page).toContain('{stockControl && <div role="columnheader" className="mg-num">Em estoque</div>}');
+    expect(page).toContain('{stockControl && <div role="columnheader" className="mg-num">Entrada</div>}');
     expect(page).toContain("{stockControl && status === 'low'");
     expect(page).toContain("{stockControl && status === 'out'");
     expect(page).toContain('{stockControl && restockingId === p.id && (');
-    expect(page).toContain('colSpan={stockControl ? 4 : 2}');
+    expect(page).toContain('<div role="cell" className="mg-row-full">');
   });
 
   it('does not ask for the initial stock of a new product', () => {
@@ -64,7 +65,7 @@ describe('the management panel when the shop does not control its stock', () => 
   });
 
   it('has the switch for the owner only, and asks before changing it', () => {
-    expect(page).toMatch(/\{user\?\.isOwner && \(\s*<section className="card mg-stock-switch"/);
+    expect(page).toMatch(/\{user\?\.isOwner && \(\s*<button type="button" className="outline mg-summary-action" onClick=\{handleToggleStockControl\}/);
     expect(page).toContain('if (!confirm(question)) return;');
     expect(page).toContain('apiClient.updateStoreSettings({ stockControlEnabled: !stockControl })');
   });

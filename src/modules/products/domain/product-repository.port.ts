@@ -1,8 +1,56 @@
 import { Product } from './product';
+import { Money } from '@/shared/domain/money';
+
+export interface ProductListPageParams {
+  query: string;
+  page: number;
+  pageSize: number;
+}
+
+export interface ProductListItem {
+  product: Product;
+  availableQuantity: number;
+}
+
+export interface ProductListPage {
+  items: ProductListItem[];
+  hasMore: boolean;
+}
+
+/** Over the active products. A product without a stock row counts as quantity 0. */
+export interface ProductsSummary {
+  total: number;
+  /** Low or out of stock (the "needs restock" number on the screen). */
+  lowStockCount: number;
+  outOfStockCount: number;
+  /** At sale price; negative quantities add nothing; KG lines are rounded to the cent. */
+  stockValue: Money;
+}
+
+/** The only fields an edit can change. */
+export interface ProductChanges {
+  name?: string;
+  salePrice?: Money;
+  barcode?: string;
+}
+
+export interface ProductUpdateContext {
+  actorId: string;
+  /** When given and different from the stored updated_at, the edit is refused (ProductChangedError). */
+  expectedUpdatedAt?: Date;
+}
 
 export interface ProductRepository {
   save(product: Product): Promise<void>;
   findByBarcode(merchantId: string, barcode: string): Promise<Product | null>;
   findById(merchantId: string, id: string): Promise<Product | null>;
   searchByNameOrBarcode(merchantId: string, query: string, limit?: number): Promise<Product[]>;
+  listPage(merchantId: string, params: ProductListPageParams): Promise<ProductListPage>;
+  getSummary(merchantId: string): Promise<ProductsSummary>;
+  /**
+   * Edits name, price and barcode of one product in a single transaction (row locked, only the changed columns
+   * written, PRODUCT_UPDATED recorded in the same transaction). Returns null when the product is not in the shop.
+   * Throws ProductBarcodeConflictError and ProductChangedError.
+   */
+  updateDetails(merchantId: string, productId: string, changes: ProductChanges, context: ProductUpdateContext): Promise<Product | null>;
 }

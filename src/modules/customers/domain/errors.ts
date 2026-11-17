@@ -46,3 +46,25 @@ export class NoOpenCashSessionError extends Error {
     this.name = 'NoOpenCashSessionError';
   }
 }
+
+/** The customer was changed by someone else after the caller read it. */
+export class CustomerChangedError extends Error {
+  constructor() {
+    super('Este cliente foi alterado por outra pessoa. Recarregue a página para ver os dados atuais e tente de novo.');
+    this.name = 'CustomerChangedError';
+  }
+}
+
+export class InvalidPhoneError extends Error {
+  constructor(message = 'Telefone inválido. Use o DDD e o número, com 8 ou 9 dígitos.') {
+    super(message);
+    this.name = 'InvalidPhoneError';
+  }
+}
+
+export class InvalidCreditLimitError extends Error {
+  constructor(message = 'O limite de fiado deve ser de R$ 0,00 a R$ 100.000,00.') {
+    super(message);
+    this.name = 'InvalidCreditLimitError';
+  }
+}

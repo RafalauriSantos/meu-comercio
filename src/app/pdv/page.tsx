@@ -9,6 +9,9 @@ import {
   ProductItem,
   CustomerItem,
   CashSessionData,
+  isConnectionError,
+  loadErrorMessage,
+  shouldGoToLogin,
 } from '@/frontend/lib/api-client';
 import { Money } from '@/shared/domain/money';
 import {
@@ -52,6 +55,11 @@ import { ReceiptModal, type PrintModalData } from '@/frontend/pdv/receipt-modal'
 import { VersionLabel } from '@/frontend/ui/version-label';
 import { WEIGHT_STEP_GRAMS } from '@/frontend/pdv/weight-input';
 import { formatQuantity, lineSubtotal } from '@/shared/domain/product-unit';
+import { noticeView } from '@/frontend/ui/notice-view';
+import { useSessionExpired } from '@/frontend/auth/use-session-expired';
+import { SessionExpiredNotice } from '@/frontend/auth/session-expired-notice';
+import { loginUrlHere } from '@/frontend/auth/safe-return-path';
+import { browserDraftStorage, buildCartDraft, saveCartDraft, takeCartDraft } from '@/frontend/pdv/cart-draft';
 import '@/frontend/styles/pdv.css';
 
 interface CartLine {
@@ -63,6 +71,9 @@ export default function PdvTerminalPage() {
   const router = useRouter();
   const [user, setUser] = useState<AuthUser | null>(null);
   const [loading, setLoading] = useState(true);
+  // The first load failed for a reason other than an expired session: the error stays on the screen with a retry.
+  const [initError, setInitError] = useState<string | null>(null);
+  const [attempt, setAttempt] = useState(0); // each retry of the first load adds one, so the effect runs again
   const skeletonGate = useSkeletonGate(loading);
 
   // Conexão e Offline
@@ -138,12 +149,20 @@ export default function PdvTerminalPage() {
   const [printModalData, setPrintModalData] = useState<PrintModalData | null>(null);
 
   // Notificações e Feedback
-  const [message, setMessage] = useState<{ text: string; isError?: boolean } | null>(null);
+  const [message, setMessage] = useState<{ text: string; isError?: boolean; isSuccess?: boolean } | null>(null);
   useAutoDismiss(message, () => setMessage(null));
+  const sessionExpired = useSessionExpired(saveCartBeforeLogin);
   const [processing, setProcessing] = useState(false);
 
   // Relógio
   const [clock, setClock] = useState('');
+
+  // Session expired: keep the cart (and the checkout key) in this tab, so it comes back after the login.
+  function saveCartBeforeLogin() {
+    if (!user) return;
+    const draft = buildCartDraft(user, cart, checkoutKeys.current.peek(), Date.now());
+    if (draft) saveCartDraft(browserDraftStorage(), draft);
+  }
 
   // Sincronização da Fila Offline
   async function triggerOfflineSync() {
@@ -174,6 +193,7 @@ export default function PdvTerminalPage() {
       if (result.syncedCount > 0) {
         setMessage({
           text: `${result.syncedCount} venda(s) offline sincronizada(s) com o servidor com sucesso!`,
+          isSuccess: true,
         });
       }
       const count = offlineManagerRef.current.getQueue(
@@ -192,6 +212,11 @@ export default function PdvTerminalPage() {
   useEffect(() => {
     offlineManagerRef.current = new OfflineSyncManager();
   }, []);
+
+  // With the person logged in (also right after coming back from the login), the offline queue is sent.
+  useEffect(() => {
+    if (user) void triggerOfflineSync();
+  }, [user]);
 
   // Relógio em tempo real
   useEffect(() => {
@@ -262,18 +287,35 @@ export default function PdvTerminalPage() {
         setCashSession(cash.session);
         setCustomers(custResult.items || []);
 
+        // Back from a login after the session expired: the same person gets the cart back.
+        const draft = takeCartDraft(browserDraftStorage(), me, Date.now());
+        if (draft) {
+          setCart(draft.items);
+          if (draft.idempotencyKey) checkoutKeys.current.adopt(draft.idempotencyKey);
+          setMessage({ text: 'Carrinho recuperado. Confira os preços antes de receber.' });
+        }
+
         if (offlineManagerRef.current) {
           const count = offlineManagerRef.current.getQueue(me.merchantId, me.username).length;
           setOfflineCount(count);
         }
-      } catch {
-        router.push('/login');
+      } catch (err) {
+        if (shouldGoToLogin(err)) router.push(loginUrlHere());
+        else setInitError(loadErrorMessage(err));
       } finally {
         setLoading(false);
       }
     }
     init();
-  }, [router]);
+  }, [router, attempt]);
+
+  // Only on the click. The cart and the saved draft stay as they are: the draft is taken back when the load works.
+  function retryInit() {
+    setInitError(null);
+    setCustomersFailed(false);
+    setLoading(true);
+    setAttempt((n) => n + 1);
+  }
 
   // The fiado menu closes on an outside click or on Escape. Escape is stopped here, so it does not
   // also reach the global shortcut that clears the sale.
@@ -749,6 +791,7 @@ export default function PdvTerminalPage() {
 
       setMessage({
         text: `Venda #${saleRes.id.slice(0, 8)} confirmada com sucesso!${changeMsg}`,
+        isSuccess: true,
       });
       resetCartAndCheckout();
     } catch (err) {
@@ -774,7 +817,7 @@ export default function PdvTerminalPage() {
       if (
         paymentMethod === 'CASH' &&
         !isSplit &&
-        err instanceof TypeError &&
+        isConnectionError(err) &&
         offlineManagerRef.current &&
         user
       ) {
@@ -812,6 +855,7 @@ export default function PdvTerminalPage() {
         });
         setMessage({
           text: `Sangria de ${formatMoney(res.amount)} realizada com sucesso! Saldo em caixa: ${formatMoney(res.expectedCash)}.`,
+          isSuccess: true,
         });
       } else {
         const res = await apiClient.recordDeposit({
@@ -820,6 +864,7 @@ export default function PdvTerminalPage() {
         });
         setMessage({
           text: `Suprimento de ${formatMoney(res.amount)} realizado com sucesso! Saldo em caixa: ${formatMoney(res.expectedCash)}.`,
+          isSuccess: true,
         });
       }
 
@@ -901,8 +946,9 @@ export default function PdvTerminalPage() {
       />
 
       <main className="pdv-main">
+        <SessionExpiredNotice session={sessionExpired} />
         {message && (
-          <div className={message.isError ? 'error' : 'notice'} role="alert">
+          <div {...noticeView(message)}>
             <span>{message.text}</span>
             <button className="soft" type="button" onClick={() => setMessage(null)}>
               Fechar
@@ -918,7 +964,9 @@ export default function PdvTerminalPage() {
         )}
 
         <section className="pdv-col" aria-label="Venda atual">
-          {loading ? <PdvMainSkeleton shape={shape} /> : (<>
+          {loading ? <PdvMainSkeleton shape={shape} /> : initError ? (
+            <LoadFailureNotice what="o PDV" reason={initError} onRetry={retryInit} />
+          ) : (<>
           <div className="card pdv-scan">
             <label htmlFor="barcode-scanner" className="pdv-card-title">
               Adicionar produto
@@ -1057,7 +1105,7 @@ export default function PdvTerminalPage() {
           </>)}
         </section>
 
-        {loading ? <PdvSideSkeleton shape={shape} /> : (
+        {loading ? <PdvSideSkeleton shape={shape} /> : initError ? null : (
         <aside className="pdv-col pdv-side" aria-label="Pagamento">
           <div className="pdv-total-card">
             <div className="pdv-total-label">Total a pagar</div>
@@ -1136,7 +1184,7 @@ export default function PdvTerminalPage() {
         )}
       </main>
 
-      {loading ? <PdvStatusSkeleton shape={shape} /> : (
+      {loading ? <PdvStatusSkeleton shape={shape} /> : initError ? null : (
       <footer className="pdv-status">
         <span className="pdv-conn">
           <span className={`pdv-dot${isOnline ? '' : ' is-offline'}`} aria-hidden="true" />
@@ -1396,6 +1444,7 @@ export default function PdvTerminalPage() {
             setIsCancelSaleOpen(false);
             setMessage({
               text: `Venda ${shortId} cancelada. Os produtos voltaram ao estoque e os valores foram estornados.`,
+              isSuccess: true,
             });
             barcodeInputRef.current?.focus();
           }}

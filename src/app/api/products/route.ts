@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { ZodError } from 'zod';
+import { z, ZodError } from 'zod';
 import { requireAuthSession, UnauthorizedError } from '@/shared/infrastructure/auth/auth-context';
 import { isSessionOwner } from '@/shared/infrastructure/auth/session';
 import { DrizzleProductRepository } from '@/modules/products/infrastructure/drizzle-product-repository';
@@ -64,36 +64,50 @@ export async function POST(request: NextRequest) {
   }
 }
 
+const listQuerySchema = z.object({
+  page: z.coerce.number('A página deve ser um número inteiro.').int('A página deve ser um número inteiro.').min(1, 'A página deve ser 1 ou maior.').default(1),
+  pageSize: z.coerce
+    .number('O tamanho da página deve ser um número inteiro.')
+    .int('O tamanho da página deve ser um número inteiro.')
+    .min(1, 'O tamanho da página deve ser de 1 a 100.')
+    .max(100, 'O tamanho da página deve ser de 1 a 100.')
+    .default(100),
+});
+
 export async function GET(request: NextRequest) {
   try {
     const session = await requireAuthSession();
     const { searchParams } = new URL(request.url);
     const query = searchParams.get('q') || '';
+    const { page, pageSize } = listQuerySchema.parse({
+      page: searchParams.get('page') ?? undefined,
+      pageSize: searchParams.get('pageSize') ?? undefined,
+    });
 
-    const productRepo = new DrizzleProductRepository();
-    const inventoryRepo = new DrizzleInventoryRepository();
+    const result = await new DrizzleProductRepository().listPage(session.merchantId, { query, page, pageSize });
 
-    const items = await productRepo.searchByNameOrBarcode(session.merchantId, query, 100);
-
-    const withInventory = await Promise.all(
-      items.map(async (p) => ({
-        id: p.id,
-        barcode: p.barcode,
-        name: p.name,
-        salePrice: p.salePrice.toDecimal(),
-        unit: p.unit,
-        availableQuantity: await inventoryRepo.getAvailableQuantity(session.merchantId, p.id),
-        active: p.active,
-      }))
-    );
-
-    return NextResponse.json({ items: withInventory });
+    return NextResponse.json({
+      items: result.items.map(({ product, availableQuantity }) => ({
+        id: product.id,
+        barcode: product.barcode,
+        name: product.name,
+        salePrice: product.salePrice.toDecimal(),
+        unit: product.unit,
+        availableQuantity,
+        active: product.active,
+        updatedAt: product.updatedAt.toISOString(),
+      })),
+      hasMore: result.hasMore,
+    });
   } catch (error) {
     if (error && typeof error === 'object' && 'digest' in error) {
       throw error;
     }
     if (error instanceof UnauthorizedError) {
       return NextResponse.json({ message: error.message }, { status: 401 });
+    }
+    if (error instanceof ZodError) {
+      return NextResponse.json({ message: error.issues[0].message }, { status: 400 });
     }
     console.error('Error fetching products:', error);
     return NextResponse.json({ message: 'Erro interno ao buscar produtos.' }, { status: 500 });

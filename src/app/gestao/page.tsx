@@ -7,6 +7,8 @@ import {
   apiClient,
   AuthUser,
   CashSessionData,
+  loadErrorMessage,
+  shouldGoToLogin,
 } from '@/frontend/lib/api-client';
 import { formatMoney, parseCurrencyInput, getErrorMessage } from '@/frontend/lib/formatters';
 import { AppHeader } from '@/frontend/ui/app-header';
@@ -22,6 +24,10 @@ import { ProductsTab } from '@/frontend/management/products-tab';
 import { CustomersTab } from '@/frontend/management/customers-tab';
 import { useCustomersTab } from '@/frontend/management/use-customers-tab';
 import { useProductsTab } from '@/frontend/management/use-products-tab';
+import { noticeView } from '@/frontend/ui/notice-view';
+import { useSessionExpired } from '@/frontend/auth/use-session-expired';
+import { SessionExpiredNotice } from '@/frontend/auth/session-expired-notice';
+import { loginUrlHere } from '@/frontend/auth/safe-return-path';
 import '@/frontend/styles/management.css';
 
 type LoadKey = 'products' | 'customers' | 'balances' | 'cash' | 'metrics' | 'operators';
@@ -31,9 +37,13 @@ export default function GestaoPage() {
   const [activeTab, setActiveTab] = useState<'produtos' | 'fiado' | 'caixa' | 'operadores' | 'relatorios'>('produtos');
   const [user, setUser] = useState<AuthUser | null>(null);
   const [loading, setLoading] = useState(true);
+  // The first load failed for a reason other than an expired session: the error stays on the screen with a retry.
+  const [initError, setInitError] = useState<string | null>(null);
+  const [attempt, setAttempt] = useState(0); // each retry of the first load adds one, so the effect runs again
   const skeletonGate = useSkeletonGate(loading);
-  const [feedback, setFeedback] = useState<{ text: string; isError?: boolean } | null>(null);
+  const [feedback, setFeedback] = useState<{ text: string; isError?: boolean; isSuccess?: boolean } | null>(null);
   useAutoDismiss(feedback, () => setFeedback(null));
+  const sessionExpired = useSessionExpired();
 
   // Estados de Caixa
   const [cashSession, setCashSession] = useState<CashSessionData | null>(null);
@@ -57,7 +67,7 @@ export default function GestaoPage() {
   // Se a loja controla o estoque. Desligado, somem o saldo, as entradas, os alertas e o valor em estoque.
   const [stockControl, setStockControl] = useState(true);
   const productsTab = useProductsTab({ setFeedback, setProcessing, setLoadFailed, stockControl, setStockControl });
-  const { catalog, loadProducts } = productsTab;
+  const { summary, loadProducts } = productsTab;
 
   const loadCash = useCallback(async () => {
     try {
@@ -103,14 +113,22 @@ export default function GestaoPage() {
           tasks.push(loadOperators());
         }
         await Promise.all(tasks);
-      } catch {
-        router.push('/login');
+      } catch (err) {
+        if (shouldGoToLogin(err)) router.push(loginUrlHere());
+        else setInitError(loadErrorMessage(err));
       } finally {
         setLoading(false);
       }
     }
     init();
-  }, [router, loadProducts, loadCustomers, loadCash, loadCreditMetrics, loadOperators]);
+  }, [router, loadProducts, loadCustomers, loadCash, loadCreditMetrics, loadOperators, attempt]);
+
+  // Only on the click: loads everything again.
+  function retryInit() {
+    setInitError(null);
+    setLoading(true);
+    setAttempt((n) => n + 1);
+  }
 
   // --- Handlers de Caixa ---
   async function handleOpenCash(e: React.FormEvent) {
@@ -119,7 +137,7 @@ export default function GestaoPage() {
     setFeedback(null);
     try {
       await apiClient.openCash({ openingBalance: parseCurrencyInput(openingBalance) });
-      setFeedback({ text: 'Caixa aberto com sucesso!' });
+      setFeedback({ text: 'Caixa aberto com sucesso!', isSuccess: true });
       await loadCash();
     } catch (err) {
       setFeedback({ text: getErrorMessage(err, 'Erro ao abrir caixa.'), isError: true });
@@ -142,7 +160,7 @@ export default function GestaoPage() {
       });
       const diff = parseCurrencyInput(res.difference);
       const diffMsg = diff === 0 ? 'sem quebra' : diff > 0 ? `com sobra de ${formatMoney(diff)}` : `com quebra de ${formatMoney(Math.abs(diff))}`;
-      setFeedback({ text: `Caixa fechado com sucesso (${diffMsg}).` });
+      setFeedback({ text: `Caixa fechado com sucesso (${diffMsg}).`, isSuccess: true });
       setClosingCounted('');
       setDiscrepancyReason('');
       await loadCash();
@@ -174,6 +192,7 @@ export default function GestaoPage() {
         });
         setFeedback({
           text: `Sangria de ${formatMoney(res.amount)} realizada com sucesso! Novo saldo esperado: ${formatMoney(res.expectedCash)}.`,
+          isSuccess: true,
         });
       } else {
         const res = await apiClient.recordDeposit({
@@ -182,6 +201,7 @@ export default function GestaoPage() {
         });
         setFeedback({
           text: `Suprimento de ${formatMoney(res.amount)} registrado com sucesso! Novo saldo esperado: ${formatMoney(res.expectedCash)}.`,
+          isSuccess: true,
         });
       }
       setIsCashOpModalOpen(false);
@@ -234,14 +254,17 @@ export default function GestaoPage() {
         </div>
 
         {/* Alertas */}
+        <SessionExpiredNotice session={sessionExpired} />
         {feedback && (
-          <div className={feedback.isError ? 'error' : 'notice'} role={feedback.isError ? 'alert' : 'status'}>
+          <div {...noticeView(feedback)}>
             <span>{feedback.text}</span>
             <button type="button" className="soft" onClick={() => setFeedback(null)}>Fechar</button>
           </div>
         )}
 
-        {loading ? <ManagementDataSkeleton shape={shape} /> : (<>
+        {loading ? <ManagementDataSkeleton shape={shape} /> : initError ? (
+          <LoadFailureNotice what="o painel" reason={initError} onRetry={retryInit} />
+        ) : (<>
         {/* Abas */}
         <div role="group" aria-label="Seções da gestão" className="mg-tabs">
           <button
@@ -250,7 +273,7 @@ export default function GestaoPage() {
             aria-pressed={activeTab === 'produtos'}
             onClick={() => setActiveTab('produtos')}
           >
-            Catálogo & Estoque ({catalog.length})
+            Catálogo & Estoque ({summary ? summary.total : '—'})
           </button>
           <button
             type="button"

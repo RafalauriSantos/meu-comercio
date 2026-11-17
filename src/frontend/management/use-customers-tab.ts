@@ -3,8 +3,9 @@
 import React, { useState, useCallback } from 'react';
 import { apiClient, CustomerItem, CustomerBalance, CreditMetricsData } from '@/frontend/lib/api-client';
 import { formatMoney, parseCurrencyInput, getErrorMessage } from '@/frontend/lib/formatters';
+import type { CustomerFilter } from './customers-list';
 
-type Feedback = { text: string; isError?: boolean } | null;
+type Feedback = { text: string; isError?: boolean; isSuccess?: boolean } | null;
 type CustomersLoadFailed = { customers?: boolean; balances?: boolean; metrics?: boolean };
 
 interface UseCustomersTabParams {
@@ -21,6 +22,7 @@ export function useCustomersTab({ setFeedback, setProcessing, setLoadFailed, loa
   const [customers, setCustomers] = useState<CustomerItem[]>([]);
   const [customerBalances, setCustomerBalances] = useState<Record<string, CustomerBalance>>({});
   const [customerQuery, setCustomerQuery] = useState('');
+  const [customerFilter, setCustomerFilter] = useState<CustomerFilter>('all');
   const [showNewCustomer, setShowNewCustomer] = useState(false);
   const [newCustName, setNewCustName] = useState('');
   const [newCustPhone, setNewCustPhone] = useState('');
@@ -104,7 +106,7 @@ export function useCustomersTab({ setFeedback, setProcessing, setLoadFailed, loa
         phone: newCustPhone.trim(),
         creditLimit: parseCurrencyInput(newCustLimit),
       });
-      setFeedback({ text: 'Cliente cadastrado com sucesso!' });
+      setFeedback({ text: 'Cliente cadastrado com sucesso!', isSuccess: true });
       setShowNewCustomer(false);
       setNewCustName('');
       setNewCustPhone('');
@@ -128,7 +130,7 @@ export function useCustomersTab({ setFeedback, setProcessing, setLoadFailed, loa
         amount: val,
         note: settleNote.trim() || undefined,
       });
-      setFeedback({ text: `Quitação de ${formatMoney(val)} realizada com sucesso e registrada no caixa!` });
+      setFeedback({ text: `Quitação de ${formatMoney(val)} realizada com sucesso e registrada no caixa!`, isSuccess: true });
       setSettlingCustomer(null);
       setSettleAmount('');
       setSettleNote('');
@@ -145,6 +147,8 @@ export function useCustomersTab({ setFeedback, setProcessing, setLoadFailed, loa
     customerBalances,
     customerQuery,
     setCustomerQuery,
+    customerFilter,
+    setCustomerFilter,
     showNewCustomer,
     setShowNewCustomer,
     newCustName,

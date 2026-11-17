@@ -2,7 +2,9 @@
 
 import React from 'react';
 import { formatMoney, parseCurrencyInput } from '@/frontend/lib/formatters';
+import { Money } from '@/shared/domain/money';
 import { LoadFailureNotice } from '@/frontend/ui/load-failure-notice';
+import { CUSTOMER_FILTERS, STATUS_CLASS, STATUS_LABEL, buildRows, filterCounts, shownText, visibleRows } from './customers-list';
 import type { useCustomersTab } from './use-customers-tab';
 
 interface CustomersTabProps {
@@ -20,6 +22,8 @@ export function CustomersTab({ tab, loadFailed, retrying, processing, retry }: C
     customerBalances,
     customerQuery,
     setCustomerQuery,
+    customerFilter,
+    setCustomerFilter,
     showNewCustomer,
     setShowNewCustomer,
     newCustName,
@@ -43,6 +47,10 @@ export function CustomersTab({ tab, loadFailed, retrying, processing, retry }: C
   } = tab;
 
   const missingBalances = customers.filter((c) => !customerBalances[c.id]).length;
+  const allRows = buildRows(customers, customerBalances);
+  const counts = filterCounts(allRows);
+  const rows = visibleRows(allRows, customerFilter, customerQuery);
+  const money = (cents: number | null) => (cents === null ? '—' : formatMoney(Money.fromCents(cents)));
 
   return (
           <section className="mg-section">
@@ -59,25 +67,25 @@ export function CustomersTab({ tab, loadFailed, retrying, processing, retry }: C
             {loadFailed.metrics && (
               <LoadFailureNotice what="as métricas de fiado" busy={retrying} onRetry={() => retry(loadCreditMetrics)} />
             )}
-            {/* Indicadores: Fiado na Rua */}
-            <div className="mg-kpis">
-              <div className="mg-kpi">
-                <div className="mg-kpi-label">Total de Fiado na Rua</div>
-                <div className="mg-kpi-value num">
+            {/* Resumo do fiado */}
+            <section className="mg-facts" aria-label="Resumo do fiado">
+              <div className="mg-fact">
+                <span className="mg-meta">Fiado na rua</span>
+                <span className="mg-fact-value num">
                   {formatMoney(creditMetrics ? creditMetrics.totalOutstandingCredit : 0)}
-                </div>
+                </span>
               </div>
-              <div className="mg-kpi">
-                <div className="mg-kpi-label">Clientes com dívida ativa na caderneta</div>
-                <div className="mg-kpi-value num">{creditMetrics?.activeDebtorsCount ?? 0}</div>
+              <div className="mg-fact">
+                <span className="mg-meta">Clientes devendo</span>
+                <span className="mg-fact-value num">{creditMetrics?.activeDebtorsCount ?? 0}</span>
               </div>
               {creditMetrics && (
-                <div className="mg-kpi">
-                  <div className="mg-kpi-label">Total já liquidado/recebido</div>
-                  <div className="mg-kpi-value num">{formatMoney(creditMetrics.totalSettledCredit)}</div>
+                <div className="mg-fact">
+                  <span className="mg-meta">Já recebido</span>
+                  <span className="mg-fact-value num">{formatMoney(creditMetrics.totalSettledCredit)}</span>
                 </div>
               )}
-            </div>
+            </section>
 
             <div className="card mg-card-flush">
               <div className="mg-toolbar">
@@ -100,6 +108,19 @@ export function CustomersTab({ tab, loadFailed, retrying, processing, retry }: C
                 >
                   {showNewCustomer ? 'Cancelar' : '＋ Novo Cliente'}
                 </button>
+              </div>
+              <div role="group" aria-label="Filtro de clientes" className="mg-filters mg-clist-filters">
+                {CUSTOMER_FILTERS.map((f) => (
+                  <button
+                    key={f.value}
+                    type="button"
+                    className="mg-segment"
+                    aria-pressed={customerFilter === f.value}
+                    onClick={() => setCustomerFilter(f.value)}
+                  >
+                    {f.label} ({counts[f.value]})
+                  </button>
+                ))}
               </div>
             </div>
 
@@ -150,61 +171,66 @@ export function CustomersTab({ tab, loadFailed, retrying, processing, retry }: C
               </form>
             )}
 
-            {/* Grid de Clientes e Dívidas */}
-            <div className="mg-grid">
-              {customers
-                .filter(
-                  (c) =>
-                    c.name.toLowerCase().includes(customerQuery.toLowerCase()) ||
-                    c.phone.includes(customerQuery)
-                )
-                .map((c) => {
-                  const bal = customerBalances[c.id];
-                  const debt = bal ? parseCurrencyInput(bal.currentDebt) : 0;
-                  const limit = bal ? parseCurrencyInput(bal.creditLimit) : parseCurrencyInput(c.creditLimit);
-                  const ratio = limit > 0 ? Math.min(100, (debt / limit) * 100) : debt > 0 ? 100 : 0;
-
-                  return (
-                    <div key={c.id} className="card mg-customer">
-                      <div className="mg-customer-head">
-                        <strong>{c.name}</strong>
-                        <span className="muted num">{c.phone}</span>
+            {/* Lista de clientes e dívidas: linhas no computador, cartões no celular */}
+            <section className="card mg-card-flush" aria-label="Clientes e dívidas">
+              <div className="mg-clist-head" aria-hidden="true">
+                <div>Cliente</div>
+                <div>Dívida</div>
+                <div>Limite</div>
+                <div />
+              </div>
+              {rows.length === 0 ? (
+                <p className="mg-empty-cell">
+                  {customers.length === 0
+                    ? 'Nenhum cliente cadastrado ainda.'
+                    : 'Nenhum cliente encontrado com a busca e o filtro escolhidos.'}
+                </p>
+              ) : (
+                <ul className="mg-clist">
+                  {rows.map((r) => (
+                    <li key={r.id} className="mg-crow">
+                      <div className="mg-ccell-name">
+                        <strong>{r.name}</strong>
+                        <span className="muted num">{r.phoneText}</span>
+                        {r.offPattern && <span className="mg-badge mg-badge-near">Telefone fora do padrão</span>}
                       </div>
-
-                      <div>
-                        <span className="mg-meta">Dívida Atual em Aberto</span>
-                        <div className={`mg-debt num ${debt === 0 ? 'zero' : ''}`}>
-                          {formatMoney(debt)}
+                      <div className="mg-ccell-debt">
+                        <strong className="num">{money(r.debtCents)}</strong>
+                        <span className={STATUS_CLASS[r.status]}>{STATUS_LABEL[r.status]}</span>
+                      </div>
+                      <div className="mg-ccell-limit">
+                        <div className="mg-limit-bar">
+                          <div
+                            className={`mg-limit-fill ${r.status === 'over' ? 'exceeded' : r.status === 'near' ? 'warning' : ''}`}
+                            style={{ width: `${r.percent}%` }}
+                          />
+                        </div>
+                        <div className="mg-limit-legend num">
+                          <span>Limite {money(r.limitCents)}</span>
+                          {r.availableCents !== null && <span>Disponível {money(r.availableCents)}</span>}
                         </div>
                       </div>
-
-                      <div className="mg-limit-bar">
-                        <div
-                          className={`mg-limit-fill ${ratio >= 100 ? 'exceeded' : ratio >= 80 ? 'warning' : ''}`}
-                          style={{ width: `${ratio}%` }}
-                        />
+                      <div className="mg-ccell-actions">
+                        {r.balance && r.debtCents !== null && r.debtCents > 0 && (
+                          <button
+                            type="button"
+                            className="primary mg-row-action"
+                            aria-label={`Receber de ${r.name}`}
+                            onClick={() => {
+                              setSettlingCustomer(r.balance);
+                              setSettleAmount(String(parseCurrencyInput(r.balance?.currentDebt)));
+                            }}
+                          >
+                            Receber
+                          </button>
+                        )}
                       </div>
-                      <div className="mg-limit-legend num">
-                        <span>Limite: {formatMoney(limit)}</span>
-                        <span>Disponível: {formatMoney(bal ? bal.availableCredit : limit - debt)}</span>
-                      </div>
-
-                      {debt > 0 && (
-                        <button
-                          type="button"
-                          className="primary"
-                          onClick={() => {
-                            setSettlingCustomer(bal || null);
-                            setSettleAmount(String(debt));
-                          }}
-                        >
-                          Quitar Fiado no Caixa
-                        </button>
-                      )}
-                    </div>
-                  );
-                })}
-            </div>
+                    </li>
+                  ))}
+                </ul>
+              )}
+              <p className="mg-foot" role="status">{shownText(rows.length, customers.length)}</p>
+            </section>
 
             {/* Modal de Quitação de Dívida */}
             {settlingCustomer && (

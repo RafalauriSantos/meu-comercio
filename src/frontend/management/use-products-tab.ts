@@ -1,13 +1,15 @@
 'use client';
 
-import React, { useState, useCallback, useRef } from 'react';
-import { apiClient, ProductItem } from '@/frontend/lib/api-client';
+import React, { useState, useCallback, useRef, useEffect } from 'react';
+import { apiClient, type ProductItem } from '@/frontend/lib/api-client';
 import { parseCurrencyInput, getErrorMessage } from '@/frontend/lib/formatters';
 import { findProductWithBarcode, takenBarcodeMessage } from '@/frontend/management/barcode-check';
 import type { ProductUnit } from '@/shared/domain/product-unit';
+import { useProductsList } from '@/frontend/management/use-products-list';
+import { useProductEdit } from '@/frontend/management/use-product-edit';
 import { initialStockToQuantity, restockToQuantity, type StockFilter } from '@/frontend/management/stock';
 
-type Feedback = { text: string; isError?: boolean } | null;
+type Feedback = { text: string; isError?: boolean; isSuccess?: boolean } | null;
 
 interface UseProductsTabParams {
   setFeedback: (feedback: Feedback) => void;
@@ -21,12 +23,13 @@ interface UseProductsTabParams {
 /** State, load and handlers of the products tab. Called by the page, so a draft survives a tab change. */
 export function useProductsTab({ setFeedback, setProcessing, setLoadFailed, stockControl, setStockControl }: UseProductsTabParams) {
   // Estados de Produtos
-  const [products, setProducts] = useState<ProductItem[]>([]);
-  // Catálogo completo (última carga sem busca): base dos indicadores, que não mudam com a busca.
-  const [catalog, setCatalog] = useState<ProductItem[]>([]);
+  const list = useProductsList({ setLoadFailed });
+  const { products, loadProducts } = list;
   const [stockFilter, setStockFilter] = useState<StockFilter>('all');
   const [productQuery, setProductQuery] = useState('');
   const [showNewProduct, setShowNewProduct] = useState(false);
+  // The new panel plays its exit while closing; it calls finishCloseNewProduct at the end.
+  const [newClosing, setNewClosing] = useState(false);
   const [showImport, setShowImport] = useState(false);
   const [newBarcode, setNewBarcode] = useState('');
   const [newName, setNewName] = useState('');
@@ -35,25 +38,50 @@ export function useProductsTab({ setFeedback, setProcessing, setLoadFailed, stoc
   const [newUnit, setNewUnit] = useState<ProductUnit>('UN');
   // Aviso de código de barras já cadastrado, e o campo do nome, para onde o foco vai depois do bipador.
   const [barcodeNote, setBarcodeNote] = useState<string | null>(null);
+  // Notices of the new product panel: it is a modal, so the page feedback behind it cannot be seen.
+  const [newScanWarning, setNewScanWarning] = useState(false);
+  const [createError, setCreateError] = useState<string | null>(null);
   const newNameRef = useRef<HTMLInputElement>(null);
+  // Each scan that opens the form bumps this, and the effect below moves the cursor to the name once the form is on screen.
+  const [nameFocusRequest, setNameFocusRequest] = useState(0);
   const [restockingId, setRestockingId] = useState<string | null>(null);
   const [restockQty, setRestockQty] = useState('1');
   const [restockReason, setRestockReason] = useState('');
-
-  const loadProducts = useCallback(async (query = '') => {
-    try {
-      const res = await apiClient.listProducts(query);
-      const items = res.items || [];
-      setProducts(items);
-      if (!query) setCatalog(items);
-      setLoadFailed((f) => ({ ...f, products: false }));
-    } catch (err) {
-      setLoadFailed((f) => ({ ...f, products: true }));
-      console.error('Erro ao carregar produtos:', err);
-    }
-  }, [setLoadFailed]);
+  const edit = useProductEdit({
+    setFeedback,
+    setProcessing,
+    applyEdit: list.applyEdit,
+    reload: () => loadProducts(productQuery),
+  });
 
   // --- Handlers de Produtos ---
+
+  function openNewProduct() {
+    setNewClosing(false);
+    setShowNewProduct(true);
+  }
+
+  function closeNewProduct() {
+    setNewClosing(true);
+  }
+
+  function finishCloseNewProduct() {
+    setShowNewProduct(false);
+    setNewClosing(false);
+    setNewScanWarning(false);
+    setCreateError(null);
+  }
+
+  // Edit and new product are never open together.
+  function startEdit(product: ProductItem) {
+    if (edit.targetId === product.id) {
+      edit.close();
+      return;
+    }
+    closeNewProduct();
+    setFeedback(null);
+    edit.open(product);
+  }
 
   // A dona liga ou desliga o controle de estoque da loja.
   async function handleToggleStockControl() {
@@ -72,6 +100,7 @@ export function useProductsTab({ setFeedback, setProcessing, setLoadFailed, stoc
         text: settings.stockControlEnabled
           ? 'Controle de estoque ligado. Confira os saldos dos produtos.'
           : 'Controle de estoque desligado. As vendas não dependem mais do estoque.',
+        isSuccess: true,
       });
     } catch (err) {
       setFeedback({ text: getErrorMessage(err, 'Erro ao mudar o controle de estoque.'), isError: true });
@@ -99,17 +128,47 @@ export function useProductsTab({ setFeedback, setProcessing, setLoadFailed, stoc
     newNameRef.current?.focus();
   }
 
+  // The owner scanned a product with the tab open: a free code opens the panel with it filled in; a taken one only warns.
+  // With the edit or the new panel open, the scan only warns inside that panel.
+  const { setScanWarning } = edit;
+  const handleScannedBarcode = useCallback(async (code: string) => {
+    if (edit.targetId) {
+      setScanWarning(true);
+      return;
+    }
+    if (showNewProduct && !newClosing) {
+      setNewScanWarning(true);
+      return;
+    }
+    try {
+      const existing = await findProductWithBarcode(apiClient.findProductByBarcode, code);
+      if (existing) {
+        setFeedback({ text: takenBarcodeMessage(existing), isError: true });
+        return;
+      }
+    } catch {
+      // Sem resposta do servidor: não perde o bip. O formulário abre e o cadastro avisa se o código for repetido.
+    }
+    setFeedback(null);
+    setBarcodeNote(null);
+    setNewBarcode(code);
+    openNewProduct();
+    setNameFocusRequest((n) => n + 1);
+  }, [setFeedback, edit.targetId, setScanWarning, showNewProduct, newClosing]);
+
+  useEffect(() => {
+    if (nameFocusRequest > 0) newNameRef.current?.focus();
+  }, [nameFocusRequest]);
+
   async function handleCreateProduct(e: React.FormEvent) {
     e.preventDefault();
     setProcessing(true);
     setFeedback(null);
+    setCreateError(null);
     try {
       const initialStock = initialStockToQuantity(newStock, newUnit);
       if (initialStock === null) {
-        setFeedback({
-          text: newUnit === 'KG' ? 'Estoque inicial inválido. Use quilos, como 2,5.' : 'Estoque inicial inválido. Use um número inteiro.',
-          isError: true,
-        });
+        setCreateError(newUnit === 'KG' ? 'Estoque inicial inválido. Use quilos, como 2,5.' : 'Estoque inicial inválido. Use um número inteiro.');
         return;
       }
       await apiClient.createProduct({
@@ -119,8 +178,12 @@ export function useProductsTab({ setFeedback, setProcessing, setLoadFailed, stoc
         initialStock,
         unit: newUnit,
       });
-      setFeedback({ text: 'Produto cadastrado com sucesso!' });
-      setShowNewProduct(false);
+      setFeedback({
+        text: `Produto "${newName.trim()}" cadastrado com sucesso! Ele aparece em ordem alfabética: se não o vir, use Carregar mais.`,
+        isSuccess: true,
+      });
+      setProductQuery('');
+      closeNewProduct();
       setNewBarcode('');
       setNewName('');
       setNewPrice('');
@@ -129,7 +192,7 @@ export function useProductsTab({ setFeedback, setProcessing, setLoadFailed, stoc
       setBarcodeNote(null);
       await loadProducts();
     } catch (err) {
-      setFeedback({ text: getErrorMessage(err, 'Erro ao cadastrar produto.'), isError: true });
+      setCreateError(getErrorMessage(err, 'Erro ao cadastrar produto.'));
     } finally {
       setProcessing(false);
     }
@@ -154,11 +217,11 @@ export function useProductsTab({ setFeedback, setProcessing, setLoadFailed, stoc
         quantity: restockQuantity,
         reason: restockReason.trim() || 'Reposição manual de balcão',
       });
-      setFeedback({ text: 'Estoque reposto com sucesso!' });
+      setFeedback({ text: 'Estoque reposto com sucesso!', isSuccess: true });
       setRestockingId(null);
       setRestockQty('1');
       setRestockReason('');
-      await loadProducts();
+      list.applyRestock(productId, restockQuantity);
     } catch (err) {
       setFeedback({ text: getErrorMessage(err, 'Erro ao repor estoque.'), isError: true });
     } finally {
@@ -168,13 +231,22 @@ export function useProductsTab({ setFeedback, setProcessing, setLoadFailed, stoc
 
   return {
     products,
-    catalog,
+    hasMore: list.hasMore,
+    summary: list.summary,
+    loadingMore: list.loadingMore,
+    loadMoreFailed: list.loadMoreFailed,
+    loadMore: list.loadMore,
     stockFilter,
     setStockFilter,
     productQuery,
     setProductQuery,
     showNewProduct,
-    setShowNewProduct,
+    openNewProduct,
+    newClosing,
+    closeNewProduct,
+    finishCloseNewProduct,
+    newScanWarning,
+    createError,
     showImport,
     setShowImport,
     newBarcode,
@@ -200,7 +272,10 @@ export function useProductsTab({ setFeedback, setProcessing, setLoadFailed, stoc
     handleToggleStockControl,
     checkNewBarcode,
     handleNewBarcodeKeyDown,
+    handleScannedBarcode,
     handleCreateProduct,
     handleRestock,
+    edit,
+    startEdit,
   };
 }

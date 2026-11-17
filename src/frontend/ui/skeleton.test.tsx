@@ -97,7 +97,7 @@ describe('screen skeletons', () => {
     expect(markup).toContain('aria-busy="true"');
     expect(count(markup, 'sr-only')).toBe(1);
     expect(markup).toContain('Carregando o painel de gestão');
-    for (const part of ['mg-tabs', 'mg-kpis', 'mg-card-flush']) {
+    for (const part of ['mg-tabs', 'mg-summary', 'mg-card-flush']) {
       expect(markup).toContain(part);
     }
     // The title and the header are real on the page: no gray block in their place.

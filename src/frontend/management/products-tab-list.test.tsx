@@ -132,11 +132,14 @@ describe('catalog dense list', () => {
     expect(render({ stockControl: false, restockingId: 'a' })).not.toContain('Confirmar Reposição');
   });
 
-  it('opens the inline edit as a full-width row under the product, for the owner only', () => {
+  it('opens the edit as a side panel outside the list, for the owner only', () => {
     const html = render({ editing: rice });
-    expect(html).toMatch(/<div role="row" class="mg-restock-row"><div role="cell" class="mg-row-full"><form/);
+    expect(html).toContain('<dialog');
     expect(html).toContain('id="edit-name-a"');
-    expect(html).toContain('aria-expanded="true"');
+    // The panel is not a row of the list any more: the list keeps only its product rows.
+    expect(count(html, 'role="row"')).toBe(1 + 3);
+    expect(html).toContain('aria-haspopup="dialog"');
+    expect(render()).not.toContain('<dialog');
     expect(render({ editing: rice, owner: false })).not.toContain('edit-name-a');
   });
 

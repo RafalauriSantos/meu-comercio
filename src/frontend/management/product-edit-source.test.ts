@@ -6,7 +6,7 @@ const source = readScreenSource('gestao').replace(/\r\n/g, '\n');
 
 describe('product edit (source locks)', () => {
   it('only the owner sees the Editar button', () => {
-    expect(source).toMatch(/\{user\?\.isOwner && \(\s*<button\s+type="button"\s+className="outline mg-row-action"\s+aria-expanded=\{edit\.targetId === p\.id\}/);
+    expect(source).toMatch(/\{user\?\.isOwner && \(\s*<button\s+type="button"\s+className="outline mg-row-action"\s+aria-haspopup="dialog"/);
     expect(source).toContain('aria-label={`Editar ${p.name}`}');
     // Editar has its own cell (the one after the price), not the product cell.
     expect(source).toMatch(/<div role="cell" className="mg-row-end">\s*\{user\?\.isOwner && \(\s*<button/);
@@ -24,8 +24,18 @@ describe('product edit (source locks)', () => {
   });
 
   it('a scan with the edit open only warns', () => {
-    expect(source).toMatch(/if \(edit\.targetId\) \{\s*setFeedback\(\{ text: SCAN_DURING_EDIT_NOTICE \}\);\s*return;/);
+    // The notice shows inside the panel: the page feedback is behind the modal.
+    expect(source).toMatch(/if \(edit\.targetId\) \{\s*setScanWarning\(true\);\s*return;/);
     expect(source).toContain('Termine ou cancele a edição antes de cadastrar um produto novo.');
+  });
+
+  it('the edit is a modal dialog panel: opened by showModal, Esc handled by the app, focus given back', () => {
+    expect(source).toMatch(/<dialog[\s\S]*?ref=\{dialogRef\}[\s\S]*?className="mg-panel"[\s\S]*?aria-labelledby=\{titleId\}/);
+    expect(source).toMatch(/onCancel=\{\(e\) => \{\s*e\.preventDefault\(\);\s*onCancel\(\);/);
+    expect(source).toContain('useDialogPanel(dialogRef, nameRef)');
+    expect(source).toContain('aria-label="Fechar"');
+    // Closing on the dimmed background is left out on purpose: a stray click would lose what was typed.
+    expect(source).not.toMatch(/e\.target === e\.currentTarget/);
   });
 
   it('saving swaps the item, reads the summary again and confirms in green', () => {

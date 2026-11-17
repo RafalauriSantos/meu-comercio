@@ -7,7 +7,6 @@ import { findProductWithBarcode, takenBarcodeMessage } from '@/frontend/manageme
 import type { ProductUnit } from '@/shared/domain/product-unit';
 import { useProductsList } from '@/frontend/management/use-products-list';
 import { useProductEdit } from '@/frontend/management/use-product-edit';
-import { SCAN_DURING_EDIT_NOTICE } from '@/frontend/management/product-edit';
 import { initialStockToQuantity, restockToQuantity, type StockFilter } from '@/frontend/management/stock';
 
 type Feedback = { text: string; isError?: boolean; isSuccess?: boolean } | null;
@@ -109,9 +108,10 @@ export function useProductsTab({ setFeedback, setProcessing, setLoadFailed, stoc
   }
 
   // The owner scanned a product with the tab open: a free code opens the form with it filled in; a taken one only warns.
+  const { setScanWarning } = edit;
   const handleScannedBarcode = useCallback(async (code: string) => {
     if (edit.targetId) {
-      setFeedback({ text: SCAN_DURING_EDIT_NOTICE });
+      setScanWarning(true);
       return;
     }
     try {
@@ -128,7 +128,7 @@ export function useProductsTab({ setFeedback, setProcessing, setLoadFailed, stoc
     setNewBarcode(code);
     setShowNewProduct(true);
     setNameFocusRequest((n) => n + 1);
-  }, [setFeedback, edit.targetId]);
+  }, [setFeedback, edit.targetId, setScanWarning]);
 
   useEffect(() => {
     if (nameFocusRequest > 0) newNameRef.current?.focus();

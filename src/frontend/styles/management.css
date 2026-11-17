@@ -782,6 +782,76 @@
   margin-top: 8px;
 }
 
+/* Painel lateral de edição: <dialog> modal aberto por showModal(), 440px à direita (tela cheia no celular). */
+
+body:has(.mg-panel[open]) {
+  overflow: hidden;
+}
+
+.management-page .mg-panel {
+  position: fixed;
+  inset: 0 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  width: min(440px, 100%);
+  max-width: none;
+  height: 100%;
+  max-height: none;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: var(--surface);
+  color: var(--text);
+}
+
+.management-page .mg-panel::backdrop {
+  background: var(--overlay);
+}
+
+.management-page .mg-panel > form {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.management-page .mg-panel-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 16px 24px;
+  border-bottom: 1px solid var(--border);
+}
+
+.management-page .mg-panel-body {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 20px;
+  padding: 24px;
+  overflow-y: auto;
+}
+
+.management-page .mg-panel-foot {
+  padding: 16px 24px;
+  border-top: 1px solid var(--border);
+  background: var(--bg);
+}
+
+.management-page .mg-panel-hint {
+  margin-bottom: 10px;
+  color: var(--muted);
+  font-size: 14px;
+  text-align: right;
+}
+
+.management-page .mg-panel-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+}
+
 @media (max-width: 900px) {
   .management-page .mg-cash {
     grid-template-columns: minmax(0, 1fr);
@@ -936,5 +1006,17 @@
 
   .management-page .mg-dialog-actions > * {
     flex: 1 1 100%;
+  }
+
+  .management-page .mg-panel {
+    width: 100%;
+  }
+
+  .management-page .mg-panel-actions {
+    flex-direction: column-reverse;
+  }
+
+  .management-page .mg-panel-actions > * {
+    width: 100%;
   }
 }

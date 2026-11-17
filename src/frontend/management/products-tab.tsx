@@ -280,51 +280,39 @@ export function ProductsTab({ tab, stockControl, user, setFeedback, loadFailed, 
               </div>
 
               <div className="mg-table-wrap">
-                <table className="mg-table">
-                  <thead>
-                    <tr>
-                      <th scope="col">Produto</th>
-                      <th scope="col" className="mg-num">Preço</th>
-                      {stockControl && <th scope="col" className="mg-num">Em estoque</th>}
-                      {stockControl && <th scope="col" className="mg-num">Ação</th>}
-                    </tr>
-                  </thead>
-                  <tbody>
+                <div role="table" aria-label="Produtos" className={stockControl ? 'mg-list mg-list-stock' : 'mg-list'}>
+                  <div role="rowgroup">
+                    <div role="row" className="mg-list-head">
+                      <div role="columnheader">Produto</div>
+                      {stockControl && <div role="columnheader" className="mg-num">Em estoque</div>}
+                      {stockControl && <div role="columnheader" className="mg-num">Entrada</div>}
+                      <div role="columnheader" className="mg-num">Preço</div>
+                      <div role="columnheader">
+                        <span className="sr-only">Ação</span>
+                      </div>
+                    </div>
+                  </div>
+                  <div role="rowgroup">
                     {visibleProducts.map((p) => {
                       const status = stockStatus(p.availableQuantity, p.unit);
                       const byWeight = p.unit === 'KG';
                       return (
                         <React.Fragment key={p.id}>
-                          <tr>
-                            <td>
+                          <div role="row" className="mg-row">
+                            <div role="cell">
                               <strong>{p.name}</strong>
                               {stockControl && status === 'low' && <span className="mg-tag mg-tag-warn">Estoque baixo</span>}
                               {stockControl && status === 'out' && <span className="mg-tag mg-tag-danger">Sem estoque</span>}
                               <div className="muted mg-barcode num">{p.barcode}</div>
-                              {user?.isOwner && (
-                                <button
-                                  type="button"
-                                  className="outline mg-row-action"
-                                  aria-expanded={edit.targetId === p.id}
-                                  aria-label={`Editar ${p.name}`}
-                                  onClick={() => startEdit(p)}
-                                >
-                                  Editar
-                                </button>
-                              )}
-                            </td>
-                            <td className="mg-num">
-                              {formatMoney(p.salePrice)}
-                              {byWeight ? ' /kg' : ''}
-                            </td>
+                            </div>
                             {stockControl && (
-                              <td className={`mg-num mg-stock mg-stock-${status}`}>
+                              <div role="cell" className={`mg-num mg-stock mg-stock-${status}`}>
                                 {formatQuantity(p.availableQuantity, p.unit)}
                                 {byWeight ? '' : ' un'}
-                              </td>
+                              </div>
                             )}
                             {stockControl && (
-                            <td className="mg-num">
+                            <div role="cell" className="mg-num">
                               <button
                                 type="button"
                                 className="outline mg-row-action"
@@ -338,15 +326,31 @@ export function ProductsTab({ tab, stockControl, user, setFeedback, loadFailed, 
                               >
                                 {restockingId === p.id ? 'Fechar' : 'Entrada'}
                               </button>
-                            </td>
+                            </div>
                             )}
-                          </tr>
+                            <div role="cell" className="mg-num">
+                              {formatMoney(p.salePrice)}
+                              {byWeight ? ' /kg' : ''}
+                            </div>
+                            <div role="cell" className="mg-row-end">
+                              {user?.isOwner && (
+                                <button
+                                  type="button"
+                                  className="outline mg-row-action"
+                                  aria-expanded={edit.targetId === p.id}
+                                  aria-label={`Editar ${p.name}`}
+                                  onClick={() => startEdit(p)}
+                                >
+                                  Editar
+                                </button>
+                              )}
+                            </div>
+                          </div>
 
                           {user?.isOwner && edit.target && edit.targetId === p.id && (
                             <ProductEditRow
                               target={edit.target}
                               draft={edit.draft}
-                              colSpan={stockControl ? 4 : 2}
                               processing={processing}
                               barcodeNote={edit.barcodeNote}
                               error={edit.error}
@@ -362,8 +366,8 @@ export function ProductsTab({ tab, stockControl, user, setFeedback, loadFailed, 
 
                           {/* Box de Reposição */}
                           {stockControl && restockingId === p.id && (
-                            <tr className="mg-restock-row">
-                              <td colSpan={4}>
+                            <div role="row" className="mg-restock-row">
+                              <div role="cell" className="mg-row-full">
                                 <form onSubmit={(e) => handleRestock(e, p.id)} className="mg-restock">
                                   <div>
                                     <label className="field-label" htmlFor={`restock-qty-${p.id}`}>
@@ -397,21 +401,21 @@ export function ProductsTab({ tab, stockControl, user, setFeedback, loadFailed, 
                                     Confirmar Reposição
                                   </button>
                                 </form>
-                              </td>
-                            </tr>
+                              </div>
+                            </div>
                           )}
                         </React.Fragment>
                       );
                     })}
                     {visibleProducts.length === 0 && (
-                      <tr>
-                        <td colSpan={stockControl ? 4 : 2} className="mg-empty-cell">
+                      <div role="row">
+                        <div role="cell" className="mg-row-full mg-empty-cell">
                           Nenhum produto cadastrado com os critérios pesquisados.
-                        </td>
-                      </tr>
+                        </div>
+                      </div>
                     )}
-                  </tbody>
-                </table>
+                  </div>
+                </div>
               </div>
 
               {stockControl && stockFilter !== 'all' && hasMore && (

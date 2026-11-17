@@ -11,12 +11,11 @@ const noop = () => {};
 function render(over: Partial<React.ComponentProps<typeof ProductEditRow>> = {}) {
   const target = over.target ?? rice;
   return renderToStaticMarkup(
-    <table>
-      <tbody>
+    <div role="table">
+      <div role="rowgroup">
         <ProductEditRow
           target={target}
           draft={draftFromProduct(target)}
-          colSpan={4}
           processing={false}
           barcodeNote={null}
           error={null}
@@ -29,8 +28,8 @@ function render(over: Partial<React.ComponentProps<typeof ProductEditRow>> = {})
           onBarcodeKeyDown={noop}
           {...over}
         />
-      </tbody>
-    </table>
+      </div>
+    </div>
   );
 }
 
@@ -41,7 +40,7 @@ describe('ProductEditRow', () => {
     expect(html).toMatch(/<button[^>]*disabled=""[^>]*>Salvar<\/button>/);
     expect(html).not.toContain('etiquetas');
     expect(html).not.toContain('sem internet');
-    expect(html).toContain('colSpan="4"');
+    expect(html).toContain('<div role="row" class="mg-restock-row"><div role="cell" class="mg-row-full">');
   });
 
   it('warns about labels only when the barcode differs, and about offline cashiers only when the price differs', () => {

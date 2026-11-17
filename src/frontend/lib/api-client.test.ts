@@ -284,4 +284,54 @@ describe('apiClient products', () => {
       expect((error as ApiError).code).toBe('PRODUCT_CHANGED');
     });
   });
+
+  describe('updateCustomer', () => {
+    function stubJson(status: number, body: unknown) {
+      const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify(body), { status }));
+      vi.stubGlobal('fetch', fetchMock);
+      return fetchMock;
+    }
+
+    it('sends a PATCH to the customer path with only the fields given and returns the customer', async () => {
+      const item = { id: 'c 1', name: 'Ana', phone: '11999998888', creditLimit: '100.00', updatedAt: '2026-05-01T12:00:00.123Z' };
+      const fetchMock = stubJson(200, item);
+
+      const result = await apiClient.updateCustomer('c 1', { name: 'Ana' });
+
+      const [url, init] = fetchMock.mock.calls[0];
+      expect(url).toBe('/api/customers/c%201');
+      expect(init.method).toBe('PATCH');
+      expect(JSON.parse(init.body)).toEqual({ name: 'Ana' });
+      expect(result).toEqual(item);
+    });
+
+    it('keeps the credit limit as a decimal string and sends expectedUpdatedAt', async () => {
+      const fetchMock = stubJson(200, {});
+
+      await apiClient.updateCustomer('c1', { phone: '11999998888', creditLimit: '50.00', expectedUpdatedAt: '2026-05-01T12:00:00.123Z' });
+
+      const body = fetchMock.mock.calls[0][1].body as string;
+      expect(JSON.parse(body)).toEqual({ phone: '11999998888', creditLimit: '50.00', expectedUpdatedAt: '2026-05-01T12:00:00.123Z' });
+      expect(body).toContain('"creditLimit":"50.00"');
+    });
+
+    it('exposes CUSTOMER_CHANGED on a 409', async () => {
+      stubJson(409, { code: 'CUSTOMER_CHANGED', message: 'O cliente foi alterado. Recarregue.' });
+
+      const error = await apiClient.updateCustomer('c1', { name: 'X' }).catch((e: unknown) => e);
+
+      expect(error).toBeInstanceOf(ApiError);
+      expect((error as ApiError).status).toBe(409);
+      expect((error as ApiError).code).toBe('CUSTOMER_CHANGED');
+    });
+
+    it('keeps a 409 of repeated phone without code', async () => {
+      stubJson(409, { message: 'Já existe um cliente com este telefone.' });
+
+      const error = await apiClient.updateCustomer('c1', { phone: '11999998888' }).catch((e: unknown) => e);
+
+      expect((error as ApiError).status).toBe(409);
+      expect((error as ApiError).code).toBeUndefined();
+    });
+  });
 });

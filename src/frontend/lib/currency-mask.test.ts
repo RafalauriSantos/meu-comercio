@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { maskCurrencyDigits } from './currency-mask';
+import { maskCurrencyDigits, priceToDigits } from './currency-mask';
 
 describe('maskCurrencyDigits', () => {
   it('places the comma by itself as digits are typed', () => {
@@ -28,5 +28,14 @@ describe('maskCurrencyDigits', () => {
   it('cuts at 9 digits (max 9999999,99)', () => {
     expect(maskCurrencyDigits('12345678901')).toBe('1234567,89');
     expect(maskCurrencyDigits('999999999')).toBe('9999999,99');
+  });
+});
+
+describe('priceToDigits', () => {
+  it('turns the price into the masked text without float math', () => {
+    expect(priceToDigits(25.5)).toBe('25,50');
+    expect(priceToDigits('25.50')).toBe('25,50');
+    expect(priceToDigits('0.05')).toBe('0,05');
+    expect(priceToDigits(10)).toBe('10,00');
   });
 });

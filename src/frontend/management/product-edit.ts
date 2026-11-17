@@ -1,6 +1,6 @@
 import { ApiError, type ProductItem, type ProductPatch } from '@/frontend/lib/api-client';
 import { getErrorMessage } from '@/frontend/lib/formatters';
-import { maskCurrencyDigits } from '@/frontend/lib/currency-mask';
+import { priceToDigits } from '@/frontend/lib/currency-mask';
 
 // Pure rules of editing a product (the hook only holds the state and passes the api call in).
 export interface EditDraft {
@@ -22,12 +22,6 @@ export const BARCODE_CHANGE_WARNING =
 export const PRICE_CHANGE_WARNING =
   'Caixas sem internet ainda vendem pelo preço antigo. Essas vendas podem ficar paradas na fila. Antes de mudar o preço, deixe os caixas sincronizarem.';
 export const SCAN_DURING_EDIT_NOTICE = 'Termine ou cancele a edição antes de cadastrar um produto novo.';
-
-/** The price as the masked text of the field ("25,50"), from a number or a decimal string, with no float math. */
-export function priceToDigits(price: number | string): string {
-  const [whole, fraction = ''] = String(price).split('.');
-  return maskCurrencyDigits(whole + fraction.padEnd(2, '0').slice(0, 2));
-}
 
 export function draftFromProduct(product: ProductItem): EditDraft {
   return { name: product.name, price: priceToDigits(product.salePrice), barcode: product.barcode };

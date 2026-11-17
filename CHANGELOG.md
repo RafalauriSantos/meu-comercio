@@ -9,6 +9,14 @@ lançar uma versão estão em `docs/PROJECT_WORKFLOW.md`.
 
 ### Adicionado
 
+- **Clientes e Fiado com novo layout:** faixa de resumo (fiado na rua, clientes devendo, já recebido), busca por nome ou telefone, filtros (Todos, Devendo, Acima do limite), lista no computador e cartões no celular, com selos de situação e o botão Receber.
+- **Editar cliente** (só a proprietária): painel lateral para mudar nome, telefone e limite de fiado (até R$ 100.000,00), no mesmo estilo da edição de produto. O telefone passa a ter máscara `(11) 99999-8888` e só aceita número do Brasil; os antigos fora do padrão ganham a marca "Telefone fora do padrão".
+- **Bloquear o fiado de um cliente** (só a proprietária): o cliente continua comprando à vista e pagando o que deve, mas não faz novas vendas no fiado, nem com o PIN. Aparece selo na lista e aviso no caixa.
+- **Código de barras gerado pelo sistema:** produto cadastrado sem código recebe um de 13 dígitos (começando em 29). Na edição do produto, o botão "Gerar código" troca o código atual por um gerado (a proprietária confirma, porque a etiqueta antiga deixa de valer).
+- **Bipar na tela de vendas:** qualquer bipada põe o produto no carrinho, sem clicar antes no campo de busca.
+- **Cadastrar produto na venda:** bipar um código que não está cadastrado abre o cadastro com o código preenchido; ao salvar, o produto entra no carrinho. Qualquer pessoa logada pode cadastrar. A operadora só cadastra com preço maior que zero e sem estoque inicial; na tela de vendas o preço maior que zero vale para todas. Editar produto e importar planilha continuam só da proprietária.
+- **Editar produto** (nome, preço e código) pela proprietária, com a lista paginada (50 por vez), busca em todos os produtos, painel lateral com animação e aviso de sucesso em verde.
+- **Sessão** de 2 horas sem uso (teto de 12 horas): quando expira, a pessoa é levada ao login e volta para a tela de onde saiu, com o carrinho guardado. Falta de internet ou lentidão deixam de derrubar a sessão.
 - **Relatório de vendas** na aba "Relatórios" da gestão, só para a proprietária: quanto a loja vendeu hoje, ontem, nesta
   semana, neste mês ou em um período escolhido, com a comparação com o período anterior. Mostra o total, o número de
   vendas e o ticket médio; as formas de pagamento; as vendas por dia; os produtos mais vendidos; as vendas de cada
@@ -21,6 +29,8 @@ lançar uma versão estão em `docs/PROJECT_WORKFLOW.md`.
   desligado não devolve nada ao estoque, porque ela não tirou nada.
 
 ### Alterado
+
+- **Preço do produto** com máscara de centavos (digita 1250 e vira 12,50).
 
 - **Cancelar venda finalizada** saiu da gestão e foi para a tela de vendas (PDV), ao lado de Sangria e Suprimento. Em vez
   de digitar o código da venda, a pessoa escolhe a venda na lista das vendas de hoje (hora, valor e produtos). O PIN da

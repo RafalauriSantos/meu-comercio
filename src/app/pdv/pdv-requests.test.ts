@@ -10,7 +10,7 @@ describe('/pdv: the apiClient calls and the /login redirects in the source of th
   const count = (needle: string) => source.split(needle).length - 1;
 
   it('has 13 + 1 apiClient. and 2 router.push(/login)', () => {
-    expect(count('apiClient.')).toBe(13 + 1);
+    expect(count('apiClient.')).toBe(13 + 1 + 1); // + createProduct of use-register-on-scan.ts (22.19c)
     expect(count("router.push('/login')") + count('router.push(loginUrlHere())')).toBe(2);
   });
 
@@ -20,6 +20,7 @@ describe('/pdv: the apiClient calls and the /login redirects in the source of th
 
     expect(Object.fromEntries(Object.entries(methods).sort(([a], [b]) => a.localeCompare(b)))).toEqual({
       cancelSale: 1,
+      createProduct: 1,
       createSale: 2,
       findProductByBarcode: 1,
       getCurrentCash: 2,

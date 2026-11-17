@@ -52,6 +52,21 @@ describe('management.css', () => {
   });
 });
 
+describe('edit side panel css', () => {
+  it('locks the page scroll while the panel is open and dims the background with the overlay token', () => {
+    expect(css).toMatch(/body:has\(\.mg-panel\[open\]\)\s*\{\s*overflow: hidden;/);
+    expect(css).toMatch(/\.mg-panel::backdrop\s*\{\s*background: var\(--overlay\);/);
+  });
+
+  it('is 440px on the right and takes the full screen on a phone, with the actions stacked', () => {
+    expect(css).toMatch(/\.mg-panel \{[^}]*width: min\(440px, 100%\)/);
+    const phone = css.slice(css.lastIndexOf('@media (max-width: 600px)'));
+    expect(phone).toMatch(/\.mg-panel \{[^}]*width: 100%/);
+    expect(phone).toMatch(/\.mg-panel-actions \{[^}]*flex-direction: column-reverse/);
+    expect(phone).toMatch(/\.mg-panel-actions > \* \{[^}]*width: 100%/);
+  });
+});
+
 describe('gestao page markup', () => {
   it('has no hard-coded colors or legacy PDV variables in inline styles', () => {
     expect(page).not.toMatch(/#[0-9a-fA-F]{3,8}['"]/);

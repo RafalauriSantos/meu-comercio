@@ -9,7 +9,7 @@ import { LoadFailureNotice } from '@/frontend/ui/load-failure-notice';
 import { ImportProductsPanel } from '@/frontend/management/import-products-panel';
 import { matchesStockFilter, stockStatus, type StockFilter } from '@/frontend/management/stock';
 import { needingRestockCount, shownText, stockValueText } from '@/frontend/management/products-list';
-import { ProductEditRow } from '@/frontend/management/product-edit-row';
+import { ProductEditPanel } from '@/frontend/management/product-edit-panel';
 import { useBarcodeScan } from '@/frontend/management/use-barcode-scan';
 import type { useProductsTab } from './use-products-tab';
 
@@ -337,7 +337,7 @@ export function ProductsTab({ tab, stockControl, user, setFeedback, loadFailed, 
                                 <button
                                   type="button"
                                   className="outline mg-row-action"
-                                  aria-expanded={edit.targetId === p.id}
+                                  aria-haspopup="dialog"
                                   aria-label={`Editar ${p.name}`}
                                   onClick={() => startEdit(p)}
                                 >
@@ -346,23 +346,6 @@ export function ProductsTab({ tab, stockControl, user, setFeedback, loadFailed, 
                               )}
                             </div>
                           </div>
-
-                          {user?.isOwner && edit.target && edit.targetId === p.id && (
-                            <ProductEditRow
-                              target={edit.target}
-                              draft={edit.draft}
-                              processing={processing}
-                              barcodeNote={edit.barcodeNote}
-                              error={edit.error}
-                              nameRef={edit.nameRef}
-                              onDraft={edit.changeDraft}
-                              onSubmit={edit.handleSubmit}
-                              onCancel={edit.close}
-                              onReload={edit.handleReload}
-                              onBarcodeBlur={edit.checkBarcode}
-                              onBarcodeKeyDown={edit.handleBarcodeKeyDown}
-                            />
-                          )}
 
                           {/* Box de Reposição */}
                           {stockControl && restockingId === p.id && (
@@ -440,6 +423,24 @@ export function ProductsTab({ tab, stockControl, user, setFeedback, loadFailed, 
                 </div>
               )}
             </section>
+
+            {user?.isOwner && edit.target && (
+              <ProductEditPanel
+                target={edit.target}
+                draft={edit.draft}
+                processing={processing}
+                barcodeNote={edit.barcodeNote}
+                scanWarning={edit.scanWarning}
+                error={edit.error}
+                nameRef={edit.nameRef}
+                onDraft={edit.changeDraft}
+                onSubmit={edit.handleSubmit}
+                onCancel={edit.close}
+                onReload={edit.handleReload}
+                onBarcodeBlur={edit.checkBarcode}
+                onBarcodeKeyDown={edit.handleBarcodeKeyDown}
+              />
+            )}
           </section>
   );
 }

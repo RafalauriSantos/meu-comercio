@@ -19,6 +19,8 @@ export function useProductEdit({ setFeedback, setProcessing, applyEdit, reload }
   const [draft, setDraft] = useState<EditDraft>({ name: '', price: '', barcode: '' });
   const [barcodeNote, setBarcodeNote] = useState<string | null>(null);
   const [error, setError] = useState<EditError | null>(null);
+  // A barcode scan while the panel is open: the panel shows the notice (the page feedback is behind the modal).
+  const [scanWarning, setScanWarning] = useState(false);
   const nameRef = useRef<HTMLInputElement>(null);
 
   function open(product: ProductItem) {
@@ -26,12 +28,14 @@ export function useProductEdit({ setFeedback, setProcessing, applyEdit, reload }
     setDraft(draftFromProduct(product));
     setBarcodeNote(null);
     setError(null);
+    setScanWarning(false);
   }
 
   function close() {
     setTarget(null);
     setBarcodeNote(null);
     setError(null);
+    setScanWarning(false);
   }
 
   function changeDraft(change: Partial<EditDraft>) {
@@ -92,6 +96,8 @@ export function useProductEdit({ setFeedback, setProcessing, applyEdit, reload }
     draft,
     barcodeNote,
     error,
+    scanWarning,
+    setScanWarning,
     nameRef,
     open,
     close,

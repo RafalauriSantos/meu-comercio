@@ -13,7 +13,7 @@ import {
   type CustomerDraft,
   type CustomerEditError,
 } from '@/frontend/management/customer-edit';
-import { useDialogPanel } from '@/frontend/management/use-dialog-panel';
+import { useDialogPanel } from '@/frontend/lib/use-dialog-panel';
 
 interface CustomerEditPanelProps {
   target: CustomerItem;

@@ -16,6 +16,8 @@ type ScreenConfig = {
   // Files of the folder that exist today and must still exist. Add a file here only if it is not going
   // to be renamed or deleted; a rename has to be a conscious edit of this list.
   expected: string[];
+  // Shared pieces (src/frontend/ui, lib) the screen uses, read with the screen so its source locks still see them.
+  shared?: string[];
 };
 
 const SCREENS: Record<Screen, ScreenConfig> = {
@@ -27,7 +29,8 @@ const SCREENS: Record<Screen, ScreenConfig> = {
   gestao: {
     page: ['src', 'app', 'gestao', 'page.tsx'],
     folder: ['src', 'frontend', 'management'],
-    expected: ['customers-tab.tsx', 'import-products-panel.tsx', 'management-skeleton.tsx', 'operators-tab.tsx', 'products-tab.tsx', 'sales-report-panel.tsx', 'use-customers-tab.ts', 'use-operators-tab.ts', 'use-products-list.ts', 'use-products-tab.ts', 'products-list.ts', 'product-edit.ts', 'use-product-edit.ts', 'product-edit-panel.tsx', 'new-product-panel.tsx'],
+    expected: ['customers-tab.tsx', 'import-products-panel.tsx', 'management-skeleton.tsx', 'operators-tab.tsx', 'products-tab.tsx', 'sales-report-panel.tsx', 'use-customers-tab.ts', 'use-operators-tab.ts', 'use-products-list.ts', 'use-products-tab.ts', 'products-list.ts', 'product-edit.ts', 'use-product-edit.ts', 'product-edit-panel.tsx'],
+    shared: ['src/frontend/ui/new-product-panel.tsx', 'src/frontend/lib/use-dialog-panel.ts'],
   },
 };
 
@@ -58,7 +61,12 @@ export function readScreenFiles(screen: Screen, root: string = process.cwd()): S
     }
   }
 
-  const all = [page, ...files].map((path) => ({
+  const shared = (config.shared ?? []).map((name) => {
+    const path = join(root, name);
+    if (!existsSync(path)) throw new Error(`Screen "${screen}": expected shared file ${name} was not found`);
+    return path;
+  });
+  const all = [page, ...files, ...shared].map((path) => ({
     file: relative(root, path).replace(/\\/g, '/'),
     text: readFileSync(path, 'utf8'),
   }));

@@ -118,6 +118,19 @@ export function CustomerEditPanel({
               </span>
             )}
           </div>
+          <div>
+            <label className="field-label" htmlFor={`edit-cblocked-${id}`}>Fiado bloqueado</label>
+            <input
+              id={`edit-cblocked-${id}`}
+              type="checkbox"
+              role="switch"
+              checked={draft.creditBlocked}
+              onChange={(e) => onDraft({ creditBlocked: e.target.checked })}
+            />
+            <span className="mg-help">
+              O cliente continua comprando à vista e pode pagar o que deve. Só o fiado fica barrado.
+            </span>
+          </div>
           {error && (
             <div {...noticeView({ text: error.text, isError: true })}>
               {error.text}

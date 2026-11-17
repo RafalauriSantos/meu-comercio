@@ -138,6 +138,16 @@ describe('CustomersTab rows', () => {
     expect(render().match(/>Receber</g)).toHaveLength(3);
   });
 
+  it('marks a blocked customer with the badge next to the status and keeps "Receber" for who owes', () => {
+    const list = [{ ...customers[0], creditBlocked: true }, ...customers.slice(1)];
+    const html = render({ list });
+    expect(html.match(/Fiado bloqueado<\/span>/g)).toHaveLength(1);
+    expect(html).toMatch(/<span class="mg-badge mg-badge-over">Fiado bloqueado<\/span>/);
+    expect(html).toContain('aria-label="Receber de Maria Souza"');
+    expect(html.match(/>Receber</g)).toHaveLength(3);
+    expect(render()).not.toContain('Fiado bloqueado');
+  });
+
   it('shows limit and available credit', () => {
     const html = render({ filter: 'owing' });
     expect(html).toContain('Limite R$ 100,00');

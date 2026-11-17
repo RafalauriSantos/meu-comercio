@@ -523,6 +523,11 @@
   font-size: 14px;
 }
 
+.pdv-credit-blocked {
+  color: var(--danger);
+  font-weight: 600;
+}
+
 /* Botões de escolha: forma de pagamento, tipo de operação, tipo de comprovante */
 
 .pdv-choices {

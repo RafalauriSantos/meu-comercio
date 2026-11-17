@@ -18,7 +18,7 @@ export function useCustomerEdit({ setFeedback, setProcessing, applyEdit, reload 
   const [target, setTarget] = useState<CustomerItem | null>(null);
   // The panel plays its exit while closing; it calls finishClose at the end, and only then the target is dropped.
   const [closing, setClosing] = useState(false);
-  const [draft, setDraft] = useState<CustomerDraft>({ name: '', phone: '', limit: '' });
+  const [draft, setDraft] = useState<CustomerDraft>({ name: '', phone: '', limit: '', creditBlocked: false });
   const [error, setError] = useState<CustomerEditError | null>(null);
   const nameRef = useRef<HTMLInputElement>(null);
 

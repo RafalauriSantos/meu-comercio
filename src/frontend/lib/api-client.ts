@@ -122,6 +122,8 @@ export interface CustomerItem {
   name: string;
   phone: string;
   creditLimit?: number | string;
+  /** Fiado blocked by the owner (D-26). Missing counts as not blocked. */
+  creditBlocked?: boolean;
   active?: boolean;
   createdAt?: string;
   updatedAt?: string;
@@ -133,6 +135,7 @@ export interface CustomerPatch {
   phone?: string;
   /** Decimal string, never a number. */
   creditLimit?: string;
+  creditBlocked?: boolean;
   expectedUpdatedAt?: string;
 }
 

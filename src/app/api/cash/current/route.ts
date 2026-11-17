@@ -1,9 +1,12 @@
-import { NextResponse } from 'next/server';
+import { NextResponse, connection } from 'next/server';
 import { requireAuthSession, UnauthorizedError } from '@/shared/infrastructure/auth/auth-context';
 import { DrizzleCashSessionRepository } from '@/modules/cash/infrastructure/drizzle-cash-session-repository';
 import { GetCurrentCashSessionUseCase } from '@/modules/cash/application/get-current-cash-session.use-case';
 
 export async function GET() {
+  // Cache Components prerenders a handler that reads no request data and `cookies()` then rejects at build.
+  await connection();
+
   try {
     const session = await requireAuthSession();
     const repository = new DrizzleCashSessionRepository();

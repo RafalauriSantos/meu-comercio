@@ -2,6 +2,10 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
 const store = { set: vi.fn(), get: vi.fn() };
 vi.mock('next/headers', () => ({ cookies: async () => store }));
+vi.mock('next/server', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('next/server')>()),
+  connection: () => Promise.resolve(),
+}));
 
 import { getCurrentSession, requireAuthSession } from './auth-context';
 import { createSessionToken, getSessionCookieName, verifySessionToken } from './session';

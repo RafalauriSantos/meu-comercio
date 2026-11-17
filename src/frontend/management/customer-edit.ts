@@ -11,6 +11,8 @@ export interface CustomerDraft {
   phone: string;
   /** Masked text ("125,00"), never a number. Empty is zero. */
   limit: string;
+  /** The fiado switch: a blocked customer cannot buy on credit (D-26). */
+  creditBlocked: boolean;
 }
 
 export interface CustomerEditError {
@@ -29,7 +31,12 @@ export const LIMIT_BELOW_DEBT_WARNING =
   'O limite é menor que a dívida. O cliente não perde o que deve, e a próxima venda no fiado pede o PIN da proprietária.';
 
 export function draftFromCustomer(customer: CustomerItem): CustomerDraft {
-  return { name: customer.name, phone: displayPhone(customer.phone), limit: priceToDigits(customer.creditLimit ?? '0') };
+  return {
+    name: customer.name,
+    phone: displayPhone(customer.phone),
+    limit: priceToDigits(customer.creditLimit ?? '0'),
+    creditBlocked: customer.creditBlocked === true,
+  };
 }
 
 function limitMoney(masked: string): Money {
@@ -54,6 +61,7 @@ export function buildCustomerPatch(target: CustomerItem, draft: CustomerDraft): 
   if (draft.name.trim() !== target.name) patch.name = draft.name.trim();
   if (draft.phone.trim() !== initial.phone) patch.phone = draft.phone.trim();
   if (draft.limit !== initial.limit) patch.creditLimit = (draft.limit === '' ? '0,00' : draft.limit).replace(',', '.');
+  if (draft.creditBlocked !== initial.creditBlocked) patch.creditBlocked = draft.creditBlocked;
   if (Object.keys(patch).length === 0) return null;
   if (target.updatedAt) patch.expectedUpdatedAt = target.updatedAt;
   return patch;

@@ -15,7 +15,7 @@ const old: CustomerItem = { ...maria, phone: '6261616161649496169' };
 
 describe('draftFromCustomer', () => {
   it('masks a standard phone and the limit, and leaves an old phone as it is', () => {
-    expect(draftFromCustomer(maria)).toEqual({ name: 'Maria Souza', phone: '(11) 98164-2350', limit: '100,00' });
+    expect(draftFromCustomer(maria)).toEqual({ name: 'Maria Souza', phone: '(11) 98164-2350', limit: '100,00', creditBlocked: false });
     expect(draftFromCustomer(old).phone).toBe('6261616161649496169');
   });
   it('a zero limit is an empty text', () => {
@@ -52,6 +52,23 @@ describe('buildCustomerPatch', () => {
   it('sends the phone only when it changed', () => {
     expect(buildCustomerPatch(maria, { ...draftFromCustomer(maria), phone: '(11) 99999-8888' })?.phone).toBe('(11) 99999-8888');
   });
+  it('sends creditBlocked, with expectedUpdatedAt, only when the switch changed', () => {
+    expect(buildCustomerPatch(maria, { ...draftFromCustomer(maria), creditBlocked: true })).toEqual({
+      creditBlocked: true,
+      expectedUpdatedAt: maria.updatedAt,
+    });
+    const blocked = { ...maria, creditBlocked: true };
+    expect(draftFromCustomer(blocked).creditBlocked).toBe(true);
+    expect(buildCustomerPatch(blocked, draftFromCustomer(blocked))).toBeNull();
+    expect(buildCustomerPatch(blocked, { ...draftFromCustomer(blocked), creditBlocked: false })?.creditBlocked).toBe(false);
+  });
+  it('sends the switch together with the other changed fields', () => {
+    expect(buildCustomerPatch(maria, { ...draftFromCustomer(maria), limit: '125,00', creditBlocked: true })).toEqual({
+      creditLimit: '125.00',
+      creditBlocked: true,
+      expectedUpdatedAt: maria.updatedAt,
+    });
+  });
   it('changing and undoing is no change', () => {
     expect(buildCustomerPatch(maria, { ...draftFromCustomer(maria), limit: '125,00' })).not.toBeNull();
     expect(buildCustomerPatch(maria, { ...draftFromCustomer(maria), limit: '100,00' })).toBeNull();
@@ -60,9 +77,9 @@ describe('buildCustomerPatch', () => {
 
 describe('rules', () => {
   it('needs a name of 2 letters', () => {
-    expect(isDraftValid({ name: '  ', phone: '', limit: '' })).toBe(false);
-    expect(isDraftValid({ name: 'A', phone: '', limit: '' })).toBe(true);
-    expect(isDraftValid({ name: 'Ana', phone: '', limit: '' })).toBe(true);
+    expect(isDraftValid({ name: '  ', phone: '', limit: '', creditBlocked: false })).toBe(false);
+    expect(isDraftValid({ name: 'A', phone: '', limit: '', creditBlocked: false })).toBe(true);
+    expect(isDraftValid({ name: 'Ana', phone: '', limit: '', creditBlocked: false })).toBe(true);
   });
   it('warns only when the limit is below the debt, in cents', () => {
     expect(limitBelowDebt('50,00', 8550)).toBe(true);

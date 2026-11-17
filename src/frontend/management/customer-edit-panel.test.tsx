@@ -71,6 +71,22 @@ describe('CustomerEditPanel', () => {
     expect(render({ draft: { ...draftFromCustomer(maria), limit: '85,50' } })).not.toContain('O limite é menor');
   });
 
+  it('has the Fiado bloqueado switch, labelled, with the help text and the server value', () => {
+    const html = render();
+    const forId = html.match(/<label[^>]*for="([^"]+)"[^>]*>Fiado bloqueado<\/label>/)?.[1];
+    expect(forId).toBeTruthy();
+    expect(html).toMatch(new RegExp(`<input id="${forId}" type="checkbox" role="switch"`));
+    expect(html).not.toMatch(/type="checkbox"[^>]*checked/);
+    expect(html).toContain('O cliente continua comprando à vista e pode pagar o que deve. Só o fiado fica barrado.');
+    const blocked = render({ target: { ...maria, creditBlocked: true }, draft: draftFromCustomer({ ...maria, creditBlocked: true }) });
+    expect(blocked).toMatch(/type="checkbox"[^>]*checked/);
+  });
+
+  it('enables Salvar when only the switch changed', () => {
+    const html = render({ draft: { ...draftFromCustomer(maria), creditBlocked: true } });
+    expect(html).toMatch(/<button[^>]*type="submit"(?![^>]*disabled)[^>]*>Salvar<\/button>/);
+  });
+
   it('shows Salvando... while sending', () => {
     const html = render({ processing: true, draft: { ...draftFromCustomer(maria), name: 'Maria S.' } });
     expect(html).toMatch(/<button[^>]*disabled=""[^>]*>Salvando\.\.\.<\/button>/);

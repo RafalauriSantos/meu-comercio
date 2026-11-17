@@ -201,6 +201,7 @@ export function CustomersTab({ tab, user, loadFailed, retrying, processing, retr
                       <div className="mg-ccell-debt">
                         <strong className="num">{money(r.debtCents)}</strong>
                         <span className={STATUS_CLASS[r.status]}>{STATUS_LABEL[r.status]}</span>
+                        {r.creditBlocked && <span className="mg-badge mg-badge-over">Fiado bloqueado</span>}
                       </div>
                       <div className="mg-ccell-limit">
                         <div className="mg-limit-bar">

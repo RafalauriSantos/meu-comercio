@@ -43,6 +43,7 @@ export interface CustomerRow {
   /** 0 to 100, how much of the limit the debt uses. */
   percent: number;
   balance: CustomerBalance | null;
+  creditBlocked: boolean;
 }
 
 /** A decimal (number or string such as "85.50") as integer cents; null when it is missing or not a number. */
@@ -84,6 +85,7 @@ export function toRow(customer: CustomerItem, balance: CustomerBalance | undefin
     availableCents: debtCents === null || limitCents === null ? null : Math.max(0, limitCents - debtCents),
     percent: percentOf(debtCents ?? 0, limitCents),
     balance: balance ?? null,
+    creditBlocked: customer.creditBlocked === true,
   };
 }
 

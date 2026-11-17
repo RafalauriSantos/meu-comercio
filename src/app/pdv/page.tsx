@@ -58,6 +58,7 @@ import { VersionLabel } from '@/frontend/ui/version-label';
 import { WEIGHT_STEP_GRAMS } from '@/frontend/pdv/weight-input';
 import { formatQuantity, lineSubtotal } from '@/shared/domain/product-unit';
 import { noticeView } from '@/frontend/ui/notice-view';
+import { CREDIT_BLOCKED_NOTICE, creditBlockedCustomer, isCreditBlockedError } from '@/frontend/pdv/credit-block';
 import { useSessionExpired } from '@/frontend/auth/use-session-expired';
 import { SessionExpiredNotice } from '@/frontend/auth/session-expired-notice';
 import { loginUrlHere } from '@/frontend/auth/safe-return-path';
@@ -712,6 +713,10 @@ export default function PdvTerminalPage() {
         setMessage({ text: 'Selecione o cliente para registrar o fiado.', isError: true });
         return;
       }
+      if (paymentMethod === 'TAB' && creditBlockedCustomer(customers, selectedCustomerId)) {
+        setMessage({ text: CREDIT_BLOCKED_NOTICE, isError: true });
+        return;
+      }
 
       // 2. Venda Normal (Dinheiro, Cartão, PIX ou Dividida)
       if (!navigator.onLine) {
@@ -819,6 +824,14 @@ export default function PdvTerminalPage() {
         setMessage({
           text: 'Esta venda já havia sido registrada. O carrinho foi limpo. Confira o histórico antes de repetir.',
         });
+        return;
+      }
+
+      // The customer was blocked after the list was loaded: show the server message, keep the cart and PIN modal closed.
+      if (isCreditBlockedError(err)) {
+        setCustomers((list) => list.map((c) => (c.id === selectedCustomerId ? { ...c, creditBlocked: true } : c)));
+        setIsPinModalOpen(false);
+        setMessage({ text: getErrorMessage(err, CREDIT_BLOCKED_NOTICE), isError: true });
         return;
       }
 
@@ -944,6 +957,7 @@ export default function PdvTerminalPage() {
   ];
 
   // Fiado is kept out of the main buttons: it shows up behind the three-dots button.
+  const creditBlocked = paymentMethod === 'TAB' && creditBlockedCustomer(customers, selectedCustomerId);
   const tabMethod: { value: CalcPaymentMethod; label: string } = { value: 'TAB', label: 'Fiado' };
 
   const secondMethods: { value: CalcPaymentMethod; label: string }[] = [
@@ -1276,7 +1290,7 @@ export default function PdvTerminalPage() {
             }}
             onSubmit={(e) => {
               e.preventDefault();
-              if (paymentMethod === 'TAB' && !selectedCustomerId) return;
+              if (paymentMethod === 'TAB' && (!selectedCustomerId || creditBlocked)) return;
               void handleFinalizeSale();
             }}
           >
@@ -1332,10 +1346,15 @@ export default function PdvTerminalPage() {
                     <option value="">-- Selecione o cliente --</option>
                     {customers.map((c) => (
                       <option key={c.id} value={c.id}>
-                        {c.name} ({c.phone})
+                        {c.name} ({c.phone}){c.creditBlocked ? ' - fiado bloqueado' : ''}
                       </option>
                     ))}
                   </select>
+                  {creditBlocked && (
+                    <p className="pdv-field-hint pdv-credit-blocked" role="alert">
+                      {CREDIT_BLOCKED_NOTICE}
+                    </p>
+                  )}
                   <p className="hint pdv-field-hint">
                     O sistema validará o limite disponível do cliente. Se ultrapassado, exigirá o PIN da dona.
                   </p>
@@ -1440,7 +1459,7 @@ export default function PdvTerminalPage() {
               <button
                 className="primary pdv-confirm"
                 type="submit"
-                disabled={processing || (paymentMethod === 'TAB' && !selectedCustomerId)}
+                disabled={processing || (paymentMethod === 'TAB' && (!selectedCustomerId || creditBlocked))}
               >
                 <span>{processing ? 'Processando...' : 'Confirmar venda'}</span>
                 {!processing && <kbd className="kbd">Enter</kbd>}

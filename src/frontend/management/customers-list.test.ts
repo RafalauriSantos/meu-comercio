@@ -76,6 +76,13 @@ describe('toRow', () => {
     expect(row.status).toBe('over');
   });
 
+  it('carries creditBlocked, a missing value meaning not blocked, without changing the status', () => {
+    expect(toRow(customer('a', 'Ana'), undefined).creditBlocked).toBe(false);
+    const blocked = { ...customer('a', 'Ana'), creditBlocked: true };
+    expect(toRow(blocked, balance('a', '85.50')).creditBlocked).toBe(true);
+    expect(toRow(blocked, balance('a', '85.50')).status).toBe('near');
+  });
+
   it('shows the phone masked, or as it is with the off-pattern mark', () => {
     const std = toRow(customer('a', 'Ana', '11981642350'), undefined);
     expect(std.phoneText).toBe('(11) 98164-2350');

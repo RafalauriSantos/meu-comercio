@@ -1,4 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
+import { ZodError } from 'zod';
 import { Product } from '../domain/product';
 import { ProductBarcodeConflictError } from '../domain/product-errors';
 import { isValidEan13 } from '../domain/generated-barcode';
@@ -11,6 +12,8 @@ import {
   ProductRowSchema,
   BarcodeAlreadyExistsError,
   BarcodeGenerationFailedError,
+  OperatorProductRuleError,
+  assertOperatorProductRules,
 } from './create-product.use-case';
 
 const MERCHANT = 'm1';
@@ -135,5 +138,26 @@ describe('CreateProductUseCase generated barcode (D-23)', () => {
   it('create makes the barcode optional while the row schema (CSV import) still requires it', () => {
     expect(CreateProductSchema.parse({ ...BASE, barcode: '  ' }).barcode).toBeUndefined();
     expect(ProductRowSchema.safeParse({ ...BASE, barcode: '' }).success).toBe(false);
+  });
+});
+
+describe('assertOperatorProductRules (D-25)', () => {
+  it('accepts a positive price without initial stock', () => {
+    expect(() => assertOperatorProductRules({ ...BASE, unit: 'KG' })).not.toThrow();
+    expect(() => assertOperatorProductRules({ ...BASE, initialStock: 0 })).not.toThrow();
+  });
+
+  it.each(['0', '0.00', 0])('refuses price %s with a Portuguese message', price => {
+    expect(() => assertOperatorProductRules({ ...BASE, salePrice: price })).toThrow(OperatorProductRuleError);
+    expect(() => assertOperatorProductRules({ ...BASE, salePrice: price })).toThrow(/preço.*maior que zero/i);
+  });
+
+  it('refuses initial stock above zero', () => {
+    expect(() => assertOperatorProductRules({ ...BASE, initialStock: 5 })).toThrow(OperatorProductRuleError);
+    expect(() => assertOperatorProductRules({ ...BASE, initialStock: 5 })).toThrow(/estoque inicial/i);
+  });
+
+  it('lets schema errors through as ZodError', () => {
+    expect(() => assertOperatorProductRules({ name: 'A', salePrice: 'x' })).toThrow(ZodError);
   });
 });

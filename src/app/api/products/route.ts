@@ -9,20 +9,18 @@ import {
   CreateProductUseCase,
   BarcodeAlreadyExistsError,
   BarcodeGenerationFailedError,
+  OperatorProductRuleError,
+  assertOperatorProductRules,
 } from '@/modules/products/application/create-product.use-case';
 
 export async function POST(request: NextRequest) {
   try {
     const session = await requireAuthSession();
 
-    if (!isSessionOwner(session)) {
-      return NextResponse.json(
-        { message: 'Apenas a proprietária pode cadastrar novos produtos no catálogo.' },
-        { status: 403 }
-      );
-    }
-
     const body = await request.json();
+    // D-25: anyone logged in may register; a non-owner only with a price above zero and no initial stock.
+    if (!isSessionOwner(session)) assertOperatorProductRules(body);
+
     const productRepo = new DrizzleProductRepository();
     const inventoryRepo = new DrizzleInventoryRepository();
     const auditService = new DrizzleAuditService();
@@ -50,6 +48,9 @@ export async function POST(request: NextRequest) {
     }
     if (error instanceof BarcodeAlreadyExistsError) {
       return NextResponse.json({ message: error.message }, { status: 409 });
+    }
+    if (error instanceof OperatorProductRuleError) {
+      return NextResponse.json({ message: error.message }, { status: 400 });
     }
     if (error instanceof BarcodeGenerationFailedError) {
       console.error('Error creating product:', error);

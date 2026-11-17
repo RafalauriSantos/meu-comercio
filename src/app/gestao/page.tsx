@@ -320,7 +320,7 @@ export default function GestaoPage() {
 
         {/* TAB 2: CLIENTES & FIADO */}
         {activeTab === 'fiado' && (
-          <CustomersTab tab={customersTab} loadFailed={loadFailed} retrying={retrying} processing={processing} retry={retry} />
+          <CustomersTab tab={customersTab} user={user} loadFailed={loadFailed} retrying={retrying} processing={processing} retry={retry} />
         )}
 
         {/* TAB 3: CONTROLE & FECHAMENTO DE CAIXA */}

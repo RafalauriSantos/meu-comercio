@@ -3,12 +3,15 @@
 import React from 'react';
 import { formatMoney, parseCurrencyInput } from '@/frontend/lib/formatters';
 import { Money } from '@/shared/domain/money';
+import type { AuthUser } from '@/frontend/lib/api-client';
 import { LoadFailureNotice } from '@/frontend/ui/load-failure-notice';
 import { CUSTOMER_FILTERS, STATUS_CLASS, STATUS_LABEL, buildRows, filterCounts, shownText, visibleRows } from './customers-list';
+import { CustomerEditPanel } from './customer-edit-panel';
 import type { useCustomersTab } from './use-customers-tab';
 
 interface CustomersTabProps {
   tab: ReturnType<typeof useCustomersTab>;
+  user: AuthUser | null;
   loadFailed: { customers?: boolean; balances?: boolean; metrics?: boolean };
   retrying: boolean;
   processing: boolean;
@@ -16,7 +19,7 @@ interface CustomersTabProps {
 }
 
 /** The customers and credit tab of the management panel. Only draws: the money rules are the ones that were on the page. */
-export function CustomersTab({ tab, loadFailed, retrying, processing, retry }: CustomersTabProps) {
+export function CustomersTab({ tab, user, loadFailed, retrying, processing, retry }: CustomersTabProps) {
   const {
     customers,
     customerBalances,
@@ -44,6 +47,7 @@ export function CustomersTab({ tab, loadFailed, retrying, processing, retry }: C
     loadMissingBalances,
     handleCreateCustomer,
     handleSettleDebt,
+    edit,
   } = tab;
 
   const missingBalances = customers.filter((c) => !customerBalances[c.id]).length;
@@ -55,7 +59,7 @@ export function CustomersTab({ tab, loadFailed, retrying, processing, retry }: C
   return (
           <section className="mg-section">
             {loadFailed.customers && (
-              <LoadFailureNotice what="a lista de clientes" busy={retrying} onRetry={() => retry(loadCustomers)} />
+              <LoadFailureNotice what="a lista de clientes" busy={retrying} onRetry={() => retry(async () => { await loadCustomers(); })} />
             )}
             {loadFailed.balances && missingBalances > 0 && (
               <LoadFailureNotice
@@ -211,6 +215,20 @@ export function CustomersTab({ tab, loadFailed, retrying, processing, retry }: C
                         </div>
                       </div>
                       <div className="mg-ccell-actions">
+                        {user?.isOwner && (
+                          <button
+                            type="button"
+                            className="outline mg-row-action"
+                            aria-haspopup="dialog"
+                            aria-label={`Editar ${r.name}`}
+                            onClick={() => {
+                              const item = customers.find((c) => c.id === r.id);
+                              if (item) edit.open(item);
+                            }}
+                          >
+                            Editar
+                          </button>
+                        )}
                         {r.balance && r.debtCents !== null && r.debtCents > 0 && (
                           <button
                             type="button"
@@ -231,6 +249,23 @@ export function CustomersTab({ tab, loadFailed, retrying, processing, retry }: C
               )}
               <p className="mg-foot" role="status">{shownText(rows.length, customers.length)}</p>
             </section>
+
+            {user?.isOwner && edit.target && (
+              <CustomerEditPanel
+                target={edit.target}
+                draft={edit.draft}
+                debtCents={allRows.find((r) => r.id === edit.target?.id)?.debtCents ?? null}
+                processing={processing}
+                closing={edit.closing}
+                error={edit.error}
+                nameRef={edit.nameRef}
+                onDraft={edit.changeDraft}
+                onSubmit={edit.handleSubmit}
+                onCancel={edit.close}
+                onClosed={edit.finishClose}
+                onReload={edit.handleReload}
+              />
+            )}
 
             {/* Modal de Quitação de Dívida */}
             {settlingCustomer && (

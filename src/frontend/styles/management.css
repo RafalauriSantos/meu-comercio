@@ -498,7 +498,7 @@
 .management-page .mg-clist-head,
 .management-page .mg-crow {
   display: grid;
-  grid-template-columns: minmax(0, 1.3fr) 150px minmax(0, 1fr) 110px;
+  grid-template-columns: minmax(0, 1.3fr) 150px minmax(0, 1fr) 190px;
   align-items: center;
   gap: 16px;
   padding: 12px 20px;
@@ -539,6 +539,7 @@
 .management-page .mg-ccell-actions {
   display: flex;
   justify-content: flex-end;
+  gap: 8px;
 }
 
 .management-page .mg-badge {

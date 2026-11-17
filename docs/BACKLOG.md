@@ -295,7 +295,7 @@ Este documento rastreia formalmente as fatias verticais de entrega, critérios d
   - [x] 22.9d Cliente da API, máscara de telefone `(11) 99999-8888` e regra de "fora do padrão" no front, mais mover `priceToDigits` para `lib` (ADR-020) (PR #116).
   - [x] 22.9e Tela de edição de clientes (painel lateral com animação, no molde do produto), marca "Telefone fora do padrão" nos antigos e aviso quando o limite fica abaixo da dívida (PR #121; o botão Editar só aparece para a proprietária).
   - [ ] 22.9f **Brecha de permissão:** a operadora hoje cadastra cliente e define o limite de fiado (o cadastro só exige estar logada). Decisão da dona: a operadora continua cadastrando, com **limite zero**, e só a proprietária libera valor. PR próprio.
-  - [ ] 22.9g Janela de milissegundos em que a venda no fiado usa o limite lido antes da trava do cliente (risco baixo; mexe em dinheiro, PR próprio). **Fechado pela 22.16b** (leitura sob a trava).
+  - [x] 22.9g Janela de milissegundos em que a venda no fiado usa o limite lido antes da trava do cliente (risco baixo; mexe em dinheiro, PR próprio). **Fechado pela 22.16b** (leitura sob a trava).
 - [ ] 22.10 **Novo layout de Clientes e Fiado** (protótipo aprovado pela dona; spec em `.dev-team/spec-customers-layout.md`):
   - [x] 22.10a Faixa de resumo, busca, filtros (Todos, Devendo, Acima do limite), lista no computador e cartões no celular, selos de situação e Receber (PR #119).
   - [x] 22.10b Painel lateral de edição do cliente, igual ao de produtos (PR #121).
@@ -317,7 +317,7 @@ Este documento rastreia formalmente as fatias verticais de entrega, critérios d
 - [ ] 23.5 **Conferir no ar o que ainda não foi testado:** carrinho voltando depois do login (mesma pessoa) e **não** voltando com outro usuário ou outra loja; erro de rede na Gestão e no PDV (DevTools, aba Rede, "Offline"); lentidão (Slow 3G) mostrando "A conexão está lenta".
 - [ ] 22.16 **Bloquear o fiado do cliente** (D-26; spec em `.dev-team/spec-block-deactivate.md`), em fatias:
   - [ ] 22.16a Migração sozinha: coluna `customers.credit_blocked boolean NOT NULL DEFAULT false`, sem mudança de comportamento; aplicada pelo workflow `db-migrate` com a aprovação da dona, antes da 22.16b.
-  - [ ] 22.16b API: `PATCH /api/customers/[id]` aceita `creditBlocked`, auditoria `CUSTOMER_UPDATED`, venda no fiado recusada com 409 `CUSTOMER_CREDIT_BLOCKED` dentro da transação, sob a trava (fecha o 22.9g). Mexe na regra do fiado: espera a dona.
+  - [x] 22.16b API: `PATCH /api/customers/[id]` aceita `creditBlocked`, auditoria `CUSTOMER_UPDATED`, venda no fiado recusada com 409 `CUSTOMER_CREDIT_BLOCKED` dentro da transação, sob a trava (fecha o 22.9g: bloqueio e limite lidos da linha travada). Pré-check antes do PIN e checagem definitiva na transação; a mensagem é "Este cliente está com o fiado bloqueado. A venda só pode ser feita à vista." Mexe na regra do fiado: espera a dona.
   - [ ] 22.16c Tela: interruptor "Fiado bloqueado" na edição do cliente, selo na lista e no caixa.
 - [ ] 22.17 **Desativar produto** (D-27; spec em `.dev-team/spec-block-deactivate.md`, fatia 2): `PATCH` com `active`, bipada de código desativado avisa, filtro e botão Reativar na Gestão. Depois da 22.16. Antes do código, registrar a D-27.
 - [ ] 22.18 **Desativar cliente** (D-27; spec em `.dev-team/spec-block-deactivate.md`, fatia 3): só com dívida zero, conferida sob a trava; reativar volta desbloqueado (D-26); busca do caixa passa a filtrar só ativos. Depois da 22.17.

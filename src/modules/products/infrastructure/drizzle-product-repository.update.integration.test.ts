@@ -403,4 +403,34 @@ describe.skipIf(!TEST_DATABASE_URL)('DrizzleProductRepository.updateDetails (Pos
     expect(await row(product.id)).toEqual(product);
     expect(await auditOf(product.id)).toHaveLength(0);
   });
+
+  it('after a clock jump back, the new updatedAt is still greater and the old token conflicts', async () => {
+    const merchantId = await freshMerchant();
+    const product = await seed(merchantId, 'F1');
+    await database
+      .update(products)
+      .set({ updatedAt: new Date(Date.now() + 60 * 60 * 1000) })
+      .where(eq(products.id, product.id));
+    const previous = (await row(product.id)).updatedAt;
+
+    const result = await repo.updateDetails(merchantId, product.id, { name: 'Novo' }, { ...ACTOR, expectedUpdatedAt: previous });
+
+    expect(result!.updatedAt.getTime()).toBeGreaterThan(previous.getTime());
+    expect((await row(product.id)).updatedAt).toEqual(result!.updatedAt);
+    await expect(
+      repo.updateDetails(merchantId, product.id, { name: 'Outro' }, { ...ACTOR, expectedUpdatedAt: previous })
+    ).rejects.toBeInstanceOf(ProductChangedError);
+  });
+
+  it('back-to-back edits always return a strictly greater updatedAt', async () => {
+    const merchantId = await freshMerchant();
+    const product = await seed(merchantId, 'S1');
+    let last = (await row(product.id)).updatedAt;
+
+    for (let i = 0; i < 20; i++) {
+      const result = await repo.updateDetails(merchantId, product.id, { name: `Nome ${i}` }, { ...ACTOR, expectedUpdatedAt: last });
+      expect(result!.updatedAt.getTime()).toBeGreaterThan(last.getTime());
+      last = result!.updatedAt;
+    }
+  });
 });

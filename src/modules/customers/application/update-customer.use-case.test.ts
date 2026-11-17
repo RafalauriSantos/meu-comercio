@@ -59,6 +59,18 @@ describe('UpdateCustomerUseCase', () => {
     expect(updateDetails.mock.calls[0][2].creditLimit.toDecimal()).toBe('20.00');
   });
 
+  it.each([true, false])('aceita só creditBlocked=%s e manda só ele', async (creditBlocked) => {
+    await useCase.execute('m1', 'dona', 'c1', { creditBlocked });
+
+    expect(updateDetails).toHaveBeenCalledWith('m1', 'c1', { creditBlocked }, { actorId: 'dona', expectedUpdatedAt: undefined });
+  });
+
+  it('creditBlocked junto de nome e limite vai na mesma chamada', async () => {
+    await useCase.execute('m1', 'dona', 'c1', { name: 'Maria', creditLimit: '20', creditBlocked: true });
+
+    expect(updateDetails.mock.calls[0][2]).toMatchObject({ name: 'Maria', creditBlocked: true });
+  });
+
   it('aceita só o telefone e deixa a regra D-21 para o domínio', async () => {
     await useCase.execute('m1', 'dona', 'c1', { phone: '(11) 98888-7777' });
 
@@ -69,6 +81,9 @@ describe('UpdateCustomerUseCase', () => {
     ['corpo vazio', {}],
     ['só expectedUpdatedAt', { expectedUpdatedAt: '2026-11-17T10:00:00.000Z' }],
     ['active', { name: 'A', active: false }],
+    ['creditBlocked como texto', { creditBlocked: 'true' }],
+    ['creditBlocked como número', { creditBlocked: 1 }],
+    ['creditBlocked nulo', { creditBlocked: null }],
     ['limite mal formado', { creditLimit: 'dez' }],
     ['limite vazio', { creditLimit: '' }],
     ['limite em notação científica', { creditLimit: '1e3' }],

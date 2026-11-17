@@ -35,6 +35,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
       name: customer.name,
       phone: customer.phone,
       creditLimit: customer.creditLimit.toDecimal(),
+      creditBlocked: customer.creditBlocked,
       updatedAt: customer.updatedAt.toISOString(),
     });
   } catch (error) {

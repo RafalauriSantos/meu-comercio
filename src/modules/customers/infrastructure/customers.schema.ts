@@ -11,6 +11,7 @@ export const customers = pgTable('customers', {
   phone: varchar('phone', { length: 32 }).notNull(),
   creditLimit: numeric('credit_limit', { precision: 19, scale: 4 }).notNull().default('0'),
   active: boolean('active').notNull().default(true),
+  creditBlocked: boolean('credit_blocked').notNull().default(false),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 }, (table) => [

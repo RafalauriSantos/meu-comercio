@@ -18,8 +18,17 @@ export interface AuditEntry {
 export interface CreditDebitCommit {
   customerId: string;
   movement: CreditMovement;
-  /** Called with the balance read under the customer lock; throws to abort the commit. */
-  ensureWithinLimit: (currentDebt: Money) => void | Promise<void>;
+  /**
+   * Called with the customer row and the balance read under the customer lock (never values read before it);
+   * throws to abort the commit. Checks the credit block (D-26) and the limit.
+   */
+  ensureAllowed: (locked: LockedCustomerCredit, currentDebt: Money) => void | Promise<void>;
+}
+
+/** The customer fields the credit sale depends on, as read after SELECT ... FOR UPDATE. */
+export interface LockedCustomerCredit {
+  creditBlocked: boolean;
+  creditLimit: Money;
 }
 
 export interface CashReceiptCommit {

@@ -30,6 +30,7 @@ function toDomain(row: typeof customers.$inferSelect): Customer {
     phone: row.phone,
     creditLimit: Money.fromDecimal(row.creditLimit),
     active: row.active,
+    creditBlocked: row.creditBlocked,
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
   });
@@ -59,6 +60,7 @@ export class DrizzleCustomerRepository implements CustomerRepository {
         phone: customer.phone,
         creditLimit: customer.creditLimit.toDecimal(),
         active: customer.active,
+        creditBlocked: customer.creditBlocked,
         createdAt: customer.createdAt,
         updatedAt: customer.updatedAt,
       })
@@ -69,6 +71,7 @@ export class DrizzleCustomerRepository implements CustomerRepository {
           phone: customer.phone,
           creditLimit: customer.creditLimit.toDecimal(),
           active: customer.active,
+          creditBlocked: customer.creditBlocked,
           updatedAt: customer.updatedAt,
         },
       });
@@ -116,6 +119,7 @@ export class DrizzleCustomerRepository implements CustomerRepository {
             ...(diff.name && { name: after.name }),
             ...(diff.phone && { phone: after.phone }),
             ...(diff.creditLimit && { creditLimit: after.creditLimit.toDecimal() }),
+            ...(diff.creditBlocked && { creditBlocked: after.creditBlocked }),
             // Strictly greater than the previous value, in whole milliseconds (the precision of expectedUpdatedAt).
             updatedAt: sql`GREATEST(date_trunc('milliseconds', clock_timestamp()), date_trunc('milliseconds', ${customers.updatedAt}) + interval '1 millisecond')`,
           })

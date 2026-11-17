@@ -15,6 +15,7 @@ import {
 } from '@/modules/sales/application/create-sale.use-case';
 import {
   CreditLimitExceededError,
+  CustomerCreditBlockedError,
   CustomerInactiveError,
   CustomerNotFoundError,
   InvalidOwnerPinError,
@@ -227,6 +228,16 @@ describe('Sales API Routes', () => {
       mockExecuteCreateSale.mockRejectedValue(new CustomerInactiveError('cust-1'));
       const response = await POST(new NextRequest('http://localhost:3000/api/sales', { method: 'POST', body: fiadoBody, headers: { 'Idempotency-Key': 'fiado-key-1' } }));
       expect(response.status).toBe(400);
+    });
+
+    it('deve mapear CustomerCreditBlockedError para 409 com code CUSTOMER_CREDIT_BLOCKED', async () => {
+      mockExecuteCreateSale.mockRejectedValue(new CustomerCreditBlockedError());
+      const response = await POST(new NextRequest('http://localhost:3000/api/sales', { method: 'POST', body: fiadoBody, headers: { 'Idempotency-Key': 'fiado-key-1' } }));
+      expect(response.status).toBe(409);
+      expect(await response.json()).toEqual({
+        code: 'CUSTOMER_CREDIT_BLOCKED',
+        message: 'Este cliente está com o fiado bloqueado. A venda só pode ser feita à vista.',
+      });
     });
   });
 

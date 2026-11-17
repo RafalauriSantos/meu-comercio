@@ -21,6 +21,7 @@ import { CreditMovement } from '@/modules/customers/domain/credit-movement';
 import { CreditLimitExceededError } from '@/modules/customers/domain/errors';
 import { InsufficientStockError } from '@/modules/inventory/domain/inventory-item';
 import { CashSessionNotOpenError } from '../domain/errors';
+import type { LockedCustomerCredit } from '../domain/sale-repository.port';
 import { DrizzleSaleRepository } from './drizzle-sale-repository';
 
 // Runs only when TEST_DATABASE_URL points to a disposable Postgres database.
@@ -117,7 +118,7 @@ describe.skipIf(!TEST_DATABASE_URL)('DrizzleSaleRepository.commitSale (Postgres)
         cashSessionId: seed.cashSessionId,
         note: 'Venda fiado',
       }),
-      ensureWithinLimit: async (currentDebt: Money) => {
+      ensureAllowed: async (_locked: LockedCustomerCredit, currentDebt: Money) => {
         // Holds the transaction open so a concurrent sale would read the same balance if unlocked.
         if (holdMs > 0) await new Promise((resolve) => setTimeout(resolve, holdMs));
         if (currentDebt.add(money).isGreaterThan(limitMoney)) {

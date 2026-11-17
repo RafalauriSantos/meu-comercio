@@ -16,6 +16,7 @@ import { CreditMovement } from '@/modules/customers/domain/credit-movement';
 import { Customer } from '@/modules/customers/domain/customer';
 import {
   CustomerNotFoundError,
+  CustomerCreditBlockedError,
   CreditLimitExceededError,
   InvalidOwnerPinError,
 } from '@/modules/customers/domain/errors';
@@ -173,6 +174,8 @@ export class CreateSaleUseCase {
       throw new CustomerNotFoundError(customerId);
     }
     customer.ensureActive();
+    // Cheap early refusal, before any owner PIN attempt is spent. The binding check is inside the commit.
+    customer.ensureCreditNotBlocked();
 
     const balance = await customerCreditRepository.getBalance(dto.merchantId, customerId);
     const exceedsLimit = customer.wouldExceedCreditLimit(balance.currentDebt, tab.amount);
@@ -215,8 +218,10 @@ export class CreateSaleUseCase {
     return {
       customerId: credit.customerId,
       movement,
-      ensureWithinLimit: (currentDebt) => {
-        if (!credit.limitAuthorized && credit.customer.wouldExceedCreditLimit(currentDebt, credit.amount)) {
+      ensureAllowed: (locked, currentDebt) => {
+        // Both checks use the row read under the lock, not the customer read before it (D-26, 22.9g).
+        if (locked.creditBlocked) throw new CustomerCreditBlockedError();
+        if (!credit.limitAuthorized && currentDebt.add(credit.amount).isGreaterThan(locked.creditLimit)) {
           throw new CreditLimitExceededError();
         }
       },

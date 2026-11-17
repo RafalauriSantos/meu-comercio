@@ -68,3 +68,11 @@ export class InvalidCreditLimitError extends Error {
     this.name = 'InvalidCreditLimitError';
   }
 }
+
+/** D-26: the owner blocked this customer's credit; a credit sale is refused even with the owner PIN. */
+export class CustomerCreditBlockedError extends Error {
+  constructor(message = 'Este cliente está com o fiado bloqueado. A venda só pode ser feita à vista.') {
+    super(message);
+    this.name = 'CustomerCreditBlockedError';
+  }
+}

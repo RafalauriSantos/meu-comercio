@@ -17,7 +17,7 @@ This document defines how changes move from a branch to production. It is the so
 
 ## Local gate (before push)
 
-1. Tests for the changed area pass, then the full suite: `npx vitest run`, `npx tsc --noEmit`, `npm run lint`, `npm audit --audit-level=high`, and `npm run build` with `DATABASE_URL` unset, so the build does not apply the database schema. Show the real output. `npm run ci:local` runs these steps in one go (and the Postgres integration test when `TEST_DATABASE_URL` points to a disposable local database).
+1. Tests for the changed area pass, then the full suite: `npx vitest run`, `npx tsc --noEmit`, `npm run lint`, `node scripts/audit-gate.mjs` (o mesmo que `npm audit --audit-level=high`, menos o aviso temporário do picomatch, até 17/12/2026; ver backlog 21.6), and `npm run build` with `DATABASE_URL` unset, so the build does not apply the database schema. Show the real output. `npm run ci:local` runs these steps in one go (and the Postgres integration test when `TEST_DATABASE_URL` points to a disposable local database).
 2. `pr-reviewer` reviews the diff against `origin/main`. Fix every blocking and important finding, rerun the gate, and review again until none remain.
 
 ## Remote gate (GitHub)

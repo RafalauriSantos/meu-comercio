@@ -384,7 +384,7 @@ export const apiClient = {
   },
   getProductsSummary: () => apiRequest<ProductsSummary>('/api/products/summary'),
   createProduct: (payload: {
-    barcode: string;
+    barcode?: string;
     name: string;
     salePrice: number | string;
     initialStock?: number;
@@ -393,7 +393,7 @@ export const apiClient = {
     apiRequest<ProductItem>('/api/products', {
       method: 'POST',
       body: JSON.stringify({
-        barcode: payload.barcode,
+        barcode: payload.barcode || undefined,
         name: payload.name,
         salePrice: payload.salePrice,
         initialStock: payload.initialStock ?? 0,

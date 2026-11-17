@@ -88,13 +88,12 @@ export function NewProductPanel({
               id="np-barcode"
               ref={barcodeRef}
               className="input"
-              required
               autoComplete="off"
               value={barcode}
               onChange={(e) => onBarcode(e.target.value)}
               onKeyDown={onBarcodeKeyDown}
               onBlur={(e) => onBarcodeBlur(e.target.value)}
-              placeholder="Bipe o produto ou digite o código"
+              placeholder="Gerado automaticamente se ficar vazio"
             />
             {barcodeNote && (
               <span className="mg-help mg-help-warn" role="alert">

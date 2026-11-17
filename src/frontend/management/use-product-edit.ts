@@ -16,6 +16,8 @@ interface UseProductEditParams {
 export function useProductEdit({ setFeedback, setProcessing, applyEdit, reload }: UseProductEditParams) {
   // A copy taken on open: its updatedAt and original values do not change if the list is loaded again.
   const [target, setTarget] = useState<ProductItem | null>(null);
+  // The panel plays its exit while closing; it calls finishClose at the end, and only then the target is dropped.
+  const [closing, setClosing] = useState(false);
   const [draft, setDraft] = useState<EditDraft>({ name: '', price: '', barcode: '' });
   const [barcodeNote, setBarcodeNote] = useState<string | null>(null);
   const [error, setError] = useState<EditError | null>(null);
@@ -24,6 +26,7 @@ export function useProductEdit({ setFeedback, setProcessing, applyEdit, reload }
   const nameRef = useRef<HTMLInputElement>(null);
 
   function open(product: ProductItem) {
+    setClosing(false);
     setTarget(product);
     setDraft(draftFromProduct(product));
     setBarcodeNote(null);
@@ -32,7 +35,12 @@ export function useProductEdit({ setFeedback, setProcessing, applyEdit, reload }
   }
 
   function close() {
+    setClosing(true);
+  }
+
+  function finishClose() {
     setTarget(null);
+    setClosing(false);
     setBarcodeNote(null);
     setError(null);
     setScanWarning(false);
@@ -91,8 +99,9 @@ export function useProductEdit({ setFeedback, setProcessing, applyEdit, reload }
   }
 
   return {
-    targetId: target?.id ?? null,
+    targetId: target && !closing ? target.id : null,
     target,
+    closing,
     draft,
     barcodeNote,
     error,
@@ -101,6 +110,7 @@ export function useProductEdit({ setFeedback, setProcessing, applyEdit, reload }
     nameRef,
     open,
     close,
+    finishClose,
     changeDraft,
     checkBarcode,
     handleBarcodeKeyDown,

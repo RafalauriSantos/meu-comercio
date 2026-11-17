@@ -56,4 +56,9 @@ describe('product edit (source locks)', () => {
     expect(source).toContain('submitProductEdit(apiClient.updateProduct,');
     expect(source).toContain('expectedUpdatedAt');
   });
+
+  it('Gerar código asks first, calls the api only through submitGenerateBarcode and confirms the new code in green', () => {
+    expect(source).toMatch(/if \(!confirm\(GENERATE_BARCODE_QUESTION\)\) return;[\s\S]*?submitGenerateBarcode\(apiClient\.updateProduct, target\)/);
+    expect(source).toContain('text: `Código gerado: ${result.item.barcode}`, isSuccess: true');
+  });
 });

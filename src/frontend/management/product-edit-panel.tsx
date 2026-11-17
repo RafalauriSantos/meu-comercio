@@ -31,6 +31,7 @@ interface ProductEditPanelProps {
   onReload: () => void;
   onBarcodeBlur: (code: string) => void;
   onBarcodeKeyDown: (e: React.KeyboardEvent<HTMLInputElement>) => void;
+  onGenerateBarcode: () => void;
 }
 
 /** The edit form of one product, in a side panel (a modal <dialog>). It only draws: the rules are in product-edit.ts. */
@@ -50,6 +51,7 @@ export function ProductEditPanel({
   onReload,
   onBarcodeBlur,
   onBarcodeKeyDown,
+  onGenerateBarcode,
 }: ProductEditPanelProps) {
   const id = target.id;
   const titleId = useId();
@@ -110,16 +112,26 @@ export function ProductEditPanel({
           </div>
           <div>
             <label className="field-label" htmlFor={`edit-barcode-${id}`}>Código de Barras</label>
-            <input
-              id={`edit-barcode-${id}`}
-              className="input"
-              required
-              autoComplete="off"
-              value={draft.barcode}
-              onChange={(e) => onDraft({ barcode: e.target.value })}
-              onKeyDown={onBarcodeKeyDown}
-              onBlur={(e) => onBarcodeBlur(e.target.value)}
-            />
+            <div className="mg-input-action">
+              <input
+                id={`edit-barcode-${id}`}
+                className="input"
+                required
+                autoComplete="off"
+                value={draft.barcode}
+                onChange={(e) => onDraft({ barcode: e.target.value })}
+                onKeyDown={onBarcodeKeyDown}
+                onBlur={(e) => onBarcodeBlur(e.target.value)}
+              />
+              <button className="outline" type="button" disabled={processing || !unchanged} onClick={onGenerateBarcode}>
+                Gerar código
+              </button>
+            </div>
+            {!unchanged && (
+              <span className="mg-help">
+                Salve as alterações antes de gerar um código.
+              </span>
+            )}
             {barcodeNote && (
               <span className="mg-help mg-help-warn" role="alert">
                 {barcodeNote}

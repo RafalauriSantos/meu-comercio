@@ -183,6 +183,17 @@
   font-weight: 600;
 }
 
+/* A field with a button beside it (the barcode and Gerar código). */
+.management-page .mg-input-action {
+  display: flex;
+  gap: 8px;
+}
+
+.management-page .mg-input-action .input {
+  flex: 1;
+  min-width: 0;
+}
+
 .management-page .mg-help {
   display: block;
   margin-top: 4px;

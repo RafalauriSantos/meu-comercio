@@ -3,7 +3,12 @@
 import React, { useState, useRef } from 'react';
 import { apiClient, type ProductItem } from '@/frontend/lib/api-client';
 import { findProductWithBarcode, takenBarcodeMessage } from '@/frontend/management/barcode-check';
-import { draftFromProduct, submitProductEdit, type EditDraft, type EditError } from '@/frontend/management/product-edit';
+import {
+  GENERATE_BARCODE_QUESTION,
+  draftFromProduct,
+  submitGenerateBarcode,
+  submitProductEdit,
+  type EditDraft, type EditError } from '@/frontend/management/product-edit';
 
 interface UseProductEditParams {
   setFeedback: (feedback: { text: string; isError?: boolean; isSuccess?: boolean } | null) => void;
@@ -92,6 +97,29 @@ export function useProductEdit({ setFeedback, setProcessing, applyEdit, reload }
     }
   }
 
+  // The server picks the code; the panel only asks first and shows the new code once saved.
+  async function handleGenerateBarcode() {
+    if (!target) return;
+    if (!confirm(GENERATE_BARCODE_QUESTION)) return;
+    setProcessing(true);
+    setFeedback(null);
+    setError(null);
+    try {
+      const result = await submitGenerateBarcode(apiClient.updateProduct, target);
+      if (result.kind === 'failed') {
+        setError({ text: result.text, reload: result.reload });
+        return;
+      }
+      if (result.kind === 'saved') {
+        applyEdit(result.item);
+        setFeedback({ text: `Código gerado: ${result.item.barcode}`, isSuccess: true });
+      }
+      close();
+    } finally {
+      setProcessing(false);
+    }
+  }
+
   // Closes the edit and loads the list again: the way out of a conflict.
   async function handleReload() {
     close();
@@ -115,6 +143,7 @@ export function useProductEdit({ setFeedback, setProcessing, applyEdit, reload }
     checkBarcode,
     handleBarcodeKeyDown,
     handleSubmit,
+    handleGenerateBarcode,
     handleReload,
   };
 }

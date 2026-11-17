@@ -290,11 +290,20 @@ Este documento rastreia formalmente as fatias verticais de entrega, critérios d
 - [ ] 22.9 **Clientes e Fiado: editar e validar o telefone** (pedido da dona; o telefone aceitava número gigante e não havia como editar cliente):
   - [x] 22.9a Regra do telefone (D-21): só dígitos, 10 ou 11, DDD + 8 ou 9; aceita máscara e `+55`; telefone repetido conferido pelos dígitos; limites de tamanho no cadastro (nome 160, telefone 32); erro de banco deixa de vazar para a tela; clientes antigos fora do padrão continuam lidos e usados (PR #113).
   - [x] 22.9b Editar nome e telefone, `PATCH /api/customers/[id]`, só proprietária, com proteção contra edição simultânea e auditoria (D-22, PR #114).
-  - [ ] 22.9c Editar o limite de fiado (dinheiro; teto de R$ 100.000,00, sem PIN, pode ficar abaixo da dívida). Em andamento.
-  - [ ] 22.9d Cliente da API, máscara de telefone `(11) 99999-8888` e regra de "fora do padrão" no front, mais mover `priceToDigits` para `lib` (ADR-020). Em andamento.
-  - [ ] 22.9e Tela de edição de clientes (painel lateral com animação, no molde do produto), marca "Telefone fora do padrão" nos antigos e aviso quando o limite fica abaixo da dívida.
+  - [x] 22.9c Editar o limite de fiado (dinheiro; teto de R$ 100.000,00, sem PIN, pode ficar abaixo da dívida), só proprietária (PR #117).
+  - [x] 22.9d Cliente da API, máscara de telefone `(11) 99999-8888` e regra de "fora do padrão" no front, mais mover `priceToDigits` para `lib` (ADR-020) (PR #116).
+  - [x] 22.9e Tela de edição de clientes (painel lateral com animação, no molde do produto), marca "Telefone fora do padrão" nos antigos e aviso quando o limite fica abaixo da dívida (PR #121; o botão Editar só aparece para a proprietária).
   - [ ] 22.9f **Brecha de permissão:** a operadora hoje cadastra cliente e define o limite de fiado (o cadastro só exige estar logada). Decisão da dona: a operadora continua cadastrando, com **limite zero**, e só a proprietária libera valor. PR próprio.
   - [ ] 22.9g Janela de milissegundos em que a venda no fiado usa o limite lido antes da trava do cliente (risco baixo; mexe em dinheiro, PR próprio).
+- [ ] 22.10 **Novo layout de Clientes e Fiado** (protótipo aprovado pela dona; spec em `.dev-team/spec-customers-layout.md`):
+  - [x] 22.10a Faixa de resumo, busca, filtros (Todos, Devendo, Acima do limite), lista no computador e cartões no celular, selos de situação e Receber (PR #119).
+  - [x] 22.10b Painel lateral de edição do cliente, igual ao de produtos (PR #121).
+  - [ ] 22.10c Novo cliente no mesmo painel (hoje é formulário na página); a operadora cadastra com limite zero (junto com 22.9f).
+  - [ ] 22.10d Conferir no navegador e no celular (largura de 1280 e 390 px, animação, foco): só foi testado por HTML estático. O ponto de quebra entre linhas e cartões ficou em 600 px (a spec sugeria 768 px).
+- [ ] 22.11 **Código de barras gerado pelo sistema** (22.4, D-23), em 3 PRs: (1) decisão e gerador puro (PR #123, feito); (2) API: `barcode` opcional no cadastro, geração e nova tentativa em colisão (até 5); (3) tela: campo "Gerado automaticamente" e código mostrado no aviso de sucesso. Fora: etiqueta, CSV e filtro. O prefixo 29 evita a faixa 2 das balanças.
+- [ ] 22.12 **Bipar na tela de vendas:** qualquer bipada põe o produto no carrinho, sem clicar antes no campo de busca. A bipada vale só para a tela aberta (cadastro e venda não podem receber a bipada um do outro) e o código gerado (22.11) tem de ser achado como qualquer outro. Conferir a troca de aba na tela real.
+- [ ] 22.13 **Venda por peso** (ex.: mussarela a R$ 62,00 o kg): propor antes de implementar. Ideia inicial: unidade do produto (unidade ou kg), peso digitado ou vindo da balança no caixa, total calculado com `Money`, estoque em quilos. Mexe em dinheiro e em estoque: spec e arquitetura primeiro.
+- [x] 22.14 **Time e robôs em Sonnet, esforço médio:** os 8 agentes especialistas (arquivos em `~/.claude/agents`) e o review do Claude no CI (`--model claude-sonnet-5-5`, PR #122). O review só comenta de novo se o PR for novo: PR que já tem comentário dele e é reaberto fica com o check vermelho; PR que muda o próprio workflow também (o action recusa).
 
 ### [ ] Slice 23: Sessão e erros de rede (pedidos da dona, uso real da loja)
 > A sessão caía a cada 30 minutos fixos, mesmo com a dona usando, e a tela ficava parada com "Não autorizado". As regras D-09 e D-16 já diziam "até fechar o caixa, teto de 12 h", e o código não as cumpria.

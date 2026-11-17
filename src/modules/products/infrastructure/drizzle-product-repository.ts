@@ -88,7 +88,8 @@ export class DrizzleProductRepository implements ProductRepository {
             ...(diff.name && { name: after.name }),
             ...(diff.salePrice && { salePrice: after.salePrice.toDecimal() }),
             ...(diff.barcode && { barcode: after.barcode }),
-            updatedAt: sql`CURRENT_TIMESTAMP`,
+            // Strictly greater than the previous value, in whole milliseconds (the precision of expectedUpdatedAt).
+            updatedAt: sql`GREATEST(date_trunc('milliseconds', clock_timestamp()), date_trunc('milliseconds', ${products.updatedAt}) + interval '1 millisecond')`,
           })
           .where(where)
           .returning();

@@ -80,11 +80,6 @@ beforeEach(() => {
 describe('rotas só da dona (ROLE_OWNER)', () => {
   const ownerOnly: (Case & { message: string })[] = [
     {
-      name: 'POST /api/products',
-      call: () => productsPost(req('POST', '/api/products')),
-      message: 'Apenas a proprietária pode cadastrar novos produtos no catálogo.',
-    },
-    {
       name: 'PATCH /api/products/[id]',
       call: () => productPatch(req('PATCH', `/api/products/${SALE_ID}`), params),
       message: 'Apenas a proprietária pode editar produtos do catálogo.',
@@ -157,6 +152,18 @@ describe('rotas só da dona (ROLE_OWNER)', () => {
       const response = await call();
       expect(response.status).toBe(400);
     });
+  });
+});
+
+describe('POST /api/products (D-25): qualquer usuária logada', () => {
+  it('sem sessão: 401', async () => {
+    mockRequireAuthSession.mockRejectedValue(new UnauthorizedError());
+    expect((await productsPost(req('POST', '/api/products'))).status).toBe(401);
+  });
+
+  it.each([['dona', owner], ['operador real', realOperator]])('%s passa da checagem e para no corpo inválido: 400', async (_n, s) => {
+    mockRequireAuthSession.mockResolvedValue(s);
+    expect((await productsPost(req('POST', '/api/products'))).status).toBe(400);
   });
 });
 

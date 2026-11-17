@@ -47,6 +47,24 @@ export class BarcodeGenerationFailedError extends Error {
   }
 }
 
+export class OperatorProductRuleError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'OperatorProductRuleError';
+  }
+}
+
+// D-25: a non-owner registers only with a price above zero and never with initial stock.
+export function assertOperatorProductRules(rawInput: unknown): void {
+  const input = CreateProductSchema.parse(rawInput);
+  if (!Money.fromDecimal(input.salePrice).isPositive()) {
+    throw new OperatorProductRuleError('O preço de venda deve ser maior que zero.');
+  }
+  if (input.initialStock > 0) {
+    throw new OperatorProductRuleError('Apenas a proprietária pode definir o estoque inicial do produto.');
+  }
+}
+
 const MAX_GENERATION_ATTEMPTS = 5;
 
 export class CreateProductUseCase {

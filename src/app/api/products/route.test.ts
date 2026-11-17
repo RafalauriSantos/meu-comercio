@@ -133,13 +133,62 @@ describe('POST /api/products', () => {
     mockGetAvailableQuantity.mockResolvedValue(0);
   });
 
-  it('answers 403 to a non-owner and does not create', async () => {
-    mockRequireAuthSession.mockResolvedValue({ merchantId: 'merchant-1', username: 'ana', authorities: [] });
+  it('answers 401 without a session and does not create', async () => {
+    mockRequireAuthSession.mockRejectedValue(new UnauthorizedError());
 
     const response = await post({ name: 'Arroz', salePrice: '10.00' });
 
-    expect(response.status).toBe(403);
+    expect(response.status).toBe(401);
     expect(mockExecute).not.toHaveBeenCalled();
+  });
+
+  describe('as an operator (D-25)', () => {
+    beforeEach(() => {
+      mockRequireAuthSession.mockResolvedValue({ merchantId: 'merchant-1', username: 'ana', authorities: [] });
+    });
+
+    it('answers 201 and creates in the session merchant with the operator as author', async () => {
+      mockExecute.mockResolvedValue(
+        Product.create('merchant-1', '789', 'Arroz', Money.fromDecimal('10.00'), 'p1')
+      );
+
+      const response = await post({ barcode: '789', name: 'Arroz', salePrice: '10.00', merchantId: 'other' });
+
+      expect(response.status).toBe(201);
+      expect(mockExecute.mock.calls[0].slice(0, 2)).toEqual(['merchant-1', 'ana']);
+    });
+
+    it('answers 400 in Portuguese for price zero and does not create', async () => {
+      const response = await post({ name: 'Arroz', salePrice: '0.00' });
+
+      expect(response.status).toBe(400);
+      expect((await response.json()).message).toBe('O preço de venda deve ser maior que zero.');
+      expect(mockExecute).not.toHaveBeenCalled();
+    });
+
+    it('answers 400 for initial stock above zero and does not create', async () => {
+      const response = await post({ name: 'Arroz', salePrice: '10.00', initialStock: 3 });
+
+      expect(response.status).toBe(400);
+      expect((await response.json()).message).toMatch(/estoque inicial/i);
+      expect(mockExecute).not.toHaveBeenCalled();
+    });
+
+    it('answers 400 for invalid data', async () => {
+      expect((await post({ name: 'A', salePrice: '10.00' })).status).toBe(400);
+      expect(mockExecute).not.toHaveBeenCalled();
+    });
+  });
+
+  it('lets the owner register with price zero', async () => {
+    mockExecute.mockResolvedValue(
+      Product.create('merchant-1', '789', 'Brinde', Money.fromDecimal('0.00'), 'p1')
+    );
+
+    const response = await post({ barcode: '789', name: 'Brinde', salePrice: '0.00' });
+
+    expect(response.status).toBe(201);
+    expect(mockExecute).toHaveBeenCalledWith('merchant-1', 'dona', { barcode: '789', name: 'Brinde', salePrice: '0.00' });
   });
 
   it('answers 201 with the generated barcode in the body', async () => {

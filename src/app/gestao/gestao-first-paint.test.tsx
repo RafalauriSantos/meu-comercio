@@ -102,8 +102,8 @@ describe('/gestao loading failures and requests (locked as at HEAD, baseline.md)
   // (apiClient.getCustomerBalance inside the retry). Every other retry reuses the existing loadX functions.
   // Counted over the whole screen: the 20 of page.tsx plus the 2 of import-products-panel.tsx, which is its
   // own file and does not move.
-  it('has 21 apiClient calls: the 19 of HEAD plus the single retry of the missing balances, plus the barcode scan lookup, plus updateProduct and the barcode lookup of the product edit (and 2 in import-products-panel)', () => {
-    expect(count(source, 'apiClient.')).toBe(21 + 2 + 2 + 2);
+  it('has 21 apiClient calls: the 19 of HEAD plus the single retry of the missing balances, plus the barcode scan lookup, plus updateProduct and the barcode lookup of the product edit (and 2 in import-products-panel), plus updateCustomer of the customer edit', () => {
+    expect(count(source, 'apiClient.')).toBe(21 + 2 + 2 + 2 + 1);
     expect(count(source, 'apiClient.getCustomerBalance(')).toBe(2);
     expect(count(source, 'apiClient.listCustomers(')).toBe(1);
     expect(count(source, 'apiClient.listProducts(')).toBe(2);

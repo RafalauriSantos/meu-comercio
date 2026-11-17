@@ -4,6 +4,7 @@ import React, { useState, useCallback } from 'react';
 import { apiClient, CustomerItem, CustomerBalance, CreditMetricsData } from '@/frontend/lib/api-client';
 import { formatMoney, parseCurrencyInput, getErrorMessage } from '@/frontend/lib/formatters';
 import type { CustomerFilter } from './customers-list';
+import { useCustomerEdit } from './use-customer-edit';
 
 type Feedback = { text: string; isError?: boolean; isSuccess?: boolean } | null;
 type CustomersLoadFailed = { customers?: boolean; balances?: boolean; metrics?: boolean };
@@ -36,7 +37,8 @@ export function useCustomersTab({ setFeedback, setProcessing, setLoadFailed, loa
   // Métricas de Fiado na Rua
   const [creditMetrics, setCreditMetrics] = useState<CreditMetricsData | null>(null);
 
-  const loadCustomers = useCallback(async () => {
+  // Returns the list (null when it failed), so a conflict in the edit panel can reopen with the new data.
+  const loadCustomers = useCallback(async (): Promise<CustomerItem[] | null> => {
     try {
       const res = await apiClient.listCustomers();
       const list = res.items || [];
@@ -60,9 +62,11 @@ export function useCustomersTab({ setFeedback, setProcessing, setLoadFailed, loa
       }
       setCustomerBalances(balances);
       setLoadFailed((f) => ({ ...f, customers: false, balances: list.some((c) => !balances[c.id]) }));
+      return list;
     } catch (err) {
       setLoadFailed((f) => ({ ...f, customers: true }));
       console.error('Erro ao carregar clientes:', err);
+      return null;
     }
   }, [setLoadFailed]);
 
@@ -94,6 +98,17 @@ export function useCustomersTab({ setFeedback, setProcessing, setLoadFailed, loa
     // O que já está no estado (ex.: de um loadCustomers mais novo) sempre vence o saldo do retry.
     setCustomerBalances((prev) => ({ ...found, ...prev }));
   }
+
+  const edit = useCustomerEdit({
+    setFeedback,
+    setProcessing,
+    // The new name and limit show at once; the balances are read again for the badge and the bar.
+    applyEdit: (item) => {
+      setCustomers((cur) => cur.map((c) => (c.id === item.id ? { ...c, ...item } : c)));
+      void loadCustomers();
+    },
+    reload: loadCustomers,
+  });
 
   // --- Handlers de Clientes / Fiado ---
   async function handleCreateCustomer(e: React.FormEvent) {
@@ -169,5 +184,6 @@ export function useCustomersTab({ setFeedback, setProcessing, setLoadFailed, loa
     loadMissingBalances,
     handleCreateCustomer,
     handleSettleDebt,
+    edit,
   };
 }

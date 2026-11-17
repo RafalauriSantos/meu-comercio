@@ -45,7 +45,9 @@ function render({
   filter = 'all',
   query = '',
   creditMetrics = metrics as CreditMetricsData | null,
+  isOwner = true,
 }: {
+  isOwner?: boolean;
   list?: CustomerItem[];
   bal?: Record<string, CustomerBalance>;
   filter?: CustomerFilter;
@@ -60,9 +62,11 @@ function render({
     showNewCustomer: false,
     settlingCustomer: null,
     creditMetrics,
+    edit: { target: null },
   } as unknown as ReturnType<typeof useCustomersTab>;
+  const user = { username: 'u', merchantId: 'm', authorities: [], isOwner };
   return renderToStaticMarkup(
-    <CustomersTab tab={tab} loadFailed={{}} retrying={false} processing={false} retry={async () => {}} />,
+    <CustomersTab tab={tab} user={user} loadFailed={{}} retrying={false} processing={false} retry={async () => {}} />,
   );
 }
 
@@ -153,5 +157,17 @@ describe('CustomersTab rows', () => {
     const html = render({ query: 'zzz' });
     expect(html).toContain('Nenhum cliente encontrado');
     expect(html).not.toContain('<ul');
+  });
+});
+
+describe('CustomersTab Editar button', () => {
+  it('shows Editar on every row for the owner, even for who is up to date', () => {
+    const html = render();
+    expect(html.match(/aria-label="Editar /g)).toHaveLength(5);
+    expect(html).toContain('aria-label="Editar Seu Antenor"');
+  });
+
+  it('hides Editar from the operator', () => {
+    expect(render({ isOwner: false })).not.toContain('Editar');
   });
 });

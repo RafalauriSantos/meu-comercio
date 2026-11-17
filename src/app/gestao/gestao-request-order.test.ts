@@ -295,8 +295,8 @@ describe('/gestao: the apiClient calls and the /login redirects in the source of
   const source = readScreenSource('gestao');
   const count = (needle: string) => source.split(needle).length - 1;
 
-  it('has 21 + 2 + 2 apiClient. (the product edit adds updateProduct and its barcode lookup) and 2 router.push(/login)', () => {
-    expect(count('apiClient.')).toBe(21 + 2 + 2 + 2);
+  it('has 21 + 2 + 2 apiClient. (the product edit adds updateProduct and its barcode lookup, the customer edit adds updateCustomer) and 2 router.push(/login)', () => {
+    expect(count('apiClient.')).toBe(21 + 2 + 2 + 2 + 1);
     expect(count("router.push('/login')") + count('router.push(loginUrlHere())')).toBe(2);
   });
 
@@ -327,6 +327,7 @@ describe('/gestao: the apiClient calls and the /login redirects in the source of
       recordWithdrawal: 1,
       restockInventory: 1,
       settleCustomerDebt: 1,
+      updateCustomer: 1,
       updateProduct: 1,
       updateStoreSettings: 1,
     });

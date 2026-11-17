@@ -46,3 +46,10 @@ export class NoOpenCashSessionError extends Error {
     this.name = 'NoOpenCashSessionError';
   }
 }
+
+export class InvalidPhoneError extends Error {
+  constructor(message = 'Telefone inválido. Use o DDD e o número, com 8 ou 9 dígitos.') {
+    super(message);
+    this.name = 'InvalidPhoneError';
+  }
+}

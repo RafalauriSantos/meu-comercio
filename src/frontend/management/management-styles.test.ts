@@ -67,6 +67,64 @@ describe('edit side panel css', () => {
   });
 });
 
+describe('catalog phone css (max-width 600px)', () => {
+  const marker = '@media (max-width: 600px)';
+  const phone = css.slice(css.lastIndexOf(marker));
+  const desktop = css.slice(0, css.lastIndexOf(marker));
+
+  it('keeps the desktop list as it was: grid columns and the 560px minimum width outside the phone block', () => {
+    expect(desktop).toMatch(/\.mg-list \{[^}]*min-width: 560px/);
+    expect(desktop).toMatch(/\.mg-list-head,\s*\.management-page \.mg-row \{[^}]*grid-template-columns: var\(--mg-list-columns\)/);
+    expect(phone).not.toMatch(/--mg-list-columns/);
+  });
+
+  it('drops the 560px minimum width of the list, so there is no horizontal scroll', () => {
+    expect(phone).toMatch(/\.mg-list \{[^}]*min-width: 0/);
+  });
+
+  it('turns each row into a card with the name, code and price on the left and Editar on the right', () => {
+    expect(phone).toMatch(/\.mg-list \.mg-row \{[^}]*grid-template-columns: minmax\(0, 1fr\) auto[^}]*border-radius: 12px/);
+    expect(phone).toMatch(/\.mg-list \.mg-row > :first-child strong \{[^}]*-webkit-line-clamp: 2/);
+    expect(phone).toMatch(/\.mg-list \.mg-row > :nth-last-child\(2\) \{[^}]*grid-column: 1[^}]*font-weight: 700/);
+    expect(phone).toMatch(/\.mg-list \.mg-row > :last-child \{[^}]*grid-column: 2[^}]*grid-row: 1 \/ span 2/);
+  });
+
+  it('makes Editar and Entrada at least 44px high', () => {
+    expect(phone).toMatch(/\.mg-list \.mg-row-action \{[^}]*min-height: 44px/);
+  });
+
+  it('hides the column header visually but keeps it for screen readers', () => {
+    expect(phone).toMatch(/\.mg-list-head \{[^}]*position: absolute[^}]*width: 1px[^}]*clip: rect\(0 0 0 0\)/);
+  });
+
+  it('with the stock on, adds Em estoque and Entrada as a third line of the card, and opens the restock inside the card', () => {
+    expect(phone).toMatch(/\.mg-list-stock \.mg-row > :nth-child\(2\) \{[^}]*grid-column: 1[^}]*grid-row: 3/);
+    expect(phone).toMatch(/\.mg-list-stock \.mg-row > :nth-child\(3\) \{[^}]*grid-column: 2[^}]*grid-row: 3/);
+    expect(phone).toMatch(/\.mg-list \.mg-row:has\(\+ \.mg-restock-row\) \{[^}]*border-bottom-left-radius: 0/);
+    expect(phone).toMatch(/\.mg-list \.mg-restock-row \{[^}]*border-radius: 0 0 12px 12px/);
+    expect(phone).toMatch(/\.mg-restock \.input \{[^}]*width: 100%/);
+  });
+
+  it('stacks the summary and gives the stock switch 44px', () => {
+    expect(phone).toMatch(/\.mg-summary \{[^}]*flex-direction: column[^}]*align-items: stretch/);
+    expect(phone).toMatch(/\.mg-summary-action \{[^}]*min-height: 44px/);
+  });
+
+  it('stacks the toolbar: full-width search, Novo Produto 48px, Importar side by side', () => {
+    expect(phone).toMatch(/\.mg-search \{[^}]*flex: 1 1 100%[^}]*max-width: none/);
+    expect(phone).toMatch(/\.mg-toolbar-new \{[^}]*flex: 1 1 0[^}]*min-height: 48px/);
+    expect(phone).toMatch(/\.mg-toolbar-import \{[^}]*flex: 1 1 0[^}]*min-height: 48px/);
+  });
+
+  it('makes the footer button full width and at least 44px', () => {
+    expect(phone).toMatch(/\.mg-foot button \{[^}]*width: 100%[^}]*min-height: 44px/);
+  });
+
+  it('does not use position: fixed or sticky for the toolbar (it stays in the flow)', () => {
+    expect(phone).not.toMatch(/position: (fixed|sticky)/);
+  });
+});
+
 describe('gestao page markup', () => {
   it('has no hard-coded colors or legacy PDV variables in inline styles', () => {
     expect(page).not.toMatch(/#[0-9a-fA-F]{3,8}['"]/);

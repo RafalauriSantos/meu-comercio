@@ -1,4 +1,4 @@
-import { ApiError } from './api-client';
+import { ApiError, isConnectionError } from './api-client';
 
 export interface OfflineSaleResponse {
   status: number;
@@ -7,14 +7,14 @@ export interface OfflineSaleResponse {
 
 /**
  * Turns the result of sending one queued sale into the response the offline queue understands.
- * Only network failures are rethrown, because those stop the whole queue.
+ * Only network failures and time-outs are rethrown, because those stop the whole queue.
  */
 export async function settleOfflineSale(send: () => Promise<unknown>): Promise<OfflineSaleResponse> {
   try {
     await send();
     return { status: 201 };
   } catch (err) {
-    if (!(err instanceof ApiError)) {
+    if (isConnectionError(err) || !(err instanceof ApiError)) {
       throw err;
     }
     // The server already recorded this sale: it is synced.

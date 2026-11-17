@@ -67,4 +67,9 @@ describe('LoadFailureNotice (server markup)', () => {
     const html = renderToStaticMarkup(<LoadFailureNotice what="os produtos" onRetry={() => {}} busy />);
     expect(html).toMatch(/<button[^>]*disabled=""[^>]*>Tentar de novo<\/button>/);
   });
+
+  it('says why it failed after the sentence when a reason is given', () => {
+    const html = renderToStaticMarkup(<LoadFailureNotice what="o PDV" reason="A conexão está lenta. Tente de novo." onRetry={() => {}} />);
+    expect(html).toContain('Não foi possível carregar o PDV. A conexão está lenta. Tente de novo.');
+  });
 });

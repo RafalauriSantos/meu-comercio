@@ -1,6 +1,9 @@
 import type { ProductUnit } from '@/shared/domain/product-unit';
 import type { PeriodKind } from '@/modules/reports/domain/report-period';
-import { isSessionExpiry, notifySessionExpired } from './session-expired';
+import { notifySessionExpired } from './session-expired';
+import { classifyStatus, fallbackMessage, goesToLogin, timeoutFor, type ApiErrorKind } from './api-error';
+
+export type { ApiErrorKind } from './api-error';
 
 export type { SalesReport } from '@/modules/reports/application/get-sales-report.use-case';
 import type { SalesReport } from '@/modules/reports/application/get-sales-report.use-case';
@@ -41,11 +44,26 @@ export class ApiError extends Error {
     public readonly status: number,
     message: string,
     public readonly errors?: Array<{ field: string; message: string }>,
-    public readonly code?: string
+    public readonly code?: string,
+    /** Stable type of the failure. Without it, it comes from the status (a 401 counts as an expired session). */
+    public readonly kind: ApiErrorKind = classifyStatus(status, '')
   ) {
     super(message);
     this.name = 'ApiError';
   }
+}
+
+/** Only an expired session sends the person to the login. Network, time out, 429, 5xx and any bug stay on the screen. */
+export const shouldGoToLogin = (err: unknown): boolean => err instanceof ApiError && goesToLogin(err.kind);
+
+/** What to show when a screen could not load. */
+export const loadErrorMessage = (err: unknown): string =>
+  err instanceof ApiError ? err.message : fallbackMessage('server');
+
+/** The request never got an answer: no connection, or our time limit. Never an expired session. */
+export function isConnectionError(err: unknown): boolean {
+  if (err instanceof ApiError) return err.kind === 'network' || err.kind === 'timeout';
+  return err instanceof TypeError;
 }
 
 export interface AuthUser {
@@ -191,43 +209,79 @@ export interface SaleResponse {
   }>;
 }
 
+export type ApiRequestOptions = RequestInit & {
+  /** Overrides the time limit of this call in ms. null: no limit. Missing: by route (see timeoutFor). */
+  timeoutMs?: number | null;
+};
+
 export async function apiRequest<T>(
   path: string,
-  options: RequestInit = {}
+  { timeoutMs, ...options }: ApiRequestOptions = {}
 ): Promise<T> {
   const headers = new Headers(options.headers);
   if (options.body && !headers.has('Content-Type')) {
     headers.set('Content-Type', 'application/json');
   }
 
-  const response = await fetch(path, {
-    ...options,
-    credentials: 'include',
-    headers,
-  });
+  const limit = timeoutMs === undefined ? timeoutFor(options.method ?? 'GET', path) : timeoutMs;
+  const controller = new AbortController();
+  let timedOut = false;
+  const timer = limit
+    ? setTimeout(() => {
+        timedOut = true;
+        controller.abort();
+      }, limit)
+    : undefined;
+  // A call that never got an answer: our time limit, or no connection. Never an expired session.
+  const noAnswer = () => {
+    const kind = timedOut ? 'timeout' : 'network';
+    return new ApiError(0, fallbackMessage(kind), undefined, undefined, kind);
+  };
 
-  if (!response.ok) {
-    let message = 'Falha ao processar solicitação.';
-    let errors: Array<{ field: string; message: string }> | undefined;
-    let code: string | undefined;
+  try {
+    let response: Response;
     try {
-      const data = await response.json();
-      if (data.message) message = data.message;
-      else if (typeof data.error === 'string') message = data.error;
-      if (data.errors) errors = data.errors;
-      if (typeof data.code === 'string') code = data.code;
+      response = await fetch(path, {
+        ...options,
+        credentials: 'include',
+        headers,
+        signal: controller.signal,
+      });
     } catch {
-      // Body not JSON
+      throw noAnswer();
     }
-    if (isSessionExpiry(response.status, path)) notifySessionExpired();
-    throw new ApiError(response.status, message, errors, code);
-  }
 
-  if (response.status === 204) {
-    return undefined as unknown as T;
-  }
+    if (!response.ok) {
+      const kind = classifyStatus(response.status, path);
+      let message = fallbackMessage(kind);
+      let errors: Array<{ field: string; message: string }> | undefined;
+      let code: string | undefined;
+      try {
+        const data = await response.json();
+        if (data.message) message = data.message;
+        else if (typeof data.error === 'string') message = data.error;
+        if (data.errors) errors = data.errors;
+        if (typeof data.code === 'string') code = data.code;
+      } catch {
+        // Body not JSON
+      }
+      if (kind === 'session-expired') notifySessionExpired();
+      throw new ApiError(response.status, message, errors, code, kind);
+    }
 
-  return response.json() as Promise<T>;
+    if (response.status === 204) {
+      return undefined as unknown as T;
+    }
+
+    try {
+      return (await response.json()) as T;
+    } catch (err) {
+      // The time limit also covers reading the body.
+      throw timedOut ? noAnswer() : err;
+    }
+  } finally {
+    clearTimeout(timer);
+  }
 }
 
 export const apiClient = {

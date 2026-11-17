@@ -9,6 +9,7 @@ import { LoadFailureNotice } from '@/frontend/ui/load-failure-notice';
 import { ImportProductsPanel } from '@/frontend/management/import-products-panel';
 import { matchesStockFilter, stockStatus, type StockFilter } from '@/frontend/management/stock';
 import { needingRestockCount, shownText, stockValueText } from '@/frontend/management/products-list';
+import { ProductEditRow } from '@/frontend/management/product-edit-row';
 import { useBarcodeScan } from '@/frontend/management/use-barcode-scan';
 import type { useProductsTab } from './use-products-tab';
 
@@ -66,6 +67,8 @@ export function ProductsTab({ tab, stockControl, user, setFeedback, loadFailed, 
     handleScannedBarcode,
     handleCreateProduct,
     handleRestock,
+    edit,
+    startEdit,
   } = tab;
 
   useBarcodeScan(handleScannedBarcode);
@@ -237,6 +240,7 @@ export function ProductsTab({ tab, stockControl, user, setFeedback, loadFailed, 
                   value={productQuery}
                   onChange={(e) => {
                     setProductQuery(e.target.value);
+                    edit.close();
                     loadProducts(e.target.value);
                   }}
                 />
@@ -248,7 +252,10 @@ export function ProductsTab({ tab, stockControl, user, setFeedback, loadFailed, 
                         type="button"
                         className="mg-segment"
                         aria-pressed={stockFilter === f.value}
-                        onClick={() => setStockFilter(f.value)}
+                        onClick={() => {
+                          setStockFilter(f.value);
+                          edit.close();
+                        }}
                       >
                         {f.label}
                       </button>
@@ -268,7 +275,10 @@ export function ProductsTab({ tab, stockControl, user, setFeedback, loadFailed, 
                 <button
                   type="button"
                   className="primary mg-toolbar-secondary"
-                  onClick={() => setShowNewProduct(!showNewProduct)}
+                  onClick={() => {
+                    edit.close();
+                    setShowNewProduct(!showNewProduct);
+                  }}
                 >
                   {showNewProduct ? 'Cancelar' : '＋ Novo Produto'}
                 </button>
@@ -296,6 +306,17 @@ export function ProductsTab({ tab, stockControl, user, setFeedback, loadFailed, 
                               {stockControl && status === 'low' && <span className="mg-tag mg-tag-warn">Estoque baixo</span>}
                               {stockControl && status === 'out' && <span className="mg-tag mg-tag-danger">Sem estoque</span>}
                               <div className="muted mg-barcode num">{p.barcode}</div>
+                              {user?.isOwner && (
+                                <button
+                                  type="button"
+                                  className="outline mg-row-action"
+                                  aria-expanded={edit.targetId === p.id}
+                                  aria-label={`Editar ${p.name}`}
+                                  onClick={() => startEdit(p)}
+                                >
+                                  Editar
+                                </button>
+                              )}
                             </td>
                             <td className="mg-num">
                               {formatMoney(p.salePrice)}
@@ -325,6 +346,24 @@ export function ProductsTab({ tab, stockControl, user, setFeedback, loadFailed, 
                             </td>
                             )}
                           </tr>
+
+                          {user?.isOwner && edit.target && edit.targetId === p.id && (
+                            <ProductEditRow
+                              target={edit.target}
+                              draft={edit.draft}
+                              colSpan={stockControl ? 4 : 2}
+                              processing={processing}
+                              barcodeNote={edit.barcodeNote}
+                              error={edit.error}
+                              nameRef={edit.nameRef}
+                              onDraft={edit.changeDraft}
+                              onSubmit={edit.handleSubmit}
+                              onCancel={edit.close}
+                              onReload={edit.handleReload}
+                              onBarcodeBlur={edit.checkBarcode}
+                              onBarcodeKeyDown={edit.handleBarcodeKeyDown}
+                            />
+                          )}
 
                           {/* Box de Reposição */}
                           {stockControl && restockingId === p.id && (

@@ -45,7 +45,7 @@ describe('buildProductPatch', () => {
   });
 
   it('leaves expectedUpdatedAt out when the item has none', () => {
-    const { updatedAt: _omit, ...noStamp } = rice;
+    const noStamp = { ...rice, updatedAt: undefined };
     expect(buildProductPatch(noStamp, draft({ name: 'Novo' }))).toEqual({ name: 'Novo' });
   });
 });

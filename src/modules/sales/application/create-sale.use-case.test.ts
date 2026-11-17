@@ -1317,7 +1317,7 @@ describe('CreateSaleUseCase — venda fiado (TAB)', () => {
     const inactive = Customer.create({
       merchantId: MERCHANT_ID,
       name: 'Inativo',
-      phone: '11888880000',
+      phone: '11988880000',
       creditLimit: Money.fromDecimal('100.00'),
       active: false,
     });
@@ -1402,7 +1402,7 @@ describe('CreateSaleUseCase — venda fiado (TAB)', () => {
     const otherMerchant = Customer.create({
       merchantId: 'merch-outra-loja',
       name: 'Outra loja',
-      phone: '11777770000',
+      phone: '11977770000',
       creditLimit: Money.fromDecimal('100.00'),
     });
     await customerRepo.save(otherMerchant);

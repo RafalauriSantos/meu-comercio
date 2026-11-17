@@ -2,6 +2,7 @@ import { Money } from '@/shared/domain/money';
 import { Customer } from '../domain/customer';
 import { CustomerRepository } from '../domain/customer-repository.port';
 import { CustomerAlreadyExistsError } from '../domain/errors';
+import { Phone } from '../domain/phone';
 import { AuditPort } from '@/modules/audit/domain/audit.port';
 
 export interface CreateCustomerDTO {
@@ -19,15 +20,16 @@ export class CreateCustomerUseCase {
   ) {}
 
   public async execute(dto: CreateCustomerDTO): Promise<Customer> {
-    const existing = await this.customerRepository.findByPhone(dto.merchantId, dto.phone);
+    const phone = Phone.create(dto.phone).value;
+    const existing = await this.customerRepository.findByPhone(dto.merchantId, phone);
     if (existing) {
-      throw new CustomerAlreadyExistsError(dto.phone);
+      throw new CustomerAlreadyExistsError(phone);
     }
 
     const customer = Customer.create({
       merchantId: dto.merchantId,
       name: dto.name,
-      phone: dto.phone,
+      phone,
       creditLimit: dto.creditLimit ?? Money.zero(),
     });
 

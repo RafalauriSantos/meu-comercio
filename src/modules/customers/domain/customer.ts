@@ -1,5 +1,6 @@
 import { Money } from '@/shared/domain/money';
 import { CustomerInactiveError } from './errors';
+import { Phone } from './phone';
 
 export interface CustomerProps {
   id: string;
@@ -61,7 +62,7 @@ export class Customer {
       id: params.id ?? crypto.randomUUID(),
       merchantId: params.merchantId,
       name: params.name,
-      phone: params.phone,
+      phone: Phone.create(params.phone).value,
       creditLimit: params.creditLimit ?? Money.zero(),
       active: params.active ?? true,
       createdAt: now,

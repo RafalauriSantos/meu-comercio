@@ -1,0 +1,1 @@
+ALTER TABLE "customers" ADD COLUMN "credit_blocked" boolean DEFAULT false NOT NULL;

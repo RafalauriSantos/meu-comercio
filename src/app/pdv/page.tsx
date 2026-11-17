@@ -36,6 +36,8 @@ import {
 import { createCheckoutKeyStore } from '@/frontend/lib/checkout-idempotency';
 import { PdvMainSkeleton, PdvSideSkeleton, PdvStatusSkeleton } from '@/frontend/pdv/pdv-skeleton';
 import { blocksImplicitSubmit } from '@/frontend/pdv/enter-submit';
+import { acceptsScan } from '@/frontend/pdv/scan-gate';
+import { useBarcodeScan } from '@/frontend/lib/use-barcode-scan';
 import { createEscapeDismiss } from '@/frontend/lib/dismiss-on-escape';
 import { isNameSearch, moveHighlight, SEARCH_DEBOUNCE_MS } from '@/frontend/pdv/product-search';
 import { SearchResults, SEARCH_LIST_ID, searchOptionId } from '@/frontend/pdv/search-results';
@@ -607,6 +609,10 @@ export default function PdvTerminalPage() {
       return;
     }
 
+    await addProductByBarcode(code);
+  }
+
+  async function addProductByBarcode(code: string) {
     setBarcodeInput('');
     setMessage(null);
 
@@ -665,6 +671,17 @@ export default function PdvTerminalPage() {
       });
     }
   }
+
+  // A scan outside the search field does what Enter in the field does, then the focus goes back to the field.
+  function handleScannedCode(code: string) {
+    const modalOpen =
+      isCheckoutOpen || isPinModalOpen || isCancelSaleOpen || isCashOpModalOpen || !!weightProduct || !!printModalData;
+    if (!acceptsScan({ loading, initError: !!initError, modalOpen })) return;
+    barcodeInputRef.current?.focus();
+    void addProductByBarcode(code);
+  }
+
+  useBarcodeScan(handleScannedCode);
 
   // Ajustar quantidade no carrinho
   function updateLineQuantity(productId: string, delta: number) {

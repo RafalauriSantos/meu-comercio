@@ -99,6 +99,13 @@ export interface ProductPatch {
   /** Decimal string, never a number. */
   salePrice?: string;
   barcode?: string;
+  /** Exclusive with the fields above: the server picks the new code. */
+  generateBarcode?: never;
+  expectedUpdatedAt?: string;
+}
+
+export interface GenerateBarcodePatch {
+  generateBarcode: true;
   expectedUpdatedAt?: string;
 }
 
@@ -400,7 +407,7 @@ export const apiClient = {
         unit: payload.unit ?? 'UN',
       }),
     }),
-  updateProduct: (id: string, patch: ProductPatch) =>
+  updateProduct: (id: string, patch: ProductPatch | GenerateBarcodePatch) =>
     apiRequest<ProductItem>(`/api/products/${encodeURIComponent(id)}`, {
       method: 'PATCH',
       body: JSON.stringify(patch),

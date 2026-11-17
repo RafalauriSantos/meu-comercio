@@ -9,6 +9,7 @@ import {
   editErrorMessage,
   isDraftValid,
   priceChanged,
+  submitGenerateBarcode,
   submitProductEdit,
 } from './product-edit';
 
@@ -107,5 +108,32 @@ describe('submitProductEdit', () => {
     const update = vi.fn().mockRejectedValue(new ApiError(409, 'x', undefined, 'PRODUCT_CHANGED'));
     const result = await submitProductEdit(update, rice, draft({ name: 'Novo' }));
     expect(result).toMatchObject({ kind: 'failed', reload: true });
+  });
+});
+
+describe('submitGenerateBarcode', () => {
+  it('sends only generateBarcode and expectedUpdatedAt, and returns the saved item', async () => {
+    const saved = { ...rice, barcode: '2912345678904' };
+    const update = vi.fn().mockResolvedValue(saved);
+    const result = await submitGenerateBarcode(update, rice);
+    expect(update).toHaveBeenCalledWith('a', { generateBarcode: true, expectedUpdatedAt: rice.updatedAt });
+    expect(result).toEqual({ kind: 'saved', item: saved });
+  });
+
+  it('leaves expectedUpdatedAt out when the item has none', async () => {
+    const update = vi.fn().mockResolvedValue(rice);
+    await submitGenerateBarcode(update, { ...rice, updatedAt: undefined });
+    expect(update).toHaveBeenCalledWith('a', { generateBarcode: true });
+  });
+
+  it('asks to reload on a conflict and shows the server message on a 500', async () => {
+    const conflict = vi.fn().mockRejectedValue(new ApiError(409, 'x', undefined, 'PRODUCT_CHANGED'));
+    expect(await submitGenerateBarcode(conflict, rice)).toMatchObject({ kind: 'failed', reload: true });
+    const server = vi.fn().mockRejectedValue(new ApiError(500, 'Não foi possível gerar o código. Tente de novo.'));
+    expect(await submitGenerateBarcode(server, rice)).toEqual({
+      kind: 'failed',
+      text: 'Não foi possível gerar o código. Tente de novo.',
+      reload: false,
+    });
   });
 });

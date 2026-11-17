@@ -27,6 +27,7 @@ function render(over: Partial<React.ComponentProps<typeof ProductEditPanel>> = {
       onReload={noop}
       onBarcodeBlur={noop}
       onBarcodeKeyDown={noop}
+      onGenerateBarcode={noop}
       {...over}
     />
   );
@@ -114,5 +115,21 @@ describe('ProductEditPanel', () => {
   it('shows the finish-the-edit notice inside the panel only after a scan', () => {
     expect(render()).not.toContain('Termine ou cancele a edição');
     expect(render({ scanWarning: true })).toContain('Termine ou cancele a edição antes de cadastrar um produto novo.');
+  });
+
+  it('has a secondary Gerar código button beside the barcode, enabled while nothing else changed', () => {
+    const html = render();
+    expect(html).toMatch(/<button[^>]*class="outline"[^>]*type="button"[^>]*>Gerar código<\/button>/);
+    expect(html).not.toMatch(/<button[^>]*disabled=""[^>]*>Gerar código<\/button>/);
+  });
+
+  it('disables Gerar código while saving or with other unsaved edits, and says to save first', () => {
+    const base = draftFromProduct(rice);
+    const disabled = /<button[^>]*disabled=""[^>]*>Gerar código<\/button>/;
+    expect(render({ processing: true })).toMatch(disabled);
+    const edited = render({ draft: { ...base, name: 'Arroz 1kg' } });
+    expect(edited).toMatch(disabled);
+    expect(edited).toContain('Salve as alterações antes de gerar um código.');
+    expect(render()).not.toContain('Salve as alterações antes');
   });
 });

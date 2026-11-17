@@ -1,51 +1,41 @@
-import { useEffect, useState } from 'react';
-import { apiClient, ApiError, type AuthUser } from '@/frontend/lib/api-client';
-import {
-  clearSessionExpired,
-  isSessionExpired,
-  subscribeSessionExpired,
-} from '@/frontend/lib/session-expired';
-import { isSameSession } from './same-session';
-import { loginUrlWithReturn } from './safe-return-path';
+import { useEffect, useRef, useState } from 'react';
+import { isSessionExpired, subscribeSessionExpired } from '@/frontend/lib/session-expired';
+import { loginUrlHere } from './safe-return-path';
+import { SESSION_REDIRECT_DELAY_MS, createOnce } from './session-redirect';
 
 /**
- * State of the "your session expired" notice. The login opens in another tab, so this screen, the
- * cart and the drafts stay as they are; "Já entrei" checks who is logged in now.
- * `onResume` runs when it is the same person (the PDV uses it to sync the offline queue).
+ * State of the "your session expired" notice. The notice warns and, after a few seconds or on "Entrar agora",
+ * takes the person to the login in this same tab (`?voltar=` brings them back to this page afterwards).
+ * `beforeLeave` runs once, right before leaving, to keep what would be lost (the PDV saves the cart).
  */
-export function useSessionExpired(user: AuthUser | null, onResume?: () => void) {
+export function useSessionExpired(beforeLeave?: () => void) {
   const [expired, setExpired] = useState(isSessionExpired());
-  const [checking, setChecking] = useState(false);
-  const [error, setError] = useState('');
+  const latest = useRef(beforeLeave);
+  const leave = useRef<(() => void) | null>(null);
+
+  useEffect(() => {
+    latest.current = beforeLeave;
+  });
 
   useEffect(() => subscribeSessionExpired(() => setExpired(isSessionExpired())), []);
 
-  function reenter() {
-    window.open(loginUrlWithReturn(window.location.pathname, window.location.search), '_blank', 'noopener');
-  }
-
-  async function confirmLogin() {
-    setChecking(true);
-    setError('');
-    try {
-      const fresh = await apiClient.me();
-      if (isSameSession(user, fresh)) {
-        clearSessionExpired();
-        onResume?.();
-      } else {
-        // Another person or another store: nothing on this screen belongs to them.
-        window.location.reload();
+  useEffect(() => {
+    if (!expired) return;
+    leave.current ??= createOnce(() => {
+      try {
+        latest.current?.();
+      } catch {
+        // Never block the way to the login.
       }
-    } catch (err) {
-      setError(
-        err instanceof ApiError && err.status === 401
-          ? 'Ainda não encontramos o seu login. Entre na outra aba e tente de novo.'
-          : 'Não foi possível confirmar agora. Verifique a conexão e tente de novo.'
-      );
-    } finally {
-      setChecking(false);
-    }
+      window.location.assign(loginUrlHere());
+    });
+    const timer = setTimeout(leave.current, SESSION_REDIRECT_DELAY_MS);
+    return () => clearTimeout(timer);
+  }, [expired]);
+
+  function enterNow() {
+    leave.current?.();
   }
 
-  return { expired, checking, error, reenter, confirmLogin };
+  return { expired, enterNow };
 }

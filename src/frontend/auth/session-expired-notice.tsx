@@ -1,21 +1,15 @@
 import { noticeView } from '@/frontend/ui/notice-view';
 import type { useSessionExpired } from './use-session-expired';
 
-/** Stays until the session is back (no auto dismiss). */
+/** Stays until the person is taken to the login (no dismiss). */
 export function SessionExpiredNotice({ session }: { session: ReturnType<typeof useSessionExpired> }) {
   if (!session.expired) return null;
-  const text = 'Sua sessão expirou. Entre de novo em outra aba: esta tela e o carrinho ficam como estão.';
+  const text = 'Sua sessão expirou. Você será levada ao login.';
   return (
     <div {...noticeView({ text, isError: true })}>
-      <span>
-        {text}
-        {session.error && ` ${session.error}`}
-      </span>
-      <button type="button" className="soft" onClick={session.reenter}>
-        Entrar de novo
-      </button>
-      <button type="button" className="soft" disabled={session.checking} onClick={session.confirmLogin}>
-        {session.checking ? 'Conferindo…' : 'Já entrei'}
+      <span>{text}</span>
+      <button type="button" className="soft" onClick={session.enterNow}>
+        Entrar agora
       </button>
     </div>
   );

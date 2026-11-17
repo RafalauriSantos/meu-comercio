@@ -95,7 +95,7 @@ describe('/gestao while waiting for the delay (reserved space, nothing visible)'
 
 describe('/gestao loading failures and requests (locked as at HEAD, baseline.md)', () => {
   it('still redirects to /login in exactly 2 places', () => {
-    expect(count(source, "router.push('/login')")).toBe(2);
+    expect(count(source, "router.push('/login')") + count(source, 'router.push(loginUrlHere())')).toBe(2);
   });
 
   // HEAD has 19 (baseline.md). Step 5 adds exactly one on purpose: the retry of the missing balances
@@ -114,7 +114,7 @@ describe('/gestao loading failures and requests (locked as at HEAD, baseline.md)
 
   it('keeps the first load: me() first, a failure of the load goes to /login and then loading ends', () => {
     expect(count(source, 'apiClient.me()')).toBe(1);
-    expect(source).toMatch(/\} catch \{\s*router\.push\('\/login'\);\s*\} finally \{\s*setLoading\(false\);/);
+    expect(source).toMatch(/\} catch \{\s*router\.push\(loginUrlHere\(\)\);\s*\} finally \{\s*setLoading\(false\);/);
   });
 });
 

@@ -55,6 +55,8 @@ import { formatQuantity, lineSubtotal } from '@/shared/domain/product-unit';
 import { noticeView } from '@/frontend/ui/notice-view';
 import { useSessionExpired } from '@/frontend/auth/use-session-expired';
 import { SessionExpiredNotice } from '@/frontend/auth/session-expired-notice';
+import { loginUrlHere } from '@/frontend/auth/safe-return-path';
+import { browserDraftStorage, buildCartDraft, saveCartDraft, takeCartDraft } from '@/frontend/pdv/cart-draft';
 import '@/frontend/styles/pdv.css';
 
 interface CartLine {
@@ -143,11 +145,18 @@ export default function PdvTerminalPage() {
   // Notificações e Feedback
   const [message, setMessage] = useState<{ text: string; isError?: boolean; isSuccess?: boolean } | null>(null);
   useAutoDismiss(message, () => setMessage(null));
-  const sessionExpired = useSessionExpired(user, triggerOfflineSync);
+  const sessionExpired = useSessionExpired(saveCartBeforeLogin);
   const [processing, setProcessing] = useState(false);
 
   // Relógio
   const [clock, setClock] = useState('');
+
+  // Session expired: keep the cart (and the checkout key) in this tab, so it comes back after the login.
+  function saveCartBeforeLogin() {
+    if (!user) return;
+    const draft = buildCartDraft(user, cart, checkoutKeys.current.peek(), Date.now());
+    if (draft) saveCartDraft(browserDraftStorage(), draft);
+  }
 
   // Sincronização da Fila Offline
   async function triggerOfflineSync() {
@@ -197,6 +206,11 @@ export default function PdvTerminalPage() {
   useEffect(() => {
     offlineManagerRef.current = new OfflineSyncManager();
   }, []);
+
+  // With the person logged in (also right after coming back from the login), the offline queue is sent.
+  useEffect(() => {
+    if (user) void triggerOfflineSync();
+  }, [user]);
 
   // Relógio em tempo real
   useEffect(() => {
@@ -267,12 +281,20 @@ export default function PdvTerminalPage() {
         setCashSession(cash.session);
         setCustomers(custResult.items || []);
 
+        // Back from a login after the session expired: the same person gets the cart back.
+        const draft = takeCartDraft(browserDraftStorage(), me, Date.now());
+        if (draft) {
+          setCart(draft.items);
+          if (draft.idempotencyKey) checkoutKeys.current.adopt(draft.idempotencyKey);
+          setMessage({ text: 'Carrinho recuperado. Confira os preços antes de receber.' });
+        }
+
         if (offlineManagerRef.current) {
           const count = offlineManagerRef.current.getQueue(me.merchantId, me.username).length;
           setOfflineCount(count);
         }
       } catch {
-        router.push('/login');
+        router.push(loginUrlHere());
       } finally {
         setLoading(false);
       }

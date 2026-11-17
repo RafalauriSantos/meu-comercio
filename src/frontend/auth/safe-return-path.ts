@@ -12,3 +12,8 @@ export function safeReturnPath(raw: string | null | undefined): string | null {
 export function loginUrlWithReturn(pathname: string, search: string): string {
   return `/login?voltar=${encodeURIComponent(pathname + search)}`;
 }
+
+/** The login that returns to the page the person is on now (the plain login when there is no window). */
+export function loginUrlHere(location: { pathname: string; search: string } | undefined = globalThis.window?.location): string {
+  return location ? loginUrlWithReturn(location.pathname, location.search) : '/login';
+}

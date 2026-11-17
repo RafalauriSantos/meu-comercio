@@ -1,9 +1,9 @@
 import { describe, it, expect } from 'vitest';
 import { Money } from '@/shared/domain/money';
 import { Customer } from './customer';
-import { InvalidCreditLimitError, InvalidPhoneError } from './errors';
+import { CustomerCreditBlockedError, InvalidCreditLimitError, InvalidPhoneError } from './errors';
 
-function existing(phone = '11999998888') {
+function existing(phone = '11999998888', creditBlocked = false) {
   return new Customer({
     id: 'c1',
     merchantId: 'm1',
@@ -11,6 +11,7 @@ function existing(phone = '11999998888') {
     phone,
     creditLimit: Money.fromDecimal('150.00'),
     active: true,
+    creditBlocked,
     createdAt: new Date('2026-01-01T00:00:00.000Z'),
     updatedAt: new Date('2026-02-01T00:00:00.000Z'),
   });
@@ -121,5 +122,69 @@ describe('Customer.changesTo', () => {
     expect(legacy.changesTo(legacy.withChanges({ phone: '11999998888' }))).toEqual({
       phone: { from: '(11) 99999-8888', to: '11999998888' },
     });
+  });
+});
+
+describe('Customer.creditBlocked (D-26)', () => {
+  it('o construtor não lança com dado antigo sem o campo e trata como desbloqueado', () => {
+    const legacy = new Customer({
+      id: 'c1',
+      merchantId: 'm1',
+      name: 'Maria',
+      phone: '11999998888',
+      creditLimit: Money.zero(),
+      active: true,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    } as never);
+
+    expect(legacy.creditBlocked).toBe(false);
+  });
+
+  it('Customer.create nasce desbloqueado', () => {
+    expect(Customer.create({ merchantId: 'm1', name: 'Ana', phone: '11999998888' }).creditBlocked).toBe(false);
+  });
+
+  it('withChanges liga e desliga só o bloqueio, mantendo o resto', () => {
+    const blocked = existing().withChanges({ creditBlocked: true });
+
+    expect(blocked.creditBlocked).toBe(true);
+    expect(blocked.name).toBe('Maria Silva');
+    expect(blocked.creditLimit.toDecimal()).toBe('150.00');
+    expect(blocked.active).toBe(true);
+    expect(blocked.withChanges({ creditBlocked: false }).creditBlocked).toBe(false);
+  });
+
+  it('withChanges sem o campo mantém o bloqueio', () => {
+    expect(existing('11999998888', true).withChanges({ name: 'Outro' }).creditBlocked).toBe(true);
+  });
+
+  it('changesTo traz o bloqueio de/para, só quando muda', () => {
+    const before = existing();
+
+    expect(before.changesTo(before.withChanges({ creditBlocked: true }))).toEqual({
+      creditBlocked: { from: false, to: true },
+    });
+    expect(before.changesTo(before.withChanges({ creditBlocked: false }))).toEqual({});
+  });
+
+  it('desativar, reativar e mudar o limite não mudam o bloqueio', () => {
+    const blocked = existing('11999998888', true);
+
+    expect(blocked.deactivate().creditBlocked).toBe(true);
+    expect(blocked.deactivate().activate().creditBlocked).toBe(true);
+    expect(blocked.updateCreditLimit(Money.fromDecimal('10')).creditBlocked).toBe(true);
+  });
+
+  it('ensureCreditNotBlocked lança só quando bloqueado', () => {
+    expect(() => existing().ensureCreditNotBlocked()).not.toThrow();
+    expect(() => existing('11999998888', true).ensureCreditNotBlocked()).toThrow(CustomerCreditBlockedError);
+    expect(() => existing('11999998888', true).ensureCreditNotBlocked()).toThrow(
+      'Este cliente está com o fiado bloqueado. A venda só pode ser feita à vista.'
+    );
+  });
+
+  it('toJSON traz creditBlocked', () => {
+    expect(existing('11999998888', true).toJSON().creditBlocked).toBe(true);
   });
 });

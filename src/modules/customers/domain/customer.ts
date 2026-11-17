@@ -1,5 +1,5 @@
 import { Money } from '@/shared/domain/money';
-import { CustomerInactiveError, InvalidCreditLimitError } from './errors';
+import { CustomerCreditBlockedError, CustomerInactiveError, InvalidCreditLimitError } from './errors';
 import { Phone } from './phone';
 
 const NAME_MAX_LENGTH = 160;
@@ -18,6 +18,8 @@ export interface CustomerProps {
   phone: string;
   creditLimit: Money;
   active: boolean;
+  /** D-26: the owner blocked credit sales for this customer. */
+  creditBlocked: boolean;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -29,6 +31,7 @@ export class Customer {
   public readonly phone: string;
   public readonly creditLimit: Money;
   public readonly active: boolean;
+  public readonly creditBlocked: boolean;
   public readonly createdAt: Date;
   public readonly updatedAt: Date;
 
@@ -53,6 +56,7 @@ export class Customer {
     this.phone = normalizedPhone;
     this.creditLimit = props.creditLimit;
     this.active = props.active;
+    this.creditBlocked = props.creditBlocked === true;
     this.createdAt = props.createdAt;
     this.updatedAt = props.updatedAt;
   }
@@ -74,17 +78,18 @@ export class Customer {
       phone: Phone.create(params.phone).value,
       creditLimit: params.creditLimit ?? Money.zero(),
       active: params.active ?? true,
+      creditBlocked: false,
       createdAt: now,
       updatedAt: now,
     });
   }
 
   /**
-   * Rebuilds the customer with a new name, phone and/or credit limit. Active is not a parameter. A phone that
+   * Rebuilds the customer with a new name, phone, credit limit and/or credit block. Active is not a parameter. A phone that
    * was not sent stays as stored (legacy text is never revalidated); a phone that was sent follows the D-21
    * rule. The limit is rounded to cents and must be from 0 to CREDIT_LIMIT_MAX (D-22); it may be below the debt.
    */
-  public withChanges(changes: { name?: string; phone?: string; creditLimit?: Money }): Customer {
+  public withChanges(changes: { name?: string; phone?: string; creditLimit?: Money; creditBlocked?: boolean }): Customer {
     const name = changes.name === undefined ? this.name : changes.name.trim();
     if (name.length < 1 || name.length > NAME_MAX_LENGTH) {
       throw new Error(`Customer name must have 1 to ${NAME_MAX_LENGTH} characters`);
@@ -96,18 +101,22 @@ export class Customer {
       phone: changes.phone === undefined ? this.phone : Phone.create(changes.phone).value,
       creditLimit: changes.creditLimit === undefined ? this.creditLimit : toValidCreditLimit(changes.creditLimit),
       active: this.active,
+      creditBlocked: changes.creditBlocked === undefined ? this.creditBlocked : changes.creditBlocked,
       createdAt: this.createdAt,
       updatedAt: this.updatedAt,
     });
   }
 
   /** From and to of the editable fields that differ in `next`. */
-  public changesTo(next: Customer): Record<string, { from: string; to: string }> {
-    const changes: Record<string, { from: string; to: string }> = {};
+  public changesTo(next: Customer): Record<string, { from: string | boolean; to: string | boolean }> {
+    const changes: Record<string, { from: string | boolean; to: string | boolean }> = {};
     if (this.name !== next.name) changes.name = { from: this.name, to: next.name };
     if (this.phone !== next.phone) changes.phone = { from: this.phone, to: next.phone };
     if (!this.creditLimit.equals(next.creditLimit)) {
       changes.creditLimit = { from: this.creditLimit.toDecimal(), to: next.creditLimit.toDecimal() };
+    }
+    if (this.creditBlocked !== next.creditBlocked) {
+      changes.creditBlocked = { from: this.creditBlocked, to: next.creditBlocked };
     }
     return changes;
   }
@@ -135,6 +144,7 @@ export class Customer {
       phone: this.phone,
       creditLimit: newLimit,
       active: this.active,
+      creditBlocked: this.creditBlocked,
       createdAt: this.createdAt,
       updatedAt: now,
     });
@@ -148,6 +158,7 @@ export class Customer {
       phone: this.phone,
       creditLimit: this.creditLimit,
       active: false,
+      creditBlocked: this.creditBlocked,
       createdAt: this.createdAt,
       updatedAt: now,
     });
@@ -161,6 +172,7 @@ export class Customer {
       phone: this.phone,
       creditLimit: this.creditLimit,
       active: true,
+      creditBlocked: this.creditBlocked,
       createdAt: this.createdAt,
       updatedAt: now,
     });
@@ -172,6 +184,12 @@ export class Customer {
     }
   }
 
+  public ensureCreditNotBlocked(): void {
+    if (this.creditBlocked) {
+      throw new CustomerCreditBlockedError();
+    }
+  }
+
   public toJSON() {
     return {
       id: this.id,
@@ -180,6 +198,7 @@ export class Customer {
       phone: this.phone,
       creditLimit: this.creditLimit.toDecimal(),
       active: this.active,
+      creditBlocked: this.creditBlocked,
       createdAt: this.createdAt.toISOString(),
       updatedAt: this.updatedAt.toISOString(),
     };

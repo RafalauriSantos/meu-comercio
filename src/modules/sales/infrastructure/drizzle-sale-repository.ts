@@ -15,6 +15,7 @@ import {
 } from '../domain/sale-repository.port';
 import { cashMovements, cashSessions } from '@/modules/cash/infrastructure/cash.schema';
 import { CashSessionNotOpenError, SaleAlreadyCancelledError } from '../domain/errors';
+import { CustomerNotFoundError } from '@/modules/customers/domain/errors';
 import { CreditMovement } from '@/modules/customers/domain/credit-movement';
 import { isProductUnit } from '@/shared/domain/product-unit';
 import { Money } from '@/shared/domain/money';
@@ -158,11 +159,12 @@ export class DrizzleSaleRepository implements SaleRepository {
 
   private async applyCreditDebit(tx: SaleDatabase, merchantId: string, credit: CreditDebitCommit): Promise<void> {
     // Lock the customer row so concurrent credit sales read the balance in order.
-    await tx
-      .select({ id: customers.id })
+    const [lockedCustomer] = await tx
+      .select({ creditBlocked: customers.creditBlocked, creditLimit: customers.creditLimit })
       .from(customers)
       .where(and(eq(customers.merchantId, merchantId), eq(customers.id, credit.customerId)))
       .for('update');
+    if (!lockedCustomer) throw new CustomerNotFoundError(credit.customerId);
 
     const [totals] = await tx
       .select({
@@ -180,7 +182,10 @@ export class DrizzleSaleRepository implements SaleRepository {
     const rawDebt = Money.fromDecimal(totals?.totalDebits ?? '0').subtract(
       Money.fromDecimal(totals?.totalCredits ?? '0')
     );
-    await credit.ensureWithinLimit(rawDebt.isNegative() ? Money.zero() : rawDebt);
+    await credit.ensureAllowed(
+      { creditBlocked: lockedCustomer.creditBlocked, creditLimit: Money.fromDecimal(lockedCustomer.creditLimit) },
+      rawDebt.isNegative() ? Money.zero() : rawDebt
+    );
 
     await this.insertCreditMovement(tx, credit.movement);
   }

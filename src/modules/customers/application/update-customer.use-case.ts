@@ -16,13 +16,15 @@ export const UpdateCustomerSchema = z
     name: z.string().trim().min(1, 'Nome do cliente é obrigatório.').max(160, 'Nome do cliente deve ter no máximo 160 caracteres.').optional(),
     phone: z.string().trim().min(1, 'Telefone do cliente é obrigatório.').max(32, 'Telefone deve ter no máximo 32 caracteres.').optional(),
     creditLimit: creditLimitInput.optional(),
+    creditBlocked: z.boolean('Fiado bloqueado deve ser verdadeiro ou falso.').optional(),
     // The updatedAt the caller read. If the customer changed since, the edit is refused.
     expectedUpdatedAt: z.iso.datetime('Data de leitura do cliente inválida').optional(),
   })
   .strict()
   .refine(
-    (input) => input.name !== undefined || input.phone !== undefined || input.creditLimit !== undefined,
-    'Informe ao menos um campo para alterar: nome, telefone ou limite de fiado.'
+    (input) => input.name !== undefined || input.phone !== undefined ||
+      input.creditLimit !== undefined || input.creditBlocked !== undefined,
+    'Informe ao menos um campo para alterar: nome, telefone, limite de fiado ou bloqueio do fiado.'
   );
 
 export class UpdateCustomerUseCase {
@@ -34,6 +36,7 @@ export class UpdateCustomerUseCase {
     const changes: CustomerChanges = {
       ...(input.name !== undefined && { name: input.name }),
       ...(input.phone !== undefined && { phone: input.phone }),
+      ...(input.creditBlocked !== undefined && { creditBlocked: input.creditBlocked }),
       ...(input.creditLimit !== undefined && { creditLimit: toValidCreditLimit(Money.fromDecimal(input.creditLimit)) }),
     };
 

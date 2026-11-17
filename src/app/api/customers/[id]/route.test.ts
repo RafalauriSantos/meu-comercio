@@ -48,6 +48,7 @@ describe('PATCH /api/customers/[id]', () => {
         phone: '11988887777',
         creditLimit: Money.fromDecimal('150'),
         active: true,
+        creditBlocked: false,
         createdAt: new Date('2026-01-01T00:00:00.000Z'),
         updatedAt: new Date('2026-11-17T10:00:00.000Z'),
       })
@@ -80,6 +81,9 @@ describe('PATCH /api/customers/[id]', () => {
 
   it.each([
     ['active', { name: 'A', active: false }],
+    ['creditBlocked texto', { creditBlocked: 'true' }],
+    ['creditBlocked número', { creditBlocked: 1 }],
+    ['creditBlocked nulo', { creditBlocked: null }],
     ['limite mal formado', { creditLimit: 'dez' }],
     ['campo desconhecido', { name: 'A', foo: 1 }],
     ['corpo vazio', {}],
@@ -114,6 +118,59 @@ describe('PATCH /api/customers/[id]', () => {
     const sent = mockUpdateDetails.mock.calls[0][2];
     expect(Object.keys(sent)).toEqual(['creditLimit']);
     expect(sent.creditLimit.toDecimal()).toBe('150.05');
+  });
+
+  it('403 para operadora ao bloquear o fiado, mesmo com corpo ilegível, e não grava', async () => {
+    mockRequireAuthSession.mockResolvedValue(operator);
+
+    expect((await patch({ creditBlocked: true })).status).toBe(403);
+    expect((await patch(null, ID, 'not json')).status).toBe(403);
+    expect(mockUpdateDetails).not.toHaveBeenCalled();
+  });
+
+  it.each([true, false])('200 ao mudar só creditBlocked=%s: repassa o booleano e devolve o estado', async (creditBlocked) => {
+    mockUpdateDetails.mockResolvedValue(
+      new Customer({
+        id: ID,
+        merchantId: 'merchant-1',
+        name: 'Maria Souza',
+        phone: '11988887777',
+        creditLimit: Money.fromDecimal('150'),
+        active: true,
+        creditBlocked,
+        createdAt: new Date('2026-01-01T00:00:00.000Z'),
+        updatedAt: new Date('2026-11-17T10:00:00.000Z'),
+      })
+    );
+
+    const response = await patch({ creditBlocked, expectedUpdatedAt: '2026-11-17T09:00:00.000Z' });
+
+    expect(response.status).toBe(200);
+    expect((await response.json()).creditBlocked).toBe(creditBlocked);
+    expect(mockUpdateDetails).toHaveBeenCalledWith(
+      'merchant-1',
+      ID,
+      { creditBlocked },
+      { actorId: 'dona', expectedUpdatedAt: new Date('2026-11-17T09:00:00.000Z') }
+    );
+  });
+
+  it('200 com creditBlocked junto de nome e limite na mesma chamada', async () => {
+    const response = await patch({ name: 'Maria', creditLimit: '20', creditBlocked: true });
+
+    expect(response.status).toBe(200);
+    const sent = mockUpdateDetails.mock.calls[0][2];
+    expect(sent).toMatchObject({ name: 'Maria', creditBlocked: true });
+    expect(sent.creditLimit.toDecimal()).toBe('20.00');
+  });
+
+  it('409 CUSTOMER_CHANGED também ao mudar só creditBlocked, sem gravar', async () => {
+    mockUpdateDetails.mockRejectedValue(new CustomerChangedError());
+
+    const response = await patch({ creditBlocked: true, expectedUpdatedAt: '2026-11-17T09:00:00.000Z' });
+
+    expect(response.status).toBe(409);
+    expect((await response.json()).code).toBe('CUSTOMER_CHANGED');
   });
 
   it('400 para corpo que não é JSON', async () => {
@@ -174,6 +231,7 @@ describe('PATCH /api/customers/[id]', () => {
       name: 'Maria Souza',
       phone: '11988887777',
       creditLimit: '150.00',
+      creditBlocked: false,
       updatedAt: '2026-11-17T10:00:00.000Z',
     });
     expect(mockUpdateDetails).toHaveBeenCalledWith(

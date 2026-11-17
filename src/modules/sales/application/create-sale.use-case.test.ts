@@ -2,7 +2,7 @@ import { Customer } from '@/modules/customers/domain/customer';
 import { CustomerRepository } from '@/modules/customers/domain/customer-repository.port';
 import { CustomerCreditRepository, CustomerCreditBalance, CreditMetrics } from '@/modules/customers/domain/customer-credit-repository.port';
 import { CreditMovement } from '@/modules/customers/domain/credit-movement';
-import { CustomerNotFoundError, CustomerInactiveError, CreditLimitExceededError, InvalidOwnerPinError } from '@/modules/customers/domain/errors';
+import { CustomerNotFoundError, CustomerInactiveError, CustomerCreditBlockedError, CreditLimitExceededError, InvalidOwnerPinError } from '@/modules/customers/domain/errors';
 import { OwnerPinVerifier } from '@/modules/customers/domain/owner-pin-verifier.port';
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { Money } from '@/shared/domain/money';
@@ -31,7 +31,8 @@ class InMemorySaleRepository implements SaleRepository {
     private readonly inventory?: InMemoryInventoryRepository,
     private readonly audit?: InMemoryAuditPort,
     private readonly credit?: InMemoryCreditRepo,
-    private readonly cash?: InMemoryCashSessionRepository
+    private readonly cash?: InMemoryCashSessionRepository,
+    private readonly customers?: InMemoryCustomerRepo
   ) {}
 
   async save(sale: Sale): Promise<void> {
@@ -59,7 +60,12 @@ class InMemorySaleRepository implements SaleRepository {
     }
     if (commit.creditDebit) {
       const balance = await this.credit!.getBalance(sale.merchantId, commit.creditDebit.customerId);
-      await commit.creditDebit.ensureWithinLimit(balance.currentDebt);
+      // The real repository reads the customer row after locking it; here, right before the check.
+      const locked = (await this.customers!.findById(sale.merchantId, commit.creditDebit.customerId))!;
+      await commit.creditDebit.ensureAllowed(
+        { creditBlocked: locked.creditBlocked, creditLimit: locked.creditLimit },
+        balance.currentDebt
+      );
       await this.credit!.saveMovement(commit.creditDebit.movement);
     }
     if (commit.cashReceipt) {
@@ -1201,7 +1207,7 @@ describe('CreateSaleUseCase — venda fiado (TAB)', () => {
     auditPort = new InMemoryAuditPort();
     customerRepo = new InMemoryCustomerRepo();
     creditRepo = new InMemoryCreditRepo();
-    saleRepo = new InMemorySaleRepository(inventoryRepo, auditPort, creditRepo, cashRepo);
+    saleRepo = new InMemorySaleRepository(inventoryRepo, auditPort, creditRepo, cashRepo, customerRepo);
 
     useCase = new CreateSaleUseCase(saleRepo, productRepo, inventoryRepo, cashRepo, {
       customerRepository: customerRepo,
@@ -1464,5 +1470,70 @@ describe('CreateSaleUseCase — venda fiado (TAB)', () => {
     expect((await inventoryRepo.findByProductId(MERCHANT_ID, rice.id))!.availableQuantity).toBe(50);
     expect(creditRepo.movements).toHaveLength(1);
     expect(cashRepo.movements.filter((m) => m.movementType === 'SALE_RECEIPT')).toHaveLength(0);
+  });
+
+  describe('fiado bloqueado (D-26)', () => {
+    beforeEach(async () => {
+      await customerRepo.save(customer.withChanges({ creditBlocked: true }));
+    });
+
+    it('recusa a venda no fiado antes do PIN e não grava nada', async () => {
+      const verifier = new FakeOwnerPinVerifier(OWNER_PIN);
+      const authorize = vi.spyOn(verifier, 'authorizeOwnerPin');
+      const guarded = new CreateSaleUseCase(saleRepo, productRepo, inventoryRepo, cashRepo, {
+        customerRepository: customerRepo,
+        customerCreditRepository: creditRepo,
+        ownerPinVerifier: verifier,
+      });
+
+      // Over the limit, with the correct PIN: the block still wins and the PIN is not spent.
+      await expect(guarded.execute(tabSale('200.00', { ownerPin: OWNER_PIN }))).rejects.toBeInstanceOf(
+        CustomerCreditBlockedError
+      );
+
+      expect(authorize).not.toHaveBeenCalled();
+      expect(saleRepo.sales.size).toBe(0);
+      expect(creditRepo.movements).toHaveLength(0);
+      expect((await inventoryRepo.findByProductId(MERCHANT_ID, rice.id))!.availableQuantity).toBe(50);
+    });
+
+    it('a venda à vista continua passando', async () => {
+      const sale = await useCase.execute({
+        merchantId: MERCHANT_ID,
+        operatorId: OPERATOR_ID,
+        items: [{ productId: rice.id, quantity: 1 }],
+        payments: [{ method: 'PIX', amount: Money.fromDecimal('25.50') }],
+        idempotencyKey: null,
+      });
+
+      expect(sale.status).toBe('CONFIRMED');
+    });
+
+    it('desbloquear e vender dentro do limite aceita', async () => {
+      await customerRepo.save(customer.withChanges({ creditBlocked: false }));
+
+      expect((await useCase.execute(tabSale('25.50'))).status).toBe('CONFIRMED');
+    });
+  });
+
+  it('a checagem definitiva usa a linha lida depois da trava, não o cliente lido antes', async () => {
+    // The use case reads the customer unblocked; by the time the commit locks the row it is blocked.
+    const blocked = customer.withChanges({ creditBlocked: true });
+    vi.spyOn(customerRepo, 'findById').mockResolvedValueOnce(customer).mockResolvedValue(blocked);
+
+    await expect(useCase.execute(tabSale('25.50'))).rejects.toBeInstanceOf(CustomerCreditBlockedError);
+
+    expect(saleRepo.sales.size).toBe(0);
+    expect(creditRepo.movements).toHaveLength(0);
+  });
+
+  it('o limite também é o da linha lida depois da trava (22.9g)', async () => {
+    const lowered = customer.withChanges({ creditLimit: Money.fromDecimal('10.00') });
+    vi.spyOn(customerRepo, 'findById').mockResolvedValueOnce(customer).mockResolvedValue(lowered);
+
+    await expect(useCase.execute(tabSale('25.50'))).rejects.toBeInstanceOf(CreditLimitExceededError);
+
+    expect(saleRepo.sales.size).toBe(0);
+    expect(creditRepo.movements).toHaveLength(0);
   });
 });

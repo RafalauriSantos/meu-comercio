@@ -326,6 +326,7 @@ describe('Slice 5: Customers & Credit / Fiado Use Cases', () => {
           phone: '(11) 98888-7777',
           creditLimit: Money.zero(),
           active: true,
+          creditBlocked: false,
           createdAt: now,
           updatedAt: now,
         })

@@ -24,6 +24,7 @@ import { db } from '@/shared/infrastructure/db/connection';
 import {
   CustomerNotFoundError,
   CustomerInactiveError,
+  CustomerCreditBlockedError,
   CreditLimitExceededError,
   InvalidOwnerPinError,
 } from '@/modules/customers/domain/errors';
@@ -194,6 +195,9 @@ export async function POST(request: NextRequest) {
     }
     if (error instanceof CustomerInactiveError) {
       return NextResponse.json({ message: 'Cliente inativo não pode comprar fiado.' }, { status: 400 });
+    }
+    if (error instanceof CustomerCreditBlockedError) {
+      return NextResponse.json({ code: 'CUSTOMER_CREDIT_BLOCKED', message: error.message }, { status: 409 });
     }
     if (error instanceof ZodError) {
       return NextResponse.json(

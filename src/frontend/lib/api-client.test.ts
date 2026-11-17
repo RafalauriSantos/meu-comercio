@@ -97,4 +97,45 @@ describe('apiClient products', () => {
 
     expect(called()).toBe('/api/products/summary');
   });
+
+  describe('updateProduct', () => {
+    function stubJson(status: number, body: unknown) {
+      const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify(body), { status }));
+      vi.stubGlobal('fetch', fetchMock);
+      return fetchMock;
+    }
+
+    it('sends a PATCH to the product path with only the fields given and returns the item', async () => {
+      const item = { id: 'p 1', name: 'Novo', updatedAt: '2026-05-01T12:00:00.123Z' };
+      const fetchMock = stubJson(200, item);
+
+      const result = await apiClient.updateProduct('p 1', { name: 'Novo' });
+
+      const [url, init] = fetchMock.mock.calls[0];
+      expect(url).toBe('/api/products/p%201');
+      expect(init.method).toBe('PATCH');
+      expect(JSON.parse(init.body)).toEqual({ name: 'Novo' });
+      expect(result).toEqual(item);
+    });
+
+    it('keeps the price as a decimal string and sends expectedUpdatedAt', async () => {
+      const fetchMock = stubJson(200, {});
+
+      await apiClient.updateProduct('p1', { salePrice: '24.90', expectedUpdatedAt: '2026-05-01T12:00:00.123Z' });
+
+      const body = fetchMock.mock.calls[0][1].body as string;
+      expect(JSON.parse(body)).toEqual({ salePrice: '24.90', expectedUpdatedAt: '2026-05-01T12:00:00.123Z' });
+      expect(body).toContain('"salePrice":"24.90"');
+    });
+
+    it('exposes PRODUCT_CHANGED on a 409', async () => {
+      stubJson(409, { code: 'PRODUCT_CHANGED', message: 'O produto foi alterado. Recarregue.' });
+
+      const error = await apiClient.updateProduct('p1', { name: 'X' }).catch((e: unknown) => e);
+
+      expect(error).toBeInstanceOf(ApiError);
+      expect((error as ApiError).status).toBe(409);
+      expect((error as ApiError).code).toBe('PRODUCT_CHANGED');
+    });
+  });
 });

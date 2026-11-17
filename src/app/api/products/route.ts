@@ -95,6 +95,7 @@ export async function GET(request: NextRequest) {
         unit: product.unit,
         availableQuantity,
         active: product.active,
+        updatedAt: product.updatedAt.toISOString(),
       })),
       hasMore: result.hasMore,
     });

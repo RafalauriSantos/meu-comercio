@@ -4,12 +4,12 @@ import { requireAuthenticatedSession, UnauthorizedError } from '@/shared/infrast
 import { DrizzleCustomerRepository } from '@/modules/customers/infrastructure/drizzle-customer-repository';
 import { DrizzleAuditAdapter } from '@/modules/audit/infrastructure/drizzle-audit-service';
 import { CreateCustomerUseCase } from '@/modules/customers/application/create-customer.use-case';
-import { CustomerAlreadyExistsError } from '@/modules/customers/domain/errors';
+import { CustomerAlreadyExistsError, InvalidPhoneError } from '@/modules/customers/domain/errors';
 import { Money } from '@/shared/domain/money';
 
 const CreateCustomerBodySchema = z.object({
-  name: z.string().trim().min(1, 'Nome do cliente é obrigatório.'),
-  phone: z.string().trim().min(1, 'Telefone do cliente é obrigatório.'),
+  name: z.string().trim().min(1, 'Nome do cliente é obrigatório.').max(160, 'Nome do cliente deve ter no máximo 160 caracteres.'),
+  phone: z.string().trim().min(1, 'Telefone do cliente é obrigatório.').max(32, 'Telefone deve ter no máximo 32 caracteres.'),
   creditLimit: z
     .union([z.number(), z.string()])
     .optional()
@@ -67,11 +67,11 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       );
     }
-    if (error instanceof Error && !(error instanceof TypeError)) {
+    if (error instanceof InvalidPhoneError) {
       return NextResponse.json({ message: error.message }, { status: 400 });
     }
     console.error('Error creating customer:', error);
-    return NextResponse.json({ message: 'Erro interno ao cadastrar cliente.' }, { status: 500 });
+    return NextResponse.json({ message: 'Erro ao cadastrar cliente.' }, { status: 500 });
   }
 }
 

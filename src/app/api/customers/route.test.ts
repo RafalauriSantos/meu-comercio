@@ -12,6 +12,7 @@ import {
   CustomerAlreadyExistsError,
   CustomerNotFoundError,
   CustomerInactiveError,
+  InvalidPhoneError,
   DebtSettlementExceedsBalanceError,
   NoOpenCashSessionError,
 } from '@/modules/customers/domain/errors';
@@ -98,6 +99,60 @@ describe('Customers API Routes', () => {
       expect(response.status).toBe(400);
       const data = await response.json();
       expect(data.message).toBe('Dados de cliente inválidos.');
+    });
+
+    it('deve retornar 400 com mensagem em português se o telefone for inválido', async () => {
+      mockExecuteCreateCustomer.mockRejectedValue(new InvalidPhoneError());
+
+      const request = new NextRequest('http://localhost:3000/api/customers', {
+        method: 'POST',
+        body: JSON.stringify({ name: 'Seu Zé', phone: '123' }),
+      });
+
+      const response = await createCustomerPost(request);
+      expect(response.status).toBe(400);
+      const data = await response.json();
+      expect(data.message).toBe('Telefone inválido. Use o DDD e o número, com 8 ou 9 dígitos.');
+    });
+
+    it('deve retornar 400 se o nome passar de 160 caracteres', async () => {
+      const request = new NextRequest('http://localhost:3000/api/customers', {
+        method: 'POST',
+        body: JSON.stringify({ name: 'a'.repeat(161), phone: '11999998888' }),
+      });
+
+      const response = await createCustomerPost(request);
+      expect(response.status).toBe(400);
+      expect(mockExecuteCreateCustomer).not.toHaveBeenCalled();
+    });
+
+    it('deve retornar 400 se o telefone digitado passar de 32 caracteres', async () => {
+      const request = new NextRequest('http://localhost:3000/api/customers', {
+        method: 'POST',
+        body: JSON.stringify({ name: 'Seu Zé', phone: '1'.repeat(33) }),
+      });
+
+      const response = await createCustomerPost(request);
+      expect(response.status).toBe(400);
+      expect(mockExecuteCreateCustomer).not.toHaveBeenCalled();
+    });
+
+    it('deve retornar 500 genérico, sem texto do driver, em erro inesperado', async () => {
+      vi.spyOn(console, 'error').mockImplementation(() => {});
+      mockExecuteCreateCustomer.mockRejectedValue(
+        new Error('duplicate key value violates unique constraint "idx_customers_merchant_phone"')
+      );
+
+      const request = new NextRequest('http://localhost:3000/api/customers', {
+        method: 'POST',
+        body: JSON.stringify({ name: 'Seu Zé', phone: '11999998888' }),
+      });
+
+      const response = await createCustomerPost(request);
+      expect(response.status).toBe(500);
+      const data = await response.json();
+      expect(data.message).toBe('Erro ao cadastrar cliente.');
+      expect(JSON.stringify(data)).not.toContain('idx_customers');
     });
 
     it('deve retornar 409 se cliente com mesmo telefone já existir', async () => {

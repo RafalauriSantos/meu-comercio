@@ -19,7 +19,10 @@ describe('the Postgres integration tests in the CI', () => {
 
   it('the script runs every file with "integration" in its name, one file at a time', () => {
     // Every file migrates the same database: two at once would race to create the same tables.
-    expect(pkg.scripts['test:integration']).toBe('vitest run integration --no-file-parallelism');
+    // The longer timeouts (30 s) keep a slow CI runner from failing a test that only needs a few seconds more.
+    expect(pkg.scripts['test:integration']).toBe(
+      'vitest run integration --no-file-parallelism --testTimeout=30000 --hookTimeout=30000'
+    );
   });
 
   it('the CI job and the local gate use that script, not a list of files', () => {

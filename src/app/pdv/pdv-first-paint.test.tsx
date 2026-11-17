@@ -108,7 +108,7 @@ describe('/pdv loading failures and requests (locked as at HEAD, baseline.md)', 
   // only on click). Nothing else in the PDV gets a new call. Counted over the whole screen: the 13 of
   // page.tsx plus the 1 of cancel-sale-modal.tsx, which is its own file and does not move.
   it('has 13 apiClient calls: the 12 of HEAD plus the single retry of the customer list (and 1 in cancel-sale-modal)', () => {
-    expect(count(source, 'apiClient.')).toBe(13 + 1);
+    expect(count(source, 'apiClient.')).toBe(13 + 1 + 1); // + createProduct of use-register-on-scan.ts (22.19c)
     expect(count(source, 'apiClient.listCustomers(')).toBe(2);
     expect(count(source, 'apiClient.me()')).toBe(1);
     expect(count(source, 'apiClient.getCurrentCash()')).toBe(2);

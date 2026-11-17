@@ -63,7 +63,12 @@ import { useSessionExpired } from '@/frontend/auth/use-session-expired';
 import { SessionExpiredNotice } from '@/frontend/auth/session-expired-notice';
 import { loginUrlHere } from '@/frontend/auth/safe-return-path';
 import { browserDraftStorage, buildCartDraft, saveCartDraft, takeCartDraft } from '@/frontend/pdv/cart-draft';
+import { isRegistrableCode, isUnknownCodeError, registeredNotice } from '@/frontend/pdv/register-on-scan';
+import { useRegisterOnScan } from '@/frontend/pdv/use-register-on-scan';
+import { RegisterOnScanPanel } from '@/frontend/pdv/register-on-scan-panel';
 import '@/frontend/styles/pdv.css';
+// The new product panel draws with the mg-* rules of the management screen, scoped by .management-page.
+import '@/frontend/styles/management.css';
 
 interface CartLine {
   product: ProductItem;
@@ -119,6 +124,12 @@ export default function PdvTerminalPage() {
   const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
   // Produto vendido por peso à espera do peso da balança.
   const [weightProduct, setWeightProduct] = useState<ProductItem | null>(null);
+  // Unknown code scanned: the new product panel. A saved product goes to the cart as a scanned one does.
+  const register = useRegisterOnScan((product) => {
+    setMessage({ text: registeredNotice(product.name), isSuccess: true });
+    addProductToCart(product);
+    barcodeInputRef.current?.focus();
+  });
   // Fiado stays behind the three-dots button until the operator opens it.
   const [showMoreMethods, setShowMoreMethods] = useState(false);
   const dotsButtonRef = useRef<HTMLButtonElement>(null);
@@ -501,7 +512,8 @@ export default function PdvTerminalPage() {
   useEffect(() => {
     function handleKeyDown(e: KeyboardEvent) {
       // A janela do peso e a de cancelar venda têm os próprios atalhos (Enter e Esc).
-      if (weightProduct || isCancelSaleOpen) return;
+      // The new product panel is a native dialog: Esc closes it, and F2/F4 do nothing behind it.
+      if (weightProduct || isCancelSaleOpen || register.isOpen) return;
 
       // Esc: fecha modais ou limpa carrinho
       if (e.key === 'Escape') {
@@ -545,7 +557,7 @@ export default function PdvTerminalPage() {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [cart.length, isCheckoutOpen, isPinModalOpen, weightProduct, isCancelSaleOpen]);
+  }, [cart.length, isCheckoutOpen, isPinModalOpen, weightProduct, isCancelSaleOpen, register.isOpen]);
 
   // Produto por unidade entra com 1; produto por peso pergunta o peso antes.
   function addProductToCart(product: ProductItem) {
@@ -666,6 +678,11 @@ export default function PdvTerminalPage() {
 
       addProductToCart(product);
     } catch (err) {
+      // Online and the catalog does not know the code: the new product panel instead of the warning.
+      if (isUnknownCodeError(err) && isRegistrableCode(code)) {
+        register.open(code);
+        return;
+      }
       setMessage({
         text: getErrorMessage(err, 'Produto não encontrado.'),
         isError: true,
@@ -676,7 +693,7 @@ export default function PdvTerminalPage() {
   // A scan outside the search field does what Enter in the field does, then the focus goes back to the field.
   function handleScannedCode(code: string) {
     const modalOpen =
-      isCheckoutOpen || isPinModalOpen || isCancelSaleOpen || isCashOpModalOpen || !!weightProduct || !!printModalData;
+      isCheckoutOpen || isPinModalOpen || isCancelSaleOpen || isCashOpModalOpen || !!weightProduct || !!printModalData || register.isOpen;
     if (!acceptsScan({ loading, initError: !!initError, modalOpen })) return;
     barcodeInputRef.current?.focus();
     void addProductByBarcode(code);
@@ -1486,6 +1503,8 @@ export default function PdvTerminalPage() {
           }}
         />
       )}
+
+      {register.isOpen && <RegisterOnScanPanel register={register} />}
 
       {weightProduct && (
         <WeightPrompt

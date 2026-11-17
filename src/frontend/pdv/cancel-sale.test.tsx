@@ -66,7 +66,7 @@ describe('where the button is', () => {
   });
 
   it('does not let Esc clear the sale being rung up while the window is open', () => {
-    expect(pdv).toContain('if (weightProduct || isCancelSaleOpen) return;');
+    expect(pdv).toContain('if (weightProduct || isCancelSaleOpen || register.isOpen) return;');
     expect(read('src', 'frontend', 'pdv', 'cancel-sale-modal.tsx')).toContain('createEscapeDismiss(onClose)');
   });
 

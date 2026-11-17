@@ -36,6 +36,9 @@ export function useProductsTab({ setFeedback, setProcessing, setLoadFailed, stoc
   const [newUnit, setNewUnit] = useState<ProductUnit>('UN');
   // Aviso de código de barras já cadastrado, e o campo do nome, para onde o foco vai depois do bipador.
   const [barcodeNote, setBarcodeNote] = useState<string | null>(null);
+  // Notices of the new product panel: it is a modal, so the page feedback behind it cannot be seen.
+  const [newScanWarning, setNewScanWarning] = useState(false);
+  const [createError, setCreateError] = useState<string | null>(null);
   const newNameRef = useRef<HTMLInputElement>(null);
   // Each scan that opens the form bumps this, and the effect below moves the cursor to the name once the form is on screen.
   const [nameFocusRequest, setNameFocusRequest] = useState(0);
@@ -51,13 +54,19 @@ export function useProductsTab({ setFeedback, setProcessing, setLoadFailed, stoc
 
   // --- Handlers de Produtos ---
 
+  function closeNewProduct() {
+    setShowNewProduct(false);
+    setNewScanWarning(false);
+    setCreateError(null);
+  }
+
   // Edit and new product are never open together.
   function startEdit(product: ProductItem) {
     if (edit.targetId === product.id) {
       edit.close();
       return;
     }
-    setShowNewProduct(false);
+    closeNewProduct();
     setFeedback(null);
     edit.open(product);
   }
@@ -107,11 +116,16 @@ export function useProductsTab({ setFeedback, setProcessing, setLoadFailed, stoc
     newNameRef.current?.focus();
   }
 
-  // The owner scanned a product with the tab open: a free code opens the form with it filled in; a taken one only warns.
+  // The owner scanned a product with the tab open: a free code opens the panel with it filled in; a taken one only warns.
+  // With the edit or the new panel open, the scan only warns inside that panel.
   const { setScanWarning } = edit;
   const handleScannedBarcode = useCallback(async (code: string) => {
     if (edit.targetId) {
       setScanWarning(true);
+      return;
+    }
+    if (showNewProduct) {
+      setNewScanWarning(true);
       return;
     }
     try {
@@ -128,7 +142,7 @@ export function useProductsTab({ setFeedback, setProcessing, setLoadFailed, stoc
     setNewBarcode(code);
     setShowNewProduct(true);
     setNameFocusRequest((n) => n + 1);
-  }, [setFeedback, edit.targetId, setScanWarning]);
+  }, [setFeedback, edit.targetId, setScanWarning, showNewProduct]);
 
   useEffect(() => {
     if (nameFocusRequest > 0) newNameRef.current?.focus();
@@ -138,13 +152,11 @@ export function useProductsTab({ setFeedback, setProcessing, setLoadFailed, stoc
     e.preventDefault();
     setProcessing(true);
     setFeedback(null);
+    setCreateError(null);
     try {
       const initialStock = initialStockToQuantity(newStock, newUnit);
       if (initialStock === null) {
-        setFeedback({
-          text: newUnit === 'KG' ? 'Estoque inicial inválido. Use quilos, como 2,5.' : 'Estoque inicial inválido. Use um número inteiro.',
-          isError: true,
-        });
+        setCreateError(newUnit === 'KG' ? 'Estoque inicial inválido. Use quilos, como 2,5.' : 'Estoque inicial inválido. Use um número inteiro.');
         return;
       }
       await apiClient.createProduct({
@@ -159,7 +171,7 @@ export function useProductsTab({ setFeedback, setProcessing, setLoadFailed, stoc
         isSuccess: true,
       });
       setProductQuery('');
-      setShowNewProduct(false);
+      closeNewProduct();
       setNewBarcode('');
       setNewName('');
       setNewPrice('');
@@ -168,7 +180,7 @@ export function useProductsTab({ setFeedback, setProcessing, setLoadFailed, stoc
       setBarcodeNote(null);
       await loadProducts();
     } catch (err) {
-      setFeedback({ text: getErrorMessage(err, 'Erro ao cadastrar produto.'), isError: true });
+      setCreateError(getErrorMessage(err, 'Erro ao cadastrar produto.'));
     } finally {
       setProcessing(false);
     }
@@ -218,6 +230,9 @@ export function useProductsTab({ setFeedback, setProcessing, setLoadFailed, stoc
     setProductQuery,
     showNewProduct,
     setShowNewProduct,
+    closeNewProduct,
+    newScanWarning,
+    createError,
     showImport,
     setShowImport,
     newBarcode,

@@ -17,8 +17,8 @@ describe('product edit (source locks)', () => {
   });
 
   it('edit and new product are never open together, and search and filter close the edit', () => {
-    expect(source).toMatch(/function startEdit[\s\S]*?setShowNewProduct\(false\)[\s\S]*?edit\.open\(/);
-    expect(source).toMatch(/onClick=\{\(\) => \{\s*edit\.close\(\);\s*setShowNewProduct\(!showNewProduct\);/);
+    expect(source).toMatch(/function startEdit[\s\S]*?closeNewProduct\(\)[\s\S]*?edit\.open\(/);
+    expect(source).toMatch(/onClick=\{\(\) => \{\s*edit\.close\(\);\s*setShowNewProduct\(true\);/);
     expect(source).toMatch(/setProductQuery\(e\.target\.value\);\s*edit\.close\(\);/);
     expect(source).toMatch(/setStockFilter\(f\.value\);\s*edit\.close\(\);/);
   });

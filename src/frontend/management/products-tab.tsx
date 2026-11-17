@@ -3,13 +3,13 @@
 import React from 'react';
 import type { AuthUser } from '@/frontend/lib/api-client';
 import { formatMoney } from '@/frontend/lib/formatters';
-import { maskCurrencyDigits } from '@/frontend/lib/currency-mask';
 import { formatQuantity } from '@/shared/domain/product-unit';
 import { LoadFailureNotice } from '@/frontend/ui/load-failure-notice';
 import { ImportProductsPanel } from '@/frontend/management/import-products-panel';
 import { matchesStockFilter, stockStatus, type StockFilter } from '@/frontend/management/stock';
 import { needingRestockCount, shownText, stockValueText } from '@/frontend/management/products-list';
 import { ProductEditPanel } from '@/frontend/management/product-edit-panel';
+import { NewProductPanel } from '@/frontend/management/new-product-panel';
 import { useBarcodeScan } from '@/frontend/management/use-barcode-scan';
 import type { useProductsTab } from './use-products-tab';
 
@@ -120,96 +120,6 @@ export function ProductsTab({ tab, stockControl, user, setFeedback, loadFailed, 
               )}
             </section>
 
-            {/* Form Novo Produto */}
-            {showNewProduct && (
-              <form onSubmit={handleCreateProduct} className="card">
-                <h3>Cadastrar Novo Produto</h3>
-                <div className="mg-form-grid">
-                  <div>
-                    <label className="field-label" htmlFor="np-barcode">Código de Barras</label>
-                    <input
-                      id="np-barcode"
-                      className="input"
-                      required
-                      autoFocus
-                      autoComplete="off"
-                      value={newBarcode}
-                      onChange={(e) => {
-                        setNewBarcode(e.target.value);
-                        setBarcodeNote(null);
-                      }}
-                      onKeyDown={handleNewBarcodeKeyDown}
-                      onBlur={(e) => void checkNewBarcode(e.target.value)}
-                      placeholder="Bipe o produto ou digite o código"
-                    />
-                    {barcodeNote && (
-                      <span className="mg-help mg-help-warn" role="alert">
-                        {barcodeNote}
-                      </span>
-                    )}
-                  </div>
-                  <div>
-                    <label className="field-label" htmlFor="np-name">Nome do Produto</label>
-                    <input
-                      id="np-name"
-                      ref={newNameRef}
-                      className="input"
-                      required
-                      value={newName}
-                      onChange={(e) => setNewName(e.target.value)}
-                      placeholder="Ex: Arroz Tipo 1 5kg"
-                    />
-                  </div>
-                  <div>
-                    <label className="field-label" htmlFor="np-unit">Como é vendido</label>
-                    <select
-                      id="np-unit"
-                      className="input"
-                      value={newUnit}
-                      onChange={(e) => setNewUnit(e.target.value === 'KG' ? 'KG' : 'UN')}
-                    >
-                      <option value="UN">Por unidade</option>
-                      <option value="KG">Por peso (preço por quilo)</option>
-                    </select>
-                  </div>
-                  <div>
-                    <label className="field-label" htmlFor="np-price">
-                      {newUnit === 'KG' ? 'Preço por Quilo (R$)' : 'Preço de Venda (R$)'}
-                    </label>
-                    <input
-                      id="np-price"
-                      className="input num"
-                      type="text"
-                      inputMode="numeric"
-                      required
-                      value={newPrice}
-                      onChange={(e) => setNewPrice(maskCurrencyDigits(e.target.value))}
-                      placeholder="24,90"
-                    />
-                  </div>
-                  {stockControl && (
-                  <div>
-                    <label className="field-label" htmlFor="np-stock">
-                      {newUnit === 'KG' ? 'Estoque Inicial (kg)' : 'Estoque Inicial'}
-                    </label>
-                    <input
-                      id="np-stock"
-                      className="input num"
-                      type={newUnit === 'KG' ? 'text' : 'number'}
-                      inputMode={newUnit === 'KG' ? 'decimal' : undefined}
-                      min={newUnit === 'KG' ? undefined : '0'}
-                      value={newStock}
-                      onChange={(e) => setNewStock(e.target.value)}
-                    />
-                  </div>
-                  )}
-                </div>
-                <button className="primary mg-form-submit" type="submit" disabled={processing}>
-                  {processing ? 'Salvando...' : 'Salvar Produto'}
-                </button>
-              </form>
-            )}
-
             {showImport && user?.isOwner && (
               <ImportProductsPanel
                 stockControl={stockControl}
@@ -260,12 +170,13 @@ export function ProductsTab({ tab, stockControl, user, setFeedback, loadFailed, 
                 <button
                   type="button"
                   className="primary mg-toolbar-new"
+                  aria-haspopup="dialog"
                   onClick={() => {
                     edit.close();
-                    setShowNewProduct(!showNewProduct);
+                    setShowNewProduct(true);
                   }}
                 >
-                  {showNewProduct ? 'Cancelar' : '＋ Novo Produto'}
+                  ＋ Novo Produto
                 </button>
                 {user?.isOwner && (
                   <button
@@ -423,6 +334,34 @@ export function ProductsTab({ tab, stockControl, user, setFeedback, loadFailed, 
                 </div>
               )}
             </section>
+
+            {showNewProduct && (
+              <NewProductPanel
+                barcode={newBarcode}
+                name={newName}
+                unit={newUnit}
+                price={newPrice}
+                stock={newStock}
+                stockControl={stockControl}
+                processing={processing}
+                barcodeNote={barcodeNote}
+                scanWarning={tab.newScanWarning}
+                error={tab.createError}
+                nameRef={newNameRef}
+                onBarcode={(value) => {
+                  setNewBarcode(value);
+                  setBarcodeNote(null);
+                }}
+                onName={setNewName}
+                onUnit={setNewUnit}
+                onPrice={setNewPrice}
+                onStock={setNewStock}
+                onSubmit={handleCreateProduct}
+                onCancel={tab.closeNewProduct}
+                onBarcodeBlur={checkNewBarcode}
+                onBarcodeKeyDown={handleNewBarcodeKeyDown}
+              />
+            )}
 
             {user?.isOwner && edit.target && (
               <ProductEditPanel

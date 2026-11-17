@@ -7,8 +7,15 @@ import type { useProductsTab } from './use-products-tab';
 const noop = () => {};
 const summary: ProductsSummary = { total: 199, lowStockCount: 3, outOfStockCount: 2, stockValue: '1500.00' };
 
-function render({ stockControl, owner, withSummary = true }: { stockControl: boolean; owner: boolean; withSummary?: boolean }) {
+function render({ stockControl, owner, withSummary = true, showNew = false }: { stockControl: boolean; owner: boolean; withSummary?: boolean; showNew?: boolean }) {
   const tab = {
+    showNewProduct: showNew,
+    newBarcode: '789',
+    newName: '',
+    newPrice: '',
+    newStock: '0',
+    newScanWarning: false,
+    createError: null,
     products: [],
     hasMore: false,
     summary: withSummary ? summary : null,
@@ -86,5 +93,28 @@ describe('catalog toolbar', () => {
 
   it('does not show Import to who is not the owner', () => {
     expect(render({ stockControl: false, owner: false })).not.toContain('Importar planilha');
+  });
+
+  it('keeps the New product button as is while the panel is open (it does not turn into Cancelar)', () => {
+    const html = render({ stockControl: false, owner: true, showNew: true });
+    expect(html).toMatch(/class="primary mg-toolbar-new"[^>]*>＋ Novo Produto/);
+    expect(html).not.toMatch(/mg-toolbar-new"[^>]*>Cancelar/);
+  });
+});
+
+describe('new product panel in the tab', () => {
+  it('is not on the page until the button opens it', () => {
+    const html = render({ stockControl: false, owner: true });
+    expect(html).not.toContain('<dialog');
+    expect(html).not.toContain('np-barcode');
+  });
+
+  it('opens as a side panel with the code filled in, and the stock field follows the stock control', () => {
+    const off = render({ stockControl: false, owner: true, showNew: true });
+    expect(off).toContain('<dialog');
+    expect(off).toContain('value="789"');
+    expect(off).toContain('Salvar Produto');
+    expect(off).not.toContain('np-stock');
+    expect(render({ stockControl: true, owner: true, showNew: true })).toContain('np-stock');
   });
 });

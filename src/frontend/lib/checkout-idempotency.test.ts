@@ -19,4 +19,19 @@ describe('createCheckoutKeyStore', () => {
 
     expect(store.current()).toBe('key-2');
   });
+
+  it('peek shows the key without creating one', () => {
+    const store = createCheckoutKeyStore(() => 'key-1');
+    expect(store.peek()).toBeNull();
+    store.current();
+    expect(store.peek()).toBe('key-1');
+  });
+
+  it('adopt makes a saved key the current one, so a resend does not record the sale twice', () => {
+    const store = createCheckoutKeyStore(() => 'new');
+    store.adopt('saved');
+    expect(store.current()).toBe('saved');
+    store.reset();
+    expect(store.peek()).toBeNull();
+  });
 });

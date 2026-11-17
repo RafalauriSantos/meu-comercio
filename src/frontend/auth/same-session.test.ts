@@ -5,7 +5,8 @@ const maria = { username: 'maria', merchantId: 'm1', authorities: [], isOwner: t
 
 describe('isSameSession', () => {
   it('is the same person when username and store match', () => {
-    expect(isSameSession(maria, { ...maria, authorities: ['x'] })).toBe(true);
+    const withOtherAuthorities = { ...maria, authorities: ['x'] };
+    expect(isSameSession(maria, withOtherAuthorities)).toBe(true);
   });
 
   it('is another person when the username or the store changes', () => {

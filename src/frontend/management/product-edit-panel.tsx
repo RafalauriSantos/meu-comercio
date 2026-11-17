@@ -21,11 +21,13 @@ interface ProductEditPanelProps {
   processing: boolean;
   barcodeNote: string | null;
   scanWarning: boolean;
+  closing: boolean;
   error: EditError | null;
   nameRef: React.RefObject<HTMLInputElement | null>;
   onDraft: (change: Partial<EditDraft>) => void;
   onSubmit: (e: React.FormEvent) => void;
   onCancel: () => void;
+  onClosed: () => void;
   onReload: () => void;
   onBarcodeBlur: (code: string) => void;
   onBarcodeKeyDown: (e: React.KeyboardEvent<HTMLInputElement>) => void;
@@ -38,11 +40,13 @@ export function ProductEditPanel({
   processing,
   barcodeNote,
   scanWarning,
+  closing,
   error,
   nameRef,
   onDraft,
   onSubmit,
   onCancel,
+  onClosed,
   onReload,
   onBarcodeBlur,
   onBarcodeKeyDown,
@@ -50,7 +54,7 @@ export function ProductEditPanel({
   const id = target.id;
   const titleId = useId();
   const dialogRef = useRef<HTMLDialogElement>(null);
-  useDialogPanel(dialogRef, nameRef);
+  useDialogPanel(dialogRef, nameRef, closing, onClosed);
   const unchanged = buildProductPatch(target, draft) === null;
   const cannotSave = processing || !isDraftValid(draft) || unchanged;
   return (
@@ -59,6 +63,8 @@ export function ProductEditPanel({
       ref={dialogRef}
       className="mg-panel"
       aria-labelledby={titleId}
+      data-closing={closing || undefined}
+      inert={closing}
       onCancel={(e) => {
         e.preventDefault();
         onCancel();

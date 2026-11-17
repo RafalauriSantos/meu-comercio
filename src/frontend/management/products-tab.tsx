@@ -38,7 +38,7 @@ export function ProductsTab({ tab, stockControl, user, setFeedback, loadFailed, 
     productQuery,
     setProductQuery,
     showNewProduct,
-    setShowNewProduct,
+    openNewProduct,
     showImport,
     setShowImport,
     newBarcode,
@@ -173,7 +173,7 @@ export function ProductsTab({ tab, stockControl, user, setFeedback, loadFailed, 
                   aria-haspopup="dialog"
                   onClick={() => {
                     edit.close();
-                    setShowNewProduct(true);
+                    openNewProduct();
                   }}
                 >
                   ＋ Novo Produto
@@ -346,6 +346,7 @@ export function ProductsTab({ tab, stockControl, user, setFeedback, loadFailed, 
                 processing={processing}
                 barcodeNote={barcodeNote}
                 scanWarning={tab.newScanWarning}
+                closing={tab.newClosing}
                 error={tab.createError}
                 nameRef={newNameRef}
                 onBarcode={(value) => {
@@ -358,6 +359,7 @@ export function ProductsTab({ tab, stockControl, user, setFeedback, loadFailed, 
                 onStock={setNewStock}
                 onSubmit={handleCreateProduct}
                 onCancel={tab.closeNewProduct}
+                onClosed={tab.finishCloseNewProduct}
                 onBarcodeBlur={checkNewBarcode}
                 onBarcodeKeyDown={handleNewBarcodeKeyDown}
               />
@@ -370,11 +372,13 @@ export function ProductsTab({ tab, stockControl, user, setFeedback, loadFailed, 
                 processing={processing}
                 barcodeNote={edit.barcodeNote}
                 scanWarning={edit.scanWarning}
+                closing={edit.closing}
                 error={edit.error}
                 nameRef={edit.nameRef}
                 onDraft={edit.changeDraft}
                 onSubmit={edit.handleSubmit}
                 onCancel={edit.close}
+                onClosed={edit.finishClose}
                 onReload={edit.handleReload}
                 onBarcodeBlur={edit.checkBarcode}
                 onBarcodeKeyDown={edit.handleBarcodeKeyDown}

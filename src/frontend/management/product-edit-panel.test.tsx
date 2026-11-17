@@ -21,6 +21,8 @@ function render(over: Partial<React.ComponentProps<typeof ProductEditPanel>> = {
       nameRef={{ current: null }}
       onDraft={noop}
       onSubmit={noop}
+      closing={false}
+      onClosed={noop}
       onCancel={noop}
       onReload={noop}
       onBarcodeBlur={noop}
@@ -48,6 +50,11 @@ describe('ProductEditPanel', () => {
     // showModal() opens it: the markup must not carry the open attribute.
     expect(html).not.toMatch(/<dialog[^>]*\sopen/);
     expect(html).toMatch(/<button[^>]*aria-label="Fechar"[^>]*>×<\/button>/);
+  });
+
+  it('while closing it is marked data-closing and inert (no second save during the exit), and not marked otherwise', () => {
+    expect(render()).not.toMatch(/<dialog[^>]*(data-closing|inert)/);
+    expect(render({ closing: true })).toMatch(/<dialog[^>]*data-closing="true"[^>]*inert=""|<dialog[^>]*inert=""[^>]*data-closing="true"/);
   });
 
   it('orders the fields Nome, Preço, Código and ties each label to its input', () => {

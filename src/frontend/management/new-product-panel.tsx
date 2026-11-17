@@ -16,6 +16,7 @@ interface NewProductPanelProps {
   processing: boolean;
   barcodeNote: string | null;
   scanWarning: boolean;
+  closing: boolean;
   error: string | null;
   nameRef: React.RefObject<HTMLInputElement | null>;
   onBarcode: (value: string) => void;
@@ -25,6 +26,7 @@ interface NewProductPanelProps {
   onStock: (value: string) => void;
   onSubmit: (e: React.FormEvent) => void;
   onCancel: () => void;
+  onClosed: () => void;
   onBarcodeBlur: (code: string) => void;
   onBarcodeKeyDown: (e: React.KeyboardEvent<HTMLInputElement>) => void;
 }
@@ -40,6 +42,7 @@ export function NewProductPanel({
   processing,
   barcodeNote,
   scanWarning,
+  closing,
   error,
   nameRef,
   onBarcode,
@@ -49,6 +52,7 @@ export function NewProductPanel({
   onStock,
   onSubmit,
   onCancel,
+  onClosed,
   onBarcodeBlur,
   onBarcodeKeyDown,
 }: NewProductPanelProps) {
@@ -56,13 +60,15 @@ export function NewProductPanel({
   const dialogRef = useRef<HTMLDialogElement>(null);
   const barcodeRef = useRef<HTMLInputElement>(null);
   // The focus starts in the barcode field; after a scan the tab moves it to the name.
-  useDialogPanel(dialogRef, barcodeRef);
+  useDialogPanel(dialogRef, barcodeRef, closing, onClosed);
   return (
     // Esc sends `cancel`: the app closes the panel (and keeps the draft) instead of the browser closing only the <dialog>.
     <dialog
       ref={dialogRef}
       className="mg-panel"
       aria-labelledby={titleId}
+      data-closing={closing || undefined}
+      inert={closing}
       onCancel={(e) => {
         e.preventDefault();
         onCancel();

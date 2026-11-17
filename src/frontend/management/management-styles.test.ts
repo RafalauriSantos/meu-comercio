@@ -67,6 +67,46 @@ describe('edit side panel css', () => {
   });
 });
 
+describe('side panel enter and exit animation css', () => {
+  const lf = css.replace(/\r\n/g, '\n');
+  const start = lf.indexOf('@media (prefers-reduced-motion: no-preference) {\n  .management-page .mg-panel');
+  const motion = start < 0 ? '' : lf.slice(start, lf.indexOf('\n}\n', start));
+  const ease = 'cubic-bezier\\(0\\.22, 1, 0\\.36, 1\\)';
+  const accel = 'cubic-bezier\\(0\\.5, 0, 0\\.75, 0\\)';
+
+  it('animates only inside no-preference, so reduced motion and old browsers just show and hide', () => {
+    expect(start).toBeGreaterThan(-1);
+    expect(motion).toMatch(new RegExp(`transition:\\s*transform 240ms ${ease}`));
+    expect(motion).toMatch(new RegExp(`overlay 240ms ${ease} allow-discrete`));
+    expect(motion).toMatch(new RegExp(`display 240ms ${ease} allow-discrete`));
+  });
+
+  it('enters from the right with @starting-style (translateX(100%) to 0) and fades the backdrop in', () => {
+    expect(motion).toMatch(/@starting-style \{\s*\.management-page \.mg-panel\[open\] \{\s*transform: translateX\(100%\)/);
+    expect(motion).toMatch(/@starting-style \{[^@]*\.mg-panel\[open\]::backdrop \{\s*opacity: 0/);
+    expect(motion).toMatch(/\.mg-panel\[open\] \{[^}]*transform: translateX\(0\)/);
+    expect(motion).toMatch(new RegExp(`\\.mg-panel::backdrop \\{[^}]*opacity: 1[^}]*transition:[^;]*opacity 240ms ${ease}`));
+  });
+
+  it('exits in 180ms with an accelerating curve: slides back and fades the backdrop out while still open', () => {
+    expect(motion).toMatch(new RegExp(`\\.mg-panel\\[open\\]\\[data-closing\\] \\{[^}]*transform: translateX\\(100%\\)[^}]*transition:\\s*transform 180ms ${accel}`));
+    expect(motion).toMatch(new RegExp(`\\.mg-panel\\[open\\]\\[data-closing\\]::backdrop \\{[^}]*opacity: 0[^}]*transition:\\s*opacity 180ms ${accel}`));
+  });
+
+  it('keeps the page scroll locked during the exit: the dialog stays [open] until the app unmounts it', () => {
+    expect(css).toMatch(/body:has\(\.mg-panel\[open\]\)\s*\{\s*overflow: hidden;/);
+    expect(css).not.toContain(':not([data-closing])');
+  });
+
+  it('hides a dialog that is not open yet, so the entrance starts when showModal() runs', () => {
+    expect(css).toMatch(/\.mg-panel:not\(\[open\]\) \{\s*display: none;/);
+  });
+
+  it('uses the same entrance on the phone (no phone override of the transform)', () => {
+    expect(css.slice(css.lastIndexOf('@media (max-width: 600px)'))).not.toMatch(/translate/);
+  });
+});
+
 describe('catalog phone css (max-width 600px)', () => {
   const marker = '@media (max-width: 600px)';
   const phone = css.slice(css.lastIndexOf(marker));

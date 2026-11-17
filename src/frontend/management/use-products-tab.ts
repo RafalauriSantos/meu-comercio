@@ -28,6 +28,8 @@ export function useProductsTab({ setFeedback, setProcessing, setLoadFailed, stoc
   const [stockFilter, setStockFilter] = useState<StockFilter>('all');
   const [productQuery, setProductQuery] = useState('');
   const [showNewProduct, setShowNewProduct] = useState(false);
+  // The new panel plays its exit while closing; it calls finishCloseNewProduct at the end.
+  const [newClosing, setNewClosing] = useState(false);
   const [showImport, setShowImport] = useState(false);
   const [newBarcode, setNewBarcode] = useState('');
   const [newName, setNewName] = useState('');
@@ -54,8 +56,18 @@ export function useProductsTab({ setFeedback, setProcessing, setLoadFailed, stoc
 
   // --- Handlers de Produtos ---
 
+  function openNewProduct() {
+    setNewClosing(false);
+    setShowNewProduct(true);
+  }
+
   function closeNewProduct() {
+    setNewClosing(true);
+  }
+
+  function finishCloseNewProduct() {
     setShowNewProduct(false);
+    setNewClosing(false);
     setNewScanWarning(false);
     setCreateError(null);
   }
@@ -124,7 +136,7 @@ export function useProductsTab({ setFeedback, setProcessing, setLoadFailed, stoc
       setScanWarning(true);
       return;
     }
-    if (showNewProduct) {
+    if (showNewProduct && !newClosing) {
       setNewScanWarning(true);
       return;
     }
@@ -140,9 +152,9 @@ export function useProductsTab({ setFeedback, setProcessing, setLoadFailed, stoc
     setFeedback(null);
     setBarcodeNote(null);
     setNewBarcode(code);
-    setShowNewProduct(true);
+    openNewProduct();
     setNameFocusRequest((n) => n + 1);
-  }, [setFeedback, edit.targetId, setScanWarning, showNewProduct]);
+  }, [setFeedback, edit.targetId, setScanWarning, showNewProduct, newClosing]);
 
   useEffect(() => {
     if (nameFocusRequest > 0) newNameRef.current?.focus();
@@ -229,8 +241,10 @@ export function useProductsTab({ setFeedback, setProcessing, setLoadFailed, stoc
     productQuery,
     setProductQuery,
     showNewProduct,
-    setShowNewProduct,
+    openNewProduct,
+    newClosing,
     closeNewProduct,
+    finishCloseNewProduct,
     newScanWarning,
     createError,
     showImport,

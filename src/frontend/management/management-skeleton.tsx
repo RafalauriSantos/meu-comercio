@@ -1,7 +1,6 @@
 import { Skeleton } from '@/frontend/ui/skeleton';
 
 const TABS = [0, 1, 2, 3];
-const KPIS = [0, 1, 2];
 const TABLE_ROWS = [0, 1, 2, 3, 4];
 
 // The management data area while its data loads: tabs, indicators and a table, in gray. The header and the
@@ -25,20 +24,16 @@ export function ManagementDataSkeleton({ shape }: { shape: boolean }) {
       </div>
 
       <section className="mg-section" aria-hidden="true">
-        <div className="mg-kpis">
-          {KPIS.map((kpi) => (
-            <div key={kpi} className="mg-kpi">
-              <Skeleton width={140} height={17} />
-              <span className="skeleton skeleton-kpi-value" aria-hidden="true" />
-            </div>
-          ))}
+        <div className="mg-summary">
+          <Skeleton width={260} height={28} />
+          <Skeleton width={120} height={40} radius={10} />
         </div>
 
         <div className="card mg-card-flush">
           <div className="mg-toolbar">
-            <Skeleton height={48} radius={12} style={{ flex: '1 1 220px', maxWidth: 420 }} />
-            <Skeleton width={81} height={44} radius={12} />
-            <Skeleton width={141} height={44} radius={12} />
+            <Skeleton height={48} radius={12} style={{ flex: '1 1 280px' }} />
+            <Skeleton width={141} height={48} radius={12} />
+            <Skeleton width={81} height={40} radius={12} />
           </div>
           {TABLE_ROWS.map((row) => (
             <div key={row} className="skeleton-row skeleton-line">

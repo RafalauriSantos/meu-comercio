@@ -89,41 +89,36 @@ export function ProductsTab({ tab, stockControl, user, setFeedback, loadFailed, 
             {loadFailed.products && (
               <LoadFailureNotice what="os produtos" busy={retrying} onRetry={() => retry(() => loadProducts(productQuery))} />
             )}
-            <div className="mg-kpis">
-              <div className="mg-kpi">
-                <div className="mg-kpi-label">Produtos cadastrados</div>
-                <div className="mg-kpi-value num">{summary ? summary.total : '—'}</div>
-              </div>
-              {stockControl && (
-                <>
-                  <div className="mg-kpi mg-kpi-warn">
-                    <div className="mg-kpi-label">Precisam de reposição</div>
-                    <div className="mg-kpi-value num">{lowStockCount ?? '—'}</div>
-                  </div>
-                  <div className="mg-kpi">
-                    <div className="mg-kpi-label">Valor em estoque (a preço de venda)</div>
-                    <div className="mg-kpi-value num">{stockValueText(summary)}</div>
-                  </div>
-                </>
-              )}
-            </div>
-
-            {/* Interruptor do controle de estoque (só a dona) */}
-            {user?.isOwner && (
-              <section className="card mg-stock-switch" aria-label="Controle de estoque">
+            <section className="mg-summary" aria-label="Resumo do catálogo">
+              <div className="mg-summary-facts">
                 <div>
-                  <strong>Controle de estoque: {stockControl ? 'ligado' : 'desligado'}</strong>
-                  <p className="muted mg-stock-switch-note">
-                    {stockControl
-                      ? 'As vendas baixam o estoque e não passam do saldo.'
-                      : 'As vendas não dependem do estoque: não precisam de saldo e não baixam nada.'}
-                  </p>
+                  <span className="mg-summary-total num">{summary ? summary.total : '—'}</span>{' '}
+                  <span className="muted">produtos cadastrados</span>
                 </div>
-                <button type="button" className="outline" onClick={handleToggleStockControl} disabled={processing}>
+                {stockControl && (
+                  <div className="mg-summary-warn">
+                    <strong className="num">{lowStockCount ?? '—'}</strong> Precisam de reposição
+                  </div>
+                )}
+                {stockControl && (
+                  <div>
+                    <strong className="num">{stockValueText(summary)}</strong> Valor em estoque (a preço de venda)
+                  </div>
+                )}
+                <div className="muted">
+                  Controle de estoque: <strong>{stockControl ? 'ligado' : 'desligado'}</strong>.{' '}
+                  {stockControl
+                    ? 'As vendas baixam o estoque e não passam do saldo.'
+                    : 'As vendas não dependem do estoque: não precisam de saldo e não baixam nada.'}
+                </div>
+              </div>
+              {/* Interruptor do controle de estoque (só a dona) */}
+              {user?.isOwner && (
+                <button type="button" className="outline mg-summary-action" onClick={handleToggleStockControl} disabled={processing}>
                   {stockControl ? 'Desligar' : 'Ligar'}
                 </button>
-              </section>
-            )}
+              )}
+            </section>
 
             {/* Form Novo Produto */}
             {showNewProduct && (
@@ -235,7 +230,7 @@ export function ProductsTab({ tab, stockControl, user, setFeedback, loadFailed, 
                 <input
                   id="product-search"
                   type="text"
-                  className="input mg-search"
+                  className="input mg-search mg-search-wide"
                   placeholder="Buscar por código de barras ou nome do produto..."
                   value={productQuery}
                   onChange={(e) => {
@@ -262,19 +257,9 @@ export function ProductsTab({ tab, stockControl, user, setFeedback, loadFailed, 
                     ))}
                   </div>
                 )}
-                {user?.isOwner && (
-                  <button
-                    type="button"
-                    className="outline mg-toolbar-action"
-                    aria-expanded={showImport}
-                    onClick={() => setShowImport(!showImport)}
-                  >
-                    {showImport ? 'Fechar importação' : 'Importar planilha'}
-                  </button>
-                )}
                 <button
                   type="button"
-                  className="primary mg-toolbar-secondary"
+                  className="primary mg-toolbar-new"
                   onClick={() => {
                     edit.close();
                     setShowNewProduct(!showNewProduct);
@@ -282,6 +267,16 @@ export function ProductsTab({ tab, stockControl, user, setFeedback, loadFailed, 
                 >
                   {showNewProduct ? 'Cancelar' : '＋ Novo Produto'}
                 </button>
+                {user?.isOwner && (
+                  <button
+                    type="button"
+                    className="outline mg-toolbar-import"
+                    aria-expanded={showImport}
+                    onClick={() => setShowImport(!showImport)}
+                  >
+                    {showImport ? 'Fechar importação' : 'Importar planilha'}
+                  </button>
+                )}
               </div>
 
               <div className="mg-table-wrap">

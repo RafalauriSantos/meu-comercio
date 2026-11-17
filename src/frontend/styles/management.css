@@ -140,11 +140,6 @@
   overflow-wrap: anywhere;
 }
 
-.management-page .mg-kpi-warn .mg-kpi-label,
-.management-page .mg-kpi-warn .mg-kpi-value {
-  color: var(--warn);
-}
-
 /* Cartões, formulários e barras de ferramentas */
 
 .management-page .mg-card-flush {
@@ -216,7 +211,17 @@
   border-radius: 10px;
 }
 
-.management-page .mg-toolbar-secondary {
+.management-page .mg-search-wide {
+  max-width: none;
+  flex-basis: 280px;
+}
+
+.management-page .mg-toolbar-new {
+  border-radius: 10px;
+}
+
+.management-page .mg-toolbar-import {
+  min-height: 40px;
   border-radius: 10px;
 }
 
@@ -736,17 +741,38 @@
 
 /* Interruptor do controle de estoque */
 
-.management-page .mg-stock-switch {
+.management-page .mg-summary {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
-  gap: 12px 16px;
+  gap: 12px 20px;
+  padding: 12px 20px;
+  border-radius: 12px;
+  background: var(--surface);
 }
 
-.management-page .mg-stock-switch-note {
-  margin: 4px 0 0;
+.management-page .mg-summary-facts {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 8px 20px;
+  min-width: 0;
   font-size: 14px;
+}
+
+.management-page .mg-summary-total {
+  font-size: 22px;
+  font-weight: 800;
+}
+
+.management-page .mg-summary-warn {
+  color: var(--warn);
+}
+
+.management-page .mg-summary-action {
+  min-height: 40px;
+  border-radius: 10px;
 }
 
 /* Relatório de vendas */

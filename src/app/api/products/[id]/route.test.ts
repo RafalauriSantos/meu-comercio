@@ -163,6 +163,55 @@ describe('PATCH /api/products/[id]', () => {
     expect(body.message).toContain('Recarregue');
   });
 
+  describe('generateBarcode (D-24)', () => {
+    it('returns 200 with the item and sends a generated EAN-13 flagged as generated', async () => {
+      const response = await patch({ generateBarcode: true, expectedUpdatedAt: '2026-11-16T10:00:00.000Z' });
+
+      expect(response.status).toBe(200);
+      const [, , changes, context] = mockUpdateDetails.mock.calls[0];
+      expect(changes.barcode).toMatch(/^29\d{11}$/);
+      expect(context).toEqual({
+        actorId: 'dona',
+        expectedUpdatedAt: new Date('2026-11-16T10:00:00.000Z'),
+        barcodeGenerated: true,
+      });
+    });
+
+    it('returns 400 when sent together with barcode and writes nothing', async () => {
+      const response = await patch({ generateBarcode: true, barcode: '2002' });
+
+      expect(response.status).toBe(400);
+      expect(mockUpdateDetails).not.toHaveBeenCalled();
+    });
+
+    it('returns 403 for an operator and writes nothing', async () => {
+      mockRequireAuthSession.mockResolvedValue(operator);
+
+      expect((await patch({ generateBarcode: true })).status).toBe(403);
+      expect(mockUpdateDetails).not.toHaveBeenCalled();
+    });
+
+    it('returns 409 PRODUCT_CHANGED for a stale expectedUpdatedAt', async () => {
+      mockUpdateDetails.mockRejectedValue(new ProductChangedError());
+
+      const response = await patch({ generateBarcode: true, expectedUpdatedAt: '2026-11-16T09:00:00.000Z' });
+
+      expect(response.status).toBe(409);
+      expect((await response.json()).code).toBe('PRODUCT_CHANGED');
+    });
+
+    it('returns a generic 500 after 5 collisions, without the code or driver text', async () => {
+      mockUpdateDetails.mockRejectedValue(new ProductBarcodeConflictError('2900000000004'));
+
+      const response = await patch({ generateBarcode: true });
+      const text = JSON.stringify(await response.json());
+
+      expect(response.status).toBe(500);
+      expect(mockUpdateDetails).toHaveBeenCalledTimes(5);
+      expect(text).not.toMatch(/2900000000004|23505|constraint|uq_products/i);
+    });
+  });
+
   it('returns 500 without leaking internal details', async () => {
     mockUpdateDetails.mockRejectedValue(new Error('connection refused at 10.0.0.1'));
 

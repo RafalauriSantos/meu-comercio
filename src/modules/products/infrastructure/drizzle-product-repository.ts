@@ -83,7 +83,7 @@ export class DrizzleProductRepository implements ProductRepository {
     merchantId: string,
     productId: string,
     changes: ProductChanges,
-    { actorId, expectedUpdatedAt }: ProductUpdateContext
+    { actorId, expectedUpdatedAt, barcodeGenerated }: ProductUpdateContext
   ): Promise<Product | null> {
     return db.transaction(async (tx) => {
       const where = and(eq(products.merchantId, merchantId), eq(products.id, productId));
@@ -125,7 +125,7 @@ export class DrizzleProductRepository implements ProductRepository {
             actorId,
             aggregateType: 'PRODUCT',
             aggregateId: productId,
-            details: { changes: diff },
+            details: { changes: diff, ...(barcodeGenerated && diff.barcode && { barcodeGenerated: true }) },
           })
         );
 

@@ -3,6 +3,7 @@
 import React, { useState, useCallback } from 'react';
 import { apiClient, CustomerItem, CustomerBalance, CreditMetricsData } from '@/frontend/lib/api-client';
 import { formatMoney, parseCurrencyInput, getErrorMessage } from '@/frontend/lib/formatters';
+import type { CustomerFilter } from './customers-list';
 
 type Feedback = { text: string; isError?: boolean; isSuccess?: boolean } | null;
 type CustomersLoadFailed = { customers?: boolean; balances?: boolean; metrics?: boolean };
@@ -21,6 +22,7 @@ export function useCustomersTab({ setFeedback, setProcessing, setLoadFailed, loa
   const [customers, setCustomers] = useState<CustomerItem[]>([]);
   const [customerBalances, setCustomerBalances] = useState<Record<string, CustomerBalance>>({});
   const [customerQuery, setCustomerQuery] = useState('');
+  const [customerFilter, setCustomerFilter] = useState<CustomerFilter>('all');
   const [showNewCustomer, setShowNewCustomer] = useState(false);
   const [newCustName, setNewCustName] = useState('');
   const [newCustPhone, setNewCustPhone] = useState('');
@@ -145,6 +147,8 @@ export function useCustomersTab({ setFeedback, setProcessing, setLoadFailed, loa
     customerBalances,
     customerQuery,
     setCustomerQuery,
+    customerFilter,
+    setCustomerFilter,
     showNewCustomer,
     setShowNewCustomer,
     newCustName,

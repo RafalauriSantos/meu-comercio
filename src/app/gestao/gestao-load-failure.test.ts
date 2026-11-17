@@ -707,7 +707,7 @@ describe('/gestao: more races of the balance retry (A2 acceptance gaps)', () => 
   function clickSettle() {
     let button: El | undefined;
     walk(tree, (el) => {
-      if (!button && el.type === 'button' && text(el).includes('Quitar Fiado no Caixa')) button = el;
+      if (!button && el.type === 'button' && text(el).includes('Receber')) button = el;
     });
     if (!button) throw new Error('settle button not found');
     (button.props.onClick as () => void)();

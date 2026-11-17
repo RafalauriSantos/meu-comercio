@@ -465,33 +465,109 @@
 
 /* Clientes e fiado */
 
-.management-page .mg-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(min(320px, 100%), 1fr));
-  gap: 16px;
+.management-page .mg-facts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px 28px;
+  padding: 14px 20px;
+  border-radius: 12px;
+  background: var(--surface);
 }
 
-.management-page .mg-customer {
+.management-page .mg-fact {
   display: flex;
   flex-direction: column;
-  gap: 10px;
   min-width: 0;
 }
 
-.management-page .mg-customer-head {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 4px 12px;
+.management-page .mg-fact-value {
+  font-size: 22px;
+  font-weight: 700;
 }
 
-.management-page .mg-customer-head strong {
-  font-size: 16px;
+.management-page .mg-clist-filters {
+  padding: 0 20px 14px;
 }
 
-.management-page .mg-customer-head span {
+.management-page .mg-clist {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.management-page .mg-clist-head,
+.management-page .mg-crow {
+  display: grid;
+  grid-template-columns: minmax(0, 1.3fr) 150px minmax(0, 1fr) 110px;
+  align-items: center;
+  gap: 16px;
+  padding: 12px 20px;
+}
+
+.management-page .mg-clist-head {
+  border-top: 1px solid var(--border);
+  background: var(--surface-2);
+  color: var(--muted);
   font-size: 14px;
+  font-weight: 600;
+}
+
+.management-page .mg-crow {
+  border-top: 1px solid var(--border);
+}
+
+.management-page .mg-ccell-name,
+.management-page .mg-ccell-debt {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  min-width: 0;
+}
+
+.management-page .mg-ccell-name strong {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.management-page .mg-ccell-limit .mg-limit-bar {
+  margin-bottom: 6px;
+}
+
+.management-page .mg-ccell-actions {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.management-page .mg-badge {
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--surface-2);
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.management-page .mg-badge-ok {
+  background: var(--success-soft);
+  color: var(--success);
+}
+
+.management-page .mg-badge-owing {
+  background: var(--primary-soft);
+  color: var(--primary-text);
+}
+
+.management-page .mg-badge-near {
+  background: var(--warn-soft);
+  color: var(--warn);
+}
+
+.management-page .mg-badge-over {
+  background: var(--danger-soft);
+  color: var(--danger);
 }
 
 .management-page .mg-meta {
@@ -499,16 +575,6 @@
   color: var(--muted);
   font-size: 14px;
   font-weight: 500;
-}
-
-.management-page .mg-debt {
-  color: var(--danger);
-  font-size: 22px;
-  font-weight: 700;
-}
-
-.management-page .mg-debt.zero {
-  color: var(--text);
 }
 
 .management-page .mg-limit-bar {
@@ -1194,6 +1260,45 @@ body:has(.mg-panel[open]) {
 
   .management-page .mg-restock .primary {
     width: 100%;
+  }
+
+  /* Clientes no celular: cada linha vira um cartão. */
+  .management-page .mg-clist-head {
+    display: none;
+  }
+
+  .management-page .mg-clist-filters {
+    padding: 0 12px 12px;
+  }
+
+  .management-page .mg-clist {
+    padding-bottom: 12px;
+  }
+
+  .management-page .mg-crow {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 8px;
+    margin: 10px 12px 0;
+    padding: 12px 14px;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    background: var(--bg);
+  }
+
+  .management-page .mg-ccell-debt {
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .management-page .mg-ccell-actions .mg-row-action {
+    width: 100%;
+    min-height: 44px;
+  }
+
+  .management-page .mg-ccell-actions:empty {
+    display: none;
   }
 
   .management-page .mg-foot {

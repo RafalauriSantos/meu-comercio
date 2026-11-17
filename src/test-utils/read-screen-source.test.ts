@@ -43,11 +43,15 @@ describe('readScreenSource fails loud', () => {
     if (skip !== 'folder') mkdirSync(folder, { recursive: true });
     if (skip !== 'page') writeFileSync(join(page, 'page.tsx'), skip === 'empty-page' ? '  \n' : 'export default function P() {}');
     if (skip !== 'folder') {
-      const names = ['customers-tab.tsx', 'import-products-panel.tsx', 'management-skeleton.tsx', 'new-product-panel.tsx', 'operators-tab.tsx', 'product-edit-panel.tsx', 'product-edit.ts', 'products-list.ts', 'products-tab.tsx', 'sales-report-panel.tsx', 'use-customers-tab.ts', 'use-operators-tab.ts', 'use-product-edit.ts', 'use-products-list.ts', 'use-products-tab.ts'];
+      const names = ['customers-tab.tsx', 'import-products-panel.tsx', 'management-skeleton.tsx', 'operators-tab.tsx', 'product-edit-panel.tsx', 'product-edit.ts', 'products-list.ts', 'products-tab.tsx', 'sales-report-panel.tsx', 'use-customers-tab.ts', 'use-operators-tab.ts', 'use-product-edit.ts', 'use-products-list.ts', 'use-products-tab.ts'];
       for (const name of names.filter((n) => skip !== 'expected' || n !== 'sales-report-panel.tsx')) {
         writeFileSync(join(folder, name), `export const ${name.replace(/\W/g, '_')} = 1;`);
       }
       writeFileSync(join(folder, 'ignored.test.ts'), 'describe()');
+    }
+    for (const shared of ['ui/new-product-panel.tsx', 'lib/use-dialog-panel.ts']) {
+      mkdirSync(join(root, 'src', 'frontend', shared.split('/')[0]), { recursive: true });
+      writeFileSync(join(root, 'src', 'frontend', shared), 'export const shared = 1;');
     }
     return root;
   }
@@ -60,7 +64,6 @@ describe('readScreenSource fails loud', () => {
       'src/frontend/management/customers-tab.tsx',
       'src/frontend/management/import-products-panel.tsx',
       'src/frontend/management/management-skeleton.tsx',
-      'src/frontend/management/new-product-panel.tsx',
       'src/frontend/management/operators-tab.tsx',
       'src/frontend/management/product-edit-panel.tsx',
       'src/frontend/management/product-edit.ts',
@@ -72,6 +75,8 @@ describe('readScreenSource fails loud', () => {
       'src/frontend/management/use-product-edit.ts',
       'src/frontend/management/use-products-list.ts',
       'src/frontend/management/use-products-tab.ts',
+      'src/frontend/ui/new-product-panel.tsx',
+      'src/frontend/lib/use-dialog-panel.ts',
     ]);
   });
 

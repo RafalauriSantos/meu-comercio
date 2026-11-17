@@ -82,7 +82,7 @@ describe('returnFocusTo', () => {
 
 // No jsdom: the browser parts of the hook are locked by reading the code.
 describe('useDialogPanel (source locks)', () => {
-  const source = readFileSync(join(process.cwd(), 'src', 'frontend', 'management', 'use-dialog-panel.ts'), 'utf8').replace(/\r\n/g, '\n');
+  const source = readFileSync(join(process.cwd(), 'src', 'frontend', 'lib', 'use-dialog-panel.ts'), 'utf8').replace(/\r\n/g, '\n');
 
   it('remembers the opener, opens as a modal once, and gives the focus back when the panel unmounts', () => {
     expect(source).toMatch(/const opener = document\.activeElement/);

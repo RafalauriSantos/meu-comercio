@@ -2,7 +2,7 @@ import React, { useId, useRef } from 'react';
 import { maskCurrencyDigits } from '@/frontend/lib/currency-mask';
 import { noticeView } from '@/frontend/ui/notice-view';
 import type { ProductUnit } from '@/shared/domain/product-unit';
-import { useDialogPanel } from '@/frontend/management/use-dialog-panel';
+import { useDialogPanel } from '@/frontend/lib/use-dialog-panel';
 
 export const SCAN_DURING_NEW_NOTICE = 'Termine ou cancele o cadastro antes de bipar outro produto.';
 

@@ -9,7 +9,7 @@ import { ImportProductsPanel } from '@/frontend/management/import-products-panel
 import { matchesStockFilter, stockStatus, type StockFilter } from '@/frontend/management/stock';
 import { needingRestockCount, shownText, stockValueText } from '@/frontend/management/products-list';
 import { ProductEditPanel } from '@/frontend/management/product-edit-panel';
-import { NewProductPanel } from '@/frontend/management/new-product-panel';
+import { NewProductPanel } from '@/frontend/ui/new-product-panel';
 import { useBarcodeScan } from '@/frontend/lib/use-barcode-scan';
 import type { useProductsTab } from './use-products-tab';
 

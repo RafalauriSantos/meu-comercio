@@ -43,13 +43,15 @@ describe('routing: the PDV lives at /pdv', () => {
   it('sends the user to /pdv after login and after opening the cash register', () => {
     const text = readFileSync(join(APP_DIR, 'login', 'page.tsx'), 'utf8');
 
-    expect(text.split("router.push('/pdv')")).toHaveLength(3);
+    // After login the PDV is the default destination (afterLoginPath, tested in session-destination.test.ts).
+    expect(text).toContain('router.push(path)');
+    expect(text).toContain("router.push(readVoltar() ?? '/pdv')");
   });
 
   it('forwards an operator who already has a session and an open cash register to /pdv', () => {
     const text = readFileSync(join(APP_DIR, 'login', 'page.tsx'), 'utf8');
 
-    expect(text).toContain("destinationForSession({ cashOpen: cash.open }) === 'pdv'");
-    expect(text).toContain("router.replace('/pdv')");
+    expect(text).toContain('afterLoginPath({ cashOpen: cash.open, voltar: readVoltar() })');
+    expect(text).toContain('router.replace(path)');
   });
 });

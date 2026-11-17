@@ -5,7 +5,9 @@ import { useRouter } from 'next/navigation';
 import { apiClient, ApiError, AuthUser } from '@/frontend/lib/api-client';
 import { getErrorMessage, parseCurrencyInput } from '@/frontend/lib/formatters';
 import { parseAuthMode } from '@/frontend/lib/auth-mode';
-import { destinationForSession } from '@/frontend/lib/session-destination';
+import { afterLoginPath } from '@/frontend/lib/session-destination';
+import { clearSessionExpired } from '@/frontend/lib/session-expired';
+import { safeReturnPath } from '@/frontend/auth/safe-return-path';
 import { AuthShell } from '@/frontend/auth/auth-shell';
 import { AuthFormSkeleton } from '@/frontend/auth/auth-skeleton';
 import { CashOpenScreen } from '@/frontend/auth/cash-open-screen';
@@ -15,6 +17,11 @@ import { passwordsMismatch } from '@/frontend/auth/passwords-mismatch';
 import { FormError } from '@/frontend/auth/form-error';
 import { useAutoDismiss } from '@/frontend/lib/use-auto-dismiss';
 import '@/frontend/styles/auth.css';
+
+// The page the person was on when the session expired (/login?voltar=/gestao), only if it is safe.
+function readVoltar(): string | null {
+  return safeReturnPath(new URLSearchParams(window.location.search).get('voltar'));
+}
 
 export default function LoginPage() {
   const router = useRouter();
@@ -65,9 +72,11 @@ export default function LoginPage() {
           ]);
           setUser(me);
           setCashOpen(cash.open);
+          clearSessionExpired();
           // An operator who is already working goes straight to the PDV, as the old root route did.
-          if (destinationForSession({ cashOpen: cash.open }) === 'pdv') {
-            router.replace('/pdv');
+          const path = afterLoginPath({ cashOpen: cash.open, voltar: readVoltar() });
+          if (path) {
+            router.replace(path);
             return;
           }
         } catch {
@@ -106,9 +115,11 @@ export default function LoginPage() {
       // Verificar status do caixa
       const cash = await apiClient.getCurrentCash();
       setCashOpen(cash.open);
+      clearSessionExpired();
 
-      if (cash.open) {
-        router.push('/pdv');
+      const path = afterLoginPath({ cashOpen: cash.open, voltar: readVoltar() });
+      if (path) {
+        router.push(path);
       }
     } catch (err) {
       setError(getErrorMessage(err, 'Erro ao realizar login. Tente novamente.'));
@@ -163,7 +174,7 @@ export default function LoginPage() {
     try {
       await apiClient.openCash({ openingBalance: parseCurrencyInput(openingBalance) });
       setCashOpen(true);
-      router.push('/pdv');
+      router.push(readVoltar() ?? '/pdv');
     } catch (err) {
       setError(getErrorMessage(err, 'Erro ao abrir caixa.'));
     } finally {

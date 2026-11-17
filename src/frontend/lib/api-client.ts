@@ -1,5 +1,6 @@
 import type { ProductUnit } from '@/shared/domain/product-unit';
 import type { PeriodKind } from '@/modules/reports/domain/report-period';
+import { isSessionExpiry, notifySessionExpired } from './session-expired';
 
 export type { SalesReport } from '@/modules/reports/application/get-sales-report.use-case';
 import type { SalesReport } from '@/modules/reports/application/get-sales-report.use-case';
@@ -218,6 +219,7 @@ export async function apiRequest<T>(
     } catch {
       // Body not JSON
     }
+    if (isSessionExpiry(response.status, path)) notifySessionExpired();
     throw new ApiError(response.status, message, errors, code);
   }
 

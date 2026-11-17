@@ -16,7 +16,6 @@ import {
 interface ProductEditRowProps {
   target: ProductItem;
   draft: EditDraft;
-  colSpan: number;
   processing: boolean;
   barcodeNote: string | null;
   error: EditError | null;
@@ -33,7 +32,6 @@ interface ProductEditRowProps {
 export function ProductEditRow({
   target,
   draft,
-  colSpan,
   processing,
   barcodeNote,
   error,
@@ -48,8 +46,8 @@ export function ProductEditRow({
   const id = target.id;
   const cannotSave = processing || !isDraftValid(draft) || buildProductPatch(target, draft) === null;
   return (
-    <tr className="mg-restock-row">
-      <td colSpan={colSpan}>
+    <div role="row" className="mg-restock-row">
+      <div role="cell" className="mg-row-full">
         <form onSubmit={onSubmit}>
           <div className="mg-form-grid">
             <div>
@@ -123,7 +121,7 @@ export function ProductEditRow({
             Cancelar
           </button>
         </form>
-      </td>
-    </tr>
+      </div>
+    </div>
   );
 }

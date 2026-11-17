@@ -384,8 +384,57 @@
   text-align: center;
 }
 
-.management-page .mg-restock-row td {
+.management-page .mg-restock-row {
+  display: grid;
+  padding: 14px 20px;
+  border-top: 1px solid var(--border);
   background: var(--bg);
+}
+
+/* Lista densa do catálogo: linhas em grid (Produto, [Em estoque, Entrada], Preço, ação). */
+
+.management-page .mg-list {
+  min-width: 560px;
+  font-size: 16px;
+  --mg-list-columns: minmax(0, 1fr) 120px 96px;
+}
+
+.management-page .mg-list-stock {
+  --mg-list-columns: minmax(0, 1fr) 110px 100px 120px 96px;
+}
+
+.management-page .mg-list-head,
+.management-page .mg-row {
+  display: grid;
+  grid-template-columns: var(--mg-list-columns);
+  align-items: center;
+  gap: 16px;
+  padding: 12px 20px;
+}
+
+.management-page .mg-list-head {
+  color: var(--muted);
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.management-page .mg-row {
+  border-top: 1px solid var(--border);
+}
+
+.management-page .mg-list .mg-num {
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+.management-page .mg-row-end {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.management-page .mg-row-full {
+  grid-column: 1 / -1;
+  min-width: 0;
 }
 
 .management-page .mg-restock {

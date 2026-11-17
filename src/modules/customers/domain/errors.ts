@@ -47,6 +47,14 @@ export class NoOpenCashSessionError extends Error {
   }
 }
 
+/** The customer was changed by someone else after the caller read it. */
+export class CustomerChangedError extends Error {
+  constructor() {
+    super('Este cliente foi alterado por outra pessoa. Recarregue a página para ver os dados atuais e tente de novo.');
+    this.name = 'CustomerChangedError';
+  }
+}
+
 export class InvalidPhoneError extends Error {
   constructor(message = 'Telefone inválido. Use o DDD e o número, com 8 ou 9 dígitos.') {
     super(message);

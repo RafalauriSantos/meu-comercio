@@ -1,12 +1,14 @@
-import { eq, and, or, ilike, sql } from 'drizzle-orm';
+import { eq, ne, and, or, ilike, sql } from 'drizzle-orm';
 import type { PgDatabase, PgQueryResultHKT } from 'drizzle-orm/pg-core';
 import type { ExtractTablesWithRelations } from 'drizzle-orm';
 import { db } from '@/shared/infrastructure/db/connection';
 import * as schema from '@/shared/infrastructure/db/schema';
 import { customers } from './customers.schema';
 import { Customer } from '../domain/customer';
-import { CustomerRepository } from '../domain/customer-repository.port';
-import { CustomerAlreadyExistsError } from '../domain/errors';
+import { CustomerChanges, CustomerRepository, CustomerUpdateContext } from '../domain/customer-repository.port';
+import { CustomerAlreadyExistsError, CustomerChangedError } from '../domain/errors';
+import { auditEvents } from '@/modules/audit/infrastructure/audit.schema';
+import { toAuditEventRow } from '@/modules/audit/infrastructure/audit-event-row';
 import { phoneDigits } from '../domain/phone';
 import { Money } from '@/shared/domain/money';
 
@@ -70,6 +72,72 @@ export class DrizzleCustomerRepository implements CustomerRepository {
           updatedAt: customer.updatedAt,
         },
       });
+  }
+
+  async updateDetails(
+    merchantId: string,
+    customerId: string,
+    changes: CustomerChanges,
+    { actorId, expectedUpdatedAt }: CustomerUpdateContext
+  ): Promise<Customer | null> {
+    try {
+      return await this.database.transaction(async (tx) => {
+        const where = and(eq(customers.merchantId, merchantId), eq(customers.id, customerId));
+        const [locked] = await tx.select().from(customers).where(where).for('update');
+        if (!locked) return null;
+
+        const before = toDomain(locked);
+        if (expectedUpdatedAt && expectedUpdatedAt.getTime() !== before.updatedAt.getTime()) {
+          throw new CustomerChangedError();
+        }
+
+        const after = before.withChanges(changes);
+        const diff = before.changesTo(after);
+        if (Object.keys(diff).length === 0) return before;
+
+        if (diff.phone) {
+          const [other] = await tx
+            .select({ id: customers.id })
+            .from(customers)
+            .where(
+              and(
+                eq(customers.merchantId, merchantId),
+                ne(customers.id, customerId),
+                or(eq(customers.phone, after.phone), sql`${storedDigits} = ${phoneDigits(after.phone)}`)
+              )
+            )
+            .limit(1);
+          if (other) throw new CustomerAlreadyExistsError(after.phone);
+        }
+
+        const [row] = await tx
+          .update(customers)
+          .set({
+            ...(diff.name && { name: after.name }),
+            ...(diff.phone && { phone: after.phone }),
+            // Strictly greater than the previous value, in whole milliseconds (the precision of expectedUpdatedAt).
+            updatedAt: sql`GREATEST(date_trunc('milliseconds', clock_timestamp()), date_trunc('milliseconds', ${customers.updatedAt}) + interval '1 millisecond')`,
+          })
+          .where(where)
+          .returning();
+
+        await tx.insert(auditEvents).values(
+          toAuditEventRow(merchantId, {
+            eventType: 'CUSTOMER_UPDATED',
+            actorId,
+            aggregateType: 'CUSTOMER',
+            aggregateId: customerId,
+            details: { changes: diff },
+          })
+        );
+
+        return toDomain(row);
+      });
+    } catch (error) {
+      // A race on the unique index (merchant, phone) is the same domain conflict, without the driver text.
+      if (isUniqueViolation(error)) throw new CustomerAlreadyExistsError(changes.phone ?? '');
+      throw error;
+    }
   }
 
   async findById(merchantId: string, customerId: string): Promise<Customer | null> {

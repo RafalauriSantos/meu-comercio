@@ -2,6 +2,8 @@ import { Money } from '@/shared/domain/money';
 import { CustomerInactiveError } from './errors';
 import { Phone } from './phone';
 
+const NAME_MAX_LENGTH = 160;
+
 export interface CustomerProps {
   id: string;
   merchantId: string;
@@ -68,6 +70,36 @@ export class Customer {
       createdAt: now,
       updatedAt: now,
     });
+  }
+
+  /**
+   * Rebuilds the customer with a new name and/or phone. Only these two can change here: the credit limit and
+   * active are not parameters. A phone that was not sent stays as stored (legacy text is never revalidated);
+   * a phone that was sent follows the D-21 rule.
+   */
+  public withChanges(changes: { name?: string; phone?: string }): Customer {
+    const name = changes.name === undefined ? this.name : changes.name.trim();
+    if (name.length < 1 || name.length > NAME_MAX_LENGTH) {
+      throw new Error(`Customer name must have 1 to ${NAME_MAX_LENGTH} characters`);
+    }
+    return new Customer({
+      id: this.id,
+      merchantId: this.merchantId,
+      name,
+      phone: changes.phone === undefined ? this.phone : Phone.create(changes.phone).value,
+      creditLimit: this.creditLimit,
+      active: this.active,
+      createdAt: this.createdAt,
+      updatedAt: this.updatedAt,
+    });
+  }
+
+  /** From and to of the editable fields that differ in `next`. */
+  public changesTo(next: Customer): Record<string, { from: string; to: string }> {
+    const changes: Record<string, { from: string; to: string }> = {};
+    if (this.name !== next.name) changes.name = { from: this.name, to: next.name };
+    if (this.phone !== next.phone) changes.phone = { from: this.phone, to: next.phone };
+    return changes;
   }
 
   public calculateAvailableCredit(currentDebt: Money): Money {

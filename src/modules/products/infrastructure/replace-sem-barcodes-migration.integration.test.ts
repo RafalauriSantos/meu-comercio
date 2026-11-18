@@ -121,7 +121,7 @@ describe.skipIf(!TEST_DATABASE_URL)('migration 0005 replace invalid barcodes (Po
 
   beforeAll(async () => {
     assertDisposableTestDatabase(TEST_DATABASE_URL!);
-    admin = new Pool({ connectionString: TEST_DATABASE_URL });
+    admin = newPool(TEST_DATABASE_URL!);
     baseName = `sem_swap_${randomBytes(4).toString('hex')}_base_test`;
     await admin.query(`CREATE DATABASE ${baseName}`);
 
@@ -135,28 +135,51 @@ describe.skipIf(!TEST_DATABASE_URL)('migration 0005 replace invalid barcodes (Po
     journal.entries = journal.entries.filter((e: { tag: string }) => e.tag !== MIGRATION_TAG);
     writeFileSync(join(folder, 'meta', '_journal.json'), JSON.stringify(journal));
 
-    const pool = new Pool({ connectionString: toUrl(baseName) });
-    await migrate(drizzle(pool), { migrationsFolder: folder });
-    await pool.end(); // a template database cannot have open connections
+    const pool = newPool(toUrl(baseName));
+    try {
+      await migrate(drizzle(pool), { migrationsFolder: folder });
+    } finally {
+      await pool.end(); // a template database cannot have open connections
+    }
   });
 
   afterAll(async () => {
-    await admin.query(`DROP DATABASE IF EXISTS ${baseName} WITH (FORCE)`);
+    await dropDatabase(baseName);
     await admin.end();
   });
+
+  // Every pool made by this test has an error listener, so a connection dropped by the server is never an unhandled error.
+  function newPool(url: string): Pool {
+    const pool = new Pool({ connectionString: url });
+    pool.on('error', () => {});
+    return pool;
+  }
+
+  // Nothing is connected when this runs (the pools were ended first), so a plain DROP is enough.
+  // FORCE is only the safety net if a connection is somehow still open.
+  async function dropDatabase(name: string) {
+    try {
+      await admin.query(`DROP DATABASE IF EXISTS ${name}`);
+    } catch {
+      await admin.query(`DROP DATABASE IF EXISTS ${name} WITH (FORCE)`);
+    }
+  }
 
   // A clone of the template (state right before 0005), thrown away at the end of the scenario.
   async function withDb(fn: (c: PoolClient, pool: Pool) => Promise<void>) {
     const name = `sem_swap_${randomBytes(4).toString('hex')}_test`;
     await admin.query(`CREATE DATABASE ${name} TEMPLATE ${baseName}`);
-    const pool = new Pool({ connectionString: toUrl(name) });
-    const client = await pool.connect();
+    const pool = newPool(toUrl(name));
+    let client: PoolClient | undefined;
     try {
+      client = await pool.connect();
+      client.on('error', () => {});
       await fn(client, pool);
     } finally {
-      client.release();
-      await pool.end();
-      await admin.query(`DROP DATABASE IF EXISTS ${name} WITH (FORCE)`);
+      // End every connection first (also when the scenario failed in the middle), then drop the database.
+      client?.release(true);
+      await pool.end().catch(() => {});
+      await dropDatabase(name);
     }
   }
 

@@ -76,3 +76,19 @@ export class CustomerCreditBlockedError extends Error {
     this.name = 'CustomerCreditBlockedError';
   }
 }
+
+/** D-28: the statement page size is not a whole number between 1 and 50. */
+export class InvalidStatementLimitError extends Error {
+  constructor(message = 'O limite deve ser um número inteiro entre 1 e 50.') {
+    super(message);
+    this.name = 'InvalidStatementLimitError';
+  }
+}
+
+/** D-28: the statement cursor is malformed, tampered with, or belongs to another customer. */
+export class InvalidStatementCursorError extends Error {
+  constructor(message = 'Cursor do extrato inválido.') {
+    super(message);
+    this.name = 'InvalidStatementCursorError';
+  }
+}

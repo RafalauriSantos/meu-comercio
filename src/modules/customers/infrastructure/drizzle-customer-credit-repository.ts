@@ -6,10 +6,26 @@ import {
   CustomerCreditRepository,
   CustomerCreditBalance,
   CreditMetrics,
+  CustomerStatementReader,
+  StatementRow,
 } from '../domain/customer-credit-repository.port';
+import { StatementPosition } from '../domain/customer-statement';
 import { Money } from '@/shared/domain/money';
 
-export class DrizzleCustomerCreditRepository implements CustomerCreditRepository {
+interface StatementSqlRow {
+  id: string;
+  type: string;
+  amount: string;
+  sale_id: string | null;
+  cash_session_id: string | null;
+  operator_id: string;
+  authorized_by: string | null;
+  note: string | null;
+  cursor_at: string;
+  running_balance: string;
+}
+
+export class DrizzleCustomerCreditRepository implements CustomerCreditRepository, CustomerStatementReader {
   async saveMovement(movement: CreditMovement): Promise<void> {
     await db.insert(customerCreditLedger).values({
       id: movement.id,
@@ -65,6 +81,53 @@ export class DrizzleCustomerCreditRepository implements CustomerCreditRepository
       .orderBy(desc(customerCreditLedger.createdAt));
 
     return rows.map((row) => this.mapRowToCreditMovement(row));
+  }
+
+  async getStatementPage(
+    merchantId: string,
+    customerId: string,
+    page: { limit: number; after?: StatementPosition }
+  ): Promise<StatementRow[]> {
+    const after = page.after
+      ? sql`where (t.created_at, t.id) < (${page.after.createdAt}::timestamptz, ${page.after.id}::uuid)`
+      : sql``;
+    // The running balance is computed over the whole history (oldest to newest) before the cursor and the limit cut the page.
+    // cursor_at keeps the microseconds of created_at, which a JS Date would lose.
+    const result = await db.execute(sql`
+      select t.* from (
+        select
+          l.id, l.type, l.amount, l.sale_id, l.cash_session_id, l.operator_id, l.authorized_by, l.note, l.created_at,
+          to_char(l.created_at at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"') as cursor_at,
+          sum(case when l.type = 'DEBIT' then l.amount else -l.amount end)
+            over (order by l.created_at asc, l.id asc rows between unbounded preceding and current row) as running_balance
+        from customer_credit_ledger l
+        where l.merchant_id = ${merchantId} and l.customer_id = ${customerId}
+      ) t
+      ${after}
+      order by t.created_at desc, t.id desc
+      limit ${page.limit}
+    `);
+
+    return (result.rows as unknown as StatementSqlRow[]).map((row) => {
+      const createdAt = new Date(row.cursor_at);
+      return {
+        movement: new CreditMovement({
+          id: row.id,
+          merchantId,
+          customerId,
+          type: row.type as CreditMovementType,
+          amount: Money.fromDecimal(row.amount),
+          operatorId: row.operator_id,
+          authorizedBy: row.authorized_by,
+          saleId: row.sale_id,
+          cashSessionId: row.cash_session_id,
+          note: row.note,
+          createdAt,
+        }),
+        runningBalance: Money.fromDecimal(row.running_balance),
+        position: { createdAt: row.cursor_at, id: row.id },
+      };
+    });
   }
 
   async findMovementsBySaleId(merchantId: string, saleId: string): Promise<CreditMovement[]> {

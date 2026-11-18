@@ -136,7 +136,7 @@ export function parseProductCsv(rawText: string): CsvProductRow[] {
   if (columnIndex.salePrice < 0) missing.push('preço');
   if (missing.length > 0) {
     throw new ImportFileError(
-      `A primeira linha precisa ter os títulos das colunas. Faltou: ${missing.join(', ')}. Use a planilha-modelo.`
+      `A primeira linha precisa ter os títulos das colunas. Faltou: ${missing.join(', ')}. Veja o exemplo na tela de importar.`
     );
   }
 

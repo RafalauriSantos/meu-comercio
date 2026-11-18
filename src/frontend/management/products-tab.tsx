@@ -213,7 +213,7 @@ export function ProductsTab({ tab, stockControl, user, setFeedback, loadFailed, 
                     aria-expanded={showImport}
                     onClick={() => setShowImport(!showImport)}
                   >
-                    {showImport ? 'Fechar importação' : 'Importar planilha'}
+                    Importar planilha
                   </button>
                 )}
               </div>

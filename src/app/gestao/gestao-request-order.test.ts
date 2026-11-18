@@ -295,8 +295,8 @@ describe('/gestao: the apiClient calls and the /login redirects in the source of
   const source = readScreenSource('gestao');
   const count = (needle: string) => source.split(needle).length - 1;
 
-  it('has 21 + 2 + 2 apiClient. (the product edit adds updateProduct and its barcode lookup, the customer edit adds updateCustomer, Gerar código adds a second updateProduct) and 2 router.push(/login)', () => {
-    expect(count('apiClient.')).toBe(21 + 2 + 2 + 2 + 1 + 1);
+  it('has 21 + 2 + 2 apiClient. (the product edit adds updateProduct and its barcode lookup, the customer edit adds updateCustomer, Gerar código adds a second updateProduct, the statement adds getCustomerStatement) and 2 router.push(/login)', () => {
+    expect(count('apiClient.')).toBe(21 + 2 + 2 + 2 + 1 + 1 + 1);
     expect(count("router.push('/login')") + count('router.push(loginUrlHere())')).toBe(2);
   });
 
@@ -313,6 +313,7 @@ describe('/gestao: the apiClient calls and the /login redirects in the source of
       getCreditMetrics: 1,
       getCurrentCash: 1,
       getCustomerBalance: 2,
+      getCustomerStatement: 1, // use-customer-statement.ts
       getSalesReport: 1, // sales-report-panel.tsx; written on two lines, so it is not in the literal count
       getStoreSettings: 1, // page.tsx; also on several lines (`.getStoreSettings()` on its own line), so also not in the literal count
       importProducts: 2,

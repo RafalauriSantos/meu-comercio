@@ -63,6 +63,7 @@ function render({
     settlingCustomer: null,
     creditMetrics,
     edit: { target: null },
+    statement: { target: null },
   } as unknown as ReturnType<typeof useCustomersTab>;
   const user = { username: 'u', merchantId: 'm', authorities: [], isOwner };
   return renderToStaticMarkup(
@@ -179,5 +180,15 @@ describe('CustomersTab Editar button', () => {
 
   it('hides Editar from the operator', () => {
     expect(render({ isOwner: false })).not.toContain('Editar');
+  });
+});
+
+describe('CustomersTab Extrato button', () => {
+  it('shows Extrato on every row for the owner and for the operator', () => {
+    for (const isOwner of [true, false]) {
+      const html = render({ isOwner });
+      expect(html.match(/aria-label="Extrato de /g)).toHaveLength(5);
+      expect(html).toContain('aria-label="Extrato de Seu Antenor"');
+    }
   });
 });

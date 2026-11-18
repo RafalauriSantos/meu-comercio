@@ -236,6 +236,17 @@ describe('apiClient products', () => {
     expect(called()).toBe(url);
   });
 
+  it.each<[[string, number, string?], string]>([
+    [['c 1', 20], '/api/customers/c%201/statement?limit=20'],
+    [['c1', 20, 'abc=='], '/api/customers/c1/statement?limit=20&cursor=abc%3D%3D'],
+  ])('getCustomerStatement(%j) calls %s', async (args, url) => {
+    const called = stubFetch();
+
+    await apiClient.getCustomerStatement(...args);
+
+    expect(called()).toBe(url);
+  });
+
   it('getProductsSummary calls the summary route', async () => {
     const called = stubFetch();
 

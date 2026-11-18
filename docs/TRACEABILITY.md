@@ -64,6 +64,7 @@ Mapeamento entre os critérios de negócio aprovados em `DECISIONS.md` e a suít
 | Conferência cega com fórmula completa (abertura + vendas + fiado + suprimentos - sangrias - estornos) | `cash` | `src/modules/cash/application/cash-operations.use-case.test.ts` | Aprovado |
 | Cancelamento de venda autenticado por PIN da dona e estorno atômico de estoque (RETURN) e caixa (CASH_CANCEL) | `sales` | `src/modules/sales/application/cancel-sale.use-case.test.ts` | Aprovado (10 testes) |
 | Estorno de fiado com crédito compensatório (CREDIT) no extrato do cliente | `sales` / `customers` | `src/modules/sales/application/cancel-sale.use-case.test.ts` | Aprovado |
+| Extrato do cliente na Gestão: tipo em português, saldo depois de cada linha, data em horário de Brasília e sem repetir linhas ao carregar mais | `frontend` | `src/frontend/management/customer-statement.test.ts`, `customer-statement-panel.test.tsx` | Aprovado |
 | Rejeição de cancelamento para vendas já canceladas, pendentes ou caixa insuficiente | `sales` | `src/modules/sales/application/cancel-sale.use-case.test.ts` | Aprovado |
 | Métricas globais de fiado na praça com total em aberto, quitado histórico e devedores | `customers` | `src/modules/customers/application/get-credit-metrics.use-case.test.ts` | Aprovado (3 testes) |
 | Isolamento multi-tenant absoluto nas métricas financeiras de fiado | `customers` | `src/modules/customers/application/get-credit-metrics.use-case.test.ts` | Aprovado |

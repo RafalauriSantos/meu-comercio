@@ -204,7 +204,7 @@ describe.skipIf(!TEST_DATABASE_URL)('Exclude and restore a product, D-27 (Postgr
   });
 
   it('the barcode stays reserved: creating another product with it, or switching one to it, is refused', async () => {
-    const { merchantId, product } = await seedShop('A1');
+    const { merchantId, product } = await seedShop('7891000100103');
     const [other] = await database
       .insert(products)
       .values({ merchantId, barcode: 'A2', name: 'Produto A2', salePrice: '5.0000' })
@@ -213,9 +213,9 @@ describe.skipIf(!TEST_DATABASE_URL)('Exclude and restore a product, D-27 (Postgr
 
     const create = new CreateProductUseCase(repo, new DrizzleInventoryRepository(), { record: vi.fn() } as never);
     await expect(
-      create.execute(merchantId, 'dona', { barcode: 'A1', name: 'Repetido', salePrice: '3.00' })
+      create.execute(merchantId, 'dona', { barcode: '7891000100103', name: 'Repetido', salePrice: '3.00' })
     ).rejects.toBeInstanceOf(BarcodeAlreadyExistsError);
-    await expect(update().execute(merchantId, 'dona', other.id, { barcode: 'A1' })).rejects.toBeInstanceOf(BarcodeAlreadyExistsError);
+    await expect(update().execute(merchantId, 'dona', other.id, { barcode: '7891000100103' })).rejects.toBeInstanceOf(BarcodeAlreadyExistsError);
     expect((await row(other.id)).barcode).toBe('A2');
   });
 

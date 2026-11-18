@@ -71,10 +71,10 @@ describe('ImportProductsUseCase', () => {
   const sheet = (...lines: string[]) => ['codigo;nome;preco;estoque', ...lines].join('\n');
 
   it('previews without writing anything', async () => {
-    const report = await useCase.execute('m1', 'dona', sheet('789;Arroz;24,90;10'), { dryRun: true });
+    const report = await useCase.execute('m1', 'dona', sheet('7891000100103;Arroz;24,90;10'), { dryRun: true });
 
     expect(report.valid).toEqual([
-      { line: 2, barcode: '789', name: 'Arroz', salePrice: '24.90', unit: 'UN', initialStock: 10 },
+      { line: 2, barcode: '7891000100103', name: 'Arroz', salePrice: '24.90', unit: 'UN', initialStock: 10 },
     ]);
     expect(report.errors).toEqual([]);
     expect(report.imported).toBe(false);
@@ -82,13 +82,13 @@ describe('ImportProductsUseCase', () => {
   });
 
   it('creates all the valid products together when confirmed', async () => {
-    const report = await useCase.execute('m1', 'dona', sheet('1;Arroz;1,50;2', '2;Feijão;3;'), { dryRun: false });
+    const report = await useCase.execute('m1', 'dona', sheet('7891000100103;Arroz;1,50;2', '7891000200209;Feijão;3;'), { dryRun: false });
 
     expect(report.imported).toBe(true);
     expect(store.imported).toHaveLength(1);
     expect(store.imported[0]).toEqual([
-      { barcode: '1', name: 'Arroz', salePrice: '1.50', unit: 'UN', initialStock: 2 },
-      { barcode: '2', name: 'Feijão', salePrice: '3.00', unit: 'UN', initialStock: 0 },
+      { barcode: '7891000100103', name: 'Arroz', salePrice: '1.50', unit: 'UN', initialStock: 2 },
+      { barcode: '7891000200209', name: 'Feijão', salePrice: '3.00', unit: 'UN', initialStock: 0 },
     ]);
   });
 
@@ -96,7 +96,7 @@ describe('ImportProductsUseCase', () => {
     const report = await useCase.execute(
       'm1',
       'dona',
-      sheet('1;Arroz;1,50;2', '2;Feijão;abc;1', '3;Sal;2;1,5', '4;Açúcar;-3;1', '5;Café;2;1'),
+      sheet('7891000100103;Arroz;1,50;2', '7891000200209;Feijão;abc;1', '7891000300305;Sal;2;1,5', '7891000400401;Açúcar;-3;1', '7891000500507;Café;2;1'),
       { dryRun: false }
     );
 
@@ -112,15 +112,15 @@ describe('ImportProductsUseCase', () => {
     const report = await useCase.execute(
       'm1',
       'dona',
-      ['codigo;nome;preco;estoque;unidade', '9;Queijo Mussarela;42,90;2,5;kg', '8;Arroz;5;3;un', '7;Mortadela;19,90;;KG'].join('\n'),
+      ['codigo;nome;preco;estoque;unidade', '7891000900901;Queijo Mussarela;42,90;2,5;kg', '7891000800805;Arroz;5;3;un', '7891000700709;Mortadela;19,90;;KG'].join('\n'),
       { dryRun: true }
     );
 
     expect(report.errors).toEqual([]);
     expect(report.valid).toEqual([
-      { line: 2, barcode: '9', name: 'Queijo Mussarela', salePrice: '42.90', unit: 'KG', initialStock: 2500 },
-      { line: 3, barcode: '8', name: 'Arroz', salePrice: '5.00', unit: 'UN', initialStock: 3 },
-      { line: 4, barcode: '7', name: 'Mortadela', salePrice: '19.90', unit: 'KG', initialStock: 0 },
+      { line: 2, barcode: '7891000900901', name: 'Queijo Mussarela', salePrice: '42.90', unit: 'KG', initialStock: 2500 },
+      { line: 3, barcode: '7891000800805', name: 'Arroz', salePrice: '5.00', unit: 'UN', initialStock: 3 },
+      { line: 4, barcode: '7891000700709', name: 'Mortadela', salePrice: '19.90', unit: 'KG', initialStock: 0 },
     ]);
   });
 
@@ -128,7 +128,7 @@ describe('ImportProductsUseCase', () => {
     const report = await useCase.execute(
       'm1',
       'dona',
-      ['codigo;nome;preco;estoque;unidade', '1;Queijo;42,90;2;litro', '2;Presunto;30;abc;kg', '3;Salame;50;1,2345;kg'].join('\n'),
+      ['codigo;nome;preco;estoque;unidade', '7891000100103;Queijo;42,90;2;litro', '7891000200209;Presunto;30;abc;kg', '7891000300305;Salame;50;1,2345;kg'].join('\n'),
       { dryRun: true }
     );
 
@@ -141,21 +141,21 @@ describe('ImportProductsUseCase', () => {
     const report = await useCase.execute(
       'm1',
       'dona',
-      ['codigo;nome;preco;estoque;unidade', '1;Arroz;5;40;un', '2;Queijo;42,90;2,5;kg', '3;Sal;3;abc;un'].join('\n'),
+      ['codigo;nome;preco;estoque;unidade', '7891000100103;Arroz;5;40;un', '7891000200209;Queijo;42,90;2,5;kg', '7891000300305;Sal;3;abc;un'].join('\n'),
       { dryRun: true, stockControl: false }
     );
 
     // Not even a stock that would be an error (abc) is looked at.
     expect(report.errors).toEqual([]);
     expect(report.valid.map((row) => [row.barcode, row.unit, row.initialStock])).toEqual([
-      ['1', 'UN', 0],
-      ['2', 'KG', 0],
-      ['3', 'UN', 0],
+      ['7891000100103', 'UN', 0],
+      ['7891000200209', 'KG', 0],
+      ['7891000300305', 'UN', 0],
     ]);
   });
 
   it('still reads the Estoque column when the shop controls its stock, and by default', async () => {
-    const sheet = ['codigo;nome;preco;estoque', '1;Arroz;5;40'].join('\n');
+    const sheet = ['codigo;nome;preco;estoque', '7891000100103;Arroz;5;40'].join('\n');
 
     const explicit = await useCase.execute('m1', 'dona', sheet, { dryRun: true, stockControl: true });
     const byDefault = await useCase.execute('m1', 'dona', sheet, { dryRun: true });
@@ -165,13 +165,13 @@ describe('ImportProductsUseCase', () => {
   });
 
   it('flags a short name and an empty barcode', async () => {
-    const report = await useCase.execute('m1', 'dona', sheet(';Arroz;5;1', '7;A;5;1'), { dryRun: true });
+    const report = await useCase.execute('m1', 'dona', sheet(';Arroz;5;1', '7891000700709;A;5;1'), { dryRun: true });
 
     expect(report.errors.map((error) => error.line)).toEqual([2, 3]);
   });
 
   it('flags a barcode repeated inside the sheet, pointing at the first line', async () => {
-    const report = await useCase.execute('m1', 'dona', sheet('1;Arroz um;1;1', '1;Arroz dois;2;1'), { dryRun: true });
+    const report = await useCase.execute('m1', 'dona', sheet('7891000100103;Arroz um;1;1', '7891000100103;Arroz dois;2;1'), { dryRun: true });
 
     expect(report.errors).toHaveLength(1);
     expect(report.errors[0].line).toBe(3);
@@ -179,21 +179,60 @@ describe('ImportProductsUseCase', () => {
   });
 
   it('leaves the products that already exist as they are and creates the new ones', async () => {
-    store.existing.add('1');
+    store.existing.add('7891000100103');
 
-    const report = await useCase.execute('m1', 'dona', sheet('1;Arroz novo nome;99;50', '2;Feijão;3;1'), { dryRun: false });
+    const report = await useCase.execute('m1', 'dona', sheet('7891000100103;Arroz novo nome;99;50', '7891000200209;Feijão;3;1'), { dryRun: false });
 
-    expect(report.skipped).toEqual([{ line: 2, barcode: '1', name: 'Arroz novo nome' }]);
-    expect(store.imported[0].map((item) => item.barcode)).toEqual(['2']);
+    expect(report.skipped).toEqual([{ line: 2, barcode: '7891000100103', name: 'Arroz novo nome' }]);
+    expect(store.imported[0].map((item) => item.barcode)).toEqual(['7891000200209']);
     expect(report.imported).toBe(true);
   });
 
   it('does not report an import when everything in the sheet already exists', async () => {
-    store.existing.add('1');
+    store.existing.add('7891000100103');
 
-    const report = await useCase.execute('m1', 'dona', sheet('1;Arroz;1;1'), { dryRun: false });
+    const report = await useCase.execute('m1', 'dona', sheet('7891000100103;Arroz;1;1'), { dryRun: false });
 
     expect(report.imported).toBe(false);
     expect(store.imported).toEqual([]);
+  });
+
+  it('refuses a row with an invalid barcode, with the line and the code, and creates nothing (D-30)', async () => {
+    const lines = ['123', '1001', 'sem-1', 'abc', '7891000100104', '12345671', '036000291453', '17891000100101', '123456789'];
+    const report = await useCase.execute(
+      'm1',
+      'dona',
+      sheet(...lines.map((code, i) => `${code};Produto ${i};5;1`), '7891000200209;Valido;5;1'),
+      { dryRun: false }
+    );
+
+    expect(report.imported).toBe(false);
+    expect(store.imported).toEqual([]);
+    expect(report.errors).toEqual(
+      lines.map((code, i) => ({ line: i + 2, message: `Código de barras inválido: "${code}". Use um código de barras de verdade.` }))
+    );
+    expect(report.valid.map((row) => row.line)).toEqual([11]);
+  });
+
+  it('shows the invalid row as an error in the preview too, next to the valid ones (D-30)', async () => {
+    const report = await useCase.execute('m1', 'dona', sheet('7891000100103;Arroz;5;1', '123;Feijão;5;1'), { dryRun: true });
+
+    expect(report.valid.map((row) => row.line)).toEqual([2]);
+    expect(report.errors).toEqual([{ line: 3, message: 'Código de barras inválido: "123". Use um código de barras de verdade.' }]);
+  });
+
+  it('accepts EAN-13, EAN-8, UPC-A and GTIN-14 with the right check digit (D-30)', async () => {
+    const codes = ['7891000100103', '12345670', '036000291452', '17891000100100', '2912345678906'];
+    const report = await useCase.execute('m1', 'dona', sheet(...codes.map((code, i) => `${code};Produto ${i};5;1`)), { dryRun: false });
+
+    expect(report.errors).toEqual([]);
+    expect(report.imported).toBe(true);
+    expect(store.imported[0].map((item) => item.barcode)).toEqual(codes);
+  });
+
+  it('keeps an empty barcode as the required-field error, not the invalid one (D-30)', async () => {
+    const report = await useCase.execute('m1', 'dona', sheet(';Arroz;5;1'), { dryRun: true });
+
+    expect(report.errors).toEqual([{ line: 2, message: 'Código de barras é obrigatório' }]);
   });
 });

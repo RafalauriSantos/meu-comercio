@@ -1,7 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import { ZodError } from 'zod';
 import { Product } from '../domain/product';
-import { ProductBarcodeConflictError } from '../domain/product-errors';
+import { InvalidBarcodeError, ProductBarcodeConflictError } from '../domain/product-errors';
 import { isValidEan13 } from '../domain/generated-barcode';
 import type { ProductRepository } from '../domain/product-repository.port';
 import type { InventoryRepository } from '@/modules/inventory/domain/inventory-repository.port';
@@ -48,6 +48,35 @@ function digitsRandom(digits: string) {
   return () => Number(digits[i++ % digits.length]) / 10 + 0.05;
 }
 
+describe('CreateProductUseCase barcode must be a real one (D-30)', () => {
+  it.each(['123', '1001', 'sem-1', 'abc', '7891000100104', '12345671', '036000291453', '17891000100101', '123456789', '78910001001031'])(
+    'refuses %s with InvalidBarcodeError and writes nothing',
+    async (barcode) => {
+      const { useCase, repo, inventory, audit } = setup();
+
+      await expect(useCase.execute(MERCHANT, 'dona', { ...BASE, barcode })).rejects.toBeInstanceOf(InvalidBarcodeError);
+      await expect(useCase.execute(MERCHANT, 'dona', { ...BASE, barcode })).rejects.toThrow(
+        'Código de barras inválido. Use um código de barras de verdade ou deixe em branco para gerar um.'
+      );
+      expect(repo.create).not.toHaveBeenCalled();
+      expect(inventory.save).not.toHaveBeenCalled();
+      expect(audit.record).not.toHaveBeenCalled();
+    }
+  );
+
+  it.each(['7891000100103', '12345670', '036000291452', '17891000100100', '2912345678906', '2000000000909'])(
+    'accepts %s as typed',
+    async (barcode) => {
+      const { useCase, stored } = setup();
+
+      const product = await useCase.execute(MERCHANT, 'dona', { ...BASE, barcode });
+
+      expect(product.barcode).toBe(barcode);
+      expect(stored).toHaveLength(1);
+    }
+  );
+});
+
 describe('CreateProductUseCase generated barcode (D-23)', () => {
   it.each([[undefined], [''], ['   ']])('generates a valid EAN-13 starting with 29 when barcode is %j', async (barcode) => {
     const { useCase, stored } = setup();
@@ -83,16 +112,16 @@ describe('CreateProductUseCase generated barcode (D-23)', () => {
   });
 
   it('a typed duplicate still answers BarcodeAlreadyExistsError and is never regenerated', async () => {
-    const { useCase, repo } = setup({ existing: ['123'] });
+    const { useCase, repo } = setup({ existing: ['7891000300305'] });
 
-    await expect(useCase.execute(MERCHANT, 'dona', { ...BASE, barcode: '123' })).rejects.toThrow(BarcodeAlreadyExistsError);
+    await expect(useCase.execute(MERCHANT, 'dona', { ...BASE, barcode: '7891000300305' })).rejects.toThrow(BarcodeAlreadyExistsError);
     expect(repo.create).not.toHaveBeenCalled();
   });
 
   it('a typed barcode that loses a race at insert becomes BarcodeAlreadyExistsError', async () => {
-    const { useCase } = setup({ raceOn: ['123'] });
+    const { useCase } = setup({ raceOn: ['7891000300305'] });
 
-    await expect(useCase.execute(MERCHANT, 'dona', { ...BASE, barcode: '123' })).rejects.toThrow(BarcodeAlreadyExistsError);
+    await expect(useCase.execute(MERCHANT, 'dona', { ...BASE, barcode: '7891000300305' })).rejects.toThrow(BarcodeAlreadyExistsError);
   });
 
   it('draws again when the first generated code already exists', async () => {

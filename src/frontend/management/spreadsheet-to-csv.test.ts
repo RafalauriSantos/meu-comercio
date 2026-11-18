@@ -94,8 +94,8 @@ describe('an .xlsx through the importer', () => {
     const xlsx = minimalXlsx([
       ['Código de barras', 'Nome', 'Preço', 'Estoque'],
       ['7891000100103', 'Arroz Tipo 1 5kg', 24.9, 12],
-      ['7891000200207', 'Feijão Carioca 1kg', 8.5, 30],
-      ['7891000300301', 'Sal', 'abc', 1],
+      ['7891000200209', 'Feijão Carioca 1kg', 8.5, 30],
+      ['7891000300305', 'Sal', 'abc', 1],
     ]);
 
     const rows = (await readSheet(xlsx)) as Array<Array<string | number>>;
@@ -109,7 +109,7 @@ describe('an .xlsx through the importer', () => {
 
     expect(report.valid).toEqual([
       { line: 2, barcode: '7891000100103', name: 'Arroz Tipo 1 5kg', salePrice: '24.90', unit: 'UN', initialStock: 12 },
-      { line: 3, barcode: '7891000200207', name: 'Feijão Carioca 1kg', salePrice: '8.50', unit: 'UN', initialStock: 30 },
+      { line: 3, barcode: '7891000200209', name: 'Feijão Carioca 1kg', salePrice: '8.50', unit: 'UN', initialStock: 30 },
     ]);
     expect(report.errors).toHaveLength(1);
     expect(report.errors[0]).toMatchObject({ line: 4 });

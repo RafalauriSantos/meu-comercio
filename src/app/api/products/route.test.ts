@@ -7,6 +7,7 @@ import {
 } from '@/modules/products/application/create-product.use-case';
 import { Money } from '@/shared/domain/money';
 import { Product } from '@/modules/products/domain/product';
+import { InvalidBarcodeError } from '@/modules/products/domain/product-errors';
 import { UnauthorizedError } from '@/shared/infrastructure/auth/auth-context';
 
 const mockRequireAuthSession = vi.fn();
@@ -173,6 +174,21 @@ describe('POST /api/products', () => {
     expect(mockExecute).not.toHaveBeenCalled();
   });
 
+  it.each([
+    ['owner', ['ROLE_OWNER']],
+    ['operator', []],
+  ])('answers 400 with the message when the barcode is not a real one, as the %s (D-30)', async (_who, authorities) => {
+    mockRequireAuthSession.mockResolvedValue({ merchantId: 'merchant-1', username: 'u', authorities });
+    mockExecute.mockRejectedValue(new InvalidBarcodeError());
+
+    const response = await post({ barcode: '123', name: 'Arroz', salePrice: '10.00' });
+
+    expect(response.status).toBe(400);
+    expect((await response.json()).message).toBe(
+      'Código de barras inválido. Use um código de barras de verdade ou deixe em branco para gerar um.'
+    );
+  });
+
   describe('as an operator (D-25)', () => {
     beforeEach(() => {
       mockRequireAuthSession.mockResolvedValue({ merchantId: 'merchant-1', username: 'ana', authorities: [] });
@@ -180,10 +196,10 @@ describe('POST /api/products', () => {
 
     it('answers 201 and creates in the session merchant with the operator as author', async () => {
       mockExecute.mockResolvedValue(
-        Product.create('merchant-1', '789', 'Arroz', Money.fromDecimal('10.00'), 'p1')
+        Product.create('merchant-1', '7891000100103', 'Arroz', Money.fromDecimal('10.00'), 'p1')
       );
 
-      const response = await post({ barcode: '789', name: 'Arroz', salePrice: '10.00', merchantId: 'other' });
+      const response = await post({ barcode: '7891000100103', name: 'Arroz', salePrice: '10.00', merchantId: 'other' });
 
       expect(response.status).toBe(201);
       expect(mockExecute.mock.calls[0].slice(0, 2)).toEqual(['merchant-1', 'ana']);
@@ -213,7 +229,7 @@ describe('POST /api/products', () => {
 
   it('lets the owner register with price zero', async () => {
     mockExecute.mockResolvedValue(
-      Product.create('merchant-1', '789', 'Brinde', Money.fromDecimal('0.00'), 'p1')
+      Product.create('merchant-1', '7891000100103', 'Brinde', Money.fromDecimal('0.00'), 'p1')
     );
 
     const response = await post({ barcode: '789', name: 'Brinde', salePrice: '0.00' });

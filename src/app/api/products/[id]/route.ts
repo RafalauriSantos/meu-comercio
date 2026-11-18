@@ -6,7 +6,7 @@ import { DrizzleProductRepository } from '@/modules/products/infrastructure/driz
 import { DrizzleInventoryRepository } from '@/modules/inventory/infrastructure/drizzle-inventory-repository';
 import { BarcodeAlreadyExistsError, BarcodeGenerationFailedError } from '@/modules/products/application/create-product.use-case';
 import { UpdateProductUseCase, ProductNotFoundError } from '@/modules/products/application/update-product.use-case';
-import { ProductChangedError } from '@/modules/products/domain/product-errors';
+import { InvalidBarcodeError, ProductChangedError } from '@/modules/products/domain/product-errors';
 
 export async function PATCH(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
@@ -54,6 +54,9 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
         },
         { status: 400 }
       );
+    }
+    if (error instanceof InvalidBarcodeError) {
+      return NextResponse.json({ message: error.message }, { status: 400 });
     }
     if (error instanceof ProductNotFoundError) {
       return NextResponse.json({ message: error.message }, { status: 404 });

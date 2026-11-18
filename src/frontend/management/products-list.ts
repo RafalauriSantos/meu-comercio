@@ -47,6 +47,11 @@ export function replaceProduct(items: ProductItem[], updated: ProductItem): Prod
   return items.map((p) => (p.id === updated.id ? updated : p));
 }
 
+/** The list without the product that was excluded. */
+export function removeProduct(items: ProductItem[], id: string): ProductItem[] {
+  return items.filter((p) => p.id !== id);
+}
+
 export function shownText(shown: number, total: number | null): string {
   const noun = (total ?? shown) === 1 ? 'produto' : 'produtos';
   return total === null ? `Mostrando ${shown} ${noun}` : `Mostrando ${shown} de ${total} ${noun}`;

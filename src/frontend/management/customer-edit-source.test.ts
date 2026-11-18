@@ -27,7 +27,7 @@ describe('customer edit (source locks)', () => {
   });
 
   it('closing keeps the target until the exit ends, and success confirms in green', () => {
-    expect(hook).toMatch(/function close\(\) \{\s*setClosing\(true\);\s*\}/);
+    expect(hook).toMatch(/function close\(\) \{\s*setClosing\(true\);\s*del\.reset\(\);\s*\}/);
     expect(hook).toMatch(/function finishClose\(\) \{\s*setTarget\(null\);\s*setClosing\(false\);/);
     expect(hook).toContain("text: 'Cliente atualizado.', isSuccess: true");
   });

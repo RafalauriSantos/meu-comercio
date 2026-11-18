@@ -5,7 +5,8 @@ import { formatMoney, parseCurrencyInput } from '@/frontend/lib/formatters';
 import { Money } from '@/shared/domain/money';
 import type { AuthUser } from '@/frontend/lib/api-client';
 import { LoadFailureNotice } from '@/frontend/ui/load-failure-notice';
-import { CUSTOMER_FILTERS, STATUS_CLASS, STATUS_LABEL, buildRows, filterCounts, shownText, visibleRows } from './customers-list';
+import { CUSTOMER_FILTERS, STATUS_CLASS, STATUS_LABEL, buildRows, filterCounts, matchesQuery, shownText, visibleRows } from './customers-list';
+import { displayPhone } from '@/frontend/lib/phone-mask';
 import { CustomerEditPanel } from './customer-edit-panel';
 import { NewCustomerPanel } from './new-customer-panel';
 import { CustomerStatementPanel } from './customer-statement-panel';
@@ -36,6 +37,12 @@ export function CustomersTab({ tab, user, loadFailed, retrying, processing, retr
     settleNote,
     setSettleNote,
     creditMetrics,
+    showDeleted,
+    showDeletedList,
+    hideDeletedList,
+    deleted,
+    deletedCount,
+    handleRestore,
     loadCustomers,
     loadCreditMetrics,
     loadMissingBalances,
@@ -49,6 +56,9 @@ export function CustomersTab({ tab, user, loadFailed, retrying, processing, retr
   const allRows = buildRows(customers, customerBalances);
   const counts = filterCounts(allRows);
   const rows = visibleRows(allRows, customerFilter, customerQuery);
+  const deletedRows = (deleted ?? [])
+    .map((c) => ({ id: c.id, name: c.name, phoneText: displayPhone(c.phone), item: c }))
+    .filter((r) => matchesQuery(r, customerQuery));
   const money = (cents: number | null) => (cents === null ? '—' : formatMoney(Money.fromCents(cents)));
 
   return (
@@ -115,12 +125,20 @@ export function CustomersTab({ tab, user, loadFailed, retrying, processing, retr
                     key={f.value}
                     type="button"
                     className="mg-segment"
-                    aria-pressed={customerFilter === f.value}
-                    onClick={() => setCustomerFilter(f.value)}
+                    aria-pressed={!showDeleted && customerFilter === f.value}
+                    onClick={() => {
+                      hideDeletedList();
+                      setCustomerFilter(f.value);
+                    }}
                   >
                     {f.label} ({counts[f.value]})
                   </button>
                 ))}
+                {user?.isOwner && (
+                  <button type="button" className="mg-segment" aria-pressed={showDeleted} onClick={showDeletedList}>
+                    Excluídos{deletedCount !== null && ` (${deletedCount})`}
+                  </button>
+                )}
               </div>
             </div>
 
@@ -141,6 +159,44 @@ export function CustomersTab({ tab, user, loadFailed, retrying, processing, retr
 
             {/* Lista de clientes e dívidas: linhas no computador, cartões no celular */}
             <section className="card mg-card-flush" aria-label="Clientes e dívidas">
+              {showDeleted ? (
+                deletedRows.length === 0 ? (
+                  <p className="mg-empty-cell">
+                    {deleted === null
+                      ? 'Carregando os clientes excluídos...'
+                      : deleted.length === 0
+                        ? 'Nenhum cliente excluído.'
+                        : 'Nenhum cliente excluído com a busca escolhida.'}
+                  </p>
+                ) : (
+                  <ul className="mg-clist">
+                    {deletedRows.map((r) => (
+                      <li key={r.id} className="mg-crow">
+                        <div className="mg-ccell-name">
+                          <strong>{r.name}</strong>
+                          <span className="muted num">{r.phoneText}</span>
+                        </div>
+                        <div className="mg-ccell-debt">
+                          <span className="mg-badge">Excluído</span>
+                        </div>
+                        <div />
+                        <div className="mg-ccell-actions">
+                          <button
+                            type="button"
+                            className="outline mg-row-action"
+                            aria-label={`Restaurar ${r.name}`}
+                            disabled={processing}
+                            onClick={() => handleRestore(r.item)}
+                          >
+                            Restaurar
+                          </button>
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
+                )
+              ) : (
+              <>
               <div className="mg-clist-head" aria-hidden="true">
                 <div>Cliente</div>
                 <div>Dívida</div>
@@ -222,6 +278,8 @@ export function CustomersTab({ tab, user, loadFailed, retrying, processing, retr
                 </ul>
               )}
               <p className="mg-foot" role="status">{shownText(rows.length, customers.length)}</p>
+              </>
+              )}
             </section>
 
             {user?.isOwner && edit.target && (
@@ -232,6 +290,7 @@ export function CustomersTab({ tab, user, loadFailed, retrying, processing, retr
                 processing={processing}
                 closing={edit.closing}
                 error={edit.error}
+                deleteFlow={edit.deleteFlow}
                 nameRef={edit.nameRef}
                 onDraft={edit.changeDraft}
                 onSubmit={edit.handleSubmit}

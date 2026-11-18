@@ -223,7 +223,7 @@ describe('apiClient products', () => {
     return () => String(fetchMock.mock.calls[0][0]);
   }
 
-  it.each<[[string?, number?, number?], string]>([
+  it.each<[[string?, number?, number?, boolean?], string]>([
     [[], '/api/products'],
     [['arroz'], '/api/products?q=arroz'],
     [['a b', 2, 50], '/api/products?q=a+b&page=2&pageSize=50'],
@@ -243,6 +243,18 @@ describe('apiClient products', () => {
     const called = stubFetch();
 
     await apiClient.getCustomerStatement(...args);
+
+    expect(called()).toBe(url);
+  });
+
+  it.each<[boolean | undefined, string]>([
+    [undefined, '/api/customers'],
+    [true, '/api/customers'],
+    [false, '/api/customers?active=false'],
+  ])('listCustomers(%s) calls %s', async (active, url) => {
+    const called = stubFetch();
+
+    await apiClient.listCustomers(active);
 
     expect(called()).toBe(url);
   });

@@ -101,6 +101,8 @@ export interface ProductPatch {
   barcode?: string;
   /** Exclusive with the fields above: the server picks the new code. */
   generateBarcode?: never;
+  /** false excludes (deactivates) the product, true restores it. Owner only. */
+  active?: boolean;
   expectedUpdatedAt?: string;
 }
 
@@ -145,8 +147,10 @@ export interface CustomerPatch {
   /** Decimal string, never a number. */
   creditLimit?: string;
   creditBlocked?: boolean;
+  /** false excludes (deactivates) the customer, true restores it. Owner only. */
+  active?: boolean;
   expectedUpdatedAt?: string;
-  /** The owner's PIN, sent only when the limit goes up. */
+  /** The owner's 6-digit PIN: sent when the limit goes up, and to exclude a customer. */
   ownerPin?: string;
 }
 
@@ -411,11 +415,13 @@ export const apiClient = {
     apiRequest<ProductItem>(`/api/products/barcode/${encodeURIComponent(barcode)}`),
   searchProducts: (query: string) =>
     apiRequest<{ items: ProductItem[] }>(`/api/products/search?q=${encodeURIComponent(query)}`),
-  listProducts: (query = '', page?: number, pageSize?: number) => {
+  /** `active: false` lists only the excluded products (owner only). */
+  listProducts: (query = '', page?: number, pageSize?: number, active?: boolean) => {
     const params = new URLSearchParams();
     if (query) params.set('q', query);
     if (page !== undefined) params.set('page', String(page));
     if (pageSize !== undefined) params.set('pageSize', String(pageSize));
+    if (active === false) params.set('active', 'false');
     const qs = params.toString();
     return apiRequest<{ items: ProductItem[]; hasMore?: boolean }>(`/api/products${qs ? `?${qs}` : ''}`);
   },
@@ -460,7 +466,9 @@ export const apiClient = {
     }),
 
   // Customers & Credit (Fiado)
-  listCustomers: () => apiRequest<{ items: CustomerItem[] }>('/api/customers'),
+  /** `active: false` lists only the excluded customers (owner only). */
+  listCustomers: (active?: boolean) =>
+    apiRequest<{ items: CustomerItem[] }>(active === false ? '/api/customers?active=false' : '/api/customers'),
   searchCustomers: (query: string) =>
     apiRequest<{ items: CustomerItem[] }>(`/api/customers/search?q=${encodeURIComponent(query)}`),
   createCustomer: (payload: CreateCustomerPayload) =>

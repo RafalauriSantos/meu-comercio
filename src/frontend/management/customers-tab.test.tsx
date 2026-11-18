@@ -46,7 +46,11 @@ function render({
   query = '',
   creditMetrics = metrics as CreditMetricsData | null,
   isOwner = true,
+  showDeleted = false,
+  deleted = null as CustomerItem[] | null,
 }: {
+  showDeleted?: boolean;
+  deleted?: CustomerItem[] | null;
   isOwner?: boolean;
   list?: CustomerItem[];
   bal?: Record<string, CustomerBalance>;
@@ -62,6 +66,9 @@ function render({
     create: { isOpen: false },
     settlingCustomer: null,
     creditMetrics,
+    showDeleted,
+    deleted,
+    deletedCount: deleted ? String(deleted.length) : null,
     edit: { target: null },
     statement: { target: null },
   } as unknown as ReturnType<typeof useCustomersTab>;
@@ -180,6 +187,40 @@ describe('CustomersTab Editar button', () => {
 
   it('hides Editar from the operator', () => {
     expect(render({ isOwner: false })).not.toContain('Editar');
+  });
+});
+
+describe('CustomersTab excluded filter', () => {
+  const gone = [customer('9', 'Zeca Antigo', '11981642350')];
+
+  it('gives the owner an Excluídos chip beside the others, with the count once read, and the operator none', () => {
+    expect(render()).toMatch(/aria-pressed="false"[^>]*>Excluídos<\/button>/);
+    expect(render({ deleted: gone })).toMatch(/aria-pressed="false"[^>]*>Excluídos \(1\)<\/button>/);
+    expect(render({ isOwner: false })).not.toContain('Excluídos');
+  });
+
+  it('in the excluded view lists only them with Restaurar, and no debt, Receber, Editar or Extrato; the other chips are not pressed', () => {
+    const html = render({ showDeleted: true, deleted: gone });
+    expect(names(html)).toEqual(['Zeca Antigo']);
+    expect(html).toContain('aria-label="Restaurar Zeca Antigo"');
+    expect(html).toContain('(11) 98164-2350');
+    expect(html).not.toContain('Maria Souza');
+    expect(html).not.toContain('Receber');
+    expect(html).not.toContain('Editar');
+    expect(html).not.toContain('Extrato de');
+    expect(html).not.toContain('aria-pressed="true">Todos');
+    expect(html).toMatch(/aria-pressed="true"[^>]*>Excluídos/);
+  });
+
+  it('keeps the chip counts and the fiado facts as they were: excluded customers do not enter them', () => {
+    const html = render({ showDeleted: true, deleted: gone });
+    expect(html).toContain('Todos (5)');
+    expect(html).toContain('R$');
+  });
+
+  it('says it is loading, or that there is none', () => {
+    expect(render({ showDeleted: true, deleted: null })).toContain('Carregando os clientes excluídos...');
+    expect(render({ showDeleted: true, deleted: [] })).toContain('Nenhum cliente excluído.');
   });
 });
 

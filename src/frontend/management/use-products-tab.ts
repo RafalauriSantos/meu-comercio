@@ -6,6 +6,7 @@ import { parseCurrencyInput, getErrorMessage } from '@/frontend/lib/formatters';
 import { findProductWithBarcode, takenBarcodeMessage } from '@/frontend/management/barcode-check';
 import type { ProductUnit } from '@/shared/domain/product-unit';
 import { useProductsList } from '@/frontend/management/use-products-list';
+import { deletedCountText, restoredNotice, submitProductActive } from '@/frontend/management/deactivate';
 import { useProductEdit } from '@/frontend/management/use-product-edit';
 import { initialStockToQuantity, restockToQuantity, type StockFilter } from '@/frontend/management/stock';
 
@@ -47,10 +48,27 @@ export function useProductsTab({ setFeedback, setProcessing, setLoadFailed, stoc
   const [restockingId, setRestockingId] = useState<string | null>(null);
   const [restockQty, setRestockQty] = useState('1');
   const [restockReason, setRestockReason] = useState('');
+  // The excluded products: read when the owner opens the filter (and again after each delete or restore), so the first load of the page has no new request.
+  // Null until read. Only the owner can read them, and only the first 100 come.
+  const [showDeleted, setShowDeleted] = useState(false);
+  const [deleted, setDeleted] = useState<{ items: ProductItem[]; hasMore: boolean } | null>(null);
+  const loadDeleted = useCallback(async () => {
+    try {
+      const res = await apiClient.listProducts('', 1, 100, false);
+      setDeleted({ items: res.items || [], hasMore: res.hasMore === true });
+    } catch (err) {
+      setFeedback({ text: 'Não foi possível carregar os produtos excluídos. Tente de novo.', isError: true });
+      console.error('Erro ao carregar produtos excluídos:', err);
+    }
+  }, [setFeedback]);
   const edit = useProductEdit({
     setFeedback,
     setProcessing,
     applyEdit: list.applyEdit,
+    applyDeleted: (item) => {
+      list.applyDeleted(item.id);
+      void loadDeleted();
+    },
     reload: () => loadProducts(productQuery),
   });
 
@@ -81,6 +99,23 @@ export function useProductsTab({ setFeedback, setProcessing, setLoadFailed, stoc
     closeNewProduct();
     setFeedback(null);
     edit.open(product);
+  }
+
+  async function handleRestore(product: ProductItem) {
+    setProcessing(true);
+    setFeedback(null);
+    try {
+      const result = await submitProductActive(apiClient.updateProduct, product, true);
+      if (result.kind === 'failed') {
+        setFeedback({ text: result.text, isError: true });
+        if (result.reload) await loadDeleted();
+        return;
+      }
+      setFeedback({ text: restoredNotice(product.name), isSuccess: true });
+      await Promise.all([loadDeleted(), loadProducts(productQuery)]);
+    } finally {
+      setProcessing(false);
+    }
   }
 
   // A dona liga ou desliga o controle de estoque da loja.
@@ -270,6 +305,15 @@ export function useProductsTab({ setFeedback, setProcessing, setLoadFailed, stoc
     restockReason,
     setRestockReason,
     loadProducts,
+    showDeleted,
+    showActive: () => setShowDeleted(false),
+    showDeletedList: () => {
+      setShowDeleted(true);
+      void loadDeleted();
+    },
+    deleted: deleted?.items ?? null,
+    deletedCount: deleted ? deletedCountText(deleted.items.length, deleted.hasMore) : null,
+    handleRestore,
     handleToggleStockControl,
     checkNewBarcode,
     handleNewBarcodeKeyDown,

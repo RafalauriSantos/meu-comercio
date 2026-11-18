@@ -295,8 +295,8 @@ describe('/gestao: the apiClient calls and the /login redirects in the source of
   const source = readScreenSource('gestao');
   const count = (needle: string) => source.split(needle).length - 1;
 
-  it('has 21 + 2 + 2 apiClient. (the product edit adds updateProduct and its barcode lookup, the customer edit adds updateCustomer, Gerar código adds a second updateProduct, the statement adds getCustomerStatement) and 2 router.push(/login)', () => {
-    expect(count('apiClient.')).toBe(21 + 2 + 2 + 2 + 1 + 1 + 1);
+  it('has 21 + 2 + 2 apiClient. (the product edit adds updateProduct and its barcode lookup, the customer edit adds updateCustomer, Gerar código adds a second updateProduct, the statement adds getCustomerStatement, Excluir and Restaurar add 2 updateProduct, 2 updateCustomer and the 2 excluded lists) and 2 router.push(/login)', () => {
+    expect(count('apiClient.')).toBe(21 + 2 + 2 + 2 + 1 + 1 + 1 + 6);
     expect(count("router.push('/login')") + count('router.push(loginUrlHere())')).toBe(2);
   });
 
@@ -317,10 +317,10 @@ describe('/gestao: the apiClient calls and the /login redirects in the source of
       getSalesReport: 1, // sales-report-panel.tsx; written on two lines, so it is not in the literal count
       getStoreSettings: 1, // page.tsx; also on several lines (`.getStoreSettings()` on its own line), so also not in the literal count
       importProducts: 2,
-      listCustomers: 1,
+      listCustomers: 2, // the list and the excluded ones (read only when the filter is opened)
       listOperators: 1,
       getProductsSummary: 1,
-      listProducts: 2, // page 1 and Carregar mais: same method, two calls
+      listProducts: 3, // page 1 and Carregar mais: same method, two calls; plus the excluded ones (read only when the filter is opened)
       logout: 1,
       me: 1,
       openCash: 1,
@@ -328,8 +328,8 @@ describe('/gestao: the apiClient calls and the /login redirects in the source of
       recordWithdrawal: 1,
       restockInventory: 1,
       settleCustomerDebt: 1,
-      updateCustomer: 1,
-      updateProduct: 2,
+      updateCustomer: 3, // the edit, Excluir and Restaurar
+      updateProduct: 4, // the edit, Gerar código, Excluir and Restaurar
       updateStoreSettings: 1,
     });
   });

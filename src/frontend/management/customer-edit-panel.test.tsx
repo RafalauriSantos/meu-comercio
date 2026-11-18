@@ -3,11 +3,13 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import type { CustomerItem } from '@/frontend/lib/api-client';
 import { draftFromCustomer } from './customer-edit';
 import { CustomerEditPanel } from './customer-edit-panel';
+import type { DeleteFlowView } from './delete-pieces';
 
 const maria: CustomerItem = { id: 'c1', name: 'Maria Souza', phone: '11981642350', creditLimit: '100.00', updatedAt: '2026-11-16T10:00:00.000Z' };
 const old: CustomerItem = { ...maria, phone: '6261616161649496169' };
 
 const noop = () => {};
+const flow: DeleteFlowView = { asking: false, pin: '', error: null, onAsk: noop, onCancel: noop, onPin: noop, onConfirm: noop, onReload: noop };
 function render(over: Partial<React.ComponentProps<typeof CustomerEditPanel>> = {}) {
   const target = over.target ?? maria;
   return renderToStaticMarkup(
@@ -18,6 +20,7 @@ function render(over: Partial<React.ComponentProps<typeof CustomerEditPanel>> = 
       processing={false}
       closing={false}
       error={null}
+      deleteFlow={flow}
       nameRef={{ current: null }}
       onDraft={noop}
       onSubmit={noop}
@@ -102,6 +105,46 @@ describe('CustomerEditPanel', () => {
   it('shows Salvando... while sending', () => {
     const html = render({ processing: true, draft: { ...draftFromCustomer(maria), name: 'Maria S.' } });
     expect(html).toMatch(/<button[^>]*disabled=""[^>]*>Salvando\.\.\.<\/button>/);
+  });
+
+  it('with a debt, locks Excluir cliente and says why; the help text is gone', () => {
+    const html = render({ debtCents: 8550 });
+    expect(html).toContain('Excluir cliente</h3>');
+    expect(html).toContain('Este cliente deve R$ 85,50. Receba o valor para poder excluir.');
+    expect(html).toMatch(/<button[^>]*class="outline mg-danger"[^>]*disabled=""[^>]*>Excluir cliente<\/button>/);
+    expect(html).not.toContain('O cliente sai das listas e do caixa.');
+  });
+
+  it('with the balance not loaded yet, locks Excluir cliente and asks to wait', () => {
+    const html = render({ debtCents: null });
+    expect(html).toContain('Aguarde o saldo carregar.');
+    expect(html).toMatch(/<button[^>]*class="outline mg-danger"[^>]*disabled=""[^>]*>Excluir cliente<\/button>/);
+  });
+
+  it('with a zero debt, shows the help text and an enabled Excluir cliente', () => {
+    const html = render({ debtCents: 0 });
+    expect(html).toContain('O cliente sai das listas e do caixa. O histórico de vendas e de fiado fica guardado.');
+    expect(html).toMatch(/<button[^>]*class="outline mg-danger"(?![^>]*disabled)[^>]*>Excluir cliente<\/button>/);
+  });
+
+  it('the confirmation asks for the owner PIN (6 digits, password, numeric), with its help, and Excluir waits for 6 digits', () => {
+    const html = render({ debtCents: 0, deleteFlow: { ...flow, asking: true } });
+    expect(html).toContain('role="alertdialog"');
+    expect(html).toContain('Excluir Maria Souza?');
+    expect(html).toMatch(/<label[^>]*for="([^"]+)"[^>]*>PIN da proprietária<\/label>/);
+    expect(html).toMatch(/<input[^>]*class="input num mg-pin"[^>]*type="password"[^>]*inputMode="numeric"[^>]*maxLength="6"/);
+    expect(html).toContain('Por segurança, excluir um cliente pede o seu PIN (6 dígitos).');
+    expect(html).toMatch(/<button[^>]*disabled=""[^>]*>Excluir<\/button>/);
+    const ready = render({ debtCents: 0, deleteFlow: { ...flow, asking: true, pin: '123456' } });
+    expect(ready).not.toMatch(/<button[^>]*disabled=""[^>]*>Excluir<\/button>/);
+    const short = render({ debtCents: 0, deleteFlow: { ...flow, asking: true, pin: '12345' } });
+    expect(short).toMatch(/<button[^>]*disabled=""[^>]*>Excluir<\/button>/);
+  });
+
+  it('shows the PIN or debt error from the server in the confirmation, without the technical code', () => {
+    const html = render({ debtCents: 0, deleteFlow: { ...flow, asking: true, error: { text: 'PIN de autorização da proprietária inválido.', reload: false } } });
+    expect(html).toContain('PIN de autorização da proprietária inválido.');
+    expect(html).not.toContain('CUSTOMER_HAS_DEBT');
   });
 
   it('shows the error with Recarregar only for a conflict', () => {

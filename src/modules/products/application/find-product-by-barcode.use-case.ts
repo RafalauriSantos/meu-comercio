@@ -1,5 +1,6 @@
 import { Product } from '../domain/product';
 import { ProductRepository } from '../domain/product-repository.port';
+import { ProductDeactivatedError } from '../domain/product-errors';
 import { InventoryRepository } from '@/modules/inventory/domain/inventory-repository.port';
 
 export interface ProductWithInventory {
@@ -18,8 +19,11 @@ export class FindProductByBarcodeUseCase {
     if (!normalized) return null;
 
     const product = await this.productRepository.findByBarcode(merchantId, normalized);
-    if (!product || !product.active) {
+    if (!product) {
       return null;
+    }
+    if (!product.active) {
+      throw new ProductDeactivatedError(product.name);
     }
 
     const availableQuantity = await this.inventoryRepository.getAvailableQuantity(merchantId, product.id);

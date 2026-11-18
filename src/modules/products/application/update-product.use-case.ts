@@ -6,7 +6,8 @@ import { ProductBarcodeConflictError } from '../domain/product-errors';
 import { generateBarcode } from '../domain/generated-barcode';
 import { BarcodeAlreadyExistsError, BarcodeGenerationFailedError } from './create-product.use-case';
 
-// Partial body: .strict() refuses unit, active and any unknown field (the unit never changes).
+// Partial body: .strict() refuses unit and any unknown field (the unit never changes). `active` (D-27) is a field
+// like the others: alone or together with them, in one transaction and one audit event.
 export const UpdateProductSchema = z
   .object({
     barcode: z.string().trim().min(1, 'Código de barras é obrigatório').max(64).optional(),
@@ -23,6 +24,8 @@ export const UpdateProductSchema = z
       .optional(),
     // Replace the barcode with a generated one (D-24). The server draws it; it cannot come with a typed barcode.
     generateBarcode: z.literal(true).optional(),
+    // D-27: false excludes (deactivates) the product, true restores it.
+    active: z.boolean('Ativo deve ser verdadeiro ou falso.').optional(),
     // The updatedAt the caller read. If the product changed since, the edit is refused.
     expectedUpdatedAt: z.iso.datetime('Data de leitura do produto inválida').optional(),
   })
@@ -32,8 +35,9 @@ export const UpdateProductSchema = z
       input.barcode !== undefined ||
       input.name !== undefined ||
       input.salePrice !== undefined ||
-      input.generateBarcode !== undefined,
-    'Informe ao menos um campo para alterar: nome, preço de venda ou código de barras.'
+      input.generateBarcode !== undefined ||
+      input.active !== undefined,
+    'Informe ao menos um campo para alterar: nome, preço de venda, código de barras ou se o produto está ativo.'
   )
   .refine(
     (input) => !(input.generateBarcode && input.barcode !== undefined),
@@ -61,6 +65,7 @@ export class UpdateProductUseCase {
     const changes: ProductChanges = {
       ...(input.name !== undefined && { name: input.name }),
       ...(input.barcode !== undefined && { barcode: input.barcode }),
+      ...(input.active !== undefined && { active: input.active }),
       ...(input.salePrice !== undefined && { salePrice: Money.fromDecimal(input.salePrice) }),
     };
 

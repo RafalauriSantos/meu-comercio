@@ -45,11 +45,17 @@ describe('Product.withChanges', () => {
     expect(() => sample().withChanges({ barcode: '   ' })).toThrow('Código de barras');
   });
 
-  it('does not accept unit or active (the type rejects them)', () => {
+  it('does not accept the unit (the type rejects it)', () => {
     // @ts-expect-error unit is not an editable field
     sample().withChanges({ unit: 'KG' });
-    // @ts-expect-error active is not an editable field
-    sample().withChanges({ active: false });
+  });
+
+  it('excludes and restores with active, keeping everything else (D-27)', () => {
+    const excluded = sample('KG').withChanges({ active: false });
+    expect(excluded).toMatchObject({ active: false, barcode: '1001', name: 'Arroz', unit: 'KG' });
+    expect(excluded.salePrice.toDecimal()).toBe('24.90');
+    expect(excluded.withChanges({ active: true }).active).toBe(true);
+    expect(sample().withChanges({ name: 'Arroz 5 kg' }).active).toBe(true);
   });
 });
 
@@ -62,6 +68,12 @@ describe('Product.changesTo', () => {
       name: { from: 'Arroz', to: 'Arroz 5 kg' },
       salePrice: { from: Money.fromDecimal('24.90').toDecimal(), to: Money.fromDecimal('26.5').toDecimal() },
     });
+  });
+
+  it('lists active from and to as booleans, and nothing when it is the same value', () => {
+    const before = sample();
+    expect(before.changesTo(before.withChanges({ active: false }))).toEqual({ active: { from: true, to: false } });
+    expect(before.changesTo(before.withChanges({ active: true }))).toEqual({});
   });
 
   it('is empty when nothing changed, even for the same price written differently', () => {

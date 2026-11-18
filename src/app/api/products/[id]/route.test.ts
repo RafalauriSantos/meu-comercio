@@ -80,6 +80,46 @@ describe('PATCH /api/products/[id]', () => {
     expect(mockUpdateDetails).not.toHaveBeenCalled();
   });
 
+  it('returns 403 for an operator who sends active, even with an unreadable body, and writes nothing (D-27)', async () => {
+    mockRequireAuthSession.mockResolvedValue(operator);
+
+    expect((await patch({ active: false })).status).toBe(403);
+    expect((await patch({ active: true })).status).toBe(403);
+    const unreadable = await PATCH(
+      new NextRequest(`http://localhost/api/products/${ID}`, { method: 'PATCH', body: 'isto não é json' }),
+      { params: Promise.resolve({ id: ID }) }
+    );
+    expect(unreadable.status).toBe(403);
+    expect(mockUpdateDetails).not.toHaveBeenCalled();
+  });
+
+  it.each([false, true])('returns 200 for active=%s alone and passes it with expectedUpdatedAt (D-27)', async (active) => {
+    mockUpdateDetails.mockResolvedValue(
+      new Product({
+        id: ID,
+        merchantId: 'merchant-1',
+        barcode: '1001',
+        name: 'Arroz Tio João',
+        salePrice: Money.fromDecimal('12.50'),
+        unit: 'KG',
+        active,
+        createdAt: new Date('2026-01-01T00:00:00.000Z'),
+        updatedAt: new Date('2026-11-18T10:00:00.000Z'),
+      })
+    );
+
+    const response = await patch({ active, expectedUpdatedAt: '2026-11-16T10:00:00.000Z' });
+
+    expect(response.status).toBe(200);
+    expect(await response.json()).toMatchObject({ active, availableQuantity: 7, updatedAt: '2026-11-18T10:00:00.000Z' });
+    expect(mockUpdateDetails).toHaveBeenCalledWith(
+      'merchant-1',
+      ID,
+      { active },
+      { actorId: 'dona', expectedUpdatedAt: new Date('2026-11-16T10:00:00.000Z') }
+    );
+  });
+
   it('returns 200 with the item in the list format, the price as decimal text', async () => {
     const response = await patch({ name: 'Arroz Tio João', salePrice: '12.50' });
 
@@ -103,7 +143,8 @@ describe('PATCH /api/products/[id]', () => {
   it.each([
     ['empty body', {}],
     ['unit', { name: 'Arroz', unit: 'UN' }],
-    ['active', { name: 'Arroz', active: false }],
+    ['active as text', { active: 'false' }],
+    ['active null', { active: null }],
     ['unknown field', { name: 'Arroz', foo: 1 }],
     ['price zero', { salePrice: '0' }],
     ['negative price', { salePrice: '-1' }],

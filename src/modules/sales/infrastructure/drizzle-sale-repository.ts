@@ -160,7 +160,7 @@ export class DrizzleSaleRepository implements SaleRepository {
   private async applyCreditDebit(tx: SaleDatabase, merchantId: string, credit: CreditDebitCommit): Promise<void> {
     // Lock the customer row so concurrent credit sales read the balance in order.
     const [lockedCustomer] = await tx
-      .select({ creditBlocked: customers.creditBlocked, creditLimit: customers.creditLimit })
+      .select({ active: customers.active, creditBlocked: customers.creditBlocked, creditLimit: customers.creditLimit })
       .from(customers)
       .where(and(eq(customers.merchantId, merchantId), eq(customers.id, credit.customerId)))
       .for('update');
@@ -183,7 +183,7 @@ export class DrizzleSaleRepository implements SaleRepository {
       Money.fromDecimal(totals?.totalCredits ?? '0')
     );
     await credit.ensureAllowed(
-      { creditBlocked: lockedCustomer.creditBlocked, creditLimit: Money.fromDecimal(lockedCustomer.creditLimit) },
+      { active: lockedCustomer.active, creditBlocked: lockedCustomer.creditBlocked, creditLimit: Money.fromDecimal(lockedCustomer.creditLimit) },
       rawDebt.isNegative() ? Money.zero() : rawDebt
     );
 

@@ -27,6 +27,8 @@ export interface CreditDebitCommit {
 
 /** The customer fields the credit sale depends on, as read after SELECT ... FOR UPDATE. */
 export interface LockedCustomerCredit {
+  /** D-27: an excluded (deactivated) customer does not buy on credit. */
+  active: boolean;
   creditBlocked: boolean;
   creditLimit: Money;
 }

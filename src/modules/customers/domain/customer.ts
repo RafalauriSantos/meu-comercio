@@ -85,11 +85,11 @@ export class Customer {
   }
 
   /**
-   * Rebuilds the customer with a new name, phone, credit limit and/or credit block. Active is not a parameter. A phone that
+   * Rebuilds the customer with a new name, phone, credit limit and/or credit block, and active (D-27; the debt rule for deactivating is checked by the repository under the row lock). A phone that
    * was not sent stays as stored (legacy text is never revalidated); a phone that was sent follows the D-21
    * rule. The limit is rounded to cents and must be from 0 to CREDIT_LIMIT_MAX (D-22); it may be below the debt.
    */
-  public withChanges(changes: { name?: string; phone?: string; creditLimit?: Money; creditBlocked?: boolean }): Customer {
+  public withChanges(changes: { name?: string; phone?: string; creditLimit?: Money; creditBlocked?: boolean; active?: boolean }): Customer {
     const name = changes.name === undefined ? this.name : changes.name.trim();
     if (name.length < 1 || name.length > NAME_MAX_LENGTH) {
       throw new Error(`Customer name must have 1 to ${NAME_MAX_LENGTH} characters`);
@@ -100,7 +100,7 @@ export class Customer {
       name,
       phone: changes.phone === undefined ? this.phone : Phone.create(changes.phone).value,
       creditLimit: changes.creditLimit === undefined ? this.creditLimit : toValidCreditLimit(changes.creditLimit),
-      active: this.active,
+      active: changes.active === undefined ? this.active : changes.active,
       creditBlocked: changes.creditBlocked === undefined ? this.creditBlocked : changes.creditBlocked,
       createdAt: this.createdAt,
       updatedAt: this.updatedAt,
@@ -118,6 +118,7 @@ export class Customer {
     if (this.creditBlocked !== next.creditBlocked) {
       changes.creditBlocked = { from: this.creditBlocked, to: next.creditBlocked };
     }
+    if (this.active !== next.active) changes.active = { from: this.active, to: next.active };
     return changes;
   }
 

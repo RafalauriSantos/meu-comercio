@@ -184,7 +184,7 @@ describe.skipIf(!TEST_DATABASE_URL)('Credit limit increase needs the owner PIN, 
     });
 
     await expect(
-      update().execute(seed.merchantId, seed.ownerUsername, seed.customerId, { active: false, name: 'Ana Souza', creditLimit: '50.00' })
+      update().execute(seed.merchantId, seed.ownerUsername, seed.customerId, { active: false, name: 'Ana Souza', creditLimit: '50.00', ownerPin: OWNER_PIN })
     ).rejects.toBeInstanceOf(CustomerHasDebtError);
 
     const [row] = await database.select().from(customers).where(eq(customers.id, seed.customerId));

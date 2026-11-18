@@ -17,10 +17,10 @@ export interface CustomerUpdateContext {
   /** When given and different from the stored updated_at, the edit is refused (CustomerChangedError). */
   expectedUpdatedAt?: Date;
   /**
-   * D-22: username of the owner whose PIN authorized a limit increase. A limit above the one read under the row
-   * lock is refused (OwnerPinRequiredError) without it. Never the PIN itself.
+   * D-22 / D-27: username of the owner whose PIN authorized a limit increase or an exclusion. A limit above, or an
+   * exclusion of an active customer, as read under the row lock is refused (OwnerPinRequiredError) without it. Never the PIN itself.
    */
-  limitIncreaseAuthorizedBy?: string;
+  authorizedBy?: string;
 }
 
 export interface CustomerRepository {

@@ -1,15 +1,18 @@
 -- 0005_replace_sem_barcodes: DATA ONLY migration (D-24, bulk replacement). No schema change.
 --
--- What it does: every product whose barcode starts with the uppercase text 'SEM-' gets a generated
+-- What it does: every product whose barcode is 'sem-' followed only by digits, in ANY letter case
+-- ('sem-123', 'SEM-1001', 'Sem-5'; regex ^sem-[0-9]+$, case-insensitive) gets a generated
 -- barcode (D-23): 13 digits = '29' + 10 random digits + EAN-13 check digit.
+-- Why: that is the format the owner typed by hand, and no manufacturer uses it.
 --
 -- What it never touches:
---   * any other barcode: 'sem-123' (lowercase), EAN-8, UPC-12, a valid EAN-13, an already generated 29..., anything else;
+--   * any other barcode: 'SEM-ABC', 'sem-12a', 'sem-', 'sem-1-2' (letters or symbols after the hyphen), EAN-8, UPC-12, a valid EAN-13, an already generated 29..., anything else;
 --   * sales, sale items, stock (inventory_items, inventory_movements): they point to products.id, not to the barcode text.
 --
--- Scope: all shops, active and inactive products. Safe to run twice (the second run finds no 'SEM-' and does nothing).
+-- Scope: all shops, active and inactive products. Safe to run twice (the second run finds no 'sem-<digits>' and does nothing).
 -- All or nothing: the replacement runs inside ONE statement (the DO block), so a failure undoes every change.
--- The old code stays recoverable: each swap writes an audit event with changes.barcode {from, to}.
+-- The old code stays recoverable: each swap writes an audit event with changes.barcode {from, to},
+-- and 'from' is the old code exactly as it was, lowercase or not.
 -- To give the old codes back see scripts/replace-sem-barcodes-revert.sql (not part of the migrations).
 -- To preview what would change (read only) see scripts/replace-sem-barcodes-preview.sql.
 
@@ -47,12 +50,14 @@ DECLARE
   attempts integer;
   replaced integer := 0;
 BEGIN
-  -- Only codes that start with the exact, uppercase 'SEM-'. FOR UPDATE locks those rows until the end.
+  -- Only codes that are 'sem-' + digits in any letter case (~* is the case-insensitive regex match; it does not
+  -- use the barcode index, fine for a one-off read of products). FOR UPDATE locks those rows until the end.
+  -- 'from' in the audit below is target.barcode, the old code exactly as it was (lowercase or not).
   -- The list is fixed when the loop starts, so rows changed below are not visited again.
   FOR target IN
     SELECT id, merchant_id, barcode
     FROM products
-    WHERE left(barcode, 4) = 'SEM-'
+    WHERE barcode ~* '^sem-[0-9]+$'
     ORDER BY merchant_id, id
     FOR UPDATE
   LOOP

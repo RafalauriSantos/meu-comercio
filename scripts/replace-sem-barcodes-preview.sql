@@ -2,7 +2,8 @@
 -- Run it in the Neon SQL editor (ideally on the backup branch) BEFORE the migration is approved.
 -- Tip: start the session with  BEGIN READ ONLY;  and finish with  ROLLBACK;  so the database itself refuses any write.
 --
--- Rule (same as the migration): only a barcode that starts with the uppercase 'SEM-' is replaced, in every shop,
+-- Rule (same as the migration): only a barcode that is 'sem-' followed by digits only, in any letter case
+-- (regex ^sem-[0-9]+$, case-insensitive: sem-123, SEM-1001, Sem-5), is replaced, in every shop,
 -- active or inactive. Everything else is KEPT and listed with the reason, for the owner to decide one by one.
 --
 -- Statement 1: one row per product, per shop. action = REPLACE or KEEP.
@@ -18,12 +19,12 @@ WITH classified AS (
     EXISTS (SELECT 1 FROM sale_items si WHERE si.product_id = p.id) AS has_sales,
     EXISTS (SELECT 1 FROM inventory_movements im WHERE im.product_id = p.id) AS has_stock_movement,
     CASE
-      WHEN left(p.barcode, 4) = 'SEM-' THEN 'REPLACE'
+      WHEN p.barcode ~* '^sem-[0-9]+$' THEN 'REPLACE'
       ELSE 'KEEP'
     END AS action,
     CASE
-      WHEN left(p.barcode, 4) = 'SEM-' THEN 'starts with SEM-'
-      WHEN lower(left(p.barcode, 4)) = 'sem-' THEN 'sem- in another letter case (not replaced)'
+      WHEN p.barcode ~* '^sem-[0-9]+$' THEN 'sem- followed only by digits'
+      WHEN lower(left(p.barcode, 4)) = 'sem-' THEN 'sem- com outro formato'
       WHEN p.barcode ~ '^[0-9]{8}$' THEN 'EAN-8'
       WHEN p.barcode ~ '^[0-9]{12}$' THEN 'UPC-12'
       WHEN p.barcode ~ '^[0-9]{13}$' THEN
@@ -48,12 +49,12 @@ WITH classified AS (
   SELECT
     p.merchant_id,
     CASE
-      WHEN left(p.barcode, 4) = 'SEM-' THEN 'REPLACE'
+      WHEN p.barcode ~* '^sem-[0-9]+$' THEN 'REPLACE'
       ELSE 'KEEP'
     END AS action,
     CASE
-      WHEN left(p.barcode, 4) = 'SEM-' THEN 'starts with SEM-'
-      WHEN lower(left(p.barcode, 4)) = 'sem-' THEN 'sem- in another letter case (not replaced)'
+      WHEN p.barcode ~* '^sem-[0-9]+$' THEN 'sem- followed only by digits'
+      WHEN lower(left(p.barcode, 4)) = 'sem-' THEN 'sem- com outro formato'
       WHEN p.barcode ~ '^[0-9]{8}$' THEN 'EAN-8'
       WHEN p.barcode ~ '^[0-9]{12}$' THEN 'UPC-12'
       WHEN p.barcode ~ '^[0-9]{13}$' THEN

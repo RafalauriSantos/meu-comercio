@@ -114,12 +114,18 @@ describe.skipIf(!TEST_DATABASE_URL)('migration 0005 replace SEM- barcodes (Postg
     const add = async (key: string, shop: string, barcode: string, name: string, active = true) => {
       ids[key] = await addProduct(c, { shop, barcode, name, active });
     };
-    // Shop A: 3 SEM- (one inactive) and every kind of code that must stay.
+    // Shop A: 6 sem-<digits> in any letter case (one inactive), and every kind of code that must stay.
     await add('a-sem1', SHOP_A, 'SEM-1001', 'Biscoito Imaginario');
     await add('a-sem2', SHOP_A, 'SEM-1002', 'Refresco Inventado', false);
     await add('a-sem3', SHOP_A, 'SEM-32354', 'Arroz de Mentira');
     await add('a-lower', SHOP_A, 'sem-123', 'Feijao Minusculo');
+    await add('a-lower2', SHOP_A, 'sem-32354', 'Arroz de Mentira Minusculo');
     await add('a-mixed', SHOP_A, 'Sem-5', 'Cafe Misto');
+    // sem- with something other than digits after the hyphen: kept.
+    await add('a-semabc', SHOP_A, 'SEM-ABC', 'Item Letras');
+    await add('a-sem12a', SHOP_A, 'sem-12a', 'Item Digitos e Letra');
+    await add('a-semempty', SHOP_A, 'sem-', 'Item Hifen Sozinho');
+    await add('a-sem1dash2', SHOP_A, 'sem-1-2', 'Item Dois Hifens');
     await add('a-ean8', SHOP_A, '12345670', 'Bala EAN8');
     await add('a-upc', SHOP_A, '036000291452', 'Sabonete UPC12');
     await add('a-ean13', SHOP_A, '7891000100103', 'Leite EAN13 Comum');
@@ -144,7 +150,7 @@ describe.skipIf(!TEST_DATABASE_URL)('migration 0005 replace SEM- barcodes (Postg
          VALUES ($1, $2, 'op-ficticia', 'PAID', '30', '30') RETURNING id`,
         [shop, session.id],
       );
-      const keys = shop === SHOP_A ? ['a-sem1', 'a-sem2', 'a-ean13'] : ['b-sem1', 'b-sem2'];
+      const keys = shop === SHOP_A ? ['a-sem1', 'a-sem2', 'a-lower', 'a-ean13'] : ['b-sem1', 'b-sem2'];
       for (const key of keys) {
         await c.query(
           `INSERT INTO sale_items (merchant_id, sale_id, product_id, product_name, unit_price, quantity, subtotal)
@@ -177,7 +183,8 @@ describe.skipIf(!TEST_DATABASE_URL)('migration 0005 replace SEM- barcodes (Postg
 
   type Row = Record<string, unknown> & { id: string; barcode: string; merchant_id: string };
   const byId = (rows: Row[]) => new Map(rows.map((r) => [r.id, r]));
-  const SEM_COUNT = 5;
+  const SWAPPED_KEYS = ['a-sem1', 'a-sem2', 'a-sem3', 'a-lower', 'a-lower2', 'a-mixed', 'b-sem1', 'b-sem2'];
+  const SEM_COUNT = SWAPPED_KEYS.length; // 8
 
   it('journal and file agree: 6 entries, 0005 is the last, tag matches the file', () => {
     const journal = JSON.parse(readFileSync(`${MIGRATIONS}/meta/_journal.json`, 'utf8'));
@@ -195,7 +202,7 @@ describe.skipIf(!TEST_DATABASE_URL)('migration 0005 replace SEM- barcodes (Postg
     });
   });
 
-  it('replaces only the exact uppercase SEM- codes; every other product stays byte for byte the same', async () => {
+  it('replaces only sem-<digits> in any letter case; every other product stays byte for byte the same', async () => {
     await withDb(async (c) => {
       const ids = await seed(c);
       const before = await snapshot(c);
@@ -205,7 +212,7 @@ describe.skipIf(!TEST_DATABASE_URL)('migration 0005 replace SEM- barcodes (Postg
       const beforeById = byId(before.products as Row[]);
       const afterById = byId(after.products as Row[]);
       expect(after.products).toHaveLength(before.products.length);
-      const swapped = ['a-sem1', 'a-sem2', 'a-sem3', 'b-sem1', 'b-sem2'].map((k) => ids[k]);
+      const swapped = SWAPPED_KEYS.map((k) => ids[k]);
       expect(swapped).toHaveLength(SEM_COUNT);
 
       for (const [id, old] of beforeById) {
@@ -220,7 +227,8 @@ describe.skipIf(!TEST_DATABASE_URL)('migration 0005 replace SEM- barcodes (Postg
         }
       }
       // The look-alikes that must not be touched, by name.
-      for (const [key, code] of [['a-lower', 'sem-123'], ['a-mixed', 'Sem-5'], ['a-ean8', '12345670'], ['a-upc', '036000291452'],
+      for (const [key, code] of [['a-semabc', 'SEM-ABC'], ['a-sem12a', 'sem-12a'], ['a-semempty', 'sem-'], ['a-sem1dash2', 'sem-1-2'],
+        ['a-ean8', '12345670'], ['a-upc', '036000291452'],
         ['a-ean13', '7891000100103'], ['a-gen', '2912345678906'], ['a-badcheck', '7891000100104'], ['a-other', 'ABC-99'],
         ['b-ean13', '7891000100103'], ['c-ean13', '7891000100103']]) {
         expect(afterById.get(ids[key])!.barcode).toBe(code);
@@ -233,7 +241,7 @@ describe.skipIf(!TEST_DATABASE_URL)('migration 0005 replace SEM- barcodes (Postg
       const ids = await seed(c);
       await applyMigration(c);
       const { rows } = await c.query('SELECT id, merchant_id, barcode FROM products');
-      const swappedIds = new Set(['a-sem1', 'a-sem2', 'a-sem3', 'b-sem1', 'b-sem2'].map((k) => ids[k]));
+      const swappedIds = new Set(SWAPPED_KEYS.map((k) => ids[k]));
       const fresh = (rows as Row[]).filter((r) => swappedIds.has(r.id));
       expect(fresh).toHaveLength(SEM_COUNT);
       for (const r of fresh) {
@@ -243,8 +251,8 @@ describe.skipIf(!TEST_DATABASE_URL)('migration 0005 replace SEM- barcodes (Postg
       expect(new Set(fresh.map((r) => r.barcode)).size).toBe(SEM_COUNT);
       const perShop = (rows as Row[]).map((r) => `${r.merchant_id}/${r.barcode}`);
       expect(new Set(perShop).size).toBe(perShop.length);
-      // No code starting with SEM- is left.
-      expect((rows as Row[]).filter((r) => r.barcode.startsWith('SEM-'))).toEqual([]);
+      // No sem-<digits> code (any case) is left.
+      expect((rows as Row[]).filter((r) => /^sem-\d+$/i.test(r.barcode))).toEqual([]);
     });
   });
 
@@ -252,8 +260,8 @@ describe.skipIf(!TEST_DATABASE_URL)('migration 0005 replace SEM- barcodes (Postg
     await withDb(async (c) => {
       await seed(c);
       const before = await snapshot(c);
-      expect(before.saleItems).toHaveLength(5);
-      expect(before.inventoryItems).toHaveLength(5);
+      expect(before.saleItems).toHaveLength(6);
+      expect(before.inventoryItems).toHaveLength(6);
       await applyMigration(c);
       const after = await snapshot(c);
       expect(after.sales).toEqual(before.sales);
@@ -265,7 +273,7 @@ describe.skipIf(!TEST_DATABASE_URL)('migration 0005 replace SEM- barcodes (Postg
       const { rows } = await c.query(
         `SELECT count(*)::int AS n FROM sale_items si JOIN products p ON p.id = si.product_id AND p.merchant_id = si.merchant_id`,
       );
-      expect(rows[0].n).toBe(5);
+      expect(rows[0].n).toBe(6);
     });
   });
 
@@ -279,7 +287,7 @@ describe.skipIf(!TEST_DATABASE_URL)('migration 0005 replace SEM- barcodes (Postg
       const now = new Map(products.map((p: Row) => [p.id, p.barcode]));
 
       expect(events).toHaveLength(SEM_COUNT);
-      const swapped = ['a-sem1', 'a-sem2', 'a-sem3', 'b-sem1', 'b-sem2'].map((k) => ids[k]);
+      const swapped = SWAPPED_KEYS.map((k) => ids[k]);
       expect(events.map((e) => e.aggregate_id).sort()).toEqual([...swapped].sort());
       for (const e of events) {
         expect(e).toMatchObject({ event_type: 'PRODUCT_UPDATED', actor_id: SYSTEM_ACTOR, aggregate_type: 'PRODUCT' });
@@ -290,8 +298,10 @@ describe.skipIf(!TEST_DATABASE_URL)('migration 0005 replace SEM- barcodes (Postg
           source: SOURCE,
         });
       }
-      // The old code is recoverable: the set of "from" is exactly the old SEM- codes.
-      expect(events.map((e) => e.details.changes.barcode.from).sort()).toEqual(['SEM-1001', 'SEM-1001', 'SEM-1002', 'SEM-2000', 'SEM-32354']);
+      // The old code is recoverable, with its original letter case: "from" is exactly the old sem-<digits> codes.
+      expect(events.map((e) => e.details.changes.barcode.from).sort()).toEqual(
+        ['SEM-1001', 'SEM-1001', 'SEM-1002', 'SEM-2000', 'SEM-32354', 'Sem-5', 'sem-123', 'sem-32354'],
+      );
     });
   });
 
@@ -315,7 +325,7 @@ describe.skipIf(!TEST_DATABASE_URL)('migration 0005 replace SEM- barcodes (Postg
       const { rows: recorded } = await c.query('SELECT count(*)::int AS n FROM drizzle.__drizzle_migrations');
       expect(recorded[0].n).toBe(6);
       const afterFirst = await snapshot(c);
-      expect((afterFirst.products as Row[]).filter((p) => p.barcode.startsWith('SEM-'))).toEqual([]);
+      expect((afterFirst.products as Row[]).filter((p) => /^sem-\d+$/i.test(p.barcode))).toEqual([]);
       expect(afterFirst.auditEvents).toHaveLength(SEM_COUNT);
 
       await migrate(database, { migrationsFolder: MIGRATIONS });
@@ -423,7 +433,7 @@ describe.skipIf(!TEST_DATABASE_URL)('migration 0005 replace SEM- barcodes (Postg
 
   it('atomicity: a failure on the 3rd audit write leaves every product, audit and link untouched (transaction and autocommit)', async () => {
     await withDb(async (c) => {
-      await seed(c); // 5 SEM- products
+      await seed(c); // 8 sem-digits products
       await c.query(`
         CREATE FUNCTION fail_on_third_audit() RETURNS trigger LANGUAGE plpgsql AS $$
         BEGIN
@@ -460,14 +470,14 @@ describe.skipIf(!TEST_DATABASE_URL)('migration 0005 replace SEM- barcodes (Postg
       await c.query(REVERT_SQL);
       const reverted = (await c.query('SELECT * FROM products ORDER BY id')).rows as Row[];
       expect(reverted.map((r) => [r.id, r.barcode])).toEqual(original.map((r) => [r.id, r.barcode]));
-      expect(String(notices.at(-1))).toMatch(/5 code\(s\) given back, 0 skipped/);
+      expect(String(notices.at(-1))).toMatch(/8 code\(s\) given back, 0 skipped/);
       const { rows: revertEvents } = await c.query(`SELECT * FROM audit_events WHERE actor_id = 'system:revert-0005'`);
       expect(revertEvents).toHaveLength(SEM_COUNT);
 
       const afterRevert = await snapshot(c);
       await c.query(REVERT_SQL);
       expect(await snapshot(c)).toEqual(afterRevert);
-      expect(String(notices.at(-1))).toMatch(/0 code\(s\) given back, 5 skipped/);
+      expect(String(notices.at(-1))).toMatch(/0 code\(s\) given back, 8 skipped/);
     });
   });
 
@@ -490,7 +500,11 @@ describe.skipIf(!TEST_DATABASE_URL)('migration 0005 replace SEM- barcodes (Postg
       expect(await code(ids['a-sem2'])).toBe('SEM-1002');
       expect(await code(ids['b-sem1'])).toBe('SEM-1001');
       expect(await code(ids['b-sem2'])).toBe('SEM-2000');
-      expect(String(notices.at(-1))).toMatch(/3 code\(s\) given back, 2 skipped/);
+      // The original letter case comes back exactly.
+      expect(await code(ids['a-lower'])).toBe('sem-123');
+      expect(await code(ids['a-lower2'])).toBe('sem-32354');
+      expect(await code(ids['a-mixed'])).toBe('Sem-5');
+      expect(String(notices.at(-1))).toMatch(/6 code\(s\) given back, 2 skipped/);
     });
   });
 
@@ -506,13 +520,15 @@ describe.skipIf(!TEST_DATABASE_URL)('migration 0005 replace SEM- barcodes (Postg
       expect(results).toHaveLength(2);
       const [detail, summary] = results.map((r) => r.rows);
       const reasonOf = (id: string) => detail.find((r) => r.product_id === id);
-      for (const key of ['a-sem1', 'a-sem2', 'a-sem3', 'b-sem1', 'b-sem2']) {
-        expect(reasonOf(ids[key])).toMatchObject({ action: 'REPLACE', reason: 'starts with SEM-' });
+      for (const key of SWAPPED_KEYS) {
+        expect(reasonOf(ids[key])).toMatchObject({ action: 'REPLACE', reason: 'sem- followed only by digits' });
       }
       expect(reasonOf(ids['a-sem2'])).toMatchObject({ active: false, has_sales: true, has_stock_movement: true });
       expect(reasonOf(ids['a-sem3'])).toMatchObject({ active: true, has_sales: false, has_stock_movement: false });
-      expect(reasonOf(ids['a-lower'])).toMatchObject({ action: 'KEEP', reason: 'sem- in another letter case (not replaced)' });
-      expect(reasonOf(ids['a-mixed'])).toMatchObject({ action: 'KEEP', reason: 'sem- in another letter case (not replaced)' });
+      expect(reasonOf(ids['a-lower'])).toMatchObject({ action: 'REPLACE', barcode: 'sem-123' });
+      for (const key of ['a-semabc', 'a-sem12a', 'a-semempty', 'a-sem1dash2']) {
+        expect(reasonOf(ids[key])).toMatchObject({ action: 'KEEP', reason: 'sem- com outro formato' });
+      }
       expect(reasonOf(ids['a-ean8'])).toMatchObject({ action: 'KEEP', reason: 'EAN-8' });
       expect(reasonOf(ids['a-upc'])).toMatchObject({ action: 'KEEP', reason: 'UPC-12' });
       expect(reasonOf(ids['a-badcheck'])).toMatchObject({ action: 'KEEP', reason: '13 digits, invalid check digit' });
@@ -523,11 +539,13 @@ describe.skipIf(!TEST_DATABASE_URL)('migration 0005 replace SEM- barcodes (Postg
 
       const row = (shop: string, action: string, reason: string) =>
         summary.find((r) => r.merchant_id === shop && r.action === action && r.reason === reason);
-      expect(row(SHOP_A, 'REPLACE', 'starts with SEM-')).toMatchObject({ products: 3, active_products: 2, inactive_products: 1 });
-      expect(row(SHOP_B, 'REPLACE', 'starts with SEM-')).toMatchObject({ products: 2, active_products: 1, inactive_products: 1 });
+      expect(row(SHOP_A, 'REPLACE', 'sem- followed only by digits')).toMatchObject({ products: 6, active_products: 5, inactive_products: 1 });
+      expect(row(SHOP_B, 'REPLACE', 'sem- followed only by digits')).toMatchObject({ products: 2, active_products: 1, inactive_products: 1 });
+      expect(row(SHOP_A, 'KEEP', 'sem- com outro formato')).toMatchObject({ products: 4 });
+      expect(summary.some((r) => String(r.reason).includes('another letter case'))).toBe(false); // old reason is gone
       expect(row(SHOP_A, 'KEEP', 'valid EAN-13 (generated 29...)')).toMatchObject({ products: 1 });
       expect(row(SHOP_A, 'KEEP', 'valid EAN-13')).toMatchObject({ products: 1 });
-      expect(row(SHOP_C, 'REPLACE', 'starts with SEM-')).toBeUndefined();
+      expect(row(SHOP_C, 'REPLACE', 'sem- followed only by digits')).toBeUndefined();
 
       // What the preview announced is what the migration does.
       expect(await snapshot(c)).toEqual(before);

@@ -112,7 +112,7 @@ type Notice = El & { props: { what: string; onRetry: () => unknown; busy?: boole
 //  - only plain function components are run: memo(...) and forwardRef(...) are objects and stay as elements;
 //  - KEPT compares the function name, so a renamed component, or another one with the same name, is also kept.
 // gestao-request-order.test.ts has a copy of this harness; the test of `expand` lives only here.
-const KEPT = new Set(['LoadFailureNotice', 'AppHeader', 'ManagementDataSkeleton', 'VersionLabel', 'SalesReportPanel', 'ImportProductsPanel']);
+const KEPT = new Set(['LoadFailureNotice', 'NewCustomerPanel', 'AppHeader', 'ManagementDataSkeleton', 'VersionLabel', 'SalesReportPanel', 'ImportProductsPanel']);
 
 function expand(node: unknown): unknown {
   if (Array.isArray(node)) return node.map(expand);
@@ -592,7 +592,7 @@ describe('/gestao: race between the balance retry and another loadCustomers', ()
     openTab('＋ Novo Cliente');
     let form: El | undefined;
     walk(tree, (el) => {
-      if (!form && el.type === 'form' && text(el).includes('Cadastrar Cliente para Fiado')) form = el;
+      if (!form && typeof el.type === 'function' && el.type.name === 'NewCustomerPanel') form = el;
     });
     if (!form) throw new Error('new customer form not found');
     return (form.props.onSubmit as (e: unknown) => Promise<void>)({ preventDefault: () => {} });
@@ -698,7 +698,7 @@ describe('/gestao: more races of the balance retry (A2 acceptance gaps)', () => 
     openTab('＋ Novo Cliente');
     let form: El | undefined;
     walk(tree, (el) => {
-      if (!form && el.type === 'form' && text(el).includes('Cadastrar Cliente para Fiado')) form = el;
+      if (!form && typeof el.type === 'function' && el.type.name === 'NewCustomerPanel') form = el;
     });
     if (!form) throw new Error('new customer form not found');
     return (form.props.onSubmit as (e: unknown) => Promise<void>)({ preventDefault: () => {} });

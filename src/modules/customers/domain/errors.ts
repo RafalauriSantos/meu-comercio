@@ -73,9 +73,25 @@ export class InvalidPhoneError extends Error {
 }
 
 export class InvalidCreditLimitError extends Error {
-  constructor(message = 'O limite de fiado deve ser de R$ 0,00 a R$ 100.000,00.') {
+  constructor(message = 'O limite de fiado deve ser de R$ 0,00 a R$ 500,00.') {
     super(message);
     this.name = 'InvalidCreditLimitError';
+  }
+}
+
+/** D-22: raising a credit limit needs the owner PIN, and the request came without it. */
+export class OwnerPinRequiredError extends Error {
+  constructor(message = 'Informe o PIN da proprietária para aumentar o limite de fiado.') {
+    super(message);
+    this.name = 'OwnerPinRequiredError';
+  }
+}
+
+/** D-29: only the owner sets the credit limit when registering a customer. */
+export class OnlyOwnerSetsCreditLimitError extends Error {
+  constructor(message = 'Só a proprietária define o limite de fiado.') {
+    super(message);
+    this.name = 'OnlyOwnerSetsCreditLimitError';
   }
 }
 

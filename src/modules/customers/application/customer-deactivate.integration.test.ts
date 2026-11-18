@@ -125,7 +125,7 @@ describe.skipIf(!TEST_DATABASE_URL)('Exclude and restore a customer, D-27 (Postg
   }
 
   function setActive(seed: Seed, active: boolean, expectedUpdatedAt?: string) {
-    return new UpdateCustomerUseCase(customerRepo()).execute(seed.merchantId, 'dona', seed.customerId, {
+    return new UpdateCustomerUseCase(customerRepo(), new BcryptOwnerPinVerifier()).execute(seed.merchantId, 'dona', seed.customerId, {
       active,
       ...(expectedUpdatedAt && { expectedUpdatedAt }),
     });
@@ -206,7 +206,7 @@ describe.skipIf(!TEST_DATABASE_URL)('Exclude and restore a customer, D-27 (Postg
       const otherShop = await seedStore();
 
       await expect(
-        new UpdateCustomerUseCase(customerRepo()).execute(otherShop.merchantId, 'dona', seed.customerId, { active: false })
+        new UpdateCustomerUseCase(customerRepo(), new BcryptOwnerPinVerifier()).execute(otherShop.merchantId, 'dona', seed.customerId, { active: false })
       ).rejects.toThrow(/not found/i);
 
       expect((await customerRow(seed.customerId)).active).toBe(true);

@@ -10,7 +10,7 @@ import { assertDisposableTestDatabase } from '@/shared/infrastructure/db/test-da
 import { Money } from '@/shared/domain/money';
 import { customers, customerCreditLedger } from './customers.schema';
 import { DrizzleCustomerRepository } from './drizzle-customer-repository';
-import { CustomerChangedError, InvalidCreditLimitError } from '../domain/errors';
+import { CustomerChangedError, InvalidCreditLimitError, OwnerPinRequiredError } from '../domain/errors';
 
 // Runs only when TEST_DATABASE_URL points to a disposable Postgres database.
 const TEST_DATABASE_URL = process.env.TEST_DATABASE_URL;
@@ -61,7 +61,9 @@ describe.skipIf(!TEST_DATABASE_URL)('DrizzleCustomerRepository.updateDetails, cr
     return database.select().from(customerCreditLedger).where(eq(customerCreditLedger.customerId, id));
   }
 
-  const ACTOR = { actorId: 'dona' };
+  // D-22: most edits here raise the limit, so the default actor carries the owner authorization.
+  const ACTOR = { actorId: 'dona', limitIncreaseAuthorizedBy: 'dona' };
+  const NO_AUTH = { actorId: 'caixa' };
   const limit = (value: string) => ({ creditLimit: Money.fromDecimal(value) });
 
   it('editing the limit writes only the limit and bumps updated_at', async () => {
@@ -114,12 +116,12 @@ describe.skipIf(!TEST_DATABASE_URL)('DrizzleCustomerRepository.updateDetails, cr
     const merchantId = await freshMerchant();
     const customer = await seed(merchantId, '11999998888');
 
-    await repo.updateDetails(merchantId, customer.id, limit('150.05'), { actorId: 'tatiane' });
+    await repo.updateDetails(merchantId, customer.id, limit('150.05'), { actorId: 'tatiane', limitIncreaseAuthorizedBy: 'tatiane' });
 
     const events = await auditOf(customer.id);
     expect(events).toHaveLength(1);
     expect(events[0]).toMatchObject({ merchantId, eventType: 'CUSTOMER_UPDATED', actorId: 'tatiane', aggregateType: 'CUSTOMER' });
-    expect(events[0].details).toEqual({ changes: { creditLimit: { from: '150.00', to: '150.05' } } });
+    expect(events[0].details).toEqual({ changes: { creditLimit: { from: '150.00', to: '150.05' } }, authorizedBy: 'tatiane' });
   });
 
   it('if the audit fails the limit stays as it was (one transaction)', async () => {
@@ -127,10 +129,73 @@ describe.skipIf(!TEST_DATABASE_URL)('DrizzleCustomerRepository.updateDetails, cr
     const customer = await seed(merchantId, '11999998888');
 
     // actor_id is varchar(120): a longer value makes the audit insert fail after the customer update.
-    await expect(repo.updateDetails(merchantId, customer.id, limit('999.00'), { actorId: 'x'.repeat(200) })).rejects.toThrow();
+    await expect(repo.updateDetails(merchantId, customer.id, limit('300.00'), { actorId: 'x'.repeat(200), limitIncreaseAuthorizedBy: 'dona' })).rejects.toThrow();
 
     expect(await row(customer.id)).toEqual(customer);
     expect(await auditOf(customer.id)).toHaveLength(0);
+  });
+
+  it('D-22: an increase without owner authorization is refused and nothing is written', async () => {
+    const merchantId = await freshMerchant();
+    const customer = await seed(merchantId, '11999998888');
+
+    await expect(repo.updateDetails(merchantId, customer.id, { name: 'Não deve ficar', ...limit('150.01') }, NO_AUTH)).rejects.toBeInstanceOf(
+      OwnerPinRequiredError
+    );
+
+    expect(await row(customer.id)).toEqual(customer);
+    expect(await auditOf(customer.id)).toHaveLength(0);
+  });
+
+  it('D-22: keeping or lowering the limit needs no authorization and the audit has no authorizedBy', async () => {
+    const merchantId = await freshMerchant();
+    const customer = await seed(merchantId, '11999998888');
+
+    await repo.updateDetails(merchantId, customer.id, limit('150.00'), NO_AUTH);
+    await repo.updateDetails(merchantId, customer.id, limit('20.00'), NO_AUTH);
+
+    expect((await row(customer.id)).creditLimit).toBe('20.0000');
+    const events = await auditOf(customer.id);
+    expect(events).toHaveLength(1);
+    expect(events[0].details).toEqual({ changes: { creditLimit: { from: '150.00', to: '20.00' } } });
+  });
+
+  it('D-22: a customer above the ceiling is read and edited (name only) without error', async () => {
+    const merchantId = await freshMerchant();
+    const customer = await seed(merchantId, '11999998888', { creditLimit: '100000.0000' });
+
+    expect((await repo.findById(merchantId, customer.id))?.creditLimit.toDecimal()).toBe('100000.00');
+    await repo.updateDetails(merchantId, customer.id, { name: 'Maria Souza' }, NO_AUTH);
+
+    expect(await row(customer.id)).toMatchObject({ name: 'Maria Souza', creditLimit: '100000.0000' });
+  });
+
+  it('D-22 race: a limit that looked like a reduction but is an increase under the lock is refused', async () => {
+    const merchantId = await freshMerchant();
+    const customer = await seed(merchantId, '11999998888'); // limit 150
+    const where = and(eq(customers.merchantId, merchantId), eq(customers.id, customer.id));
+
+    let release!: () => void;
+    const held = new Promise<void>((resolve) => (release = resolve));
+    let locked!: () => void;
+    const lockTaken = new Promise<void>((resolve) => (locked = resolve));
+    // Another edit lowers the limit to 50 and holds the lock while the 100.00 edit (a reduction from 150) waits.
+    const other = database.transaction(async (tx) => {
+      await tx.select({ id: customers.id }).from(customers).where(where).for('update');
+      locked();
+      await held;
+      await tx.update(customers).set({ creditLimit: '50.0000' }).where(where);
+    });
+    await lockTaken;
+
+    const edit = repo.updateDetails(merchantId, customer.id, limit('100.00'), NO_AUTH);
+    const outcome = edit.then(() => 'written', (error: unknown) => error);
+    await new Promise((resolve) => setTimeout(resolve, 300));
+    release();
+    await other;
+
+    expect(await outcome).toBeInstanceOf(OwnerPinRequiredError);
+    expect((await row(customer.id)).creditLimit).toBe('50.0000');
   });
 
   it('a limit with cents round-trips exactly', async () => {
@@ -144,16 +209,16 @@ describe.skipIf(!TEST_DATABASE_URL)('DrizzleCustomerRepository.updateDetails, cr
     expect((await repo.findAllActive(merchantId))[0].toJSON().creditLimit).toBe('150.05');
   });
 
-  it('the ceiling R$ 100000.00 is accepted', async () => {
+  it('the ceiling R$ 500.00 is accepted', async () => {
     const merchantId = await freshMerchant();
     const customer = await seed(merchantId, '11999998888');
 
-    await repo.updateDetails(merchantId, customer.id, limit('100000.00'), ACTOR);
+    await repo.updateDetails(merchantId, customer.id, limit('500.00'), ACTOR);
 
-    expect((await row(customer.id)).creditLimit).toBe('100000.0000');
+    expect((await row(customer.id)).creditLimit).toBe('500.0000');
   });
 
-  it.each(['100000.01', '-0.01'])('the limit %s is refused and nothing is written', async (value) => {
+  it.each(['500.01', '-0.01'])('the limit %s is refused and nothing is written', async (value) => {
     const merchantId = await freshMerchant();
     const customer = await seed(merchantId, '11999998888');
 
@@ -248,7 +313,7 @@ describe.skipIf(!TEST_DATABASE_URL)('DrizzleCustomerRepository.updateDetails, cr
     await lockTaken;
 
     let finished = false;
-    const edit = repo.updateDetails(merchantId, customer.id, limit('999.00'), ACTOR).then(() => (finished = true));
+    const edit = repo.updateDetails(merchantId, customer.id, limit('400.00'), ACTOR).then(() => (finished = true));
     await new Promise((resolve) => setTimeout(resolve, 500));
     expect(finished).toBe(false);
     expect((await row(customer.id)).creditLimit).toBe('150.0000');
@@ -256,6 +321,6 @@ describe.skipIf(!TEST_DATABASE_URL)('DrizzleCustomerRepository.updateDetails, cr
     release();
     await sale;
     await edit;
-    expect((await row(customer.id)).creditLimit).toBe('999.0000');
+    expect((await row(customer.id)).creditLimit).toBe('400.0000');
   });
 });

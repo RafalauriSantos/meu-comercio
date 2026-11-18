@@ -72,7 +72,7 @@ describe('Customers API Routes', () => {
       userId: 'user-1',
       merchantId,
       username,
-      roles: ['ROLE_OPERATOR'],
+      authorities: ['ROLE_OPERATOR'],
     });
   });
 
@@ -169,7 +169,13 @@ describe('Customers API Routes', () => {
       expect(response.status).toBe(409);
     });
 
-    it('deve retornar 201 com dados do cliente criado', async () => {
+    it('deve retornar 201 com dados do cliente criado (proprietária com limite)', async () => {
+      mockRequireAuthenticatedSession.mockResolvedValue({
+        userId: 'user-1',
+        merchantId,
+        username,
+        authorities: ['ROLE_OWNER'],
+      });
       const createdCustomer = Customer.create({
         id: 'cust-uuid-1',
         merchantId,

@@ -13,6 +13,8 @@ export interface CustomerDraft {
   limit: string;
   /** The fiado switch: a blocked customer cannot buy on credit (D-26). */
   creditBlocked: boolean;
+  /** The owner's PIN (6 digits), asked only when the limit goes up. Cleared when the panel closes and after each send. */
+  ownerPin: string;
 }
 
 export interface CustomerEditError {
@@ -25,8 +27,8 @@ export type CustomerEditResult =
   | { kind: 'saved'; item: CustomerItem }
   | ({ kind: 'failed' } & CustomerEditError);
 
-/** R$ 100.000,00, in cents. */
-export const LIMIT_MAX = Money.fromCents(10_000_000);
+/** R$ 500,00, in cents (D-22). */
+export const LIMIT_MAX = Money.fromCents(50_000);
 export const LIMIT_BELOW_DEBT_WARNING =
   'O limite é menor que a dívida. O cliente não perde o que deve, e a próxima venda no fiado pede o PIN da proprietária.';
 
@@ -36,6 +38,7 @@ export function draftFromCustomer(customer: CustomerItem): CustomerDraft {
     phone: displayPhone(customer.phone),
     limit: priceToDigits(customer.creditLimit ?? '0'),
     creditBlocked: customer.creditBlocked === true,
+    ownerPin: '',
   };
 }
 
@@ -47,6 +50,11 @@ function limitMoney(masked: string): Money {
 export function maskLimit(raw: string, previous: string): string {
   const masked = maskCurrencyDigits(raw);
   return limitMoney(masked).isGreaterThan(LIMIT_MAX) ? previous : masked;
+}
+
+/** True when the typed limit is higher than the one the customer has: only then the owner's PIN is asked (D-22). */
+export function limitRaised(target: CustomerItem, draft: CustomerDraft): boolean {
+  return limitMoney(draft.limit).isGreaterThan(limitMoney(draftFromCustomer(target).limit));
 }
 
 /** True when the new limit is under the debt (cents; a debt not loaded yet gives no warning). */
@@ -61,6 +69,7 @@ export function buildCustomerPatch(target: CustomerItem, draft: CustomerDraft): 
   if (draft.name.trim() !== target.name) patch.name = draft.name.trim();
   if (draft.phone.trim() !== initial.phone) patch.phone = draft.phone.trim();
   if (draft.limit !== initial.limit) patch.creditLimit = (draft.limit === '' ? '0,00' : draft.limit).replace(',', '.');
+  if (limitRaised(target, draft) && draft.ownerPin !== '') patch.ownerPin = draft.ownerPin;
   if (draft.creditBlocked !== initial.creditBlocked) patch.creditBlocked = draft.creditBlocked;
   if (Object.keys(patch).length === 0) return null;
   if (target.updatedAt) patch.expectedUpdatedAt = target.updatedAt;

@@ -6,7 +6,7 @@ import * as schema from '@/shared/infrastructure/db/schema';
 import { customers, customerCreditLedger } from './customers.schema';
 import { Customer } from '../domain/customer';
 import { CustomerChanges, CustomerRepository, CustomerUpdateContext } from '../domain/customer-repository.port';
-import { CustomerAlreadyExistsError, CustomerChangedError, CustomerHasDebtError } from '../domain/errors';
+import { CustomerAlreadyExistsError, CustomerChangedError, CustomerHasDebtError, OwnerPinRequiredError } from '../domain/errors';
 import { auditEvents } from '@/modules/audit/infrastructure/audit.schema';
 import { toAuditEventRow } from '@/modules/audit/infrastructure/audit-event-row';
 import { phoneDigits } from '../domain/phone';
@@ -81,7 +81,7 @@ export class DrizzleCustomerRepository implements CustomerRepository {
     merchantId: string,
     customerId: string,
     changes: CustomerChanges,
-    { actorId, expectedUpdatedAt }: CustomerUpdateContext
+    { actorId, expectedUpdatedAt, limitIncreaseAuthorizedBy }: CustomerUpdateContext
   ): Promise<Customer | null> {
     try {
       return await this.database.transaction(async (tx) => {
@@ -97,6 +97,10 @@ export class DrizzleCustomerRepository implements CustomerRepository {
         const after = before.withChanges(changes);
         const diff = before.changesTo(after);
         if (Object.keys(diff).length === 0) return before;
+
+        // D-22: the increase is judged against the limit read under the lock, so a concurrent edit cannot slip past the PIN.
+        const isIncrease = after.creditLimit.isGreaterThan(before.creditLimit);
+        if (isIncrease && !limitIncreaseAuthorizedBy) throw new OwnerPinRequiredError();
 
         // D-27: excluding needs zero debt, read under the row lock so a credit sale cannot slip in between.
         if (before.active && !after.active) {
@@ -139,7 +143,7 @@ export class DrizzleCustomerRepository implements CustomerRepository {
             actorId,
             aggregateType: 'CUSTOMER',
             aggregateId: customerId,
-            details: { changes: diff },
+            details: { changes: diff, ...(isIncrease && { authorizedBy: limitIncreaseAuthorizedBy }) },
           })
         );
 

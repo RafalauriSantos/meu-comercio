@@ -6,6 +6,7 @@ import {
   editErrorMessage,
   isDraftValid,
   limitBelowDebt,
+  limitRaised,
   maskLimit,
   submitCustomerEdit,
 } from './customer-edit';
@@ -15,7 +16,7 @@ const old: CustomerItem = { ...maria, phone: '6261616161649496169' };
 
 describe('draftFromCustomer', () => {
   it('masks a standard phone and the limit, and leaves an old phone as it is', () => {
-    expect(draftFromCustomer(maria)).toEqual({ name: 'Maria Souza', phone: '(11) 98164-2350', limit: '100,00', creditBlocked: false });
+    expect(draftFromCustomer(maria)).toEqual({ name: 'Maria Souza', phone: '(11) 98164-2350', limit: '100,00', creditBlocked: false, ownerPin: '' });
     expect(draftFromCustomer(old).phone).toBe('6261616161649496169');
   });
   it('a zero limit is an empty text', () => {
@@ -24,10 +25,28 @@ describe('draftFromCustomer', () => {
 });
 
 describe('maskLimit', () => {
-  it('applies the cents mask up to R$ 100.000,00 and refuses what goes beyond', () => {
+  it('applies the cents mask up to R$ 500,00 and refuses what goes beyond', () => {
     expect(maskLimit('12500', '')).toBe('125,00');
-    expect(maskLimit('10000000', '')).toBe('100000,00');
-    expect(maskLimit('100000001', '100000,00')).toBe('100000,00');
+    expect(maskLimit('50000', '')).toBe('500,00');
+    expect(maskLimit('500001', '500,00')).toBe('500,00');
+    expect(maskLimit('10000000', '125,00')).toBe('125,00');
+  });
+});
+
+describe('owner PIN to raise the limit', () => {
+  it('limitRaised is true only when the typed limit is above the current one', () => {
+    expect(limitRaised(maria, { ...draftFromCustomer(maria), limit: '125,00' })).toBe(true);
+    expect(limitRaised(maria, { ...draftFromCustomer(maria), limit: '100,00' })).toBe(false);
+    expect(limitRaised(maria, { ...draftFromCustomer(maria), limit: '50,00' })).toBe(false);
+    expect(limitRaised(maria, { ...draftFromCustomer(maria), limit: '' })).toBe(false);
+  });
+  it('sends ownerPin only when the limit goes up', () => {
+    const up = { ...draftFromCustomer(maria), limit: '125,00', ownerPin: '123456' };
+    expect(buildCustomerPatch(maria, up)).toEqual({ creditLimit: '125.00', ownerPin: '123456', expectedUpdatedAt: maria.updatedAt });
+    const down = { ...draftFromCustomer(maria), limit: '50,00', ownerPin: '123456' };
+    expect(buildCustomerPatch(maria, down)?.ownerPin).toBeUndefined();
+    const nameOnly = { ...draftFromCustomer(maria), name: 'Nova', ownerPin: '123456' };
+    expect(buildCustomerPatch(maria, nameOnly)?.ownerPin).toBeUndefined();
   });
 });
 
@@ -77,9 +96,9 @@ describe('buildCustomerPatch', () => {
 
 describe('rules', () => {
   it('needs a name of 2 letters', () => {
-    expect(isDraftValid({ name: '  ', phone: '', limit: '', creditBlocked: false })).toBe(false);
-    expect(isDraftValid({ name: 'A', phone: '', limit: '', creditBlocked: false })).toBe(true);
-    expect(isDraftValid({ name: 'Ana', phone: '', limit: '', creditBlocked: false })).toBe(true);
+    expect(isDraftValid({ name: '  ', phone: '', limit: '', creditBlocked: false, ownerPin: '' })).toBe(false);
+    expect(isDraftValid({ name: 'A', phone: '', limit: '', creditBlocked: false, ownerPin: '' })).toBe(true);
+    expect(isDraftValid({ name: 'Ana', phone: '', limit: '', creditBlocked: false, ownerPin: '' })).toBe(true);
   });
   it('warns only when the limit is below the debt, in cents', () => {
     expect(limitBelowDebt('50,00', 8550)).toBe(true);

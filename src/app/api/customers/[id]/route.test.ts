@@ -3,7 +3,7 @@ import { NextRequest } from 'next/server';
 import { PATCH } from './route';
 import { Money } from '@/shared/domain/money';
 import { Customer } from '@/modules/customers/domain/customer';
-import { CustomerAlreadyExistsError, CustomerChangedError, CustomerHasDebtError, InvalidPhoneError } from '@/modules/customers/domain/errors';
+import { CustomerAlreadyExistsError, CustomerChangedError, CustomerHasDebtError, InvalidPhoneError, OwnerPinRequiredError } from '@/modules/customers/domain/errors';
 import { UnauthorizedError } from '@/shared/infrastructure/auth/auth-context';
 
 const mockRequireAuthSession = vi.fn();
@@ -18,9 +18,18 @@ vi.mock('@/shared/infrastructure/auth/auth-context', () => ({
 }));
 
 const mockUpdateDetails = vi.fn();
+const mockFindById = vi.fn();
 vi.mock('@/modules/customers/infrastructure/drizzle-customer-repository', () => ({
   DrizzleCustomerRepository: class MockDrizzleCustomerRepository {
     updateDetails = mockUpdateDetails;
+    findById = mockFindById;
+  },
+}));
+
+const mockAuthorizeOwnerPin = vi.fn();
+vi.mock('@/modules/customers/infrastructure/bcrypt-owner-pin-verifier', () => ({
+  BcryptOwnerPinVerifier: class MockBcryptOwnerPinVerifier {
+    authorizeOwnerPin = mockAuthorizeOwnerPin;
   },
 }));
 
@@ -40,6 +49,10 @@ describe('PATCH /api/customers/[id]', () => {
     vi.clearAllMocks();
     vi.spyOn(console, 'error').mockImplementation(() => undefined);
     mockRequireAuthSession.mockResolvedValue(owner);
+    mockAuthorizeOwnerPin.mockResolvedValue('dona');
+    mockFindById.mockResolvedValue(
+      Customer.create({ id: ID, merchantId: 'merchant-1', name: 'Maria', phone: '11988887777', creditLimit: Money.fromDecimal('100') })
+    );
     mockUpdateDetails.mockResolvedValue(
       new Customer({
         id: ID,
@@ -97,12 +110,92 @@ describe('PATCH /api/customers/[id]', () => {
     expect(mockUpdateDetails).not.toHaveBeenCalled();
   });
 
-  it.each(['100000.01', '-1'])('400 com mensagem em português para limite %s fora do intervalo, sem chamar o repositório', async (creditLimit) => {
-    const response = await patch({ creditLimit });
+  it.each(['500.01', '-1'])('400 com mensagem em português para limite %s fora do intervalo, mesmo com PIN, sem chamar o repositório', async (creditLimit) => {
+    const response = await patch({ creditLimit, ownerPin: '123456' });
 
     expect(response.status).toBe(400);
-    expect((await response.json()).message).toBe('O limite de fiado deve ser de R$ 0,00 a R$ 100.000,00.');
+    expect((await response.json()).message).toBe('O limite de fiado deve ser de R$ 0,00 a R$ 500,00.');
     expect(mockUpdateDetails).not.toHaveBeenCalled();
+    expect(mockAuthorizeOwnerPin).not.toHaveBeenCalled();
+  });
+
+  describe('D-22: aumento do limite exige o PIN da proprietária (limite atual R$ 100,00)', () => {
+    it('aumento sem PIN: 400 OWNER_PIN_REQUIRED, sem gastar tentativa e sem gravar', async () => {
+      const response = await patch({ creditLimit: '100.01' });
+
+      expect(response.status).toBe(400);
+      const body = await response.json();
+      expect(body.code).toBe('OWNER_PIN_REQUIRED');
+      expect(body.message).toBe('Informe o PIN da proprietária para aumentar o limite de fiado.');
+      expect(mockAuthorizeOwnerPin).not.toHaveBeenCalled();
+      expect(mockUpdateDetails).not.toHaveBeenCalled();
+    });
+
+    it('PIN errado ou loja bloqueada (verificador devolve null): 403 e não grava', async () => {
+      mockAuthorizeOwnerPin.mockResolvedValue(null);
+      const response = await patch({ creditLimit: '200', ownerPin: '000000' });
+
+      expect(response.status).toBe(403);
+      expect((await response.json()).message).toBe('PIN de autorização da proprietária inválido.');
+      expect(mockUpdateDetails).not.toHaveBeenCalled();
+    });
+
+    it('PIN mal formado: 400 de validação, sem gastar tentativa', async () => {
+      const response = await patch({ creditLimit: '200', ownerPin: '12' });
+
+      expect(response.status).toBe(400);
+      expect(mockAuthorizeOwnerPin).not.toHaveBeenCalled();
+    });
+
+    it('aumento com PIN certo: 200, confere o PIN da sessão e manda só o usuário autorizador ao repositório', async () => {
+      const response = await patch({ creditLimit: '500.00', ownerPin: '123456' });
+
+      expect(response.status).toBe(200);
+      expect(mockAuthorizeOwnerPin).toHaveBeenCalledWith('merchant-1', 'dona', '123456');
+      expect(mockUpdateDetails.mock.calls[0][3].limitIncreaseAuthorizedBy).toBe('dona');
+      expect(JSON.stringify(await response.json())).not.toContain('123456');
+      expect(JSON.stringify(mockUpdateDetails.mock.calls)).not.toContain('123456');
+    });
+
+    it.each(['100.00', '40', '0'])('manter ou reduzir (%s) sem PIN: 200 e sem gastar tentativa', async (creditLimit) => {
+      const response = await patch({ creditLimit });
+
+      expect(response.status).toBe(200);
+      expect(mockAuthorizeOwnerPin).not.toHaveBeenCalled();
+    });
+
+    it('active:false com aumento de limite sem PIN: 400 OWNER_PIN_REQUIRED e nada é gravado', async () => {
+      const response = await patch({ active: false, name: 'Maria S', creditLimit: '200' });
+
+      expect(response.status).toBe(400);
+      expect((await response.json()).code).toBe('OWNER_PIN_REQUIRED');
+      expect(mockUpdateDetails).not.toHaveBeenCalled();
+    });
+
+    it('active:false com aumento e PIN certo: 200, tudo numa chamada só ao repositório', async () => {
+      const response = await patch({ active: false, creditBlocked: true, creditLimit: '200', ownerPin: '123456' });
+
+      expect(response.status).toBe(200);
+      expect(mockUpdateDetails).toHaveBeenCalledTimes(1);
+      expect(mockUpdateDetails.mock.calls[0][2]).toMatchObject({ active: false, creditBlocked: true });
+      expect(mockUpdateDetails.mock.calls[0][3].limitIncreaseAuthorizedBy).toBe('dona');
+    });
+
+    it('excluir cliente com dívida continua 409 CUSTOMER_HAS_DEBT, mesmo com redução de limite', async () => {
+      mockUpdateDetails.mockRejectedValue(new CustomerHasDebtError(Money.fromDecimal('10.00')));
+      const response = await patch({ active: false, creditLimit: '20' });
+
+      expect(response.status).toBe(409);
+      expect((await response.json()).code).toBe('CUSTOMER_HAS_DEBT');
+    });
+
+    it('corrida: o repositório recusa o aumento visto sob a trava sem PIN, e vira 400 OWNER_PIN_REQUIRED', async () => {
+      mockUpdateDetails.mockRejectedValue(new OwnerPinRequiredError());
+      const response = await patch({ creditLimit: '90' });
+
+      expect(response.status).toBe(400);
+      expect((await response.json()).code).toBe('OWNER_PIN_REQUIRED');
+    });
   });
 
   it('403 para operadora também ao editar o limite, e não grava', async () => {
@@ -113,7 +206,7 @@ describe('PATCH /api/customers/[id]', () => {
   });
 
   it('200 ao editar só o limite: repassa Money em centavos e devolve o limite em texto', async () => {
-    const response = await patch({ creditLimit: '150.05' });
+    const response = await patch({ creditLimit: '150.05', ownerPin: '123456' });
 
     expect(response.status).toBe(200);
     expect((await response.json()).creditLimit).toBe('150.00');

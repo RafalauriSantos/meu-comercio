@@ -166,6 +166,20 @@ Este documento rastreia formalmente as fatias verticais de entrega, critérios d
 
 ---
 
+## Ordem de prioridade (definida em 17/11/2026, aprovada pela dona)
+> Critério: primeiro o que protege dinheiro e o uso real da loja, depois o que a dona pediu, depois portfólio e melhorias.
+
+1. **Conferir no ar** o que só a prática mostra (a dona e o leitor de verdade): painéis, operadora logada, bloqueio de fiado, cadastro na venda (22.10d, 22.15, 22.16, 22.19, 23.5).
+2. **Quitação de fiado numa transação só** (19.5): hoje grava o caixa e o saldo em passos separados, sem trava. Mexe em dinheiro: aprovação da dona.
+3. **Brecha da operadora no cadastro de cliente** (22.9f): cadastra com limite zero, só a dona libera. Junto com o Novo cliente em painel (22.10c).
+4. **Monitor de site no ar e passo a passo de reverter** (21.1, 21.2).
+5. **Extrato do cliente** (22.20): API de leitura e tela.
+6. **Desativar produto e cliente** (22.17, 22.18).
+7. **Venda offline parada quando o preço muda** (23.4).
+8. **README em inglês**, conferido no código, depois do extrato; tirar da landing e do README qualquer promessa que não exista (22.21).
+9. **Saldos de fiado em lote** (17.1, 19.4): o backlog diz que a Gestão com mais de uns 30 clientes dá 429; reproduzir antes.
+10. **Auditar os itens antigos (slices 5 a 13)**, vários marcados como não feitos mas existentes no código (22.22), e depois os itens técnicos (testes de tela, acessibilidade dos modais, tela de erro por rota, source maps do Sentry, regras de arquitetura no CI).
+
 ## ⭐ Próximos passos (pedidos pela dona do comércio)
 
 ### [x] Slice 14: Relatórios de vendas
@@ -306,6 +320,10 @@ Este documento rastreia formalmente as fatias verticais de entrega, critérios d
 - [ ] 22.13 **Venda por peso** (ex.: mussarela a R$ 62,00 o kg): propor antes de implementar. Ideia inicial: unidade do produto (unidade ou kg), peso digitado ou vindo da balança no caixa, total calculado com `Money`, estoque em quilos. Mexe em dinheiro e em estoque: spec e arquitetura primeiro.
 - [x] 22.14 **Time e robôs em Sonnet, esforço médio:** os 8 agentes especialistas (arquivos em `~/.claude/agents`) e o review do Claude no CI (`--model claude-sonnet-5-5`, PR #122). O review só comenta de novo se o PR for novo: PR que já tem comentário dele e é reaberto fica com o check vermelho; PR que muda o próprio workflow também (o action recusa).
 - [ ] 22.15 **Trocar códigos `SEM-` por gerados** (D-24; spec em `.dev-team/spec-replace-sem-codes.md`), em fatias: (1) [x] botão "Gerar código" na edição do produto, só da proprietária: API (`PATCH /api/products/[id]` com `generateBarcode: true`, PR #128) e tela (PR #129); falta conferir o botão no ar; (2) levantamento somente de leitura dos códigos `SEM-` e dos fora do padrão, por loja; (3) migração dos `SEM-` em massa, PR próprio, com backup do Neon e aprovação da dona. Só `SEM-` é trocado em massa; o resto só é listado.
+
+- [ ] 22.20 **Extrato do cliente** (D-28; spec em `.dev-team/spec-customer-statement.md`), em fatias: (1) API de leitura `GET /api/customers/[id]/statement` paginada por cursor (tipo, valor, saldo depois, operador, data), com o teste de que o saldo da linha mais nova é igual ao saldo atual; (2) tela: botão "Extrato" e painel lateral com "Carregar mais", data em horário de Brasília; (3) imprimir, depois. A operadora também vê. Sem migração. O README e a landing só podem prometer o extrato depois da fatia 2.
+- [ ] 22.21 **README novo em inglês**, no estilo curto do zapgate (frase única, animação SVG do fluxo, "por que usar", telas, como foi feito, rodar local, índice da documentação), com tudo conferido no código. Corrigir já conferido: o cancelamento de venda é transação única (ADR-021); faltam as ADR-020 a 022; os testes são 1.641 (145 arquivos, mais 167 de integração em 20 arquivos). Tirar a promessa de extrato da landing enquanto ele não existir.
+- [ ] 22.22 **Auditar o backlog antigo (slices 5 a 13):** vários itens aparecem como não feitos, mas o código tem a função (fila offline, impressão de 58 mm, cabeçalhos de segurança, limite por IP). Conferir um a um no código e marcar.
 
 ### [ ] Slice 23: Sessão e erros de rede (pedidos da dona, uso real da loja)
 > A sessão caía a cada 30 minutos fixos, mesmo com a dona usando, e a tela ficava parada com "Não autorizado". As regras D-09 e D-16 já diziam "até fechar o caixa, teto de 12 h", e o código não as cumpria.

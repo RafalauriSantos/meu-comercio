@@ -417,7 +417,7 @@ Este documento registra formalmente as decisões de arquitetura e de produto do 
 ## ADR-021: Fluxos de Dinheiro Gravam numa Transação Única do Repositório
 
 - **Data**: 2026-11-15
-- **Status**: Aprovado. Implementado para o cancelamento de venda (`commitCancellation`); a quitação de fiado, o fechamento de caixa, a sangria e o suprimento e a reposição de estoque seguem a mesma regra nos próximos PRs (item 19.5 do backlog).
+- **Status**: Aprovado. Implementado para o cancelamento de venda (`commitCancellation`) e para a quitação de fiado (`commitDebtSettlement`, travas: caixa `FOR SHARE`, depois cliente `FOR UPDATE`, com o saldo devedor lido sob a trava); o fechamento de caixa, a sangria e o suprimento e a reposição de estoque seguem a mesma regra nos próximos PRs (item 19.5 do backlog).
 - **Contexto**: O cancelamento de venda fazia cinco escritas soltas, cada uma confirmada sozinha: marcar a venda como cancelada, devolver o estoque, estornar o caixa, desfazer o fiado e gravar a auditoria. Uma falha no meio deixava a venda cancelada sem estorno, sem estoque e sem fiado desfeito, e uma nova tentativa recebia "já cancelada", então não havia como completar. Dois cancelamentos ao mesmo tempo da mesma venda passavam pelas validações e estornavam duas vezes. Criar venda já fazia certo (`commitSale`: uma transação, travas em ordem fixa, testado contra banco).
 - **Decisão**:
   1. **Cada fluxo de dinheiro tem um método do repositório que grava tudo numa só transação** (`commitSale`, `commitCancellation`). Se qualquer escrita falhar, nada fica gravado.
@@ -433,7 +433,7 @@ Este documento registra formalmente as decisões de arquitetura e de produto do 
 - **Trade-offs / Consequências**:
   - *Positivo*: o caixa, o estoque e o fiado nunca ficam inconsistentes por falha no meio; o cancelamento duplo é impedido pela trava; a regra fica igual para os próximos fluxos.
   - *Negativo*: a transação é um pouco mais longa no Neon (não medida); os testes usam o driver `pg`, não o `@neondatabase/serverless` de produção; a conferência de dinheiro suficiente na gaveta continua fora da transação (uma sangria simultânea ainda pode deixar a gaveta negativa).
-  - *A fazer*: aplicar a mesma regra à quitação de fiado, ao fechamento de caixa, à sangria e suprimento e à reposição de estoque; ajustar o `scripts/ci-local.mjs` para passar `TEST_DATABASE_URL` só ao passo de integração.
+  - *A fazer*: aplicar a mesma regra ao fechamento de caixa, à sangria e suprimento e à reposição de estoque; ajustar o `scripts/ci-local.mjs` para passar `TEST_DATABASE_URL` só ao passo de integração.
 
 ## ADR-022: Sentry Só no Servidor, Sem Envio do Navegador
 

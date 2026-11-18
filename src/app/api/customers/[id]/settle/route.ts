@@ -2,9 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { z, ZodError } from 'zod';
 import { requireAuthenticatedSession, UnauthorizedError } from '@/shared/infrastructure/auth/auth-context';
 import { DrizzleCustomerRepository } from '@/modules/customers/infrastructure/drizzle-customer-repository';
-import { DrizzleCustomerCreditRepository } from '@/modules/customers/infrastructure/drizzle-customer-credit-repository';
+import { DrizzleDebtSettlementRepository } from '@/modules/customers/infrastructure/drizzle-debt-settlement-repository';
 import { DrizzleCashSessionRepository } from '@/modules/cash/infrastructure/drizzle-cash-session-repository';
-import { DrizzleAuditAdapter } from '@/modules/audit/infrastructure/drizzle-audit-service';
 import { SettleCustomerDebtUseCase } from '@/modules/customers/application/settle-customer-debt.use-case';
 import {
   CustomerNotFoundError,
@@ -38,9 +37,8 @@ export async function POST(
 
     const useCase = new SettleCustomerDebtUseCase(
       new DrizzleCustomerRepository(),
-      new DrizzleCustomerCreditRepository(),
       new DrizzleCashSessionRepository(),
-      new DrizzleAuditAdapter()
+      new DrizzleDebtSettlementRepository()
     );
 
     const result = await useCase.execute({

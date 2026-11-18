@@ -32,6 +32,8 @@ lançar uma versão estão em `docs/PROJECT_WORKFLOW.md`.
 
 - **Preço do produto** com máscara de centavos (digita 1250 e vira 12,50).
 
+- **Quitar fiado** grava o recebimento no caixa, o abatimento da dívida e a auditoria de uma vez só: se algo falhar, nada fica gravado, e duas quitações ao mesmo tempo não passam do que o cliente deve. Mensagens e telas não mudam.
+
 - **Cancelar venda finalizada** saiu da gestão e foi para a tela de vendas (PDV), ao lado de Sangria e Suprimento. Em vez
   de digitar o código da venda, a pessoa escolhe a venda na lista das vendas de hoje (hora, valor e produtos). O PIN da
   proprietária e o motivo continuam obrigatórios.

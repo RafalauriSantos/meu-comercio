@@ -47,7 +47,7 @@ import { DrizzleCashSessionRepository } from '@/modules/cash/infrastructure/driz
 import { DrizzleCustomerRepository } from '../infrastructure/drizzle-customer-repository';
 import { DrizzleCustomerCreditRepository } from '../infrastructure/drizzle-customer-credit-repository';
 import { BcryptOwnerPinVerifier } from '../infrastructure/bcrypt-owner-pin-verifier';
-import { DrizzleAuditAdapter } from '@/modules/audit/infrastructure/drizzle-audit-service';
+import { DrizzleDebtSettlementRepository } from '../infrastructure/drizzle-debt-settlement-repository';
 import { UpdateCustomerUseCase } from './update-customer.use-case';
 import { SettleCustomerDebtUseCase } from './settle-customer-debt.use-case';
 
@@ -292,9 +292,8 @@ describe.skipIf(!TEST_DATABASE_URL)('Credit block, D-26 (Postgres)', () => {
 
       const result = await new SettleCustomerDebtUseCase(
         customerRepo(),
-        new DrizzleCustomerCreditRepository(),
         new DrizzleCashSessionRepository(),
-        new DrizzleAuditAdapter()
+        new DrizzleDebtSettlementRepository()
       ).execute({
         merchantId: seed.merchantId,
         customerId: seed.customerId,

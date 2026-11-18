@@ -8,6 +8,10 @@ import {
   CustomerCreditRepository,
   CustomerCreditBalance,
 } from '../domain/customer-credit-repository.port';
+import {
+  DebtSettlementCommit,
+  DebtSettlementRepository,
+} from '../domain/debt-settlement-repository.port';
 import { OwnerPinVerifier } from '../domain/owner-pin-verifier.port';
 import {
   CashSessionRepository,
@@ -105,6 +109,30 @@ class InMemoryCustomerCreditRepository implements CustomerCreditRepository {
   async getMovementsByCustomerId(merchantId: string, customerId: string): Promise<CreditMovement[]> {
     return this.movements.filter(
       (m) => m.merchantId === merchantId && m.customerId === customerId
+    );
+  }
+}
+
+/** Reads the debt itself, like the Drizzle adapter does under the lock, and writes only after `decide` accepts. */
+class InMemoryDebtSettlementRepository implements DebtSettlementRepository {
+  constructor(
+    private readonly creditRepo: InMemoryCustomerCreditRepository,
+    private readonly cashRepo: InMemoryCashSessionRepository,
+    private readonly audit: InMemoryAuditPort
+  ) {}
+
+  async commitDebtSettlement(commit: DebtSettlementCommit): Promise<void> {
+    const balance = await this.creditRepo.getBalance(commit.merchantId, commit.customerId);
+    const { movement, audit } = commit.decide(balance.currentDebt);
+    await this.cashRepo.addMovement(commit.merchantId, commit.cashSessionId, 'DEBT_PAYMENT', commit.amount, null);
+    await this.creditRepo.saveMovement(movement);
+    await this.audit.record(
+      commit.merchantId,
+      audit.eventType,
+      audit.actorId,
+      audit.aggregateType,
+      audit.aggregateId,
+      audit.details
     );
   }
 }
@@ -225,9 +253,8 @@ describe('Slice 5: Customers & Credit / Fiado Use Cases', () => {
     getCustomerBalanceUseCase = new GetCustomerBalanceUseCase(customerRepo, creditRepo);
     settleCustomerDebtUseCase = new SettleCustomerDebtUseCase(
       customerRepo,
-      creditRepo,
       cashRepo,
-      audit
+      new InMemoryDebtSettlementRepository(creditRepo, cashRepo, audit)
     );
   });
 
@@ -606,6 +633,70 @@ describe('Slice 5: Customers & Credit / Fiado Use Cases', () => {
       });
       expect(balance.currentDebt.isZero()).toBe(true);
       expect(balance.availableCredit.toDecimal()).toBe('300.00');
+    });
+
+    async function seedDebt(creditBlocked: boolean) {
+      const customer = await createCustomerUseCase.execute({
+        merchantId: MERCHANT_ID,
+        name: 'Marcos Roberto',
+        phone: '11933332222',
+        creditLimit: Money.fromDecimal('300.00'),
+        operatorId: OPERATOR_ID,
+      });
+      if (creditBlocked) {
+        await customerRepo.save(customer.withChanges({ creditBlocked: true }));
+      }
+      await creditRepo.saveMovement(
+        CreditMovement.create({
+          merchantId: MERCHANT_ID,
+          customerId: customer.id,
+          type: 'DEBIT',
+          amount: Money.fromDecimal('100.00'),
+          operatorId: OPERATOR_ID,
+        })
+      );
+      cashRepo.currentOpenSession = {
+        id: 'session-open-1',
+        merchantId: MERCHANT_ID,
+        openedBy: OPERATOR_ID,
+        openingBalance: Money.fromDecimal('100.00'),
+        openedAt: new Date(),
+        expectedCash: Money.fromDecimal('100.00'),
+        movementsCount: 0,
+      };
+      return customer;
+    }
+
+    it('should write nothing when the amount exceeds the debt', async () => {
+      const customer = await seedDebt(false);
+      const auditBefore = audit.records.length;
+
+      await expect(
+        settleCustomerDebtUseCase.execute({
+          merchantId: MERCHANT_ID,
+          customerId: customer.id,
+          amount: Money.fromDecimal('100.01'),
+          operatorId: OPERATOR_ID,
+        })
+      ).rejects.toThrow('Payment amount exceeds current customer debt');
+
+      expect(cashRepo.movements).toHaveLength(0);
+      expect(creditRepo.movements).toHaveLength(1);
+      expect(audit.records).toHaveLength(auditBefore);
+    });
+
+    it('should let a customer with blocked credit (D-26) settle the debt', async () => {
+      const customer = await seedDebt(true);
+
+      const result = await settleCustomerDebtUseCase.execute({
+        merchantId: MERCHANT_ID,
+        customerId: customer.id,
+        amount: Money.fromDecimal('100.00'),
+        operatorId: OPERATOR_ID,
+      });
+
+      expect(result.remainingDebt.toDecimal()).toBe('0.00');
+      expect(cashRepo.movements).toHaveLength(1);
     });
   });
 });

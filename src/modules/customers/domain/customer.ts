@@ -3,7 +3,7 @@ import { CustomerCreditBlockedError, CustomerInactiveError, InvalidCreditLimitEr
 import { Phone } from './phone';
 
 const NAME_MAX_LENGTH = 160;
-export const CREDIT_LIMIT_MAX_CENTS = 10_000_000; // R$ 100.000,00
+export const CREDIT_LIMIT_MAX_CENTS = 50_000; // R$ 500,00 (D-22, since 2026-11-18)
 
 export function toValidCreditLimit(limit: Money): Money {
   const cents = limit.toCents();

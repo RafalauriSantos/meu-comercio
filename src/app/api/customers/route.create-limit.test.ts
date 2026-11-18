@@ -23,6 +23,13 @@ vi.mock('@/modules/customers/infrastructure/drizzle-customer-repository', () => 
   },
 }));
 
+const mockAuthorize = vi.fn();
+vi.mock('@/modules/customers/infrastructure/bcrypt-owner-pin-verifier', () => ({
+  BcryptOwnerPinVerifier: class {
+    authorizeOwnerPin = mockAuthorize;
+  },
+}));
+
 const mockAudit = vi.fn();
 vi.mock('@/modules/audit/infrastructure/drizzle-audit-service', () => ({
   DrizzleAuditAdapter: class {
@@ -43,6 +50,7 @@ describe('POST /api/customers: limite de fiado no cadastro (D-29)', () => {
     mockFindByPhone.mockResolvedValue(null);
     mockSave.mockResolvedValue(undefined);
     mockAudit.mockResolvedValue(undefined);
+    mockAuthorize.mockResolvedValue('dona');
     mockSession.mockResolvedValue(operator);
   });
 
@@ -54,12 +62,13 @@ describe('POST /api/customers: limite de fiado no cadastro (D-29)', () => {
   });
 
   it.each(['150.00', 150, '0.01'])('operadora com limite %s: 400, sem tocar o repositório', async (creditLimit) => {
-    const res = await post({ name: 'Seu Zé', phone: '11999998888', creditLimit });
+    const res = await post({ name: 'Seu Zé', phone: '11999998888', creditLimit, ownerPin: '123456' });
     expect(res.status).toBe(400);
     expect((await res.json()).message).toBe('Só a proprietária define o limite de fiado.');
     expect(mockFindByPhone).not.toHaveBeenCalled();
     expect(mockSave).not.toHaveBeenCalled();
     expect(mockAudit).not.toHaveBeenCalled();
+    expect(mockAuthorize).not.toHaveBeenCalled();
   });
 
   it.each([{}, { creditLimit: null }, { creditLimit: '0.00' }, { creditLimit: 0 }])(
@@ -79,24 +88,70 @@ describe('POST /api/customers: limite de fiado no cadastro (D-29)', () => {
     expect(mockSave.mock.calls[0][0].merchantId).toBe('merchant-1');
   });
 
-  it('proprietária com limite: 201 e grava o limite', async () => {
+  it('proprietária com limite e PIN certo: 201, grava o limite e audita quem autorizou, sem o PIN', async () => {
     mockSession.mockResolvedValue(owner);
-    const res = await post({ name: 'Seu Zé', phone: '11999998888', creditLimit: '150.00' });
+    const res = await post({ name: 'Seu Zé', phone: '11999998888', creditLimit: '150.00', ownerPin: '123456' });
     expect(res.status).toBe(201);
-    expect((await res.json()).creditLimit).toBe('150.00');
-    expect(mockAudit.mock.calls[0][5].creditLimit).toBe('150.00');
+    const body = await res.json();
+    expect(body.creditLimit).toBe('150.00');
+    expect(JSON.stringify(body)).not.toContain('123456');
+    expect(mockAuthorize).toHaveBeenCalledWith('merchant-1', 'dona', '123456');
+    expect(mockAudit.mock.calls[0][5]).toMatchObject({ creditLimit: '150.00', authorizedBy: 'dona' });
+    expect(JSON.stringify(mockAudit.mock.calls)).not.toContain('123456');
   });
 
-  it('proprietária aceita o teto e recusa acima dele ou negativo', async () => {
+  it('proprietária com limite sem PIN: 400 OWNER_PIN_REQUIRED, sem gastar tentativa e sem gravar', async () => {
     mockSession.mockResolvedValue(owner);
-    expect((await post({ name: 'A', phone: '11999998888', creditLimit: '100000.00' })).status).toBe(201);
+    const res = await post({ name: 'Seu Zé', phone: '11999998888', creditLimit: '150.00' });
+    expect(res.status).toBe(400);
+    expect((await res.json()).code).toBe('OWNER_PIN_REQUIRED');
+    expect(mockAuthorize).not.toHaveBeenCalled();
+    expect(mockSave).not.toHaveBeenCalled();
+  });
+
+  it('proprietária com PIN errado ou loja bloqueada: 403 e não grava', async () => {
+    mockSession.mockResolvedValue(owner);
+    mockAuthorize.mockResolvedValue(null);
+    const res = await post({ name: 'Seu Zé', phone: '11999998888', creditLimit: '150.00', ownerPin: '000000' });
+    expect(res.status).toBe(403);
+    expect((await res.json()).message).toBe('PIN de autorização da proprietária inválido.');
+    expect(mockSave).not.toHaveBeenCalled();
+  });
+
+  it('proprietária com PIN mal formado: 400 de validação, sem gastar tentativa', async () => {
+    mockSession.mockResolvedValue(owner);
+    const res = await post({ name: 'Seu Zé', phone: '11999998888', creditLimit: '150.00', ownerPin: '12' });
+    expect(res.status).toBe(400);
+    expect(mockAuthorize).not.toHaveBeenCalled();
+  });
+
+  it('proprietária sem limite não precisa de PIN: 201 com 0.00', async () => {
+    mockSession.mockResolvedValue(owner);
+    const res = await post({ name: 'Seu Zé', phone: '11999998888' });
+    expect(res.status).toBe(201);
+    expect((await res.json()).creditLimit).toBe('0.00');
+    expect(mockAuthorize).not.toHaveBeenCalled();
+  });
+
+  it('telefone repetido com limite e PIN: 409 antes de gastar tentativa de PIN', async () => {
+    mockSession.mockResolvedValue(owner);
+    mockFindByPhone.mockResolvedValue({ id: 'x' });
+    const res = await post({ name: 'Seu Zé', phone: '11999998888', creditLimit: '10.00', ownerPin: '123456' });
+    expect(res.status).toBe(409);
+    expect(mockAuthorize).not.toHaveBeenCalled();
+  });
+
+  it('proprietária aceita o teto e recusa acima dele (mesmo com PIN) ou negativo', async () => {
+    mockSession.mockResolvedValue(owner);
+    expect((await post({ name: 'A', phone: '11999998888', creditLimit: '500.00', ownerPin: '123456' })).status).toBe(201);
     vi.clearAllMocks();
     mockFindByPhone.mockResolvedValue(null);
-    const above = await post({ name: 'B', phone: '11999997777', creditLimit: '100000.01' });
+    const above = await post({ name: 'B', phone: '11999997777', creditLimit: '500.01', ownerPin: '123456' });
     expect(above.status).toBe(400);
-    expect((await above.json()).message).toBe('O limite de fiado deve ser de R$ 0,00 a R$ 100.000,00.');
-    expect((await post({ name: 'C', phone: '11999996666', creditLimit: '-1.00' })).status).toBe(400);
+    expect((await above.json()).message).toBe('O limite de fiado deve ser de R$ 0,00 a R$ 500,00.');
+    expect((await post({ name: 'C', phone: '11999996666', creditLimit: '-1.00', ownerPin: '123456' })).status).toBe(400);
     expect(mockSave).not.toHaveBeenCalled();
+    expect(mockAuthorize).not.toHaveBeenCalled();
   });
 
   it('telefone repetido continua 409 e telefone inválido 400', async () => {

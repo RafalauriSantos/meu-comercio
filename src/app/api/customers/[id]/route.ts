@@ -9,8 +9,11 @@ import {
   CustomerChangedError,
   CustomerNotFoundError,
   InvalidCreditLimitError,
+  InvalidOwnerPinError,
   InvalidPhoneError,
+  OwnerPinRequiredError,
 } from '@/modules/customers/domain/errors';
+import { BcryptOwnerPinVerifier } from '@/modules/customers/infrastructure/bcrypt-owner-pin-verifier';
 
 export async function PATCH(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
@@ -26,7 +29,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     }
 
     const body = await request.json().catch(() => null);
-    const useCase = new UpdateCustomerUseCase(new DrizzleCustomerRepository());
+    const useCase = new UpdateCustomerUseCase(new DrizzleCustomerRepository(), new BcryptOwnerPinVerifier());
 
     const customer = await useCase.execute(session.merchantId, session.username, id, body);
 
@@ -53,6 +56,12 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
         },
         { status: 400 }
       );
+    }
+    if (error instanceof OwnerPinRequiredError) {
+      return NextResponse.json({ code: 'OWNER_PIN_REQUIRED', message: error.message }, { status: 400 });
+    }
+    if (error instanceof InvalidOwnerPinError) {
+      return NextResponse.json({ message: 'PIN de autorização da proprietária inválido.' }, { status: 403 });
     }
     if (error instanceof InvalidPhoneError || error instanceof InvalidCreditLimitError) {
       return NextResponse.json({ message: error.message }, { status: 400 });

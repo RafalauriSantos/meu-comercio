@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { Money } from '@/shared/domain/money';
 import { Customer } from '../domain/customer';
 import { phoneDigits } from '../domain/phone';
@@ -24,6 +24,8 @@ import {
   CustomerAlreadyExistsError,
   InvalidPhoneError,
   InvalidCreditLimitError,
+  InvalidOwnerPinError,
+  OwnerPinRequiredError,
   OnlyOwnerSetsCreditLimitError,
   DebtSettlementExceedsBalanceError,
   NoOpenCashSessionError,
@@ -251,7 +253,7 @@ describe('Slice 5: Customers & Credit / Fiado Use Cases', () => {
 
     pinVerifier.setPin(MERCHANT_ID, OWNER_USERNAME, OWNER_PIN);
 
-    createCustomerUseCase = new CreateCustomerUseCase(customerRepo, audit);
+    createCustomerUseCase = new CreateCustomerUseCase(customerRepo, audit, pinVerifier);
     getCustomerBalanceUseCase = new GetCustomerBalanceUseCase(customerRepo, creditRepo);
     settleCustomerDebtUseCase = new SettleCustomerDebtUseCase(
       customerRepo,
@@ -268,7 +270,8 @@ describe('Slice 5: Customers & Credit / Fiado Use Cases', () => {
         phone: '11988887777',
         creditLimit: Money.fromDecimal('150.00'),
         actorIsOwner: true,
-        operatorId: OPERATOR_ID,
+        ownerPin: OWNER_PIN,
+        operatorId: OWNER_USERNAME,
       });
 
       expect(customer.id).toBeDefined();
@@ -285,11 +288,12 @@ describe('Slice 5: Customers & Credit / Fiado Use Cases', () => {
       expect(audit.records[0]).toMatchObject({
         merchantId: MERCHANT_ID,
         eventType: 'CUSTOMER_CREATED',
-        actorId: OPERATOR_ID,
+        actorId: OWNER_USERNAME,
         aggregateType: 'CUSTOMER',
         aggregateId: customer.id,
       });
-      expect(audit.records[0].details.creditLimit).toBe('150.00');
+      expect(audit.records[0].details).toMatchObject({ creditLimit: '150.00', authorizedBy: OWNER_USERNAME });
+      expect(JSON.stringify(audit.records)).not.toContain(OWNER_PIN);
     });
 
     it('should create customer with default credit limit zero when omitted', async () => {
@@ -350,23 +354,66 @@ describe('Slice 5: Customers & Credit / Fiado Use Cases', () => {
         merchantId: MERCHANT_ID,
         name: 'Dona Maria',
         phone: '11988887777',
-        creditLimit: Money.fromDecimal('100000.00'),
+        creditLimit: Money.fromDecimal('500.00'),
         actorIsOwner: true,
+        ownerPin: OWNER_PIN,
         operatorId: OWNER_USERNAME,
       });
-      expect(ok.creditLimit.toDecimal()).toBe('100000.00');
+      expect(ok.creditLimit.toDecimal()).toBe('500.00');
 
       await expect(
         createCustomerUseCase.execute({
           merchantId: MERCHANT_ID,
           name: 'Seu Zé',
           phone: '11977776666',
-          creditLimit: Money.fromDecimal('100000.01'),
+          creditLimit: Money.fromDecimal('500.01'),
           actorIsOwner: true,
+          ownerPin: OWNER_PIN,
           operatorId: OWNER_USERNAME,
         })
       ).rejects.toThrow(InvalidCreditLimitError);
       expect(customerRepo.customers.size).toBe(1);
+    });
+
+    it('D-22: should require the owner PIN for a limit above zero, without saving or auditing', async () => {
+      const base = { merchantId: MERCHANT_ID, name: 'Dona Maria', phone: '11988887777', creditLimit: Money.fromDecimal('10.00'), actorIsOwner: true, operatorId: OWNER_USERNAME };
+
+      await expect(createCustomerUseCase.execute(base)).rejects.toThrow(OwnerPinRequiredError);
+      await expect(createCustomerUseCase.execute({ ...base, ownerPin: '9999' })).rejects.toThrow(InvalidOwnerPinError);
+
+      expect(customerRepo.customers.size).toBe(0);
+      expect(audit.records).toHaveLength(0);
+    });
+
+    it('D-22: should not ask for the PIN when the owner registers with limit zero', async () => {
+      const customer = await createCustomerUseCase.execute({
+        merchantId: MERCHANT_ID,
+        name: 'Dona Maria',
+        phone: '11988887777',
+        actorIsOwner: true,
+        operatorId: OWNER_USERNAME,
+      });
+
+      expect(customer.creditLimit.isZero()).toBe(true);
+      expect(audit.records[0].details).not.toHaveProperty('authorizedBy');
+    });
+
+    it('D-22: should refuse a duplicate phone before spending a PIN attempt', async () => {
+      const verify = vi.spyOn(pinVerifier, 'authorizeOwnerPin');
+      await createCustomerUseCase.execute({ merchantId: MERCHANT_ID, name: 'A', phone: '11988887777', operatorId: OWNER_USERNAME });
+
+      await expect(
+        createCustomerUseCase.execute({
+          merchantId: MERCHANT_ID,
+          name: 'B',
+          phone: '11988887777',
+          creditLimit: Money.fromDecimal('10.00'),
+          actorIsOwner: true,
+          ownerPin: OWNER_PIN,
+          operatorId: OWNER_USERNAME,
+        })
+      ).rejects.toThrow(CustomerAlreadyExistsError);
+      expect(verify).not.toHaveBeenCalled();
     });
 
     it('should reject creating customer with duplicate phone in the same merchant', async () => {
@@ -467,7 +514,8 @@ describe('Slice 5: Customers & Credit / Fiado Use Cases', () => {
         phone: '11966665555',
         creditLimit: Money.fromDecimal('200.00'),
         actorIsOwner: true,
-        operatorId: OPERATOR_ID,
+        ownerPin: OWNER_PIN,
+        operatorId: OWNER_USERNAME,
       });
 
       const balance = await getCustomerBalanceUseCase.execute({
@@ -490,7 +538,8 @@ describe('Slice 5: Customers & Credit / Fiado Use Cases', () => {
         phone: '11966665555',
         creditLimit: Money.fromDecimal('200.00'),
         actorIsOwner: true,
-        operatorId: OPERATOR_ID,
+        ownerPin: OWNER_PIN,
+        operatorId: OWNER_USERNAME,
       });
 
       await creditRepo.saveMovement(
@@ -532,7 +581,8 @@ describe('Slice 5: Customers & Credit / Fiado Use Cases', () => {
         phone: '11933332222',
         creditLimit: Money.fromDecimal('300.00'),
         actorIsOwner: true,
-        operatorId: OPERATOR_ID,
+        ownerPin: OWNER_PIN,
+        operatorId: OWNER_USERNAME,
       });
 
       await creditRepo.saveMovement(
@@ -563,7 +613,8 @@ describe('Slice 5: Customers & Credit / Fiado Use Cases', () => {
         phone: '11933332222',
         creditLimit: Money.fromDecimal('300.00'),
         actorIsOwner: true,
-        operatorId: OPERATOR_ID,
+        ownerPin: OWNER_PIN,
+        operatorId: OWNER_USERNAME,
       });
 
       await creditRepo.saveMovement(
@@ -603,7 +654,8 @@ describe('Slice 5: Customers & Credit / Fiado Use Cases', () => {
         phone: '11933332222',
         creditLimit: Money.fromDecimal('300.00'),
         actorIsOwner: true,
-        operatorId: OPERATOR_ID,
+        ownerPin: OWNER_PIN,
+        operatorId: OWNER_USERNAME,
       });
 
       await creditRepo.saveMovement(
@@ -670,7 +722,8 @@ describe('Slice 5: Customers & Credit / Fiado Use Cases', () => {
         phone: '11933332222',
         creditLimit: Money.fromDecimal('300.00'),
         actorIsOwner: true,
-        operatorId: OPERATOR_ID,
+        ownerPin: OWNER_PIN,
+        operatorId: OWNER_USERNAME,
       });
 
       await creditRepo.saveMovement(
@@ -717,7 +770,8 @@ describe('Slice 5: Customers & Credit / Fiado Use Cases', () => {
         phone: '11933332222',
         creditLimit: Money.fromDecimal('300.00'),
         actorIsOwner: true,
-        operatorId: OPERATOR_ID,
+        ownerPin: OWNER_PIN,
+        operatorId: OWNER_USERNAME,
       });
       if (creditBlocked) {
         await customerRepo.save(customer.withChanges({ creditBlocked: true }));

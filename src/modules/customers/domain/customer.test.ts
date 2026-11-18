@@ -65,17 +65,26 @@ describe('Customer.withChanges', () => {
     expect(existing().withChanges({ name: 'X', active: false } as never).active).toBe(true);
   });
 
-  it.each(['0', '0.00', '100000', '100000.00', '99999.99', '100000.004'])('aceita o limite %s', (value) => {
+  it.each(['0', '0.00', '500', '500.00', '499.99', '500.004'])('aceita o limite %s', (value) => {
     const next = existing().withChanges({ creditLimit: Money.fromDecimal(value) });
 
     expect(next.creditLimit.toDecimal()).toBe(Money.fromDecimal(value).toDecimal());
   });
 
-  it.each(['100000.01', '100000.005', '1000000', '-0.01', '-1'])('recusa o limite %s com mensagem em português', (value) => {
+  it.each(['500.01', '500.005', '1000000', '100000', '-0.01', '-1'])('recusa o limite %s com mensagem em português', (value) => {
     const change = () => existing().withChanges({ creditLimit: Money.fromDecimal(value) });
 
     expect(change).toThrow(InvalidCreditLimitError);
-    expect(change).toThrow('O limite de fiado deve ser de R$ 0,00 a R$ 100.000,00.');
+    expect(change).toThrow('O limite de fiado deve ser de R$ 0,00 a R$ 500,00.');
+  });
+
+  it('D-22: cliente antigo acima do teto é lido sem erro e editar o nome não revalida o limite', () => {
+    const old = new Customer({ ...existing(), creditLimit: Money.fromDecimal('100000.00') });
+
+    expect(old.creditLimit.toDecimal()).toBe('100000.00');
+    const renamed = old.withChanges({ name: 'Maria Souza' });
+    expect(renamed.creditLimit.toDecimal()).toBe('100000.00');
+    expect(() => old.withChanges({ creditLimit: Money.fromDecimal('500.01') })).toThrow(InvalidCreditLimitError);
   });
 
   it('o limite é medido em centavos, sem ponto flutuante: 0.1 + 0.2 vira 0.30', () => {

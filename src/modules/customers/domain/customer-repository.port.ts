@@ -14,6 +14,11 @@ export interface CustomerUpdateContext {
   actorId: string;
   /** When given and different from the stored updated_at, the edit is refused (CustomerChangedError). */
   expectedUpdatedAt?: Date;
+  /**
+   * D-22: username of the owner whose PIN authorized a limit increase. A limit above the one read under the row
+   * lock is refused (OwnerPinRequiredError) without it. Never the PIN itself.
+   */
+  limitIncreaseAuthorizedBy?: string;
 }
 
 export interface CustomerRepository {

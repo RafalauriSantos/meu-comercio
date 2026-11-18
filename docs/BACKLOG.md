@@ -171,7 +171,7 @@ Este documento rastreia formalmente as fatias verticais de entrega, critérios d
 
 1. **Conferir no ar** o que só a prática mostra (a dona e o leitor de verdade): painéis, operadora logada, bloqueio de fiado, cadastro na venda (22.10d, 22.15, 22.16, 22.19, 23.5).
 2. **Quitação de fiado numa transação só** (19.5): hoje grava o caixa e o saldo em passos separados, sem trava. Mexe em dinheiro: aprovação da dona.
-3. **Brecha da operadora no cadastro de cliente** (22.9f, servidor feito pela D-29): cadastra com limite zero, só a dona libera. Junto com o Novo cliente em painel (22.10c).
+3. **Brecha da operadora no cadastro de cliente** (22.9f, servidor feito pela D-29): cadastra com limite zero, só a dona libera. Feito no 22.10c (Novo cliente em painel).
 4. **Monitor de site no ar e passo a passo de reverter** (21.1, 21.2).
 5. **Extrato do cliente** (22.20): API de leitura e tela.
 6. **Desativar produto e cliente** (22.17, 22.18).
@@ -313,7 +313,7 @@ Este documento rastreia formalmente as fatias verticais de entrega, critérios d
 - [ ] 22.10 **Novo layout de Clientes e Fiado** (protótipo aprovado pela dona; spec em `.dev-team/spec-customers-layout.md`):
   - [x] 22.10a Faixa de resumo, busca, filtros (Todos, Devendo, Acima do limite), lista no computador e cartões no celular, selos de situação e Receber (PR #119).
   - [x] 22.10b Painel lateral de edição do cliente, igual ao de produtos (PR #121).
-  - [ ] 22.10c Novo cliente no mesmo painel (hoje é formulário na página); a operadora cadastra com limite zero (junto com 22.9f). A tela também precisa do teto de R$ 500,00 (hoje R$ 100.000,00 em `src/frontend/management`) e do campo do PIN da proprietária ao aumentar o limite (cadastro e edição), com o `code: OWNER_PIN_REQUIRED`.
+  - [x] 22.10c Novo cliente no mesmo painel (hoje é formulário na página); a operadora cadastra com limite zero (junto com 22.9f). A tela também precisa do teto de R$ 500,00 (hoje R$ 100.000,00 em `src/frontend/management`) e do campo do PIN da proprietária ao aumentar o limite (cadastro e edição), com o `code: OWNER_PIN_REQUIRED`.
   - [ ] 22.10d Conferir no navegador e no celular (largura de 1280 e 390 px, animação, foco): só foi testado por HTML estático. O ponto de quebra entre linhas e cartões ficou em 600 px (a spec sugeria 768 px).
 - [x] 22.11 **Código de barras gerado pelo sistema** (22.4, D-23), em 3 PRs: (1) decisão e gerador puro (PR #123); (2) API: `barcode` opcional no cadastro, geração e nova tentativa em colisão (até 5) (PR #125); (3) tela: campo "Gerado automaticamente" e código mostrado no aviso de sucesso (PR #126). Fora: etiqueta, CSV e filtro. O prefixo 29 evita a faixa 2 das balanças.
 - [x] 22.12 **Bipar na tela de vendas:** qualquer bipada põe o produto no carrinho, sem clicar antes no campo de busca. A bipada vale só para a tela aberta (cadastro e venda não podem receber a bipada um do outro) e o código gerado (22.11) tem de ser achado como qualquer outro. Conferir a troca de aba na tela real e com o leitor físico. O leitor passou para `src/frontend/lib` e ouve só com a tela montada; ignora a bipada com qualquer janela aberta.

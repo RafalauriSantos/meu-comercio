@@ -5,6 +5,7 @@ import { apiClient, CustomerItem, CustomerBalance, CreditMetricsData } from '@/f
 import { formatMoney, parseCurrencyInput, getErrorMessage } from '@/frontend/lib/formatters';
 import type { CustomerFilter } from './customers-list';
 import { useCustomerEdit } from './use-customer-edit';
+import { useNewCustomer } from './use-new-customer';
 import { useCustomerStatement } from './use-customer-statement';
 
 type Feedback = { text: string; isError?: boolean; isSuccess?: boolean } | null;
@@ -25,10 +26,6 @@ export function useCustomersTab({ setFeedback, setProcessing, setLoadFailed, loa
   const [customerBalances, setCustomerBalances] = useState<Record<string, CustomerBalance>>({});
   const [customerQuery, setCustomerQuery] = useState('');
   const [customerFilter, setCustomerFilter] = useState<CustomerFilter>('all');
-  const [showNewCustomer, setShowNewCustomer] = useState(false);
-  const [newCustName, setNewCustName] = useState('');
-  const [newCustPhone, setNewCustPhone] = useState('');
-  const [newCustLimit, setNewCustLimit] = useState('100.00');
 
   // Quitação de Fiado
   const [settlingCustomer, setSettlingCustomer] = useState<CustomerBalance | null>(null);
@@ -113,30 +110,9 @@ export function useCustomersTab({ setFeedback, setProcessing, setLoadFailed, loa
 
   const statement = useCustomerStatement();
 
-  // --- Handlers de Clientes / Fiado ---
-  async function handleCreateCustomer(e: React.FormEvent) {
-    e.preventDefault();
-    setProcessing(true);
-    setFeedback(null);
-    try {
-      await apiClient.createCustomer({
-        name: newCustName.trim(),
-        phone: newCustPhone.trim(),
-        creditLimit: parseCurrencyInput(newCustLimit),
-      });
-      setFeedback({ text: 'Cliente cadastrado com sucesso!', isSuccess: true });
-      setShowNewCustomer(false);
-      setNewCustName('');
-      setNewCustPhone('');
-      setNewCustLimit('100.00');
-      await loadCustomers();
-    } catch (err) {
-      setFeedback({ text: getErrorMessage(err, 'Erro ao cadastrar cliente.'), isError: true });
-    } finally {
-      setProcessing(false);
-    }
-  }
+  const create = useNewCustomer({ setFeedback, setProcessing, reload: loadCustomers });
 
+  // --- Handlers de Clientes / Fiado ---
   async function handleSettleDebt(e: React.FormEvent) {
     e.preventDefault();
     if (!settlingCustomer) return;
@@ -167,14 +143,6 @@ export function useCustomersTab({ setFeedback, setProcessing, setLoadFailed, loa
     setCustomerQuery,
     customerFilter,
     setCustomerFilter,
-    showNewCustomer,
-    setShowNewCustomer,
-    newCustName,
-    setNewCustName,
-    newCustPhone,
-    setNewCustPhone,
-    newCustLimit,
-    setNewCustLimit,
     settlingCustomer,
     setSettlingCustomer,
     settleAmount,
@@ -185,8 +153,8 @@ export function useCustomersTab({ setFeedback, setProcessing, setLoadFailed, loa
     loadCustomers,
     loadCreditMetrics,
     loadMissingBalances,
-    handleCreateCustomer,
     handleSettleDebt,
+    create,
     edit,
     statement,
   };

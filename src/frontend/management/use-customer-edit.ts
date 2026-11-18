@@ -18,7 +18,7 @@ export function useCustomerEdit({ setFeedback, setProcessing, applyEdit, reload 
   const [target, setTarget] = useState<CustomerItem | null>(null);
   // The panel plays its exit while closing; it calls finishClose at the end, and only then the target is dropped.
   const [closing, setClosing] = useState(false);
-  const [draft, setDraft] = useState<CustomerDraft>({ name: '', phone: '', limit: '', creditBlocked: false });
+  const [draft, setDraft] = useState<CustomerDraft>({ name: '', phone: '', limit: '', creditBlocked: false, ownerPin: '' });
   const [error, setError] = useState<CustomerEditError | null>(null);
   const nameRef = useRef<HTMLInputElement>(null);
 
@@ -37,6 +37,7 @@ export function useCustomerEdit({ setFeedback, setProcessing, applyEdit, reload 
     setTarget(null);
     setClosing(false);
     setError(null);
+    changeDraft({ ownerPin: '' });
   }
 
   function changeDraft(change: Partial<CustomerDraft>) {
@@ -51,6 +52,7 @@ export function useCustomerEdit({ setFeedback, setProcessing, applyEdit, reload 
     setError(null);
     try {
       const result = await submitCustomerEdit(apiClient.updateCustomer, target, draft);
+      changeDraft({ ownerPin: '' });
       if (result.kind === 'failed') {
         setError({ text: result.text, reload: result.reload });
         return;

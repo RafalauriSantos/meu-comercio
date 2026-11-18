@@ -9,10 +9,12 @@ import {
   buildCustomerPatch,
   isDraftValid,
   limitBelowDebt,
+  limitRaised,
   maskLimit,
   type CustomerDraft,
   type CustomerEditError,
 } from '@/frontend/management/customer-edit';
+import { sanitizePin } from '@/frontend/auth/sanitize-pin';
 import { useDialogPanel } from '@/frontend/lib/use-dialog-panel';
 
 interface CustomerEditPanelProps {
@@ -51,7 +53,8 @@ export function CustomerEditPanel({
   const dialogRef = useRef<HTMLDialogElement>(null);
   useDialogPanel(dialogRef, nameRef, closing, onClosed);
   const unchanged = buildCustomerPatch(target, draft) === null;
-  const cannotSave = processing || !isDraftValid(draft) || unchanged;
+  const needsPin = limitRaised(target, draft);
+  const cannotSave = processing || !isDraftValid(draft) || unchanged || (needsPin && draft.ownerPin.length !== 6);
   return (
     // Esc sends `cancel`: the app closes the panel (and its state) instead of the browser closing only the <dialog>.
     <dialog
@@ -110,7 +113,7 @@ export function CustomerEditPanel({
             />
             <span className="mg-help">
               {debtCents !== null && <>Dívida atual: {formatMoney(Money.fromCents(debtCents))}. </>}
-              Máximo: R$ 100.000,00.
+              O limite vai até R$ 500,00.
             </span>
             {limitBelowDebt(draft.limit, debtCents) && (
               <span className="mg-help mg-help-warn" role="status">
@@ -118,6 +121,22 @@ export function CustomerEditPanel({
               </span>
             )}
           </div>
+          {needsPin && (
+            <div>
+              <label className="field-label" htmlFor={`edit-cpin-${id}`}>PIN da proprietária</label>
+              <input
+                id={`edit-cpin-${id}`}
+                className="input num"
+                type="password"
+                inputMode="numeric"
+                autoComplete="off"
+                maxLength={6}
+                value={draft.ownerPin}
+                onChange={(e) => onDraft({ ownerPin: sanitizePin(e.target.value) })}
+              />
+              <span className="mg-help">Por segurança, aumentar o limite pede o seu PIN.</span>
+            </div>
+          )}
           <div>
             <label className="field-label" htmlFor={`edit-cblocked-${id}`}>Fiado bloqueado</label>
             <input

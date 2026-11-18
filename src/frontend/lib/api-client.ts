@@ -129,6 +129,15 @@ export interface CustomerItem {
   updatedAt?: string;
 }
 
+export interface CreateCustomerPayload {
+  name: string;
+  phone: string;
+  /** Decimal string, never a number. The operator never sends it (the customer is born with R$ 0,00). */
+  creditLimit?: number | string;
+  /** The owner's PIN, sent only with a limit above zero. */
+  ownerPin?: string;
+}
+
 export interface CustomerPatch {
   name?: string;
   /** Digits or any text the backend accepts as a phone. */
@@ -137,6 +146,8 @@ export interface CustomerPatch {
   creditLimit?: string;
   creditBlocked?: boolean;
   expectedUpdatedAt?: string;
+  /** The owner's PIN, sent only when the limit goes up. */
+  ownerPin?: string;
 }
 
 export interface OperatorItem {
@@ -452,7 +463,7 @@ export const apiClient = {
   listCustomers: () => apiRequest<{ items: CustomerItem[] }>('/api/customers'),
   searchCustomers: (query: string) =>
     apiRequest<{ items: CustomerItem[] }>(`/api/customers/search?q=${encodeURIComponent(query)}`),
-  createCustomer: (payload: { name: string; phone: string; creditLimit?: number | string }) =>
+  createCustomer: (payload: CreateCustomerPayload) =>
     apiRequest<CustomerItem>('/api/customers', {
       method: 'POST',
       body: JSON.stringify(payload),

@@ -59,7 +59,7 @@ describe('screens choose success for confirmations', () => {
         'Caixa fechado com sucesso',
         'Sangria de',
         'Suprimento de',
-        'Cliente cadastrado com sucesso',
+        'newCustomerSuccessText(isOwner)',
         'realizada com sucesso e registrada',
         'cadastrado com sucesso!`',
         'cadastrado com sucesso!${typedBarcode',

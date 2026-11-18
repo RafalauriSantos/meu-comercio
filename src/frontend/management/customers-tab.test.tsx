@@ -59,7 +59,7 @@ function render({
     customerBalances: bal,
     customerQuery: query,
     customerFilter: filter,
-    showNewCustomer: false,
+    create: { isOpen: false },
     settlingCustomer: null,
     creditMetrics,
     edit: { target: null },

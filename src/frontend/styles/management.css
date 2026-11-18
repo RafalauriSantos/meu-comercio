@@ -154,12 +154,6 @@
   font-size: 22px;
 }
 
-.management-page .mg-form-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  gap: 12px 16px;
-}
-
 .management-page .mg-form-submit {
   margin-top: 16px;
 }

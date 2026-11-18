@@ -171,7 +171,7 @@ Este documento rastreia formalmente as fatias verticais de entrega, critérios d
 
 1. **Conferir no ar** o que só a prática mostra (a dona e o leitor de verdade): painéis, operadora logada, bloqueio de fiado, cadastro na venda (22.10d, 22.15, 22.16, 22.19, 23.5).
 2. **Quitação de fiado numa transação só** (19.5): hoje grava o caixa e o saldo em passos separados, sem trava. Mexe em dinheiro: aprovação da dona.
-3. **Brecha da operadora no cadastro de cliente** (22.9f): cadastra com limite zero, só a dona libera. Junto com o Novo cliente em painel (22.10c).
+3. **Brecha da operadora no cadastro de cliente** (22.9f, servidor feito pela D-29): cadastra com limite zero, só a dona libera. Junto com o Novo cliente em painel (22.10c).
 4. **Monitor de site no ar e passo a passo de reverter** (21.1, 21.2).
 5. **Extrato do cliente** (22.20): API de leitura e tela.
 6. **Desativar produto e cliente** (22.17, 22.18).
@@ -308,7 +308,7 @@ Este documento rastreia formalmente as fatias verticais de entrega, critérios d
   - [x] 22.9c Editar o limite de fiado (dinheiro; teto de R$ 100.000,00, sem PIN, pode ficar abaixo da dívida), só proprietária (PR #117).
   - [x] 22.9d Cliente da API, máscara de telefone `(11) 99999-8888` e regra de "fora do padrão" no front, mais mover `priceToDigits` para `lib` (ADR-020) (PR #116).
   - [x] 22.9e Tela de edição de clientes (painel lateral com animação, no molde do produto), marca "Telefone fora do padrão" nos antigos e aviso quando o limite fica abaixo da dívida (PR #121; o botão Editar só aparece para a proprietária).
-  - [ ] 22.9f **Brecha de permissão:** a operadora hoje cadastra cliente e define o limite de fiado (o cadastro só exige estar logada). Decisão da dona: a operadora continua cadastrando, com **limite zero**, e só a proprietária libera valor. PR próprio.
+  - [x] 22.9f **Brecha de permissão (parte do servidor feita, D-29):** a operadora hoje cadastra cliente e define o limite de fiado (o cadastro só exige estar logada). Decisão da dona: a operadora continua cadastrando, com **limite zero**, e só a proprietária libera valor. Servidor: o `POST /api/customers` recusa limite maior que zero da operadora (400) e grava zero; a tela fica no 22.10c.
   - [x] 22.9g Janela de milissegundos em que a venda no fiado usa o limite lido antes da trava do cliente (risco baixo; mexe em dinheiro, PR próprio). **Fechado pela 22.16b** (leitura sob a trava).
 - [ ] 22.10 **Novo layout de Clientes e Fiado** (protótipo aprovado pela dona; spec em `.dev-team/spec-customers-layout.md`):
   - [x] 22.10a Faixa de resumo, busca, filtros (Todos, Devendo, Acima do limite), lista no computador e cartões no celular, selos de situação e Receber (PR #119).

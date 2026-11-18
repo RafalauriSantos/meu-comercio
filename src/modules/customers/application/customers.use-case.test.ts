@@ -23,6 +23,8 @@ import {
   CustomerNotFoundError,
   CustomerAlreadyExistsError,
   InvalidPhoneError,
+  InvalidCreditLimitError,
+  OnlyOwnerSetsCreditLimitError,
   DebtSettlementExceedsBalanceError,
   NoOpenCashSessionError,
 } from '../domain/errors';
@@ -265,6 +267,7 @@ describe('Slice 5: Customers & Credit / Fiado Use Cases', () => {
         name: 'Dona Maria',
         phone: '11988887777',
         creditLimit: Money.fromDecimal('150.00'),
+        actorIsOwner: true,
         operatorId: OPERATOR_ID,
       });
 
@@ -298,6 +301,72 @@ describe('Slice 5: Customers & Credit / Fiado Use Cases', () => {
       });
 
       expect(customer.creditLimit.isZero()).toBe(true);
+    });
+
+    it('D-29: should refuse a credit limit above zero from a non-owner without saving or auditing', async () => {
+      await expect(
+        createCustomerUseCase.execute({
+          merchantId: MERCHANT_ID,
+          name: 'Seu Zé',
+          phone: '11977776666',
+          creditLimit: Money.fromDecimal('0.01'),
+          actorIsOwner: false,
+          operatorId: OPERATOR_ID,
+        })
+      ).rejects.toThrow(OnlyOwnerSetsCreditLimitError);
+
+      expect(customerRepo.customers.size).toBe(0);
+      expect(audit.records).toHaveLength(0);
+    });
+
+    it('D-29: should treat a missing actorIsOwner as non-owner', async () => {
+      await expect(
+        createCustomerUseCase.execute({
+          merchantId: MERCHANT_ID,
+          name: 'Seu Zé',
+          phone: '11977776666',
+          creditLimit: Money.fromDecimal('10.00'),
+          operatorId: OPERATOR_ID,
+        })
+      ).rejects.toThrow(OnlyOwnerSetsCreditLimitError);
+    });
+
+    it('D-29: should save limit zero for a non-owner who sends zero', async () => {
+      const customer = await createCustomerUseCase.execute({
+        merchantId: MERCHANT_ID,
+        name: 'Seu Zé',
+        phone: '11977776666',
+        creditLimit: Money.zero(),
+        actorIsOwner: false,
+        operatorId: OPERATOR_ID,
+      });
+
+      expect(customer.creditLimit.toDecimal()).toBe('0.00');
+      expect(audit.records[0].details.creditLimit).toBe('0.00');
+    });
+
+    it('D-22: should accept the ceiling from the owner and refuse one cent above it', async () => {
+      const ok = await createCustomerUseCase.execute({
+        merchantId: MERCHANT_ID,
+        name: 'Dona Maria',
+        phone: '11988887777',
+        creditLimit: Money.fromDecimal('100000.00'),
+        actorIsOwner: true,
+        operatorId: OWNER_USERNAME,
+      });
+      expect(ok.creditLimit.toDecimal()).toBe('100000.00');
+
+      await expect(
+        createCustomerUseCase.execute({
+          merchantId: MERCHANT_ID,
+          name: 'Seu Zé',
+          phone: '11977776666',
+          creditLimit: Money.fromDecimal('100000.01'),
+          actorIsOwner: true,
+          operatorId: OWNER_USERNAME,
+        })
+      ).rejects.toThrow(InvalidCreditLimitError);
+      expect(customerRepo.customers.size).toBe(1);
     });
 
     it('should reject creating customer with duplicate phone in the same merchant', async () => {
@@ -397,6 +466,7 @@ describe('Slice 5: Customers & Credit / Fiado Use Cases', () => {
         name: 'Carlos Oliveira',
         phone: '11966665555',
         creditLimit: Money.fromDecimal('200.00'),
+        actorIsOwner: true,
         operatorId: OPERATOR_ID,
       });
 
@@ -419,6 +489,7 @@ describe('Slice 5: Customers & Credit / Fiado Use Cases', () => {
         name: 'Carlos Oliveira',
         phone: '11966665555',
         creditLimit: Money.fromDecimal('200.00'),
+        actorIsOwner: true,
         operatorId: OPERATOR_ID,
       });
 
@@ -460,6 +531,7 @@ describe('Slice 5: Customers & Credit / Fiado Use Cases', () => {
         name: 'Marcos Roberto',
         phone: '11933332222',
         creditLimit: Money.fromDecimal('300.00'),
+        actorIsOwner: true,
         operatorId: OPERATOR_ID,
       });
 
@@ -490,6 +562,7 @@ describe('Slice 5: Customers & Credit / Fiado Use Cases', () => {
         name: 'Marcos Roberto',
         phone: '11933332222',
         creditLimit: Money.fromDecimal('300.00'),
+        actorIsOwner: true,
         operatorId: OPERATOR_ID,
       });
 
@@ -529,6 +602,7 @@ describe('Slice 5: Customers & Credit / Fiado Use Cases', () => {
         name: 'Marcos Roberto',
         phone: '11933332222',
         creditLimit: Money.fromDecimal('300.00'),
+        actorIsOwner: true,
         operatorId: OPERATOR_ID,
       });
 
@@ -595,6 +669,7 @@ describe('Slice 5: Customers & Credit / Fiado Use Cases', () => {
         name: 'Marcos Roberto',
         phone: '11933332222',
         creditLimit: Money.fromDecimal('300.00'),
+        actorIsOwner: true,
         operatorId: OPERATOR_ID,
       });
 
@@ -641,6 +716,7 @@ describe('Slice 5: Customers & Credit / Fiado Use Cases', () => {
         name: 'Marcos Roberto',
         phone: '11933332222',
         creditLimit: Money.fromDecimal('300.00'),
+        actorIsOwner: true,
         operatorId: OPERATOR_ID,
       });
       if (creditBlocked) {

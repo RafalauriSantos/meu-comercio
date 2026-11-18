@@ -1,7 +1,7 @@
 import { Money } from '@/shared/domain/money';
-import { Customer } from '../domain/customer';
+import { Customer, toValidCreditLimit } from '../domain/customer';
 import { CustomerRepository } from '../domain/customer-repository.port';
-import { CustomerAlreadyExistsError } from '../domain/errors';
+import { CustomerAlreadyExistsError, OnlyOwnerSetsCreditLimitError } from '../domain/errors';
 import { Phone } from '../domain/phone';
 import { AuditPort } from '@/modules/audit/domain/audit.port';
 
@@ -10,6 +10,8 @@ export interface CreateCustomerDTO {
   name: string;
   phone: string;
   creditLimit?: Money;
+  /** D-29: only the owner sets a limit above zero; missing means not owner. */
+  actorIsOwner?: boolean;
   operatorId: string;
 }
 
@@ -20,6 +22,12 @@ export class CreateCustomerUseCase {
   ) {}
 
   public async execute(dto: CreateCustomerDTO): Promise<Customer> {
+    const creditLimit = dto.creditLimit ?? Money.zero();
+    if (!dto.actorIsOwner && creditLimit.toCents() > 0) {
+      throw new OnlyOwnerSetsCreditLimitError();
+    }
+    toValidCreditLimit(creditLimit);
+
     const phone = Phone.create(dto.phone).value;
     const existing = await this.customerRepository.findByPhone(dto.merchantId, phone);
     if (existing) {
@@ -30,7 +38,7 @@ export class CreateCustomerUseCase {
       merchantId: dto.merchantId,
       name: dto.name,
       phone,
-      creditLimit: dto.creditLimit ?? Money.zero(),
+      creditLimit,
     });
 
     await this.customerRepository.save(customer);

@@ -4,7 +4,13 @@ import { requireAuthenticatedSession, UnauthorizedError } from '@/shared/infrast
 import { DrizzleCustomerRepository } from '@/modules/customers/infrastructure/drizzle-customer-repository';
 import { DrizzleAuditAdapter } from '@/modules/audit/infrastructure/drizzle-audit-service';
 import { CreateCustomerUseCase } from '@/modules/customers/application/create-customer.use-case';
-import { CustomerAlreadyExistsError, InvalidPhoneError } from '@/modules/customers/domain/errors';
+import { isSessionOwner } from '@/shared/infrastructure/auth/session';
+import {
+  CustomerAlreadyExistsError,
+  InvalidCreditLimitError,
+  InvalidPhoneError,
+  OnlyOwnerSetsCreditLimitError,
+} from '@/modules/customers/domain/errors';
 import { Money } from '@/shared/domain/money';
 
 const CreateCustomerBodySchema = z.object({
@@ -44,6 +50,7 @@ export async function POST(request: NextRequest) {
         parsed.creditLimit !== undefined && parsed.creditLimit !== null
           ? Money.fromDecimal(parsed.creditLimit)
           : Money.zero(),
+      actorIsOwner: isSessionOwner(session),
       operatorId: session.username,
     });
 
@@ -67,7 +74,11 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       );
     }
-    if (error instanceof InvalidPhoneError) {
+    if (
+      error instanceof InvalidPhoneError ||
+      error instanceof InvalidCreditLimitError ||
+      error instanceof OnlyOwnerSetsCreditLimitError
+    ) {
       return NextResponse.json({ message: error.message }, { status: 400 });
     }
     console.error('Error creating customer:', error);

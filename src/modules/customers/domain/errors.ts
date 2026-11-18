@@ -69,6 +69,14 @@ export class InvalidCreditLimitError extends Error {
   }
 }
 
+/** D-29: only the owner sets the credit limit when registering a customer. */
+export class OnlyOwnerSetsCreditLimitError extends Error {
+  constructor(message = 'Só a proprietária define o limite de fiado.') {
+    super(message);
+    this.name = 'OnlyOwnerSetsCreditLimitError';
+  }
+}
+
 /** D-26: the owner blocked this customer's credit; a credit sale is refused even with the owner PIN. */
 export class CustomerCreditBlockedError extends Error {
   constructor(message = 'Este cliente está com o fiado bloqueado. A venda só pode ser feita à vista.') {

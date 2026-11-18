@@ -171,7 +171,7 @@ Este documento rastreia formalmente as fatias verticais de entrega, critérios d
 
 1. **Conferir no ar** o que só a prática mostra (a dona e o leitor de verdade): painéis, operadora logada, bloqueio de fiado, cadastro na venda (22.10d, 22.15, 22.16, 22.19, 23.5).
 2. **Quitação de fiado numa transação só** (19.5): hoje grava o caixa e o saldo em passos separados, sem trava. Mexe em dinheiro: aprovação da dona.
-3. **Brecha da operadora no cadastro de cliente** (22.9f): cadastra com limite zero, só a dona libera. Junto com o Novo cliente em painel (22.10c).
+3. **Brecha da operadora no cadastro de cliente** (22.9f, servidor feito pela D-29): cadastra com limite zero, só a dona libera. Feito no 22.10c (Novo cliente em painel).
 4. **Monitor de site no ar e passo a passo de reverter** (21.1, 21.2).
 5. **Extrato do cliente** (22.20): API de leitura e tela.
 6. **Desativar produto e cliente** (22.17, 22.18).
@@ -305,15 +305,15 @@ Este documento rastreia formalmente as fatias verticais de entrega, critérios d
 - [ ] 22.9 **Clientes e Fiado: editar e validar o telefone** (pedido da dona; o telefone aceitava número gigante e não havia como editar cliente):
   - [x] 22.9a Regra do telefone (D-21): só dígitos, 10 ou 11, DDD + 8 ou 9; aceita máscara e `+55`; telefone repetido conferido pelos dígitos; limites de tamanho no cadastro (nome 160, telefone 32); erro de banco deixa de vazar para a tela; clientes antigos fora do padrão continuam lidos e usados (PR #113).
   - [x] 22.9b Editar nome e telefone, `PATCH /api/customers/[id]`, só proprietária, com proteção contra edição simultânea e auditoria (D-22, PR #114).
-  - [x] 22.9c Editar o limite de fiado (dinheiro; teto de R$ 100.000,00, sem PIN, pode ficar abaixo da dívida), só proprietária (PR #117).
+  - [x] 22.9c Editar o limite de fiado (dinheiro; teto de R$ 100.000,00, sem PIN, pode ficar abaixo da dívida; desde a D-22 revisada em 2026-11-18 o teto é R$ 500,00 e aumentar pede o PIN da proprietária, servidor feito), só proprietária (PR #117).
   - [x] 22.9d Cliente da API, máscara de telefone `(11) 99999-8888` e regra de "fora do padrão" no front, mais mover `priceToDigits` para `lib` (ADR-020) (PR #116).
   - [x] 22.9e Tela de edição de clientes (painel lateral com animação, no molde do produto), marca "Telefone fora do padrão" nos antigos e aviso quando o limite fica abaixo da dívida (PR #121; o botão Editar só aparece para a proprietária).
-  - [ ] 22.9f **Brecha de permissão:** a operadora hoje cadastra cliente e define o limite de fiado (o cadastro só exige estar logada). Decisão da dona: a operadora continua cadastrando, com **limite zero**, e só a proprietária libera valor. PR próprio.
+  - [x] 22.9f **Brecha de permissão (parte do servidor feita, D-29):** a operadora hoje cadastra cliente e define o limite de fiado (o cadastro só exige estar logada). Decisão da dona: a operadora continua cadastrando, com **limite zero**, e só a proprietária libera valor. Servidor: o `POST /api/customers` recusa limite maior que zero da operadora (400) e grava zero; a tela fica no 22.10c.
   - [x] 22.9g Janela de milissegundos em que a venda no fiado usa o limite lido antes da trava do cliente (risco baixo; mexe em dinheiro, PR próprio). **Fechado pela 22.16b** (leitura sob a trava).
 - [ ] 22.10 **Novo layout de Clientes e Fiado** (protótipo aprovado pela dona; spec em `.dev-team/spec-customers-layout.md`):
   - [x] 22.10a Faixa de resumo, busca, filtros (Todos, Devendo, Acima do limite), lista no computador e cartões no celular, selos de situação e Receber (PR #119).
   - [x] 22.10b Painel lateral de edição do cliente, igual ao de produtos (PR #121).
-  - [ ] 22.10c Novo cliente no mesmo painel (hoje é formulário na página); a operadora cadastra com limite zero (junto com 22.9f).
+  - [x] 22.10c Novo cliente no mesmo painel (hoje é formulário na página); a operadora cadastra com limite zero (junto com 22.9f). A tela também precisa do teto de R$ 500,00 (hoje R$ 100.000,00 em `src/frontend/management`) e do campo do PIN da proprietária ao aumentar o limite (cadastro e edição), com o `code: OWNER_PIN_REQUIRED`.
   - [ ] 22.10d Conferir no navegador e no celular (largura de 1280 e 390 px, animação, foco): só foi testado por HTML estático. O ponto de quebra entre linhas e cartões ficou em 600 px (a spec sugeria 768 px).
 - [x] 22.11 **Código de barras gerado pelo sistema** (22.4, D-23), em 3 PRs: (1) decisão e gerador puro (PR #123); (2) API: `barcode` opcional no cadastro, geração e nova tentativa em colisão (até 5) (PR #125); (3) tela: campo "Gerado automaticamente" e código mostrado no aviso de sucesso (PR #126). Fora: etiqueta, CSV e filtro. O prefixo 29 evita a faixa 2 das balanças.
 - [x] 22.12 **Bipar na tela de vendas:** qualquer bipada põe o produto no carrinho, sem clicar antes no campo de busca. A bipada vale só para a tela aberta (cadastro e venda não podem receber a bipada um do outro) e o código gerado (22.11) tem de ser achado como qualquer outro. Conferir a troca de aba na tela real e com o leitor físico. O leitor passou para `src/frontend/lib` e ouve só com a tela montada; ignora a bipada com qualquer janela aberta.

@@ -2,7 +2,8 @@ import { z } from 'zod';
 import { Money } from '@/shared/domain/money';
 import { Customer, toValidCreditLimit } from '../domain/customer';
 import { CustomerChanges, CustomerRepository } from '../domain/customer-repository.port';
-import { CustomerNotFoundError } from '../domain/errors';
+import { CustomerNotFoundError, InvalidOwnerPinError, OwnerPinRequiredError } from '../domain/errors';
+import { OwnerPinVerifier } from '../domain/owner-pin-verifier.port';
 
 // A decimal text with a dot (or a finite JSON number), like the product price; the range is checked in the domain.
 const creditLimitInput = z.union([
@@ -21,6 +22,8 @@ export const UpdateCustomerSchema = z
     active: z.boolean('Ativo deve ser verdadeiro ou falso.').optional(),
     // The updatedAt the caller read. If the customer changed since, the edit is refused.
     expectedUpdatedAt: z.iso.datetime('Data de leitura do cliente inválida').optional(),
+    // D-22: the owner PIN, only used when the limit goes up. Never stored, logged or returned.
+    ownerPin: z.string().trim().regex(/^\d{6}$/, 'PIN da proprietária deve ter 6 dígitos.').optional(),
   })
   .strict()
   .refine(
@@ -30,22 +33,41 @@ export const UpdateCustomerSchema = z
   );
 
 export class UpdateCustomerUseCase {
-  constructor(private readonly customerRepository: CustomerRepository) {}
+  constructor(
+    private readonly customerRepository: CustomerRepository,
+    private readonly ownerPinVerifier: OwnerPinVerifier
+  ) {}
 
   public async execute(merchantId: string, actorId: string, customerId: string, rawInput: unknown): Promise<Customer> {
     const input = UpdateCustomerSchema.parse(rawInput);
 
+    const newLimit = input.creditLimit !== undefined ? toValidCreditLimit(Money.fromDecimal(input.creditLimit)) : undefined;
     const changes: CustomerChanges = {
       ...(input.name !== undefined && { name: input.name }),
       ...(input.phone !== undefined && { phone: input.phone }),
       ...(input.creditBlocked !== undefined && { creditBlocked: input.creditBlocked }),
+      ...(newLimit && { creditLimit: newLimit }),
       ...(input.active !== undefined && { active: input.active }),
-      ...(input.creditLimit !== undefined && { creditLimit: toValidCreditLimit(Money.fromDecimal(input.creditLimit)) }),
     };
+
+    // D-22: an increase needs the owner PIN. This read only decides whether to ask for it (and spend an attempt);
+    // the repository checks the increase again against the limit read under the row lock.
+    let limitIncreaseAuthorizedBy: string | undefined;
+    if (newLimit) {
+      const current = await this.customerRepository.findById(merchantId, customerId);
+      if (!current) throw new CustomerNotFoundError(customerId);
+      if (newLimit.isGreaterThan(current.creditLimit)) {
+        if (!input.ownerPin) throw new OwnerPinRequiredError();
+        const authorizedBy = await this.ownerPinVerifier.authorizeOwnerPin(merchantId, actorId, input.ownerPin);
+        if (authorizedBy === null) throw new InvalidOwnerPinError();
+        limitIncreaseAuthorizedBy = authorizedBy;
+      }
+    }
 
     const customer = await this.customerRepository.updateDetails(merchantId, customerId, changes, {
       actorId,
       expectedUpdatedAt: input.expectedUpdatedAt ? new Date(input.expectedUpdatedAt) : undefined,
+      limitIncreaseAuthorizedBy,
     });
     if (!customer) throw new CustomerNotFoundError(customerId);
     return customer;

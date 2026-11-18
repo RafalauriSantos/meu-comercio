@@ -4,7 +4,7 @@ import React, { useState, useRef } from 'react';
 import { apiClient, type CustomerItem } from '@/frontend/lib/api-client';
 import { deletedNotice, submitCustomerActive } from '@/frontend/management/deactivate';
 import { useDeleteConfirm } from '@/frontend/management/use-delete-confirm';
-import { draftFromCustomer, submitCustomerEdit, type CustomerDraft, type CustomerEditError } from '@/frontend/management/customer-edit';
+import { draftFromCustomer, limitRaised, submitCustomerEdit, type CustomerDraft, type CustomerEditError } from '@/frontend/management/customer-edit';
 
 interface UseCustomerEditParams {
   setFeedback: (feedback: { text: string; isError?: boolean; isSuccess?: boolean } | null) => void;
@@ -22,7 +22,7 @@ export function useCustomerEdit({ setFeedback, setProcessing, applyEdit, applyDe
   const [target, setTarget] = useState<CustomerItem | null>(null);
   // The panel plays its exit while closing; it calls finishClose at the end, and only then the target is dropped.
   const [closing, setClosing] = useState(false);
-  const [draft, setDraft] = useState<CustomerDraft>({ name: '', phone: '', limit: '', creditBlocked: false });
+  const [draft, setDraft] = useState<CustomerDraft>({ name: '', phone: '', limit: '', creditBlocked: false, ownerPin: '' });
   const [error, setError] = useState<CustomerEditError | null>(null);
   const nameRef = useRef<HTMLInputElement>(null);
   const del = useDeleteConfirm();
@@ -44,10 +44,16 @@ export function useCustomerEdit({ setFeedback, setProcessing, applyEdit, applyDe
     setTarget(null);
     setClosing(false);
     setError(null);
+    changeDraft({ ownerPin: '' });
   }
 
   function changeDraft(change: Partial<CustomerDraft>) {
-    setDraft((cur) => ({ ...cur, ...change }));
+    setDraft((cur) => {
+      const next = { ...cur, ...change };
+      // When the limit goes back to the original (or lower), the PIN field disappears: do not keep what was typed.
+      if (target && 'limit' in change && !limitRaised(target, next)) next.ownerPin = '';
+      return next;
+    });
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -58,6 +64,7 @@ export function useCustomerEdit({ setFeedback, setProcessing, applyEdit, applyDe
     setError(null);
     try {
       const result = await submitCustomerEdit(apiClient.updateCustomer, target, draft);
+      changeDraft({ ownerPin: '' });
       if (result.kind === 'failed') {
         setError({ text: result.text, reload: result.reload });
         return;

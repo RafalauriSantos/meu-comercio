@@ -8,6 +8,7 @@ import { LoadFailureNotice } from '@/frontend/ui/load-failure-notice';
 import { CUSTOMER_FILTERS, STATUS_CLASS, STATUS_LABEL, buildRows, filterCounts, matchesQuery, shownText, visibleRows } from './customers-list';
 import { displayPhone } from '@/frontend/lib/phone-mask';
 import { CustomerEditPanel } from './customer-edit-panel';
+import { NewCustomerPanel } from './new-customer-panel';
 import { CustomerStatementPanel } from './customer-statement-panel';
 import type { useCustomersTab } from './use-customers-tab';
 
@@ -29,14 +30,6 @@ export function CustomersTab({ tab, user, loadFailed, retrying, processing, retr
     setCustomerQuery,
     customerFilter,
     setCustomerFilter,
-    showNewCustomer,
-    setShowNewCustomer,
-    newCustName,
-    setNewCustName,
-    newCustPhone,
-    setNewCustPhone,
-    newCustLimit,
-    setNewCustLimit,
     settlingCustomer,
     setSettlingCustomer,
     settleAmount,
@@ -53,8 +46,8 @@ export function CustomersTab({ tab, user, loadFailed, retrying, processing, retr
     loadCustomers,
     loadCreditMetrics,
     loadMissingBalances,
-    handleCreateCustomer,
     handleSettleDebt,
+    create,
     edit,
     statement,
   } = tab;
@@ -120,9 +113,10 @@ export function CustomersTab({ tab, user, loadFailed, retrying, processing, retr
                 <button
                   type="button"
                   className="primary mg-toolbar-action"
-                  onClick={() => setShowNewCustomer(!showNewCustomer)}
+                  aria-haspopup="dialog"
+                  onClick={create.open}
                 >
-                  {showNewCustomer ? 'Cancelar' : '＋ Novo Cliente'}
+                  ＋ Novo Cliente
                 </button>
               </div>
               <div role="group" aria-label="Filtro de clientes" className="mg-filters mg-clist-filters">
@@ -148,51 +142,19 @@ export function CustomersTab({ tab, user, loadFailed, retrying, processing, retr
               </div>
             </div>
 
-            {/* Form Novo Cliente */}
-            {showNewCustomer && (
-              <form onSubmit={handleCreateCustomer} className="card">
-                <h3>Cadastrar Cliente para Fiado</h3>
-                <div className="mg-form-grid">
-                  <div>
-                    <label className="field-label" htmlFor="nc-name">Nome Completo</label>
-                    <input
-                      id="nc-name"
-                      className="input"
-                      required
-                      value={newCustName}
-                      onChange={(e) => setNewCustName(e.target.value)}
-                      placeholder="Ex: Seu Antenor da Esquina"
-                    />
-                  </div>
-                  <div>
-                    <label className="field-label" htmlFor="nc-phone">Telefone / WhatsApp</label>
-                    <input
-                      id="nc-phone"
-                      className="input num"
-                      required
-                      value={newCustPhone}
-                      onChange={(e) => setNewCustPhone(e.target.value)}
-                      placeholder="11999998888"
-                    />
-                  </div>
-                  <div>
-                    <label className="field-label" htmlFor="nc-limit">Limite de Fiado (R$)</label>
-                    <input
-                      id="nc-limit"
-                      className="input num"
-                      type="number"
-                      step="0.01"
-                      min="0"
-                      required
-                      value={newCustLimit}
-                      onChange={(e) => setNewCustLimit(e.target.value)}
-                    />
-                  </div>
-                </div>
-                <button className="primary mg-form-submit" type="submit" disabled={processing}>
-                  {processing ? 'Salvando...' : 'Cadastrar Cliente'}
-                </button>
-              </form>
+            {create.isOpen && (
+              <NewCustomerPanel
+                isOwner={user?.isOwner === true}
+                draft={create.draft}
+                processing={processing}
+                closing={create.closing}
+                error={create.error}
+                nameRef={create.nameRef}
+                onDraft={create.changeDraft}
+                onSubmit={(e) => create.handleSubmit(e, user?.isOwner === true)}
+                onCancel={create.close}
+                onClosed={create.finishClose}
+              />
             )}
 
             {/* Lista de clientes e dívidas: linhas no computador, cartões no celular */}

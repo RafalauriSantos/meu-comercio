@@ -6,6 +6,7 @@ import { formatMoney, parseCurrencyInput, getErrorMessage } from '@/frontend/lib
 import type { CustomerFilter } from './customers-list';
 import { restoredNotice, submitCustomerActive } from './deactivate';
 import { useCustomerEdit } from './use-customer-edit';
+import { useNewCustomer } from './use-new-customer';
 import { useCustomerStatement } from './use-customer-statement';
 
 type Feedback = { text: string; isError?: boolean; isSuccess?: boolean } | null;
@@ -30,10 +31,6 @@ export function useCustomersTab({ setFeedback, setProcessing, setLoadFailed, loa
   // Null until read; only the owner can read them. They never enter the counts, the balances or the indicators.
   const [showDeleted, setShowDeleted] = useState(false);
   const [deleted, setDeleted] = useState<CustomerItem[] | null>(null);
-  const [showNewCustomer, setShowNewCustomer] = useState(false);
-  const [newCustName, setNewCustName] = useState('');
-  const [newCustPhone, setNewCustPhone] = useState('');
-  const [newCustLimit, setNewCustLimit] = useState('100.00');
 
   // Quitação de Fiado
   const [settlingCustomer, setSettlingCustomer] = useState<CustomerBalance | null>(null);
@@ -132,29 +129,7 @@ export function useCustomersTab({ setFeedback, setProcessing, setLoadFailed, loa
 
   const statement = useCustomerStatement();
 
-  // --- Handlers de Clientes / Fiado ---
-  async function handleCreateCustomer(e: React.FormEvent) {
-    e.preventDefault();
-    setProcessing(true);
-    setFeedback(null);
-    try {
-      await apiClient.createCustomer({
-        name: newCustName.trim(),
-        phone: newCustPhone.trim(),
-        creditLimit: parseCurrencyInput(newCustLimit),
-      });
-      setFeedback({ text: 'Cliente cadastrado com sucesso!', isSuccess: true });
-      setShowNewCustomer(false);
-      setNewCustName('');
-      setNewCustPhone('');
-      setNewCustLimit('100.00');
-      await loadCustomers();
-    } catch (err) {
-      setFeedback({ text: getErrorMessage(err, 'Erro ao cadastrar cliente.'), isError: true });
-    } finally {
-      setProcessing(false);
-    }
-  }
+  const create = useNewCustomer({ setFeedback, setProcessing, reload: loadCustomers });
 
   async function handleRestore(customer: CustomerItem) {
     setProcessing(true);
@@ -203,14 +178,6 @@ export function useCustomersTab({ setFeedback, setProcessing, setLoadFailed, loa
     setCustomerQuery,
     customerFilter,
     setCustomerFilter,
-    showNewCustomer,
-    setShowNewCustomer,
-    newCustName,
-    setNewCustName,
-    newCustPhone,
-    setNewCustPhone,
-    newCustLimit,
-    setNewCustLimit,
     settlingCustomer,
     setSettlingCustomer,
     settleAmount,
@@ -230,8 +197,8 @@ export function useCustomersTab({ setFeedback, setProcessing, setLoadFailed, loa
     loadCustomers,
     loadCreditMetrics,
     loadMissingBalances,
-    handleCreateCustomer,
     handleSettleDebt,
+    create,
     edit,
     statement,
   };

@@ -139,7 +139,7 @@ describe.skipIf(!TEST_DATABASE_URL)('Credit block, D-26 (Postgres)', () => {
   }
 
   function setBlocked(seed: Seed, creditBlocked: boolean, expectedUpdatedAt?: string) {
-    return new UpdateCustomerUseCase(customerRepo()).execute(seed.merchantId, 'dona', seed.customerId, {
+    return new UpdateCustomerUseCase(customerRepo(), new BcryptOwnerPinVerifier()).execute(seed.merchantId, 'dona', seed.customerId, {
       creditBlocked,
       ...(expectedUpdatedAt && { expectedUpdatedAt }),
     });
@@ -210,7 +210,7 @@ describe.skipIf(!TEST_DATABASE_URL)('Credit block, D-26 (Postgres)', () => {
     it('goes together with name and limit in one event and does not change debt, limit or ledger', async () => {
       const seed = await seedStore('100.00');
 
-      await new UpdateCustomerUseCase(customerRepo()).execute(seed.merchantId, 'dona', seed.customerId, {
+      await new UpdateCustomerUseCase(customerRepo(), new BcryptOwnerPinVerifier()).execute(seed.merchantId, 'dona', seed.customerId, {
         name: 'Ana Souza',
         creditLimit: '50',
         creditBlocked: true,

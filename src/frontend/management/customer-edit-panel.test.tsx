@@ -40,7 +40,7 @@ describe('CustomerEditPanel', () => {
     expect(html).toMatch(/<button[^>]*disabled=""[^>]*>Salvar<\/button>/);
     expect(html).toContain('Altere algo para poder salvar.');
     expect(html).toContain('Dívida atual: R$ 85,50');
-    expect(html).toContain('R$ 100.000,00');
+    expect(html).toContain('O limite vai até R$ 500,00.');
   });
 
   it('is a modal dialog panel named by its title, with Fechar, not open and not closing', () => {
@@ -88,6 +88,18 @@ describe('CustomerEditPanel', () => {
   it('enables Salvar when only the switch changed', () => {
     const html = render({ draft: { ...draftFromCustomer(maria), creditBlocked: true } });
     expect(html).toMatch(/<button[^>]*type="submit"(?![^>]*disabled)[^>]*>Salvar<\/button>/);
+  });
+
+  it('asks for the owner PIN only when the limit goes up, and Salvar needs 6 digits', () => {
+    expect(render()).not.toContain('>PIN da proprietária<');
+    expect(render({ draft: { ...draftFromCustomer(maria), limit: '50,00' } })).not.toContain('>PIN da proprietária<');
+    const up = render({ draft: { ...draftFromCustomer(maria), limit: '125,00' } });
+    expect(up).toContain('>PIN da proprietária<');
+    expect(up).toContain('Por segurança, aumentar o limite pede o seu PIN.');
+    expect(up).toMatch(/<input[^>]*type="password"[^>]*inputMode="numeric"/);
+    expect(up).toMatch(/<button[^>]*disabled=""[^>]*>Salvar<\/button>/);
+    const typed = render({ draft: { ...draftFromCustomer(maria), limit: '125,00', ownerPin: '123456' } });
+    expect(typed).toMatch(/<button[^>]*type="submit"(?![^>]*disabled)[^>]*>Salvar<\/button>/);
   });
 
   it('shows Salvando... while sending', () => {

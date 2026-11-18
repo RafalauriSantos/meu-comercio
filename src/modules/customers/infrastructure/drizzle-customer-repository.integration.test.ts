@@ -23,6 +23,7 @@ describe.skipIf(!TEST_DATABASE_URL)('DrizzleCustomerRepository phone rule (Postg
   let useCase: CreateCustomerUseCase;
 
   const audit: AuditPort = { record: async () => {} } as unknown as AuditPort;
+  const noPinVerifier = { authorizeOwnerPin: async () => null, verifyOwnerPin: async () => false };
 
   beforeAll(async () => {
     assertDisposableTestDatabase(TEST_DATABASE_URL!);
@@ -30,7 +31,7 @@ describe.skipIf(!TEST_DATABASE_URL)('DrizzleCustomerRepository phone rule (Postg
     database = drizzle(pool, { schema });
     await migrate(database, { migrationsFolder: 'drizzle/migrations' });
     repo = new DrizzleCustomerRepository(database);
-    useCase = new CreateCustomerUseCase(repo, audit);
+    useCase = new CreateCustomerUseCase(repo, audit, noPinVerifier);
   });
 
   afterAll(async () => {

@@ -4,7 +4,7 @@
 export const PRODUCT_IMPORT_TEMPLATE = [
   'Código de barras;Nome;Preço;Estoque;Unidade',
   '7891000100103;Arroz Tipo 1 5kg;24,90;12;un',
-  '7891000200207;Feijão Carioca 1kg;8,50;30;un',
-  '2000000000900;Queijo Mussarela (por quilo);42,90;2,5;kg',
+  '7891000200209;Feijão Carioca 1kg;8,50;30;un',
+  '2000000000909;Queijo Mussarela (por quilo);42,90;2,5;kg',
   '',
 ].join('\r\n');

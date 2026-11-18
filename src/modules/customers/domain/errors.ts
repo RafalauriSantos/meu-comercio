@@ -79,7 +79,9 @@ export class InvalidCreditLimitError extends Error {
   }
 }
 
-/** D-22: raising a credit limit needs the owner PIN, and the request came without it. */
+export const OWNER_PIN_REQUIRED_TO_DELETE = 'Informe o PIN da proprietária para excluir o cliente.';
+
+/** D-22 / D-27: raising a credit limit or excluding a customer needs the owner PIN, and the request came without it. */
 export class OwnerPinRequiredError extends Error {
   constructor(message = 'Informe o PIN da proprietária para aumentar o limite de fiado.') {
     super(message);

@@ -62,7 +62,7 @@ describe.skipIf(!TEST_DATABASE_URL)('DrizzleCustomerRepository.updateDetails, cr
   }
 
   // D-22: most edits here raise the limit, so the default actor carries the owner authorization.
-  const ACTOR = { actorId: 'dona', limitIncreaseAuthorizedBy: 'dona' };
+  const ACTOR = { actorId: 'dona', authorizedBy: 'dona' };
   const NO_AUTH = { actorId: 'caixa' };
   const limit = (value: string) => ({ creditLimit: Money.fromDecimal(value) });
 
@@ -116,7 +116,7 @@ describe.skipIf(!TEST_DATABASE_URL)('DrizzleCustomerRepository.updateDetails, cr
     const merchantId = await freshMerchant();
     const customer = await seed(merchantId, '11999998888');
 
-    await repo.updateDetails(merchantId, customer.id, limit('150.05'), { actorId: 'tatiane', limitIncreaseAuthorizedBy: 'tatiane' });
+    await repo.updateDetails(merchantId, customer.id, limit('150.05'), { actorId: 'tatiane', authorizedBy: 'tatiane' });
 
     const events = await auditOf(customer.id);
     expect(events).toHaveLength(1);
@@ -129,7 +129,7 @@ describe.skipIf(!TEST_DATABASE_URL)('DrizzleCustomerRepository.updateDetails, cr
     const customer = await seed(merchantId, '11999998888');
 
     // actor_id is varchar(120): a longer value makes the audit insert fail after the customer update.
-    await expect(repo.updateDetails(merchantId, customer.id, limit('300.00'), { actorId: 'x'.repeat(200), limitIncreaseAuthorizedBy: 'dona' })).rejects.toThrow();
+    await expect(repo.updateDetails(merchantId, customer.id, limit('300.00'), { actorId: 'x'.repeat(200), authorizedBy: 'dona' })).rejects.toThrow();
 
     expect(await row(customer.id)).toEqual(customer);
     expect(await auditOf(customer.id)).toHaveLength(0);

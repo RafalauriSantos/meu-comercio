@@ -28,7 +28,8 @@ vi.mock('@/shared/infrastructure/db/connection', () => {
   };
 });
 
-import { merchants } from '@/modules/users/infrastructure/users.schema';
+import bcrypt from 'bcryptjs';
+import { merchants, appUsers, userAuthorities } from '@/modules/users/infrastructure/users.schema';
 import { products } from '@/modules/products/infrastructure/products.schema';
 import { inventoryItems } from '@/modules/inventory/infrastructure/inventory.schema';
 import { cashSessions } from '@/modules/cash/infrastructure/cash.schema';
@@ -36,7 +37,8 @@ import { customers, customerCreditLedger } from '@/modules/customers/infrastruct
 import { auditEvents } from '@/modules/audit/infrastructure/audit.schema';
 import { sales } from '@/modules/sales/infrastructure/sales.schema';
 import { Money } from '@/shared/domain/money';
-import { CustomerHasDebtError, CustomerInactiveError } from '../domain/errors';
+import { CustomerHasDebtError, CustomerInactiveError, InvalidOwnerPinError, OwnerPinRequiredError } from '../domain/errors';
+import { ownerPinAttempts } from '../infrastructure/customers.schema';
 import { CreateSaleUseCase } from '@/modules/sales/application/create-sale.use-case';
 import type { SaleRepository } from '@/modules/sales/domain/sale-repository.port';
 import { DrizzleSaleRepository } from '@/modules/sales/infrastructure/drizzle-sale-repository';
@@ -54,6 +56,7 @@ import { GetCustomerStatementUseCase } from './get-customer-statement.use-case';
 // Runs only when TEST_DATABASE_URL points to a disposable Postgres database.
 const TEST_DATABASE_URL = process.env.TEST_DATABASE_URL;
 
+const OWNER_PIN = '123456';
 let keyCounter = 0;
 function uniqueKey(): string {
   keyCounter += 1;
@@ -96,6 +99,15 @@ describe.skipIf(!TEST_DATABASE_URL)('Exclude and restore a customer, D-27 (Postg
     const random = Math.random().toString(36).slice(2);
     const [merchant] = await database.insert(merchants).values({ name: `Loja ${random}` }).returning({ id: merchants.id });
     const merchantId = merchant.id;
+    const ownerUsername = `dona_${random}`;
+    await database.insert(appUsers).values({
+      username: ownerUsername,
+      merchantId,
+      passwordHash: 'not-used',
+      authorizationPinHash: await bcrypt.hash(OWNER_PIN, 4),
+      enabled: true,
+    });
+    await database.insert(userAuthorities).values({ merchantId, username: ownerUsername, authority: 'ROLE_OWNER' });
     const [session] = await database
       .insert(cashSessions)
       .values({ merchantId, openedBy: 'op-1', openingBalance: '0' })
@@ -109,7 +121,7 @@ describe.skipIf(!TEST_DATABASE_URL)('Exclude and restore a customer, D-27 (Postg
       .insert(customers)
       .values({ merchantId, name: 'Ana', phone: `${Math.random()}`.slice(2, 12), creditLimit, ...extra })
       .returning({ id: customers.id });
-    return { merchantId, cashSessionId: session.id, productId: product.id, customerId: customer.id };
+    return { merchantId, ownerUsername, cashSessionId: session.id, productId: product.id, customerId: customer.id };
   }
 
   type Seed = Awaited<ReturnType<typeof seedStore>>;
@@ -125,8 +137,10 @@ describe.skipIf(!TEST_DATABASE_URL)('Exclude and restore a customer, D-27 (Postg
   }
 
   function setActive(seed: Seed, active: boolean, expectedUpdatedAt?: string) {
-    return new UpdateCustomerUseCase(customerRepo(), new BcryptOwnerPinVerifier()).execute(seed.merchantId, 'dona', seed.customerId, {
+    return new UpdateCustomerUseCase(customerRepo(), new BcryptOwnerPinVerifier()).execute(seed.merchantId, seed.ownerUsername, seed.customerId, {
       active,
+      // D-27: excluding needs the owner PIN; restoring does not.
+      ...(!active && { ownerPin: OWNER_PIN }),
       ...(expectedUpdatedAt && { expectedUpdatedAt }),
     });
   }
@@ -177,9 +191,47 @@ describe.skipIf(!TEST_DATABASE_URL)('Exclude and restore a customer, D-27 (Postg
       expect(after.updatedAt.getTime()).toBeGreaterThan(before.updatedAt.getTime());
       const events = await auditOf(seed.customerId);
       expect(events).toHaveLength(1);
-      expect(events[0].actorId).toBe('dona');
-      expect(events[0].details).toEqual({ changes: { active: { from: true, to: false } } });
+      expect(events[0].actorId).toBe(seed.ownerUsername);
+      expect(events[0].details).toEqual({ changes: { active: { from: true, to: false } }, authorizedBy: seed.ownerUsername });
+      expect(JSON.stringify(events)).not.toContain(OWNER_PIN);
       expect(await countRows(seed)).toEqual(rowsBefore);
+    });
+
+    it('without the PIN the exclusion is refused, spends no attempt and writes nothing', async () => {
+      const seed = await seedStore();
+      const exclude = (ownerPin?: string) =>
+        new UpdateCustomerUseCase(customerRepo(), new BcryptOwnerPinVerifier()).execute(seed.merchantId, seed.ownerUsername, seed.customerId, {
+          active: false,
+          ...(ownerPin && { ownerPin }),
+        });
+
+      await expect(exclude()).rejects.toBeInstanceOf(OwnerPinRequiredError);
+      expect(await database.select().from(ownerPinAttempts).where(eq(ownerPinAttempts.merchantId, seed.merchantId))).toHaveLength(0);
+
+      await expect(exclude('000000')).rejects.toBeInstanceOf(InvalidOwnerPinError);
+      expect((await customerRow(seed.customerId)).active).toBe(true);
+      expect(await auditOf(seed.customerId)).toHaveLength(0);
+      const [attempts] = await database.select().from(ownerPinAttempts).where(eq(ownerPinAttempts.merchantId, seed.merchantId));
+      expect(attempts.failedCount).toBe(1);
+    });
+
+    it('the repository refuses an exclusion without authorizedBy, judged under the row lock', async () => {
+      const seed = await seedStore();
+
+      await expect(
+        customerRepo().updateDetails(seed.merchantId, seed.customerId, { active: false }, { actorId: seed.ownerUsername })
+      ).rejects.toBeInstanceOf(OwnerPinRequiredError);
+
+      expect((await customerRow(seed.customerId)).active).toBe(true);
+      expect(await auditOf(seed.customerId)).toHaveLength(0);
+    });
+
+    it('the right PIN does not release a customer with debt', async () => {
+      const seed = await seedStore();
+      await debit(seed, '5.00');
+
+      await expect(setActive(seed, false)).rejects.toBeInstanceOf(CustomerHasDebtError);
+      expect((await customerRow(seed.customerId)).active).toBe(true);
     });
 
     it('asking for the value it already has writes no event and keeps updated_at', async () => {
@@ -206,7 +258,7 @@ describe.skipIf(!TEST_DATABASE_URL)('Exclude and restore a customer, D-27 (Postg
       const otherShop = await seedStore();
 
       await expect(
-        new UpdateCustomerUseCase(customerRepo(), new BcryptOwnerPinVerifier()).execute(otherShop.merchantId, 'dona', seed.customerId, { active: false })
+        new UpdateCustomerUseCase(customerRepo(), new BcryptOwnerPinVerifier()).execute(otherShop.merchantId, otherShop.ownerUsername, seed.customerId, { active: false, ownerPin: OWNER_PIN })
       ).rejects.toThrow(/not found/i);
 
       expect((await customerRow(seed.customerId)).active).toBe(true);

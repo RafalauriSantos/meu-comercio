@@ -135,7 +135,10 @@ Este documento rastreia formalmente as fatias verticais de entrega, critérios d
 - **PR-Reviewer audit (items 11.1–11.4, historical):** Formal verdict **PASS** (zero findings, 231 tests passing).
 - **Status:** Em andamento. A 11.6 (recuperação de acesso e redefinição do PIN da proprietária) segue aberta; as demais estão entregues.
 - [x] 11.5 **Importação de Produtos em Lote (Excel/CSV)**: planilha `.xlsx` ou CSV, prévia com erros por linha, tudo ou nada em uma transação, coluna opcional `Unidade` (PRs #41, #42, #44 e #48).
-- [ ] 11.6 **Recuperação de Acesso e Redefinição de PIN da Proprietária** (Próxima etapa).
+- [ ] 11.6 **Recuperação de Acesso e Redefinição de PIN da Proprietária** (próxima etapa, planejada para 19/11/2026).
+  - Pedido da dona: enviar e-mail quando a proprietária esquecer a senha de entrada ou o PIN. Plano: **Resend** para enviar e **Cloudflare Email Routing** para receber no domínio.
+  - Fatos conferidos: cada usuário tem a coluna `email` (opcional, sem verificação; o e-mail da proprietária é único por loja). Hoje não existe envio de e-mail nem fluxo de "esqueci a senha" ou "esqueci o PIN". O Resend exige um domínio verificado e o Email Routing só recebe e redireciona; o sistema está em `meucomercio.vercel.app`, domínio da Vercel que não permite configurar e-mail, então é preciso um domínio próprio no DNS da Cloudflare.
+  - A decidir antes de começar: (1) o domínio; (2) verificar o e-mail da proprietária por um link antes de ele servir para recuperar; (3) regras de segurança, propostas: link de uso único que expira em 30 minutos, nova senha pedida antes de trocar o PIN, aviso por e-mail a cada troca, limite de pedidos e sem revelar se o e-mail existe. Entra com decisão nova em `DECISIONS.md` e a aprovação da dona, porque o PIN libera dinheiro.
 - [x] 11.7 **Produto vendido por peso** (mussarela, mortadela): preço por quilo, peso digitado no PDV, estoque em gramas, linha arredondada ao centavo (PR #48; migração `0002` no PR #47, aplicada em produção em 09/11/2026).
 - [x] 11.8 **Busca de produto pelo nome no PDV**, no mesmo campo do código de barras (PR #46).
 - [x] 11.9 **Bipador no cadastro de produto**: o código lido preenche o campo, o Enter vai para o nome e um código repetido é avisado na hora. *PR #52.*

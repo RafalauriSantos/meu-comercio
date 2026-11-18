@@ -1322,3 +1322,39 @@ body:has(.mg-panel[open]) {
     min-height: 44px;
   }
 }
+
+/* Extrato do cliente (no painel lateral): compra soma dívida (vermelho), pagamento e estorno abatem (verde). */
+.management-page .mg-stmt-balance {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 700;
+}
+
+.management-page .mg-stmt-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.management-page .mg-stmt-row {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 12px 0;
+  border-top: 1px solid var(--border);
+  font-size: 14px;
+}
+
+.management-page .mg-stmt-line {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.management-page .mg-stmt-debt {
+  color: var(--danger);
+}
+
+.management-page .mg-stmt-credit {
+  color: var(--success);
+}

@@ -159,6 +159,22 @@ export interface CustomerBalance {
   totalCredits: string;
 }
 
+export interface StatementItem {
+  id: string;
+  type: 'PURCHASE' | 'PAYMENT' | 'REVERSAL';
+  amount: string;
+  balanceAfter: string;
+  createdAt: string;
+  saleId: string | null;
+  operator: string;
+  note: string | null;
+}
+
+export interface CustomerStatement {
+  items: StatementItem[];
+  nextCursor: string | null;
+}
+
 export interface CashSessionData {
   id: string;
   openedBy: string;
@@ -448,6 +464,11 @@ export const apiClient = {
     }),
   getCustomerBalance: (customerId: string) =>
     apiRequest<CustomerBalance>(`/api/customers/${encodeURIComponent(customerId)}/balance`),
+  getCustomerStatement: (customerId: string, limit: number, cursor?: string) => {
+    const qs = new URLSearchParams({ limit: String(limit) });
+    if (cursor) qs.set('cursor', cursor);
+    return apiRequest<CustomerStatement>(`/api/customers/${encodeURIComponent(customerId)}/statement?${qs}`);
+  },
   settleCustomerDebt: (
     customerId: string,
     payload: {

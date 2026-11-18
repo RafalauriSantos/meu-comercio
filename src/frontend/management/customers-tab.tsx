@@ -7,6 +7,7 @@ import type { AuthUser } from '@/frontend/lib/api-client';
 import { LoadFailureNotice } from '@/frontend/ui/load-failure-notice';
 import { CUSTOMER_FILTERS, STATUS_CLASS, STATUS_LABEL, buildRows, filterCounts, shownText, visibleRows } from './customers-list';
 import { CustomerEditPanel } from './customer-edit-panel';
+import { CustomerStatementPanel } from './customer-statement-panel';
 import type { useCustomersTab } from './use-customers-tab';
 
 interface CustomersTabProps {
@@ -48,6 +49,7 @@ export function CustomersTab({ tab, user, loadFailed, retrying, processing, retr
     handleCreateCustomer,
     handleSettleDebt,
     edit,
+    statement,
   } = tab;
 
   const missingBalances = customers.filter((c) => !customerBalances[c.id]).length;
@@ -216,6 +218,15 @@ export function CustomersTab({ tab, user, loadFailed, retrying, processing, retr
                         </div>
                       </div>
                       <div className="mg-ccell-actions">
+                        <button
+                          type="button"
+                          className="outline mg-row-action"
+                          aria-haspopup="dialog"
+                          aria-label={`Extrato de ${r.name}`}
+                          onClick={() => statement.open({ id: r.id, name: r.name })}
+                        >
+                          Extrato
+                        </button>
                         {user?.isOwner && (
                           <button
                             type="button"
@@ -265,6 +276,23 @@ export function CustomersTab({ tab, user, loadFailed, retrying, processing, retr
                 onCancel={edit.close}
                 onClosed={edit.finishClose}
                 onReload={edit.handleReload}
+              />
+            )}
+
+            {statement.target && (
+              <CustomerStatementPanel
+                name={statement.target.name}
+                debtCents={allRows.find((r) => r.id === statement.target?.id)?.debtCents ?? null}
+                items={statement.items}
+                loading={statement.loading}
+                hasMore={statement.nextCursor !== null}
+                error={statement.error}
+                closing={statement.closing}
+                closeRef={statement.closeRef}
+                onClose={statement.close}
+                onClosed={statement.finishClose}
+                onLoadMore={statement.loadMore}
+                onRetry={statement.retry}
               />
             )}
 

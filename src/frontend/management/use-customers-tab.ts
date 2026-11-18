@@ -5,6 +5,7 @@ import { apiClient, CustomerItem, CustomerBalance, CreditMetricsData } from '@/f
 import { formatMoney, parseCurrencyInput, getErrorMessage } from '@/frontend/lib/formatters';
 import type { CustomerFilter } from './customers-list';
 import { useCustomerEdit } from './use-customer-edit';
+import { useCustomerStatement } from './use-customer-statement';
 
 type Feedback = { text: string; isError?: boolean; isSuccess?: boolean } | null;
 type CustomersLoadFailed = { customers?: boolean; balances?: boolean; metrics?: boolean };
@@ -110,6 +111,8 @@ export function useCustomersTab({ setFeedback, setProcessing, setLoadFailed, loa
     reload: loadCustomers,
   });
 
+  const statement = useCustomerStatement();
+
   // --- Handlers de Clientes / Fiado ---
   async function handleCreateCustomer(e: React.FormEvent) {
     e.preventDefault();
@@ -185,5 +188,6 @@ export function useCustomersTab({ setFeedback, setProcessing, setLoadFailed, loa
     handleCreateCustomer,
     handleSettleDebt,
     edit,
+    statement,
   };
 }

@@ -54,6 +54,8 @@ export function useNewCustomer({ setFeedback, setProcessing, reload }: UseNewCus
     setError(null);
     try {
       await apiClient.createCustomer(buildNewCustomerPayload(draft, isOwner));
+      // The PIN is cleared right after the send, on success too, not only when the panel finishes closing.
+      changeDraft({ ownerPin: '' });
       setFeedback({ text: newCustomerSuccessText(isOwner), isSuccess: true });
       close();
       await reload();

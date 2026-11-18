@@ -163,6 +163,9 @@ export function CustomerEditPanel({
         </div>
         <div className="mg-panel-foot">
           {unchanged && <div className="mg-panel-hint">Altere algo para poder salvar.</div>}
+          {!unchanged && needsPin && draft.ownerPin.length !== 6 && (
+            <div className="mg-panel-hint">Digite o PIN da proprietária, com 6 dígitos, para salvar.</div>
+          )}
           <div className="mg-panel-actions">
             <button className="outline" type="button" onClick={onCancel}>
               Cancelar

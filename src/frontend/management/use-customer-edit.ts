@@ -2,7 +2,7 @@
 
 import React, { useState, useRef } from 'react';
 import { apiClient, type CustomerItem } from '@/frontend/lib/api-client';
-import { draftFromCustomer, submitCustomerEdit, type CustomerDraft, type CustomerEditError } from '@/frontend/management/customer-edit';
+import { draftFromCustomer, limitRaised, submitCustomerEdit, type CustomerDraft, type CustomerEditError } from '@/frontend/management/customer-edit';
 
 interface UseCustomerEditParams {
   setFeedback: (feedback: { text: string; isError?: boolean; isSuccess?: boolean } | null) => void;
@@ -41,7 +41,12 @@ export function useCustomerEdit({ setFeedback, setProcessing, applyEdit, reload 
   }
 
   function changeDraft(change: Partial<CustomerDraft>) {
-    setDraft((cur) => ({ ...cur, ...change }));
+    setDraft((cur) => {
+      const next = { ...cur, ...change };
+      // When the limit goes back to the original (or lower), the PIN field disappears: do not keep what was typed.
+      if (target && 'limit' in change && !limitRaised(target, next)) next.ownerPin = '';
+      return next;
+    });
   }
 
   async function handleSubmit(e: React.FormEvent) {

@@ -2,72 +2,104 @@
 -- Run it in the Neon SQL editor (ideally on the backup branch) BEFORE the migration is approved.
 -- Tip: start the session with  BEGIN READ ONLY;  and finish with  ROLLBACK;  so the database itself refuses any write.
 --
--- Rule (same as the migration): only a barcode that is 'sem-' followed by digits only, in any letter case
--- (regex ^sem-[0-9]+$, case-insensitive: sem-123, SEM-1001, Sem-5), is replaced, in every shop,
--- active or inactive. Everything else is KEPT and listed with the reason, for the owner to decide one by one.
+-- Rule (same as the migration): every product whose barcode is NOT valid is replaced, in every shop, active or inactive.
+-- Valid = only digits AND (13 digits with a correct EAN-13 check digit, OR 8 digits with a correct EAN-8 check digit,
+-- OR 12 digits with a correct UPC-A check digit, OR 14 digits with a correct GTIN-14 check digit).
+-- Valid codes are KEPT and only counted, by type.
 --
--- Statement 1: one row per product, per shop. action = REPLACE or KEEP.
+-- Statement 1: one row per product that WOULD BE REPLACED, per shop, with the reason.
 -- Columns has_sales / has_stock_movement are only information: sales and stock follow the product id and do not change.
-WITH classified AS (
+WITH base AS (
   SELECT
-    m.name AS shop,
     p.merchant_id,
-    p.id AS product_id,
-    p.name AS product,
+    p.id,
+    p.name,
     p.barcode,
     p.active,
-    EXISTS (SELECT 1 FROM sale_items si WHERE si.product_id = p.id) AS has_sales,
-    EXISTS (SELECT 1 FROM inventory_movements im WHERE im.product_id = p.id) AS has_stock_movement,
+    length(p.barcode) AS len,
+    p.barcode ~ '^[0-9]+$' AS only_digits,
+    -- Check digit rule: the data digit next to the check digit weighs 3 and the weights alternate 3, 1 going left.
+    -- The CASE keeps the digit arithmetic away from texts that are not only digits.
     CASE
-      WHEN p.barcode ~* '^sem-[0-9]+$' THEN 'REPLACE'
-      ELSE 'KEEP'
-    END AS action,
-    CASE
-      WHEN p.barcode ~* '^sem-[0-9]+$' THEN 'sem- followed only by digits'
-      WHEN lower(left(p.barcode, 4)) = 'sem-' THEN 'sem- com outro formato'
-      WHEN p.barcode ~ '^[0-9]{8}$' THEN 'EAN-8'
-      WHEN p.barcode ~ '^[0-9]{12}$' THEN 'UPC-12'
-      WHEN p.barcode ~ '^[0-9]{13}$' THEN
-        CASE
-          WHEN (10 - (SELECT sum(substr(p.barcode, i, 1)::integer * CASE WHEN i % 2 = 1 THEN 1 ELSE 3 END)
-                      FROM generate_series(1, 12) AS i) % 10) % 10 = substr(p.barcode, 13, 1)::integer
-            THEN CASE WHEN left(p.barcode, 2) = '29' THEN 'valid EAN-13 (generated 29...)' ELSE 'valid EAN-13' END
-          ELSE '13 digits, invalid check digit'
-        END
-      ELSE 'other format'
-    END AS reason
+      WHEN p.barcode ~ '^[0-9]+$' AND length(p.barcode) IN (8, 12, 13, 14) THEN
+        (10 - (SELECT sum(substr(p.barcode, i, 1)::integer * CASE WHEN (length(p.barcode) - 1 - i) % 2 = 0 THEN 3 ELSE 1 END)
+               FROM generate_series(1, length(p.barcode) - 1) AS i) % 10) % 10 = substr(p.barcode, length(p.barcode), 1)::integer
+      ELSE false
+    END AS check_ok
   FROM products p
-  JOIN merchants m ON m.id = p.merchant_id
+),
+classified AS (
+  SELECT
+    b.*,
+    CASE WHEN b.check_ok THEN 'KEEP' ELSE 'REPLACE' END AS action,
+    CASE
+      WHEN b.check_ok THEN
+        CASE b.len WHEN 13 THEN 'valid EAN-13' WHEN 8 THEN 'valid EAN-8' WHEN 12 THEN 'valid UPC-A' ELSE 'valid GTIN-14' END
+      WHEN btrim(b.barcode) = '' THEN 'empty or only spaces'
+      WHEN lower(left(b.barcode, 4)) = 'sem-' THEN 'sem-'
+      WHEN b.only_digits THEN
+        CASE b.len
+          WHEN 13 THEN 'wrong check digit EAN-13'
+          WHEN 8 THEN 'wrong check digit EAN-8'
+          WHEN 12 THEN 'wrong check digit UPC-A'
+          WHEN 14 THEN 'wrong check digit GTIN-14'
+          ELSE 'only digits, invalid size'
+        END
+      WHEN b.barcode ~ '^[[:alpha:]]+$' THEN 'only letters'
+      WHEN b.barcode ~ '^[[:alnum:]]+$' THEN 'letters and numbers'
+      ELSE 'symbol or space'
+    END AS reason
+  FROM base b
 )
-SELECT shop, merchant_id, action, reason, product_id, product, barcode, active, has_sales, has_stock_movement
-FROM classified
-WHERE action = 'REPLACE' OR (reason <> 'valid EAN-13' AND reason <> 'valid EAN-13 (generated 29...)')
-ORDER BY shop, merchant_id, action, reason, product, product_id;
+SELECT
+  m.name AS shop, c.merchant_id, c.reason, c.id AS product_id, c.name AS product, c.barcode, c.active,
+  EXISTS (SELECT 1 FROM sale_items si WHERE si.product_id = c.id) AS has_sales,
+  EXISTS (SELECT 1 FROM inventory_movements im WHERE im.product_id = c.id) AS has_stock_movement
+FROM classified c
+JOIN merchants m ON m.id = c.merchant_id
+WHERE c.action = 'REPLACE'
+ORDER BY m.name, c.merchant_id, c.reason, c.name, c.id;
 
--- Statement 2: the totals per shop (what would be replaced, and what stays, by reason).
-WITH classified AS (
+-- Statement 2: the totals per shop. REPLACE rows are broken down by reason; KEEP rows only by type of valid code.
+-- The REPLACE total is the number of audit events the migration will write.
+WITH base AS (
   SELECT
     p.merchant_id,
+    p.active,
+    length(p.barcode) AS len,
+    p.barcode,
+    p.barcode ~ '^[0-9]+$' AS only_digits,
     CASE
-      WHEN p.barcode ~* '^sem-[0-9]+$' THEN 'REPLACE'
-      ELSE 'KEEP'
-    END AS action,
-    CASE
-      WHEN p.barcode ~* '^sem-[0-9]+$' THEN 'sem- followed only by digits'
-      WHEN lower(left(p.barcode, 4)) = 'sem-' THEN 'sem- com outro formato'
-      WHEN p.barcode ~ '^[0-9]{8}$' THEN 'EAN-8'
-      WHEN p.barcode ~ '^[0-9]{12}$' THEN 'UPC-12'
-      WHEN p.barcode ~ '^[0-9]{13}$' THEN
-        CASE
-          WHEN (10 - (SELECT sum(substr(p.barcode, i, 1)::integer * CASE WHEN i % 2 = 1 THEN 1 ELSE 3 END)
-                      FROM generate_series(1, 12) AS i) % 10) % 10 = substr(p.barcode, 13, 1)::integer
-            THEN CASE WHEN left(p.barcode, 2) = '29' THEN 'valid EAN-13 (generated 29...)' ELSE 'valid EAN-13' END
-          ELSE '13 digits, invalid check digit'
-        END
-      ELSE 'other format'
-    END AS reason,
-    p.active
+      WHEN p.barcode ~ '^[0-9]+$' AND length(p.barcode) IN (8, 12, 13, 14) THEN
+        (10 - (SELECT sum(substr(p.barcode, i, 1)::integer * CASE WHEN (length(p.barcode) - 1 - i) % 2 = 0 THEN 3 ELSE 1 END)
+               FROM generate_series(1, length(p.barcode) - 1) AS i) % 10) % 10 = substr(p.barcode, length(p.barcode), 1)::integer
+      ELSE false
+    END AS check_ok
   FROM products p
+),
+classified AS (
+  SELECT
+    b.merchant_id,
+    b.active,
+    CASE WHEN b.check_ok THEN 'KEEP' ELSE 'REPLACE' END AS action,
+    CASE
+      WHEN b.check_ok THEN
+        CASE b.len WHEN 13 THEN 'valid EAN-13' WHEN 8 THEN 'valid EAN-8' WHEN 12 THEN 'valid UPC-A' ELSE 'valid GTIN-14' END
+      WHEN btrim(b.barcode) = '' THEN 'empty or only spaces'
+      WHEN lower(left(b.barcode, 4)) = 'sem-' THEN 'sem-'
+      WHEN b.only_digits THEN
+        CASE b.len
+          WHEN 13 THEN 'wrong check digit EAN-13'
+          WHEN 8 THEN 'wrong check digit EAN-8'
+          WHEN 12 THEN 'wrong check digit UPC-A'
+          WHEN 14 THEN 'wrong check digit GTIN-14'
+          ELSE 'only digits, invalid size'
+        END
+      WHEN b.barcode ~ '^[[:alpha:]]+$' THEN 'only letters'
+      WHEN b.barcode ~ '^[[:alnum:]]+$' THEN 'letters and numbers'
+      ELSE 'symbol or space'
+    END AS reason
+  FROM base b
 )
 SELECT m.name AS shop, c.merchant_id, c.action, c.reason,
        count(*)::integer AS products,

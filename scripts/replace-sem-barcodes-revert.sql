@@ -1,4 +1,4 @@
--- REVERT of migration 0005_replace_sem_barcodes (D-24): gives each product its old 'sem-<digits>' code back (original letter case),
+-- REVERT of migration 0005_replace_sem_barcodes (D-24): gives each product its old code back, exactly as it was,
 -- read from the audit events the migration wrote. NOT a drizzle migration: run it only by decision of the owner,
 -- in its own approved PR/workflow, never by hand on production. The Neon backup branch is the other way back.
 --

@@ -9,6 +9,9 @@ lançar uma versão estão em `docs/PROJECT_WORKFLOW.md`.
 
 ### Adicionado
 
+- **Extrato do cliente** (Clientes e Fiado, para a proprietária e para a operadora): botão "Extrato" que abre um painel com as compras no fiado, os pagamentos e os estornos, com o saldo depois de cada movimento, o operador e a data em horário de Brasília.
+- **Excluir e restaurar produto e cliente** (só a proprietária): "excluir" esconde o item do caixa, da busca e das listas, mas guarda o histórico de vendas e de fiado; o filtro "Excluídos" mostra o que foi excluído, com o botão "Restaurar". Um cliente só pode ser excluído com a dívida zerada e com o PIN da proprietária.
+- **Novo cliente em painel lateral**, com o botão "Salvar cliente" sempre visível e o telefone com máscara.
 - **Clientes e Fiado com novo layout:** faixa de resumo (fiado na rua, clientes devendo, já recebido), busca por nome ou telefone, filtros (Todos, Devendo, Acima do limite), lista no computador e cartões no celular, com selos de situação e o botão Receber.
 - **Editar cliente** (só a proprietária): painel lateral para mudar nome, telefone e limite de fiado (até R$ 100.000,00), no mesmo estilo da edição de produto. O telefone passa a ter máscara `(11) 99999-8888` e só aceita número do Brasil; os antigos fora do padrão ganham a marca "Telefone fora do padrão".
 - **Bloquear o fiado de um cliente** (só a proprietária): o cliente continua comprando à vista e pagando o que deve, mas não faz novas vendas no fiado, nem com o PIN. Aparece selo na lista e aviso no caixa.
@@ -30,6 +33,8 @@ lançar uma versão estão em `docs/PROJECT_WORKFLOW.md`.
 
 ### Alterado
 
+- **Limite de fiado:** o teto passou a ser R$ 500,00, e qualquer aumento de limite (no cadastro ou na edição) pede o PIN da proprietária. A operadora continua cadastrando clientes, sempre com limite R$ 0,00; só a proprietária libera valor.
+- **Quitação de fiado** passou a gravar o caixa, o saldo e a auditoria numa operação só, com trava: duas quitações ao mesmo tempo não pagam mais do que a dívida, e uma falha no meio não deixa nada pela metade.
 - **Preço do produto** com máscara de centavos (digita 1250 e vira 12,50).
 
 - **Quitar fiado** grava o recebimento no caixa, o abatimento da dívida e a auditoria de uma vez só: se algo falhar, nada fica gravado, e duas quitações ao mesmo tempo não passam do que o cliente deve. Mensagens e telas não mudam.

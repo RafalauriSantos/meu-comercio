@@ -6,7 +6,7 @@ import * as schema from '@/shared/infrastructure/db/schema';
 import { customers, customerCreditLedger } from './customers.schema';
 import { Customer } from '../domain/customer';
 import { CustomerChanges, CustomerRepository, CustomerUpdateContext } from '../domain/customer-repository.port';
-import { CustomerAlreadyExistsError, CustomerChangedError, CustomerHasDebtError, OwnerPinRequiredError } from '../domain/errors';
+import { CustomerAlreadyExistsError, CustomerChangedError, CustomerHasDebtError, OWNER_PIN_REQUIRED_TO_DELETE, OwnerPinRequiredError } from '../domain/errors';
 import { auditEvents } from '@/modules/audit/infrastructure/audit.schema';
 import { toAuditEventRow } from '@/modules/audit/infrastructure/audit-event-row';
 import { phoneDigits } from '../domain/phone';
@@ -81,7 +81,7 @@ export class DrizzleCustomerRepository implements CustomerRepository {
     merchantId: string,
     customerId: string,
     changes: CustomerChanges,
-    { actorId, expectedUpdatedAt, limitIncreaseAuthorizedBy }: CustomerUpdateContext
+    { actorId, expectedUpdatedAt, authorizedBy }: CustomerUpdateContext
   ): Promise<Customer | null> {
     try {
       return await this.database.transaction(async (tx) => {
@@ -100,10 +100,13 @@ export class DrizzleCustomerRepository implements CustomerRepository {
 
         // D-22: the increase is judged against the limit read under the lock, so a concurrent edit cannot slip past the PIN.
         const isIncrease = after.creditLimit.isGreaterThan(before.creditLimit);
-        if (isIncrease && !limitIncreaseAuthorizedBy) throw new OwnerPinRequiredError();
+        if (isIncrease && !authorizedBy) throw new OwnerPinRequiredError();
 
-        // D-27: excluding needs zero debt, read under the row lock so a credit sale cannot slip in between.
-        if (before.active && !after.active) {
+        // D-27: excluding needs the owner PIN (judged on the state read under the lock) and zero debt, read under the same lock
+        // so a credit sale cannot slip in between.
+        const isExclusion = before.active && !after.active;
+        if (isExclusion && !authorizedBy) throw new OwnerPinRequiredError(OWNER_PIN_REQUIRED_TO_DELETE);
+        if (isExclusion) {
           const debt = await this.debtOf(tx, merchantId, customerId);
           if (debt.isPositive()) throw new CustomerHasDebtError(debt);
         }
@@ -143,7 +146,7 @@ export class DrizzleCustomerRepository implements CustomerRepository {
             actorId,
             aggregateType: 'CUSTOMER',
             aggregateId: customerId,
-            details: { changes: diff, ...(isIncrease && { authorizedBy: limitIncreaseAuthorizedBy }) },
+            details: { changes: diff, ...((isIncrease || isExclusion) && { authorizedBy }) },
           })
         );
 

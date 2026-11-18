@@ -152,7 +152,7 @@ describe('PATCH /api/customers/[id]', () => {
 
       expect(response.status).toBe(200);
       expect(mockAuthorizeOwnerPin).toHaveBeenCalledWith('merchant-1', 'dona', '123456');
-      expect(mockUpdateDetails.mock.calls[0][3].limitIncreaseAuthorizedBy).toBe('dona');
+      expect(mockUpdateDetails.mock.calls[0][3].authorizedBy).toBe('dona');
       expect(JSON.stringify(await response.json())).not.toContain('123456');
       expect(JSON.stringify(mockUpdateDetails.mock.calls)).not.toContain('123456');
     });
@@ -178,12 +178,12 @@ describe('PATCH /api/customers/[id]', () => {
       expect(response.status).toBe(200);
       expect(mockUpdateDetails).toHaveBeenCalledTimes(1);
       expect(mockUpdateDetails.mock.calls[0][2]).toMatchObject({ active: false, creditBlocked: true });
-      expect(mockUpdateDetails.mock.calls[0][3].limitIncreaseAuthorizedBy).toBe('dona');
+      expect(mockUpdateDetails.mock.calls[0][3].authorizedBy).toBe('dona');
     });
 
     it('excluir cliente com dívida continua 409 CUSTOMER_HAS_DEBT, mesmo com redução de limite', async () => {
       mockUpdateDetails.mockRejectedValue(new CustomerHasDebtError(Money.fromDecimal('10.00')));
-      const response = await patch({ active: false, creditLimit: '20' });
+      const response = await patch({ active: false, creditLimit: '20', ownerPin: '123456' });
 
       expect(response.status).toBe(409);
       expect((await response.json()).code).toBe('CUSTOMER_HAS_DEBT');
@@ -224,7 +224,7 @@ describe('PATCH /api/customers/[id]', () => {
     expect(mockUpdateDetails).not.toHaveBeenCalled();
   });
 
-  it.each([false, true])('200 ao mudar só active=%s: repassa o booleano e devolve o estado', async (active) => {
+  it.each([false, true])('200 ao mudar só active=%s (excluir com PIN, restaurar sem): repassa o booleano e devolve o estado', async (active) => {
     mockUpdateDetails.mockResolvedValue(
       new Customer({
         id: ID,
@@ -239,7 +239,7 @@ describe('PATCH /api/customers/[id]', () => {
       })
     );
 
-    const response = await patch({ active, expectedUpdatedAt: '2026-11-17T09:00:00.000Z' });
+    const response = await patch({ active, expectedUpdatedAt: '2026-11-17T09:00:00.000Z', ...(!active && { ownerPin: '123456' }) });
 
     expect(response.status).toBe(200);
     expect(await response.json()).toMatchObject({ active, creditBlocked: true });
@@ -247,14 +247,85 @@ describe('PATCH /api/customers/[id]', () => {
       'merchant-1',
       ID,
       { active },
-      { actorId: 'dona', expectedUpdatedAt: new Date('2026-11-17T09:00:00.000Z') }
+      { actorId: 'dona', expectedUpdatedAt: new Date('2026-11-17T09:00:00.000Z'), authorizedBy: active ? undefined : 'dona' }
     );
+  });
+
+  describe('D-27: excluir cliente exige o PIN da proprietária', () => {
+    it('excluir sem PIN: 400 OWNER_PIN_REQUIRED com a mensagem da exclusão, sem gastar tentativa e sem gravar', async () => {
+      const response = await patch({ active: false });
+
+      expect(response.status).toBe(400);
+      expect(await response.json()).toEqual({
+        code: 'OWNER_PIN_REQUIRED',
+        message: 'Informe o PIN da proprietária para excluir o cliente.',
+      });
+      expect(mockAuthorizeOwnerPin).not.toHaveBeenCalled();
+      expect(mockUpdateDetails).not.toHaveBeenCalled();
+    });
+
+    it('PIN errado ou loja bloqueada: 403 e não grava', async () => {
+      mockAuthorizeOwnerPin.mockResolvedValue(null);
+      const response = await patch({ active: false, ownerPin: '000000' });
+
+      expect(response.status).toBe(403);
+      expect(mockUpdateDetails).not.toHaveBeenCalled();
+    });
+
+    it('PIN mal formado: 400 de validação, sem gastar tentativa', async () => {
+      const response = await patch({ active: false, ownerPin: '12' });
+
+      expect(response.status).toBe(400);
+      expect(mockAuthorizeOwnerPin).not.toHaveBeenCalled();
+    });
+
+    it('PIN certo e dívida zero: 200, manda authorizedBy ao repositório e o PIN não aparece em lugar nenhum', async () => {
+      const response = await patch({ active: false, ownerPin: '123456' });
+
+      expect(response.status).toBe(200);
+      expect(mockAuthorizeOwnerPin).toHaveBeenCalledWith('merchant-1', 'dona', '123456');
+      expect(mockUpdateDetails.mock.calls[0][3].authorizedBy).toBe('dona');
+      expect(JSON.stringify(await response.json())).not.toContain('123456');
+      expect(JSON.stringify(mockUpdateDetails.mock.calls)).not.toContain('123456');
+    });
+
+    it('PIN certo e dívida maior que zero: 409 CUSTOMER_HAS_DEBT (o PIN não libera)', async () => {
+      mockUpdateDetails.mockRejectedValue(new CustomerHasDebtError(Money.fromDecimal('5.00')));
+      const response = await patch({ active: false, ownerPin: '123456' });
+
+      expect(response.status).toBe(409);
+      expect((await response.json()).code).toBe('CUSTOMER_HAS_DEBT');
+    });
+
+    it('restaurar sem PIN: 200 e sem gastar tentativa', async () => {
+      const response = await patch({ active: true });
+
+      expect(response.status).toBe(200);
+      expect(mockAuthorizeOwnerPin).not.toHaveBeenCalled();
+      expect(mockUpdateDetails.mock.calls[0][3].authorizedBy).toBeUndefined();
+    });
+
+    it('active:false junto de aumento de limite: um único PIN, conferido uma vez', async () => {
+      const response = await patch({ active: false, creditLimit: '200', ownerPin: '123456' });
+
+      expect(response.status).toBe(200);
+      expect(mockAuthorizeOwnerPin).toHaveBeenCalledTimes(1);
+      expect(mockUpdateDetails.mock.calls[0][3].authorizedBy).toBe('dona');
+    });
+
+    it('corrida: o repositório vê o cliente ativo sob a trava e recusa sem PIN, e vira 400 com a mensagem da exclusão', async () => {
+      mockUpdateDetails.mockRejectedValue(new OwnerPinRequiredError('Informe o PIN da proprietária para excluir o cliente.'));
+      const response = await patch({ name: 'A' });
+
+      expect(response.status).toBe(400);
+      expect((await response.json()).message).toBe('Informe o PIN da proprietária para excluir o cliente.');
+    });
   });
 
   it('409 CUSTOMER_HAS_DEBT com o valor devido ao excluir cliente com dívida', async () => {
     mockUpdateDetails.mockRejectedValue(new CustomerHasDebtError(Money.fromDecimal('12.50')));
 
-    const response = await patch({ active: false });
+    const response = await patch({ active: false, ownerPin: '123456' });
 
     expect(response.status).toBe(409);
     expect(await response.json()).toEqual({

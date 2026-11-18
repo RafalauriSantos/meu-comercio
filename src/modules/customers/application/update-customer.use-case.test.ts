@@ -63,13 +63,13 @@ describe('UpdateCustomerUseCase', () => {
   });
 
   it.each([false, true])('aceita active=%s sozinho e manda como única mudança (D-27)', async (active) => {
-    await useCase.execute('m1', 'dona', 'c1', { active, expectedUpdatedAt: '2026-11-17T10:00:00.000Z' });
+    await useCase.execute('m1', 'dona', 'c1', { active, expectedUpdatedAt: '2026-11-17T10:00:00.000Z', ownerPin: PIN });
 
     expect(updateDetails).toHaveBeenCalledWith(
       'm1',
       'c1',
       { active },
-      { actorId: 'dona', expectedUpdatedAt: new Date('2026-11-17T10:00:00.000Z') }
+      { actorId: 'dona', expectedUpdatedAt: new Date('2026-11-17T10:00:00.000Z'), authorizedBy: active ? undefined : 'dona' }
     );
   });
 
@@ -167,7 +167,7 @@ describe('UpdateCustomerUseCase', () => {
 
       expect(authorizeOwnerPin).toHaveBeenCalledWith('m1', 'dona', PIN);
       const [, , changes, context] = updateDetails.mock.calls[0];
-      expect(context.limitIncreaseAuthorizedBy).toBe('dona');
+      expect(context.authorizedBy).toBe('dona');
       expect(JSON.stringify([changes, context])).not.toContain(PIN);
     });
 
@@ -175,7 +175,7 @@ describe('UpdateCustomerUseCase', () => {
       await useCase.execute('m1', 'dona', 'c1', { creditLimit });
 
       expect(authorizeOwnerPin).not.toHaveBeenCalled();
-      expect(updateDetails.mock.calls[0][3].limitIncreaseAuthorizedBy).toBeUndefined();
+      expect(updateDetails.mock.calls[0][3].authorizedBy).toBeUndefined();
     });
 
     it('PIN enviado sem aumento é ignorado e não gasta tentativa', async () => {
@@ -195,6 +195,70 @@ describe('UpdateCustomerUseCase', () => {
       findById.mockResolvedValue(null);
 
       await expect(useCase.execute('m1', 'dona', 'c1', { creditLimit: '60', ownerPin: PIN })).rejects.toBeInstanceOf(CustomerNotFoundError);
+      expect(authorizeOwnerPin).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('D-27: excluir cliente exige o PIN da proprietária', () => {
+    it('excluir sem PIN: OwnerPinRequiredError com a mensagem da exclusão, sem gastar tentativa e sem gravar', async () => {
+      const error = await useCase.execute('m1', 'dona', 'c1', { active: false }).catch((e) => e);
+
+      expect(error).toBeInstanceOf(OwnerPinRequiredError);
+      expect(error.message).toBe('Informe o PIN da proprietária para excluir o cliente.');
+      expect(authorizeOwnerPin).not.toHaveBeenCalled();
+      expect(updateDetails).not.toHaveBeenCalled();
+    });
+
+    it('PIN errado ou loja bloqueada: InvalidOwnerPinError e não grava', async () => {
+      authorizeOwnerPin.mockResolvedValue(null);
+
+      await expect(useCase.execute('m1', 'dona', 'c1', { active: false, ownerPin: PIN })).rejects.toBeInstanceOf(InvalidOwnerPinError);
+      expect(updateDetails).not.toHaveBeenCalled();
+    });
+
+    it('PIN certo: manda quem autorizou, sem o PIN', async () => {
+      await useCase.execute('m1', 'dona', 'c1', { active: false, ownerPin: PIN });
+
+      expect(authorizeOwnerPin).toHaveBeenCalledWith('m1', 'dona', PIN);
+      const [, , changes, context] = updateDetails.mock.calls[0];
+      expect(context.authorizedBy).toBe('dona');
+      expect(JSON.stringify([changes, context])).not.toContain(PIN);
+    });
+
+    it('restaurar não pede PIN nem lê o cliente', async () => {
+      await useCase.execute('m1', 'dona', 'c1', { active: true });
+
+      expect(findById).not.toHaveBeenCalled();
+      expect(authorizeOwnerPin).not.toHaveBeenCalled();
+      expect(updateDetails.mock.calls[0][3].authorizedBy).toBeUndefined();
+    });
+
+    it('active:false num cliente que já está excluído não pede PIN', async () => {
+      findById.mockResolvedValue(customer.withChanges({ active: false }));
+
+      await useCase.execute('m1', 'dona', 'c1', { active: false });
+
+      expect(authorizeOwnerPin).not.toHaveBeenCalled();
+    });
+
+    it('active:false com aumento de limite: um único PIN conferido uma vez', async () => {
+      await useCase.execute('m1', 'dona', 'c1', { active: false, creditLimit: '60', ownerPin: PIN });
+
+      expect(authorizeOwnerPin).toHaveBeenCalledTimes(1);
+      expect(updateDetails.mock.calls[0][3].authorizedBy).toBe('dona');
+    });
+
+    it('active:false com aumento e sem PIN: pede o PIN do aumento', async () => {
+      const error = await useCase.execute('m1', 'dona', 'c1', { active: false, creditLimit: '60' }).catch((e) => e);
+
+      expect(error).toBeInstanceOf(OwnerPinRequiredError);
+      expect(error.message).toBe('Informe o PIN da proprietária para aumentar o limite de fiado.');
+    });
+
+    it('excluir cliente inexistente: CustomerNotFoundError antes do PIN', async () => {
+      findById.mockResolvedValue(null);
+
+      await expect(useCase.execute('m1', 'dona', 'c1', { active: false, ownerPin: PIN })).rejects.toBeInstanceOf(CustomerNotFoundError);
       expect(authorizeOwnerPin).not.toHaveBeenCalled();
     });
   });

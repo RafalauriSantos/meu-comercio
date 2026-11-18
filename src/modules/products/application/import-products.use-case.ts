@@ -1,6 +1,7 @@
 import { ProductRowSchema } from './create-product.use-case';
 import { normalizePriceText, parseProductCsv } from './parse-product-csv';
 import { ProductImportItem, ProductImportStore } from '../domain/product-import-store.port';
+import { isValidBarcode } from '../domain/generated-barcode';
 import { parseKilosToGrams, type ProductUnit } from '@/shared/domain/product-unit';
 
 export interface ImportRowPreview {
@@ -106,6 +107,13 @@ export class ImportProductsUseCase {
       });
       if (!parsed.success) {
         errors.push({ line: row.line, message: parsed.error.issues[0].message });
+        continue;
+      }
+      if (!isValidBarcode(parsed.data.barcode)) {
+        errors.push({
+          line: row.line,
+          message: `Código de barras inválido: "${parsed.data.barcode}". Use um código de barras de verdade.`,
+        });
         continue;
       }
       const earlier = firstLineOfBarcode.get(parsed.data.barcode);

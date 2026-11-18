@@ -120,9 +120,9 @@ describe.skipIf(!TEST_DATABASE_URL)('create product with generated barcode (Post
 
   it('a typed duplicate gives BarcodeAlreadyExistsError and keeps the first product', async () => {
     const merchantId = await freshMerchant();
-    await useCase().execute(merchantId, 'dona', { ...BASE, barcode: '789' });
+    await useCase().execute(merchantId, 'dona', { ...BASE, barcode: '7891000100103' });
 
-    await expect(useCase().execute(merchantId, 'dona', { ...BASE, name: 'Outro', barcode: '789' })).rejects.toThrow(
+    await expect(useCase().execute(merchantId, 'dona', { ...BASE, name: 'Outro', barcode: '7891000100103' })).rejects.toThrow(
       BarcodeAlreadyExistsError
     );
 

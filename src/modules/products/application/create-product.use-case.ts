@@ -1,8 +1,8 @@
 import { z } from 'zod';
 import { Money } from '@/shared/domain/money';
 import { Product } from '../domain/product';
-import { ProductBarcodeConflictError } from '../domain/product-errors';
-import { generateBarcode } from '../domain/generated-barcode';
+import { InvalidBarcodeError, ProductBarcodeConflictError } from '../domain/product-errors';
+import { generateBarcode, isValidBarcode } from '../domain/generated-barcode';
 import type { ProductUnit } from '@/shared/domain/product-unit';
 import { ProductRepository } from '../domain/product-repository.port';
 import { InventoryRepository } from '@/modules/inventory/domain/inventory-repository.port';
@@ -77,6 +77,8 @@ export class CreateProductUseCase {
 
   public async execute(merchantId: string, actorId: string, rawInput: unknown): Promise<Product> {
     const input = CreateProductSchema.parse(rawInput);
+    // D-30: a typed or scanned barcode must be a real one; absent means the server generates it.
+    if (input.barcode !== undefined && !isValidBarcode(input.barcode)) throw new InvalidBarcodeError();
     const salePrice = Money.fromDecimal(input.salePrice);
     const name = input.name.trim();
     const barcodeGenerated = input.barcode === undefined;

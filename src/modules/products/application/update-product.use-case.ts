@@ -2,8 +2,8 @@ import { z } from 'zod';
 import { Money } from '@/shared/domain/money';
 import { Product } from '../domain/product';
 import { ProductChanges, ProductRepository, ProductUpdateContext } from '../domain/product-repository.port';
-import { ProductBarcodeConflictError } from '../domain/product-errors';
-import { generateBarcode } from '../domain/generated-barcode';
+import { InvalidBarcodeError, ProductBarcodeConflictError } from '../domain/product-errors';
+import { generateBarcode, isValidBarcode } from '../domain/generated-barcode';
 import { BarcodeAlreadyExistsError, BarcodeGenerationFailedError } from './create-product.use-case';
 
 // Partial body: .strict() refuses unit and any unknown field (the unit never changes). `active` (D-27) is a field
@@ -61,6 +61,13 @@ export class UpdateProductUseCase {
 
   public async execute(merchantId: string, actorId: string, productId: string, rawInput: unknown): Promise<Product> {
     const input = UpdateProductSchema.parse(rawInput);
+
+    // D-30: the barcode is checked only when it is being changed; sending the current one again (even an old invalid one) is not a change.
+    if (input.barcode !== undefined) {
+      const current = await this.productRepository.findById(merchantId, productId);
+      if (!current) throw new ProductNotFoundError();
+      if (input.barcode !== current.barcode && !isValidBarcode(input.barcode)) throw new InvalidBarcodeError();
+    }
 
     const changes: ProductChanges = {
       ...(input.name !== undefined && { name: input.name }),

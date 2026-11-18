@@ -5,6 +5,7 @@ import { isSessionOwner } from '@/shared/infrastructure/auth/session';
 import { DrizzleProductRepository } from '@/modules/products/infrastructure/drizzle-product-repository';
 import { DrizzleInventoryRepository } from '@/modules/inventory/infrastructure/drizzle-inventory-repository';
 import { DrizzleAuditService } from '@/modules/audit/infrastructure/drizzle-audit-service';
+import { InvalidBarcodeError } from '@/modules/products/domain/product-errors';
 import {
   CreateProductUseCase,
   BarcodeAlreadyExistsError,
@@ -48,6 +49,9 @@ export async function POST(request: NextRequest) {
     }
     if (error instanceof BarcodeAlreadyExistsError) {
       return NextResponse.json({ message: error.message }, { status: 409 });
+    }
+    if (error instanceof InvalidBarcodeError) {
+      return NextResponse.json({ message: error.message }, { status: 400 });
     }
     if (error instanceof OperatorProductRuleError) {
       return NextResponse.json({ message: error.message }, { status: 400 });

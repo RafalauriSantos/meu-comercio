@@ -18,9 +18,11 @@ vi.mock('@/shared/infrastructure/auth/auth-context', () => ({
 }));
 
 const mockUpdateDetails = vi.fn();
+const mockFindById = vi.fn();
 vi.mock('@/modules/products/infrastructure/drizzle-product-repository', () => ({
   DrizzleProductRepository: class MockDrizzleProductRepository {
     updateDetails = mockUpdateDetails;
+    findById = mockFindById;
   },
 }));
 
@@ -35,6 +37,10 @@ const ID = '11111111-1111-4111-8111-111111111111';
 const owner = { merchantId: 'merchant-1', username: 'dona', authorities: ['ROLE_OWNER'] };
 const operator = { merchantId: 'merchant-1', username: 'caixa', authorities: ['ROLE_OPERATOR', 'CREATE_SALE'] };
 
+function currentProduct(barcode: string) {
+  return Product.create('merchant-1', barcode, 'Arroz Tio João', Money.fromDecimal('12.50'), ID);
+}
+
 function patch(body: unknown, id = ID) {
   return PATCH(
     new NextRequest(`http://localhost/api/products/${id}`, { method: 'PATCH', body: JSON.stringify(body) }),
@@ -48,11 +54,12 @@ describe('PATCH /api/products/[id]', () => {
     vi.spyOn(console, 'error').mockImplementation(() => undefined);
     mockRequireAuthSession.mockResolvedValue(owner);
     mockGetAvailableQuantity.mockResolvedValue(7);
+    mockFindById.mockResolvedValue(currentProduct('7891000100103'));
     mockUpdateDetails.mockResolvedValue(
       new Product({
         id: ID,
         merchantId: 'merchant-1',
-        barcode: '1001',
+        barcode: '7891000100103',
         name: 'Arroz Tio João',
         salePrice: Money.fromDecimal('12.50'),
         unit: 'KG',
@@ -98,7 +105,7 @@ describe('PATCH /api/products/[id]', () => {
       new Product({
         id: ID,
         merchantId: 'merchant-1',
-        barcode: '1001',
+        barcode: '7891000100103',
         name: 'Arroz Tio João',
         salePrice: Money.fromDecimal('12.50'),
         unit: 'KG',
@@ -126,7 +133,7 @@ describe('PATCH /api/products/[id]', () => {
     expect(response.status).toBe(200);
     expect(await response.json()).toEqual({
       id: ID,
-      barcode: '1001',
+      barcode: '7891000100103',
       name: 'Arroz Tio João',
       salePrice: '12.50',
       unit: 'KG',
@@ -185,12 +192,46 @@ describe('PATCH /api/products/[id]', () => {
   });
 
   it('returns 409 with the message when the barcode is used by another product', async () => {
-    mockUpdateDetails.mockRejectedValue(new ProductBarcodeConflictError('2002'));
+    mockUpdateDetails.mockRejectedValue(new ProductBarcodeConflictError('7891000200209'));
 
-    const response = await patch({ barcode: '2002' });
+    const response = await patch({ barcode: '7891000200209' });
 
     expect(response.status).toBe(409);
-    expect((await response.json()).message).toContain('2002');
+    expect((await response.json()).message).toContain('7891000200209');
+  });
+
+  const INVALID_MESSAGE = 'Código de barras inválido. Use um código de barras de verdade ou deixe em branco para gerar um.';
+
+  it.each(['sdfbath', '123', '7891000200208'])('returns 400 with the message for the invalid barcode %s and changes nothing (D-30)', async (barcode) => {
+    const response = await patch({ barcode });
+
+    expect(response.status).toBe(400);
+    expect((await response.json()).message).toBe(INVALID_MESSAGE);
+    expect(mockUpdateDetails).not.toHaveBeenCalled();
+  });
+
+  it('returns 200 when the same current barcode is sent again, even an old invalid one (D-30)', async () => {
+    mockFindById.mockResolvedValue(currentProduct('abc'));
+
+    const response = await patch({ barcode: 'abc', name: 'Arroz Tio João' });
+
+    expect(response.status).toBe(200);
+    expect(mockUpdateDetails).toHaveBeenCalled();
+  });
+
+  it('returns 200 for a name or price edit on a product with an old invalid barcode, without reading it (D-30)', async () => {
+    mockFindById.mockResolvedValue(currentProduct('abc'));
+
+    const response = await patch({ name: 'Arroz Novo' });
+
+    expect(response.status).toBe(200);
+    expect(mockFindById).not.toHaveBeenCalled();
+  });
+
+  it('keeps 409 for a valid barcode that belongs to another product (D-30)', async () => {
+    mockUpdateDetails.mockRejectedValue(new ProductBarcodeConflictError('7891000200209'));
+
+    expect((await patch({ barcode: '7891000200209' })).status).toBe(409);
   });
 
   it('returns 409 PRODUCT_CHANGED asking for a reload when the product changed meanwhile', async () => {
@@ -219,7 +260,7 @@ describe('PATCH /api/products/[id]', () => {
     });
 
     it('returns 400 when sent together with barcode and writes nothing', async () => {
-      const response = await patch({ generateBarcode: true, barcode: '2002' });
+      const response = await patch({ generateBarcode: true, barcode: '7891000200209' });
 
       expect(response.status).toBe(400);
       expect(mockUpdateDetails).not.toHaveBeenCalled();

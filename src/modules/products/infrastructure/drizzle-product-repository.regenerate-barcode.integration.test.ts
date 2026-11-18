@@ -12,7 +12,7 @@ import * as schema from '@/shared/infrastructure/db/schema';
 import { assertDisposableTestDatabase } from '@/shared/infrastructure/db/test-database-guard';
 import { products } from './products.schema';
 import { DrizzleProductRepository } from './drizzle-product-repository';
-import { ProductChangedError } from '../domain/product-errors';
+import { InvalidBarcodeError, ProductChangedError } from '../domain/product-errors';
 import { generateBarcode, isValidEan13 } from '../domain/generated-barcode';
 import { BarcodeGenerationFailedError } from '../application/create-product.use-case';
 import { UpdateProductUseCase } from '../application/update-product.use-case';
@@ -116,14 +116,42 @@ describe.skipIf(!TEST_DATABASE_URL)('UpdateProductUseCase generateBarcode (Postg
     });
   });
 
+  it('an old invalid barcode is read without error, and editing only the name leaves it as it is (D-30)', async () => {
+    const merchantId = await freshMerchant();
+    const product = await seed(merchantId, 'abc');
+
+    expect(await repo.findByBarcode(merchantId, 'abc')).toMatchObject({ id: product.id, barcode: 'abc' });
+    expect((await repo.searchByNameOrBarcode(merchantId, 'abc')).map((found) => found.barcode)).toEqual(['abc']);
+    expect((await repo.listPage(merchantId, { query: '', page: 1, pageSize: 10, active: true })).items[0].product.barcode).toBe('abc');
+
+    await useCase.execute(merchantId, 'dona', product.id, { name: 'Nome novo' });
+    // Sending the same code again is not a change either.
+    await useCase.execute(merchantId, 'dona', product.id, { barcode: 'abc', salePrice: '9.90' });
+
+    const after = await row(product.id);
+    expect(after).toMatchObject({ barcode: 'abc', name: 'Nome novo' });
+  });
+
+  it('refuses to change the barcode to an invalid one and leaves the product and the audit as they were (D-30)', async () => {
+    const merchantId = await freshMerchant();
+    const product = await seed(merchantId, '7891000100103');
+
+    await expect(useCase.execute(merchantId, 'dona', product.id, { barcode: 'sdfbath', name: 'Nao grava' })).rejects.toBeInstanceOf(
+      InvalidBarcodeError
+    );
+
+    expect(await row(product.id)).toMatchObject({ barcode: '7891000100103', name: 'Produto 7891000100103' });
+    expect(await auditOf(product.id)).toHaveLength(0);
+  });
+
   it('a typed barcode edit is not flagged as generated', async () => {
     const merchantId = await freshMerchant();
     const product = await seed(merchantId, 'T1');
 
-    await useCase.execute(merchantId, 'dona', product.id, { barcode: 'T2' });
+    await useCase.execute(merchantId, 'dona', product.id, { barcode: '7891000200209' });
 
     const [event] = await auditOf(product.id);
-    expect(event.details).toEqual({ changes: { barcode: { from: 'T1', to: 'T2' } } });
+    expect(event.details).toEqual({ changes: { barcode: { from: 'T1', to: '7891000200209' } } });
   });
 
   it('on collision (active and inactive product of the shop) draws again until a free code', async () => {

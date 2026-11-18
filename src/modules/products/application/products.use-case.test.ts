@@ -180,13 +180,13 @@ describe('Products & Inventory Use Cases', () => {
 
   it('should find product by barcode including its available inventory', async () => {
     const created = await createProductUseCase.execute(MERCHANT_ID, ACTOR_ID, {
-      barcode: '7891234567890',
+      barcode: '7891234567895',
       name: 'Refrigerante Cola 2L',
       salePrice: '8.50',
       initialStock: 10,
     });
 
-    const found = await findByBarcodeUseCase.execute(MERCHANT_ID, '7891234567890');
+    const found = await findByBarcodeUseCase.execute(MERCHANT_ID, '7891234567895');
     expect(found).not.toBeNull();
     expect(found?.product.id).toBe(created.id);
     expect(found?.product.name).toBe('Refrigerante Cola 2L');
@@ -195,42 +195,42 @@ describe('Products & Inventory Use Cases', () => {
 
   it('a deactivated product: finding by its barcode says it is deactivated, an unknown barcode still returns null (D-27)', async () => {
     const created = await createProductUseCase.execute(MERCHANT_ID, ACTOR_ID, {
-      barcode: '7891234567890',
+      barcode: '7891234567895',
       name: 'Refrigerante Cola 2L',
       salePrice: '8.50',
     });
     await productRepo.save(created.withChanges({ active: false }));
 
-    await expect(findByBarcodeUseCase.execute(MERCHANT_ID, '7891234567890')).rejects.toThrow(
+    await expect(findByBarcodeUseCase.execute(MERCHANT_ID, '7891234567895')).rejects.toThrow(
       'Produto "Refrigerante Cola 2L" está desativado.'
     );
-    await expect(findByBarcodeUseCase.execute(MERCHANT_ID, '7891234567890')).rejects.toBeInstanceOf(ProductDeactivatedError);
+    await expect(findByBarcodeUseCase.execute(MERCHANT_ID, '7891234567895')).rejects.toBeInstanceOf(ProductDeactivatedError);
     expect(await findByBarcodeUseCase.execute(MERCHANT_ID, '0000000000000')).toBeNull();
-    expect(await findByBarcodeUseCase.execute('other-merchant', '7891234567890')).toBeNull();
+    expect(await findByBarcodeUseCase.execute('other-merchant', '7891234567895')).toBeNull();
   });
 
   it('a deactivated product keeps its barcode reserved: creating another with it is refused as duplicate (D-27)', async () => {
     const created = await createProductUseCase.execute(MERCHANT_ID, ACTOR_ID, {
-      barcode: '7891234567890',
+      barcode: '7891234567895',
       name: 'Refrigerante Cola 2L',
       salePrice: '8.50',
     });
     await productRepo.save(created.withChanges({ active: false }));
 
     await expect(
-      createProductUseCase.execute(MERCHANT_ID, ACTOR_ID, { barcode: '7891234567890', name: 'Outro', salePrice: '5.00' })
+      createProductUseCase.execute(MERCHANT_ID, ACTOR_ID, { barcode: '7891234567895', name: 'Outro', salePrice: '5.00' })
     ).rejects.toThrow(BarcodeAlreadyExistsError);
   });
 
   it('should search products by name or barcode substring', async () => {
     await createProductUseCase.execute(MERCHANT_ID, ACTOR_ID, {
-      barcode: '111111',
+      barcode: '7891000500507',
       name: 'Arroz Branco 5kg',
       salePrice: '28.90',
       initialStock: 5,
     });
     await createProductUseCase.execute(MERCHANT_ID, ACTOR_ID, {
-      barcode: '222222',
+      barcode: '7891000600603',
       name: 'Feijão Carioca 1kg',
       salePrice: '7.90',
       initialStock: 12,
@@ -240,7 +240,7 @@ describe('Products & Inventory Use Cases', () => {
     expect(searchByName).toHaveLength(1);
     expect(searchByName[0].product.name).toBe('Arroz Branco 5kg');
 
-    const searchByBarcode = await searchProductsUseCase.execute(MERCHANT_ID, '222');
+    const searchByBarcode = await searchProductsUseCase.execute(MERCHANT_ID, '60060');
     expect(searchByBarcode).toHaveLength(1);
     expect(searchByBarcode[0].product.name).toBe('Feijão Carioca 1kg');
   });

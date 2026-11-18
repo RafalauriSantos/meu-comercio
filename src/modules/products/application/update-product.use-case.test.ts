@@ -3,7 +3,7 @@ import { ZodError } from 'zod';
 import { Money } from '@/shared/domain/money';
 import { Product } from '../domain/product';
 import { ProductChanges, ProductUpdateContext, ProductRepository } from '../domain/product-repository.port';
-import { ProductBarcodeConflictError, ProductChangedError } from '../domain/product-errors';
+import { InvalidBarcodeError, ProductBarcodeConflictError, ProductChangedError } from '../domain/product-errors';
 import { BarcodeAlreadyExistsError, BarcodeGenerationFailedError } from './create-product.use-case';
 import { isValidEan13 } from '../domain/generated-barcode';
 import { UpdateProductUseCase, ProductNotFoundError } from './update-product.use-case';
@@ -13,9 +13,15 @@ const ID = '11111111-1111-4111-8111-111111111111';
 // Only the part of the port the use case uses; the SQL behavior is covered by the integration test.
 class FakeRepository {
   calls: Array<{ merchantId: string; id: string; changes: ProductChanges; context: ProductUpdateContext }> = [];
-  result: Product | null = Product.create('m1', '1001', 'Arroz', Money.fromDecimal('24.90'), ID);
+  result: Product | null = Product.create('m1', '7891000100103', 'Arroz', Money.fromDecimal('24.90'), ID);
   error: Error | null = null;
   conflictsLeft = 0;
+  // What findById reads: the product as it is stored before the edit (D-30 compares the barcode with it).
+  current: Product | null = Product.create('m1', '7891000100103', 'Arroz', Money.fromDecimal('24.90'), ID);
+
+  async findById() {
+    return this.current;
+  }
 
   async updateDetails(merchantId: string, id: string, changes: ProductChanges, context: ProductUpdateContext) {
     this.calls.push({ merchantId, id, changes, context });
@@ -81,10 +87,59 @@ describe('UpdateProductUseCase', () => {
   });
 
   it('turns the barcode conflict of the repository into BarcodeAlreadyExistsError', async () => {
-    repo.error = new ProductBarcodeConflictError('2002');
-    const promise = useCase.execute('m1', 'dona', ID, { barcode: '2002' });
+    repo.error = new ProductBarcodeConflictError('7891000200209');
+    const promise = useCase.execute('m1', 'dona', ID, { barcode: '7891000200209' });
     await expect(promise).rejects.toBeInstanceOf(BarcodeAlreadyExistsError);
-    await expect(promise).rejects.toThrow('2002');
+    await expect(promise).rejects.toThrow('7891000200209');
+  });
+
+  describe('barcode must be a real one (D-30)', () => {
+    it.each(['sdfbath', '123', 'sem-1', '7891000200208', '12345671', '036000291453', '17891000100101', '123456789'])(
+      'refuses %s with InvalidBarcodeError and does not touch the product',
+      async (barcode) => {
+        await expect(useCase.execute('m1', 'dona', ID, { barcode })).rejects.toBeInstanceOf(InvalidBarcodeError);
+        expect(repo.calls).toHaveLength(0);
+      }
+    );
+
+    it.each(['7891000200209', '12345670', '036000291452', '17891000100100'])('lets the valid %s through', async (barcode) => {
+      await useCase.execute('m1', 'dona', ID, { barcode });
+      expect(repo.calls[0].changes).toEqual({ barcode });
+    });
+
+    it('lets the same current barcode through even if it is an old invalid one (not a change)', async () => {
+      repo.current = Product.create('m1', 'abc', 'Arroz', Money.fromDecimal('24.90'), ID);
+
+      await useCase.execute('m1', 'dona', ID, { barcode: 'abc', name: 'Arroz Novo' });
+
+      expect(repo.calls).toHaveLength(1);
+      expect(repo.calls[0].changes.barcode).toBe('abc');
+    });
+
+    it('does not check the barcode when only name or price is edited, even on a product with an old invalid code', async () => {
+      repo.current = Product.create('m1', 'abc', 'Arroz', Money.fromDecimal('24.90'), ID);
+
+      await useCase.execute('m1', 'dona', ID, { name: 'Arroz Novo', salePrice: '5.00' });
+
+      expect(repo.calls).toHaveLength(1);
+      expect(repo.calls[0].changes.barcode).toBeUndefined();
+    });
+
+    it('refuses an invalid new barcode on a product that has an old invalid one', async () => {
+      repo.current = Product.create('m1', 'abc', 'Arroz', Money.fromDecimal('24.90'), ID);
+
+      await expect(useCase.execute('m1', 'dona', ID, { barcode: 'abd' })).rejects.toBeInstanceOf(InvalidBarcodeError);
+    });
+
+    it('answers ProductNotFoundError when a barcode comes for a product that is not in the shop', async () => {
+      repo.current = null;
+      await expect(useCase.execute('m1', 'dona', ID, { barcode: '7891000200209' })).rejects.toBeInstanceOf(ProductNotFoundError);
+    });
+
+    it('generateBarcode keeps working and never reads the current barcode', async () => {
+      await useCase.execute('m1', 'dona', ID, { generateBarcode: true });
+      expect(isValidEan13(repo.calls[0].changes.barcode!)).toBe(true);
+    });
   });
 
   it('lets ProductChangedError through', async () => {
@@ -177,7 +232,7 @@ describe('UpdateProductUseCase', () => {
     });
 
     it.each([
-      ['with barcode', { generateBarcode: true, barcode: '2002' }],
+      ['with barcode', { generateBarcode: true, barcode: '7891000200209' }],
       ['false alone (nothing to change)', { generateBarcode: false }],
       ['not a boolean', { generateBarcode: 'yes' }],
     ])('refuses %s without touching the repository', async (_label, body) => {

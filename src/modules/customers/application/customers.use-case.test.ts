@@ -65,6 +65,10 @@ class InMemoryCustomerRepository implements CustomerRepository {
     return results;
   }
 
+  async findAllInactive(merchantId: string): Promise<Customer[]> {
+    return Array.from(this.customers.values()).filter((c) => c.merchantId === merchantId && !c.active);
+  }
+
   async search(merchantId: string, query: string): Promise<Customer[]> {
     const q = query.trim().toLowerCase();
     const results: Customer[] = [];

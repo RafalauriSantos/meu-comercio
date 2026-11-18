@@ -3,7 +3,7 @@ import { NextRequest } from 'next/server';
 import { PATCH } from './route';
 import { Money } from '@/shared/domain/money';
 import { Customer } from '@/modules/customers/domain/customer';
-import { CustomerAlreadyExistsError, CustomerChangedError, InvalidPhoneError } from '@/modules/customers/domain/errors';
+import { CustomerAlreadyExistsError, CustomerChangedError, CustomerHasDebtError, InvalidPhoneError } from '@/modules/customers/domain/errors';
 import { UnauthorizedError } from '@/shared/infrastructure/auth/auth-context';
 
 const mockRequireAuthSession = vi.fn();
@@ -80,7 +80,9 @@ describe('PATCH /api/customers/[id]', () => {
   });
 
   it.each([
-    ['active', { name: 'A', active: false }],
+    ['active texto', { active: 'false' }],
+    ['active número', { active: 0 }],
+    ['active nulo', { active: null }],
     ['creditBlocked texto', { creditBlocked: 'true' }],
     ['creditBlocked número', { creditBlocked: 1 }],
     ['creditBlocked nulo', { creditBlocked: null }],
@@ -118,6 +120,54 @@ describe('PATCH /api/customers/[id]', () => {
     const sent = mockUpdateDetails.mock.calls[0][2];
     expect(Object.keys(sent)).toEqual(['creditLimit']);
     expect(sent.creditLimit.toDecimal()).toBe('150.05');
+  });
+
+  it('403 para operadora ao excluir ou restaurar, mesmo com corpo ilegível, e não grava', async () => {
+    mockRequireAuthSession.mockResolvedValue(operator);
+
+    expect((await patch({ active: false })).status).toBe(403);
+    expect((await patch({ active: true })).status).toBe(403);
+    expect((await patch(null, ID, 'not json')).status).toBe(403);
+    expect(mockUpdateDetails).not.toHaveBeenCalled();
+  });
+
+  it.each([false, true])('200 ao mudar só active=%s: repassa o booleano e devolve o estado', async (active) => {
+    mockUpdateDetails.mockResolvedValue(
+      new Customer({
+        id: ID,
+        merchantId: 'merchant-1',
+        name: 'Maria Souza',
+        phone: '11988887777',
+        creditLimit: Money.fromDecimal('150'),
+        active,
+        creditBlocked: true,
+        createdAt: new Date('2026-01-01T00:00:00.000Z'),
+        updatedAt: new Date('2026-11-17T10:00:00.000Z'),
+      })
+    );
+
+    const response = await patch({ active, expectedUpdatedAt: '2026-11-17T09:00:00.000Z' });
+
+    expect(response.status).toBe(200);
+    expect(await response.json()).toMatchObject({ active, creditBlocked: true });
+    expect(mockUpdateDetails).toHaveBeenCalledWith(
+      'merchant-1',
+      ID,
+      { active },
+      { actorId: 'dona', expectedUpdatedAt: new Date('2026-11-17T09:00:00.000Z') }
+    );
+  });
+
+  it('409 CUSTOMER_HAS_DEBT com o valor devido ao excluir cliente com dívida', async () => {
+    mockUpdateDetails.mockRejectedValue(new CustomerHasDebtError(Money.fromDecimal('12.50')));
+
+    const response = await patch({ active: false });
+
+    expect(response.status).toBe(409);
+    expect(await response.json()).toEqual({
+      code: 'CUSTOMER_HAS_DEBT',
+      message: 'Este cliente deve R$ 12,50. Receba o valor para poder excluir.',
+    });
   });
 
   it('403 para operadora ao bloquear o fiado, mesmo com corpo ilegível, e não grava', async () => {
@@ -232,6 +282,7 @@ describe('PATCH /api/customers/[id]', () => {
       phone: '11988887777',
       creditLimit: '150.00',
       creditBlocked: false,
+      active: true,
       updatedAt: '2026-11-17T10:00:00.000Z',
     });
     expect(mockUpdateDetails).toHaveBeenCalledWith(

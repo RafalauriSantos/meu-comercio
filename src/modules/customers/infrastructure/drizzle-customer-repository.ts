@@ -3,10 +3,10 @@ import type { PgDatabase, PgQueryResultHKT } from 'drizzle-orm/pg-core';
 import type { ExtractTablesWithRelations } from 'drizzle-orm';
 import { db } from '@/shared/infrastructure/db/connection';
 import * as schema from '@/shared/infrastructure/db/schema';
-import { customers } from './customers.schema';
+import { customers, customerCreditLedger } from './customers.schema';
 import { Customer } from '../domain/customer';
 import { CustomerChanges, CustomerRepository, CustomerUpdateContext } from '../domain/customer-repository.port';
-import { CustomerAlreadyExistsError, CustomerChangedError } from '../domain/errors';
+import { CustomerAlreadyExistsError, CustomerChangedError, CustomerHasDebtError } from '../domain/errors';
 import { auditEvents } from '@/modules/audit/infrastructure/audit.schema';
 import { toAuditEventRow } from '@/modules/audit/infrastructure/audit-event-row';
 import { phoneDigits } from '../domain/phone';
@@ -98,6 +98,12 @@ export class DrizzleCustomerRepository implements CustomerRepository {
         const diff = before.changesTo(after);
         if (Object.keys(diff).length === 0) return before;
 
+        // D-27: excluding needs zero debt, read under the row lock so a credit sale cannot slip in between.
+        if (before.active && !after.active) {
+          const debt = await this.debtOf(tx, merchantId, customerId);
+          if (debt.isPositive()) throw new CustomerHasDebtError(debt);
+        }
+
         if (diff.phone) {
           const [other] = await tx
             .select({ id: customers.id })
@@ -120,6 +126,7 @@ export class DrizzleCustomerRepository implements CustomerRepository {
             ...(diff.phone && { phone: after.phone }),
             ...(diff.creditLimit && { creditLimit: after.creditLimit.toDecimal() }),
             ...(diff.creditBlocked && { creditBlocked: after.creditBlocked }),
+            ...(diff.active && { active: after.active }),
             // Strictly greater than the previous value, in whole milliseconds (the precision of expectedUpdatedAt).
             updatedAt: sql`GREATEST(date_trunc('milliseconds', clock_timestamp()), date_trunc('milliseconds', ${customers.updatedAt}) + interval '1 millisecond')`,
           })
@@ -143,6 +150,19 @@ export class DrizzleCustomerRepository implements CustomerRepository {
       if (isUniqueViolation(error)) throw new CustomerAlreadyExistsError(changes.phone ?? '');
       throw error;
     }
+  }
+
+  /** Ledger debt (debits minus credits, never below zero), the same sum as the sale and the settlement. */
+  private async debtOf(tx: CustomerDatabase, merchantId: string, customerId: string): Promise<Money> {
+    const [totals] = await tx
+      .select({
+        totalDebits: sql<string>`coalesce(sum(case when ${customerCreditLedger.type} = 'DEBIT' then ${customerCreditLedger.amount} else 0 end), 0)`,
+        totalCredits: sql<string>`coalesce(sum(case when ${customerCreditLedger.type} = 'CREDIT' then ${customerCreditLedger.amount} else 0 end), 0)`,
+      })
+      .from(customerCreditLedger)
+      .where(and(eq(customerCreditLedger.merchantId, merchantId), eq(customerCreditLedger.customerId, customerId)));
+    const raw = Money.fromDecimal(totals?.totalDebits ?? '0').subtract(Money.fromDecimal(totals?.totalCredits ?? '0'));
+    return raw.isNegative() ? Money.zero() : raw;
   }
 
   async findById(merchantId: string, customerId: string): Promise<Customer | null> {
@@ -194,6 +214,16 @@ export class DrizzleCustomerRepository implements CustomerRepository {
     return rows.map(toDomain);
   }
 
+  async findAllInactive(merchantId: string): Promise<Customer[]> {
+    const rows = await this.database
+      .select()
+      .from(customers)
+      .where(and(eq(customers.merchantId, merchantId), eq(customers.active, false)))
+      .orderBy(customers.name);
+
+    return rows.map(toDomain);
+  }
+
   async search(merchantId: string, query: string): Promise<Customer[]> {
     const trimmed = query.trim();
     const searchPattern = `%${trimmed}%`;
@@ -205,6 +235,7 @@ export class DrizzleCustomerRepository implements CustomerRepository {
       .where(
         and(
           eq(customers.merchantId, merchantId),
+          eq(customers.active, true),
           or(
             ilike(customers.name, searchPattern),
             ilike(customers.phone, searchPattern),

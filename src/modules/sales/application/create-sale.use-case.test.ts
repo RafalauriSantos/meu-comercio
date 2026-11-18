@@ -63,7 +63,7 @@ class InMemorySaleRepository implements SaleRepository {
       // The real repository reads the customer row after locking it; here, right before the check.
       const locked = (await this.customers!.findById(sale.merchantId, commit.creditDebit.customerId))!;
       await commit.creditDebit.ensureAllowed(
-        { creditBlocked: locked.creditBlocked, creditLimit: locked.creditLimit },
+        { active: locked.active, creditBlocked: locked.creditBlocked, creditLimit: locked.creditLimit },
         balance.currentDebt
       );
       await this.credit!.saveMovement(commit.creditDebit.movement);
@@ -1145,6 +1145,9 @@ class InMemoryCustomerRepo implements CustomerRepository {
   async findAllActive(): Promise<Customer[]> {
     return [];
   }
+  async findAllInactive(): Promise<Customer[]> {
+    return [];
+  }
   async search(): Promise<Customer[]> {
     return [];
   }
@@ -1522,6 +1525,16 @@ describe('CreateSaleUseCase — venda fiado (TAB)', () => {
     vi.spyOn(customerRepo, 'findById').mockResolvedValueOnce(customer).mockResolvedValue(blocked);
 
     await expect(useCase.execute(tabSale('25.50'))).rejects.toBeInstanceOf(CustomerCreditBlockedError);
+
+    expect(saleRepo.sales.size).toBe(0);
+    expect(creditRepo.movements).toHaveLength(0);
+  });
+
+  it('cliente excluído depois da leitura e antes da trava: a venda no fiado é recusada sob a trava (D-27)', async () => {
+    const excluded = customer.withChanges({ active: false });
+    vi.spyOn(customerRepo, 'findById').mockResolvedValueOnce(customer).mockResolvedValue(excluded);
+
+    await expect(useCase.execute(tabSale('25.50'))).rejects.toBeInstanceOf(CustomerInactiveError);
 
     expect(saleRepo.sales.size).toBe(0);
     expect(creditRepo.movements).toHaveLength(0);

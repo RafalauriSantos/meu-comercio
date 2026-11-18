@@ -53,10 +53,12 @@ vi.mock('@/modules/customers/application/settle-customer-debt.use-case', () => (
 
 const mockSearchCustomers = vi.fn();
 const mockFindAllActiveCustomers = vi.fn();
+const mockFindAllInactiveCustomers = vi.fn();
 vi.mock('@/modules/customers/infrastructure/drizzle-customer-repository', () => ({
   DrizzleCustomerRepository: class MockDrizzleCustomerRepository {
     search = mockSearchCustomers;
     findAllActive = mockFindAllActiveCustomers;
+    findAllInactive = mockFindAllInactiveCustomers;
   },
 }));
 
@@ -203,12 +205,52 @@ describe('Customers API Routes', () => {
       });
       mockFindAllActiveCustomers.mockResolvedValue([cust]);
 
-      const response = await listCustomersGet();
+      const response = await listCustomersGet(new NextRequest('http://localhost/api/customers'));
       expect(response.status).toBe(200);
       const json = await response.json();
       expect(json.items).toHaveLength(1);
       expect(json.items[0].name).toBe('Maria Silva');
       expect(json.items[0].updatedAt).toBe(cust.updatedAt.toISOString());
+    });
+
+    it('com active=false a proprietária lista só os clientes excluídos (D-27)', async () => {
+      mockRequireAuthenticatedSession.mockResolvedValue({ merchantId, username: 'dona', authorities: ['ROLE_OWNER'] });
+      const cust = Customer.create({ id: 'c3', merchantId, name: 'Ana Excluída', phone: '11966665555', active: false });
+      mockFindAllInactiveCustomers.mockResolvedValue([cust]);
+
+      const response = await listCustomersGet(new NextRequest('http://localhost/api/customers?active=false'));
+
+      expect(response.status).toBe(200);
+      const json = await response.json();
+      expect(json.items.map((c: { id: string; active: boolean }) => [c.id, c.active])).toEqual([['c3', false]]);
+      expect(mockFindAllInactiveCustomers).toHaveBeenCalledWith(merchantId);
+      expect(mockFindAllActiveCustomers).not.toHaveBeenCalled();
+    });
+
+    it('com active=true ou sem filtro lista só os ativos, para qualquer usuária (D-27)', async () => {
+      mockRequireAuthenticatedSession.mockResolvedValue({ merchantId, username: 'caixa', authorities: ['ROLE_OPERATOR'] });
+      mockFindAllActiveCustomers.mockResolvedValue([]);
+
+      expect((await listCustomersGet(new NextRequest('http://localhost/api/customers?active=true'))).status).toBe(200);
+      expect((await listCustomersGet(new NextRequest('http://localhost/api/customers'))).status).toBe(200);
+      expect(mockFindAllActiveCustomers).toHaveBeenCalledTimes(2);
+      expect(mockFindAllInactiveCustomers).not.toHaveBeenCalled();
+    });
+
+    it('com active=false a operadora recebe 403 e nada é lido (D-27)', async () => {
+      mockRequireAuthenticatedSession.mockResolvedValue({ merchantId, username: 'caixa', authorities: ['ROLE_OPERATOR'] });
+
+      const response = await listCustomersGet(new NextRequest('http://localhost/api/customers?active=false'));
+
+      expect(response.status).toBe(403);
+      expect(mockFindAllInactiveCustomers).not.toHaveBeenCalled();
+    });
+
+    it('active que não é true nem false: 400', async () => {
+      const response = await listCustomersGet(new NextRequest('http://localhost/api/customers?active=talvez'));
+
+      expect(response.status).toBe(400);
+      expect(mockFindAllActiveCustomers).not.toHaveBeenCalled();
     });
 
     it('deve pesquisar clientes por query em /api/customers/search', async () => {

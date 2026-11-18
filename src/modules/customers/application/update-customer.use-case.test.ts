@@ -52,6 +52,23 @@ describe('UpdateCustomerUseCase', () => {
     expect(updateDetails).not.toHaveBeenCalled();
   });
 
+  it.each([false, true])('aceita active=%s sozinho e manda como única mudança (D-27)', async (active) => {
+    await useCase.execute('m1', 'dona', 'c1', { active, expectedUpdatedAt: '2026-11-17T10:00:00.000Z' });
+
+    expect(updateDetails).toHaveBeenCalledWith(
+      'm1',
+      'c1',
+      { active },
+      { actorId: 'dona', expectedUpdatedAt: new Date('2026-11-17T10:00:00.000Z') }
+    );
+  });
+
+  it('active junto de outros campos vai na mesma chamada', async () => {
+    await useCase.execute('m1', 'dona', 'c1', { name: 'Maria', active: true });
+
+    expect(updateDetails.mock.calls[0][2]).toEqual({ name: 'Maria', active: true });
+  });
+
   it('nome e limite juntos vão na mesma chamada', async () => {
     await useCase.execute('m1', 'dona', 'c1', { name: 'Maria', creditLimit: '20' });
 
@@ -80,7 +97,9 @@ describe('UpdateCustomerUseCase', () => {
   it.each([
     ['corpo vazio', {}],
     ['só expectedUpdatedAt', { expectedUpdatedAt: '2026-11-17T10:00:00.000Z' }],
-    ['active', { name: 'A', active: false }],
+    ['active como texto', { active: 'false' }],
+    ['active como número', { active: 0 }],
+    ['active nulo', { active: null }],
     ['creditBlocked como texto', { creditBlocked: 'true' }],
     ['creditBlocked como número', { creditBlocked: 1 }],
     ['creditBlocked nulo', { creditBlocked: null }],

@@ -1,3 +1,5 @@
+import type { Money } from '@/shared/domain/money';
+
 export class CustomerNotFoundError extends Error {
   constructor(identifier: string) {
     super(`Active customer not found: ${identifier}`);
@@ -52,6 +54,14 @@ export class CustomerChangedError extends Error {
   constructor() {
     super('Este cliente foi alterado por outra pessoa. Recarregue a página para ver os dados atuais e tente de novo.');
     this.name = 'CustomerChangedError';
+  }
+}
+
+/** D-27: a customer can only be excluded (deactivated) with zero debt. */
+export class CustomerHasDebtError extends Error {
+  constructor(public readonly debt: Money) {
+    super(`Este cliente deve ${debt.formatBrl()}. Receba o valor para poder excluir.`);
+    this.name = 'CustomerHasDebtError';
   }
 }
 

@@ -54,10 +54,10 @@ export class Product {
   }
 
   /**
-   * Rebuilds the product with the given fields, validated like the constructor. Only name, price and barcode
-   * can change: the unit and active are not parameters. The price of an edit must be above zero.
+   * Rebuilds the product with the given fields, validated like the constructor. Only name, price, barcode
+   * and active (D-27) can change: the unit is not a parameter. The price of an edit must be above zero.
    */
-  public withChanges(changes: { name?: string; salePrice?: Money; barcode?: string }): Product {
+  public withChanges(changes: { name?: string; salePrice?: Money; barcode?: string; active?: boolean }): Product {
     if (changes.salePrice && !changes.salePrice.isPositive()) {
       throw new Error('Preço de venda deve ser maior que zero.');
     }
@@ -68,20 +68,21 @@ export class Product {
       name: changes.name ?? this.name,
       salePrice: changes.salePrice ?? this.salePrice,
       unit: this.unit,
-      active: this.active,
+      active: changes.active ?? this.active,
       createdAt: this.createdAt,
       updatedAt: this.updatedAt,
     });
   }
 
   /** From and to of the editable fields that differ in `next` (the price as decimal text). */
-  public changesTo(next: Product): Record<string, { from: string; to: string }> {
-    const changes: Record<string, { from: string; to: string }> = {};
+  public changesTo(next: Product): Record<string, { from: string | boolean; to: string | boolean }> {
+    const changes: Record<string, { from: string | boolean; to: string | boolean }> = {};
     if (this.name !== next.name) changes.name = { from: this.name, to: next.name };
     if (!this.salePrice.equals(next.salePrice)) {
       changes.salePrice = { from: this.salePrice.toDecimal(), to: next.salePrice.toDecimal() };
     }
     if (this.barcode !== next.barcode) changes.barcode = { from: this.barcode, to: next.barcode };
+    if (this.active !== next.active) changes.active = { from: this.active, to: next.active };
     return changes;
   }
 

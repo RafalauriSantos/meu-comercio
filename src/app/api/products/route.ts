@@ -90,7 +90,17 @@ export async function GET(request: NextRequest) {
       pageSize: searchParams.get('pageSize') ?? undefined,
     });
 
-    const result = await new DrizzleProductRepository().listPage(session.merchantId, { query, page, pageSize });
+    // D-27: ?active=false lists only the deactivated products, and only for the owner. The default is the active ones.
+    const activeParam = searchParams.get('active');
+    if (activeParam !== null && activeParam !== 'true' && activeParam !== 'false') {
+      return NextResponse.json({ message: 'O filtro de ativos deve ser true ou false.' }, { status: 400 });
+    }
+    const active = activeParam !== 'false';
+    if (!active && !isSessionOwner(session)) {
+      return NextResponse.json({ message: 'Apenas a proprietária pode ver os produtos desativados.' }, { status: 403 });
+    }
+
+    const result = await new DrizzleProductRepository().listPage(session.merchantId, { query, page, pageSize, active });
 
     return NextResponse.json({
       items: result.items.map(({ product, availableQuantity }) => ({

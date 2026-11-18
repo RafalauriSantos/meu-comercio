@@ -107,6 +107,7 @@ export class DrizzleProductRepository implements ProductRepository {
             ...(diff.name && { name: after.name }),
             ...(diff.salePrice && { salePrice: after.salePrice.toDecimal() }),
             ...(diff.barcode && { barcode: after.barcode }),
+            ...(diff.active && { active: after.active }),
             // Strictly greater than the previous value, in whole milliseconds (the precision of expectedUpdatedAt).
             updatedAt: sql`GREATEST(date_trunc('milliseconds', clock_timestamp()), date_trunc('milliseconds', ${products.updatedAt}) + interval '1 millisecond')`,
           })
@@ -183,7 +184,7 @@ export class DrizzleProductRepository implements ProductRepository {
     return rows.map(toDomain);
   }
 
-  async listPage(merchantId: string, { query, page, pageSize }: ProductListPageParams): Promise<ProductListPage> {
+  async listPage(merchantId: string, { query, page, pageSize, active = true }: ProductListPageParams): Promise<ProductListPage> {
     const searchPattern = `%${query.trim()}%`;
     const rows = await db
       .select({
@@ -198,7 +199,7 @@ export class DrizzleProductRepository implements ProductRepository {
       .where(
         and(
           eq(products.merchantId, merchantId),
-          eq(products.active, true),
+          eq(products.active, active),
           or(ilike(products.barcode, searchPattern), ilike(products.name, searchPattern))
         )
       )

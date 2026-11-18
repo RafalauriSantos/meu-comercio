@@ -66,7 +66,9 @@ describe('UpdateProductUseCase', () => {
     ['price text', { salePrice: 'abc' }],
     ['empty price', { salePrice: '' }],
     ['unit', { name: 'Arroz', unit: 'KG' }],
-    ['active', { name: 'Arroz', active: false }],
+    ['active as text', { active: 'false' }],
+    ['active as number', { active: 0 }],
+    ['active null', { active: null }],
     ['bad expectedUpdatedAt', { name: 'Arroz', expectedUpdatedAt: 'ontem' }],
   ])('refuses %s without touching the repository', async (_label, body) => {
     await expect(useCase.execute('m1', 'dona', ID, body)).rejects.toBeInstanceOf(ZodError);
@@ -93,6 +95,22 @@ describe('UpdateProductUseCase', () => {
   it('returns the product the repository gives back', async () => {
     const product = await useCase.execute('m1', 'dona', ID, { name: 'Arroz' });
     expect(product).toBe(repo.result);
+  });
+
+  describe('active (D-27)', () => {
+    it.each([false, true])('accepts active=%s alone and sends it as the only change', async (active) => {
+      await useCase.execute('m1', 'dona', ID, { active, expectedUpdatedAt: '2026-11-16T10:00:00.000Z' });
+
+      expect(repo.calls[0].changes).toEqual({ active });
+      expect(repo.calls[0].context.expectedUpdatedAt).toEqual(new Date('2026-11-16T10:00:00.000Z'));
+    });
+
+    it('accepts active together with the other fields in one call', async () => {
+      await useCase.execute('m1', 'dona', ID, { name: 'Arroz 5 kg', active: false });
+
+      expect(repo.calls).toHaveLength(1);
+      expect(repo.calls[0].changes).toEqual({ name: 'Arroz 5 kg', active: false });
+    });
   });
 
   describe('generateBarcode (D-24)', () => {

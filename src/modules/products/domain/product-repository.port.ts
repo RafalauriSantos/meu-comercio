@@ -5,6 +5,8 @@ export interface ProductListPageParams {
   query: string;
   page: number;
   pageSize: number;
+  /** Which products to list: the active ones (default) or only the deactivated ones (D-27). */
+  active?: boolean;
 }
 
 export interface ProductListItem {
@@ -32,6 +34,8 @@ export interface ProductChanges {
   name?: string;
   salePrice?: Money;
   barcode?: string;
+  /** D-27: false excludes (deactivates) the product, true restores it. */
+  active?: boolean;
 }
 
 export interface ProductUpdateContext {

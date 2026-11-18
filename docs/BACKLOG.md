@@ -331,7 +331,7 @@ Este documento rastreia formalmente as fatias verticais de entrega, critérios d
 - [ ] 22.22 **Auditar o backlog antigo (slices 5 a 13):** vários itens aparecem como não feitos, mas o código tem a função (fila offline, impressão de 58 mm, cabeçalhos de segurança, limite por IP). Conferir um a um no código e marcar.
 - [ ] 22.23 **Só código de barras válido** (D-30; spec em `.dev-team/spec-valid-barcode-only.md`), em fatias:
   - [x] 22.23a Servidor: validador `isValidBarcode` no domínio (EAN-13, EAN-8, UPC-A, GTIN-14), `POST /api/products` e `PATCH /api/products/[id]` recusam código inválido com 400 (no PATCH só se o código enviado difere do atual), importação CSV recusa a linha com a lista de erros. Sem migração.
-  - [ ] 22.23b Telas: aviso em vermelho no Novo Produto, na edição e no cadastro na venda (painel compartilhado), com a mesma mensagem do servidor.
+  - [ ] 22.23b Telas: aviso em vermelho no Novo Produto, na edição e no cadastro na venda (painel compartilhado), com a mesma mensagem do servidor. Feito na tela de importar: a planilha-modelo para baixar saiu e, no lugar, o card (aberto só pelo botão "Importar planilha", com "Fechar") mostra um exemplo só visual com códigos válidos e a regra do código de barras de verdade.
 
 ### [ ] Slice 23: Sessão e erros de rede (pedidos da dona, uso real da loja)
 > A sessão caía a cada 30 minutos fixos, mesmo com a dona usando, e a tela ficava parada com "Não autorizado". As regras D-09 e D-16 já diziam "até fechar o caixa, teto de 12 h", e o código não as cumpria.

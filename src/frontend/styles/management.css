@@ -287,17 +287,63 @@
   font-size: 14px;
 }
 
-.management-page .mg-link {
-  display: inline;
-  min-height: 0;
-  padding: 0;
-  border: 0;
-  background: none;
-  color: var(--primary-text);
-  font: inherit;
+.management-page .mg-import-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.management-page .mg-import-example-title {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 8px;
+}
+
+.management-page .mg-import-example-tag {
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--surface-2);
+  color: var(--muted);
+  font-size: 12px;
   font-weight: 600;
-  text-decoration: underline;
-  cursor: pointer;
+}
+
+/* A drawing of the sheet (role="img"): dashed frame, not a table anyone can use. */
+.management-page .mg-sheet {
+  --mg-sheet-columns: minmax(0, 1.3fr) minmax(0, 1.6fr) 1fr 1fr;
+  overflow-x: auto;
+  border: 1px dashed var(--border-strong);
+  border-radius: 10px;
+  background: var(--surface);
+}
+
+.management-page .mg-sheet-stock {
+  --mg-sheet-columns: minmax(0, 1.3fr) minmax(0, 1.6fr) 1fr 1fr 1fr;
+}
+
+.management-page .mg-sheet-row {
+  display: grid;
+  grid-template-columns: var(--mg-sheet-columns);
+  min-width: 480px;
+  color: var(--muted);
+  font-size: 14px;
+}
+
+.management-page .mg-sheet-row + .mg-sheet-row {
+  border-top: 1px solid var(--border);
+}
+
+.management-page .mg-sheet-row > span {
+  padding: 8px 12px;
+}
+
+.management-page .mg-sheet-head {
+  background: var(--surface-2);
+  font-size: 13px;
+  font-weight: 600;
 }
 
 .management-page .mg-row-action {

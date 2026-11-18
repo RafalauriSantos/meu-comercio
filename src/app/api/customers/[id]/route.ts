@@ -7,6 +7,7 @@ import { UpdateCustomerUseCase } from '@/modules/customers/application/update-cu
 import {
   CustomerAlreadyExistsError,
   CustomerChangedError,
+  CustomerHasDebtError,
   CustomerNotFoundError,
   InvalidCreditLimitError,
   InvalidOwnerPinError,
@@ -39,6 +40,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
       phone: customer.phone,
       creditLimit: customer.creditLimit.toDecimal(),
       creditBlocked: customer.creditBlocked,
+      active: customer.active,
       updatedAt: customer.updatedAt.toISOString(),
     });
   } catch (error) {
@@ -71,6 +73,9 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     }
     if (error instanceof CustomerAlreadyExistsError) {
       return NextResponse.json({ message: error.message }, { status: 409 });
+    }
+    if (error instanceof CustomerHasDebtError) {
+      return NextResponse.json({ code: 'CUSTOMER_HAS_DEBT', message: error.message }, { status: 409 });
     }
     if (error instanceof CustomerChangedError) {
       return NextResponse.json({ code: 'CUSTOMER_CHANGED', message: error.message }, { status: 409 });

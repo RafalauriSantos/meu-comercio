@@ -61,8 +61,21 @@ describe('Customer.withChanges', () => {
     expect(next.active).toBe(true);
   });
 
-  it('não aceita ativo: o valor fica como estava', () => {
-    expect(existing().withChanges({ name: 'X', active: false } as never).active).toBe(true);
+  it('troca o ativo (D-27) sem mexer no resto, inclusive no bloqueio, e sem ativo ele fica como estava', () => {
+    const blocked = existing().withChanges({ creditBlocked: true });
+    const excluded = blocked.withChanges({ active: false });
+
+    expect(excluded).toMatchObject({ active: false, creditBlocked: true, name: 'Maria Silva', phone: '11999998888' });
+    expect(excluded.creditLimit.toDecimal()).toBe(blocked.creditLimit.toDecimal());
+    expect(excluded.withChanges({ active: true })).toMatchObject({ active: true, creditBlocked: true });
+    expect(existing().withChanges({ name: 'X' }).active).toBe(true);
+  });
+
+  it('changesTo lista o ativo de/para e nada quando é o mesmo valor', () => {
+    const before = existing();
+
+    expect(before.changesTo(before.withChanges({ active: false }))).toEqual({ active: { from: true, to: false } });
+    expect(before.changesTo(before.withChanges({ active: true }))).toEqual({});
   });
 
   it.each(['0', '0.00', '500', '500.00', '499.99', '500.004'])('aceita o limite %s', (value) => {

@@ -53,8 +53,39 @@ function get(search = '') {
 describe('GET /api/products', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mockRequireAuthSession.mockResolvedValue({ merchantId: 'merchant-1', username: 'dona' });
+    mockRequireAuthSession.mockResolvedValue({ merchantId: 'merchant-1', username: 'caixa', authorities: ['ROLE_OPERATOR'] });
     mockListPage.mockResolvedValue({ items: [], hasMore: false });
+  });
+
+  it('lists only the active products by default and with active=true, for any user (D-27)', async () => {
+    await get();
+    await get('?active=true');
+
+    expect(mockListPage).toHaveBeenNthCalledWith(1, 'merchant-1', expect.objectContaining({ active: true }));
+    expect(mockListPage).toHaveBeenNthCalledWith(2, 'merchant-1', expect.objectContaining({ active: true }));
+  });
+
+  it('lists the deactivated products with active=false for the owner (D-27)', async () => {
+    mockRequireAuthSession.mockResolvedValue({ merchantId: 'merchant-1', username: 'dona', authorities: ['ROLE_OWNER'] });
+
+    const response = await get('?active=false&q=arroz');
+
+    expect(response.status).toBe(200);
+    expect(mockListPage).toHaveBeenCalledWith('merchant-1', { query: 'arroz', page: 1, pageSize: 100, active: false });
+  });
+
+  it('returns 403 to an operator who asks for the deactivated products, and lists nothing (D-27)', async () => {
+    const response = await get('?active=false');
+
+    expect(response.status).toBe(403);
+    expect(mockListPage).not.toHaveBeenCalled();
+  });
+
+  it('returns 400 for an active filter that is not true or false', async () => {
+    const response = await get('?active=talvez');
+
+    expect(response.status).toBe(400);
+    expect(mockListPage).not.toHaveBeenCalled();
   });
 
   it('returns 401 without a session', async () => {
@@ -69,13 +100,13 @@ describe('GET /api/products', () => {
   it('without parameters asks for page 1 with 100 items, for the session merchant', async () => {
     await get();
 
-    expect(mockListPage).toHaveBeenCalledWith('merchant-1', { query: '', page: 1, pageSize: 100 });
+    expect(mockListPage).toHaveBeenCalledWith('merchant-1', { query: '', page: 1, pageSize: 100, active: true });
   });
 
   it('passes page, pageSize and q to the repository', async () => {
     await get('?page=3&pageSize=50&q=arroz');
 
-    expect(mockListPage).toHaveBeenCalledWith('merchant-1', { query: 'arroz', page: 3, pageSize: 50 });
+    expect(mockListPage).toHaveBeenCalledWith('merchant-1', { query: 'arroz', page: 3, pageSize: 50, active: true });
   });
 
   it('keeps the item format and adds hasMore', async () => {

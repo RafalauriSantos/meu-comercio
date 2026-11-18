@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z, ZodError } from 'zod';
 import { requireAuthenticatedSession, UnauthorizedError } from '@/shared/infrastructure/auth/auth-context';
+import { isSessionOwner } from '@/shared/infrastructure/auth/session';
 import { DrizzleCustomerRepository } from '@/modules/customers/infrastructure/drizzle-customer-repository';
 import { DrizzleAuditAdapter } from '@/modules/audit/infrastructure/drizzle-audit-service';
 import { CreateCustomerUseCase } from '@/modules/customers/application/create-customer.use-case';
-import { isSessionOwner } from '@/shared/infrastructure/auth/session';
 import {
   CustomerAlreadyExistsError,
   InvalidCreditLimitError,
@@ -98,11 +98,22 @@ export async function POST(request: NextRequest) {
   }
 }
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
     const session = await requireAuthenticatedSession();
+    // D-27: ?active=false lists only the excluded customers, and only for the owner. The default is the active ones.
+    const activeParam = new URL(request.url).searchParams.get('active');
+    if (activeParam !== null && activeParam !== 'true' && activeParam !== 'false') {
+      return NextResponse.json({ message: 'O filtro de ativos deve ser true ou false.' }, { status: 400 });
+    }
+    const onlyInactive = activeParam === 'false';
+    if (onlyInactive && !isSessionOwner(session)) {
+      return NextResponse.json({ message: 'Apenas a proprietária pode ver os clientes excluídos.' }, { status: 403 });
+    }
     const repo = new DrizzleCustomerRepository();
-    const customers = await repo.findAllActive(session.merchantId);
+    const customers = onlyInactive
+      ? await repo.findAllInactive(session.merchantId)
+      : await repo.findAllActive(session.merchantId);
 
     return NextResponse.json({
       items: customers.map((c) => c.toJSON()),

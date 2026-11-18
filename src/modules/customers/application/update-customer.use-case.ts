@@ -11,13 +11,15 @@ const creditLimitInput = z.union([
   z.number('Limite de fiado inválido. Informe o valor em reais, como 150.00.'),
 ]);
 
-// Partial body: .strict() refuses active and any unknown field.
+// Partial body: .strict() refuses any unknown field. `active` (D-27) is a field like the others: alone or together with them.
 export const UpdateCustomerSchema = z
   .object({
     name: z.string().trim().min(1, 'Nome do cliente é obrigatório.').max(160, 'Nome do cliente deve ter no máximo 160 caracteres.').optional(),
     phone: z.string().trim().min(1, 'Telefone do cliente é obrigatório.').max(32, 'Telefone deve ter no máximo 32 caracteres.').optional(),
     creditLimit: creditLimitInput.optional(),
     creditBlocked: z.boolean('Fiado bloqueado deve ser verdadeiro ou falso.').optional(),
+    // D-27: false excludes (deactivates) the customer, only with zero debt; true restores.
+    active: z.boolean('Ativo deve ser verdadeiro ou falso.').optional(),
     // The updatedAt the caller read. If the customer changed since, the edit is refused.
     expectedUpdatedAt: z.iso.datetime('Data de leitura do cliente inválida').optional(),
     // D-22: the owner PIN, only used when the limit goes up. Never stored, logged or returned.
@@ -26,8 +28,8 @@ export const UpdateCustomerSchema = z
   .strict()
   .refine(
     (input) => input.name !== undefined || input.phone !== undefined ||
-      input.creditLimit !== undefined || input.creditBlocked !== undefined,
-    'Informe ao menos um campo para alterar: nome, telefone, limite de fiado ou bloqueio do fiado.'
+      input.creditLimit !== undefined || input.creditBlocked !== undefined || input.active !== undefined,
+    'Informe ao menos um campo para alterar: nome, telefone, limite de fiado, bloqueio do fiado ou se o cliente está ativo.'
   );
 
 export class UpdateCustomerUseCase {
@@ -45,6 +47,7 @@ export class UpdateCustomerUseCase {
       ...(input.phone !== undefined && { phone: input.phone }),
       ...(input.creditBlocked !== undefined && { creditBlocked: input.creditBlocked }),
       ...(newLimit && { creditLimit: newLimit }),
+      ...(input.active !== undefined && { active: input.active }),
     };
 
     // D-22: an increase needs the owner PIN. This read only decides whether to ask for it (and spend an attempt);

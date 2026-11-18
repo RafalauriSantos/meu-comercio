@@ -30,11 +30,11 @@ vi.mock('@/shared/infrastructure/db/connection', () => {
 });
 
 import { merchants, appUsers, userAuthorities } from '@/modules/users/infrastructure/users.schema';
-import { customers, ownerPinAttempts } from '@/modules/customers/infrastructure/customers.schema';
+import { customers, customerCreditLedger, ownerPinAttempts } from '@/modules/customers/infrastructure/customers.schema';
 import { auditEvents } from '@/modules/audit/infrastructure/audit.schema';
 import { DrizzleAuditAdapter } from '@/modules/audit/infrastructure/drizzle-audit-service';
 import { Money } from '@/shared/domain/money';
-import { InvalidOwnerPinError, OwnerPinRequiredError } from '../domain/errors';
+import { CustomerHasDebtError, InvalidOwnerPinError, OwnerPinRequiredError } from '../domain/errors';
 import { DrizzleCustomerRepository } from '../infrastructure/drizzle-customer-repository';
 import { BcryptOwnerPinVerifier } from '../infrastructure/bcrypt-owner-pin-verifier';
 import { CreateCustomerUseCase } from './create-customer.use-case';
@@ -138,6 +138,57 @@ describe.skipIf(!TEST_DATABASE_URL)('Credit limit increase needs the owner PIN, 
       update().execute(seed.merchantId, seed.ownerUsername, seed.customerId, { creditLimit: '250.00', ownerPin: OWNER_PIN })
     ).rejects.toBeInstanceOf(InvalidOwnerPinError);
     expect(await limitOf(seed.customerId)).toBe('100.0000');
+    expect(await auditsOf(seed.merchantId)).toHaveLength(0);
+  });
+
+  it('PATCH D-22 + D-27: exclusion plus a limit increase without PIN is refused as a whole, nothing is written', async () => {
+    const seed = await seedStore('100.00');
+
+    await expect(
+      update().execute(seed.merchantId, seed.ownerUsername, seed.customerId, { active: false, name: 'Ana Souza', creditLimit: '200.00' })
+    ).rejects.toBeInstanceOf(OwnerPinRequiredError);
+
+    const [row] = await database.select().from(customers).where(eq(customers.id, seed.customerId));
+    expect(row).toMatchObject({ active: true, name: 'Ana', creditLimit: '100.0000' });
+    expect(await auditsOf(seed.merchantId)).toHaveLength(0);
+  });
+
+  it('PATCH D-22 + D-27: exclusion with the right PIN and a raised limit is one transaction with one event', async () => {
+    const seed = await seedStore('100.00');
+
+    await update().execute(seed.merchantId, seed.ownerUsername, seed.customerId, {
+      active: false,
+      name: 'Ana Souza',
+      creditLimit: '200.00',
+      ownerPin: OWNER_PIN,
+    });
+
+    const [row] = await database.select().from(customers).where(eq(customers.id, seed.customerId));
+    expect(row).toMatchObject({ active: false, name: 'Ana Souza', creditLimit: '200.0000' });
+    const events = await auditsOf(seed.merchantId);
+    expect(events).toHaveLength(1);
+    expect(events[0].details).toMatchObject({
+      changes: { active: { from: true, to: false }, creditLimit: { from: '100.00', to: '200.00' } },
+      authorizedBy: seed.ownerUsername,
+    });
+  });
+
+  it('PATCH D-27: excluding a customer with debt is still refused (CustomerHasDebtError) and the other fields roll back', async () => {
+    const seed = await seedStore('100.00');
+    await database.insert(customerCreditLedger).values({
+      merchantId: seed.merchantId,
+      customerId: seed.customerId,
+      type: 'DEBIT',
+      amount: '0.01',
+      operatorId: 'op-1',
+    });
+
+    await expect(
+      update().execute(seed.merchantId, seed.ownerUsername, seed.customerId, { active: false, name: 'Ana Souza', creditLimit: '50.00' })
+    ).rejects.toBeInstanceOf(CustomerHasDebtError);
+
+    const [row] = await database.select().from(customers).where(eq(customers.id, seed.customerId));
+    expect(row).toMatchObject({ active: true, name: 'Ana', creditLimit: '100.0000' });
     expect(await auditsOf(seed.merchantId)).toHaveLength(0);
   });
 

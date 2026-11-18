@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { requireAuthSession, UnauthorizedError } from '@/shared/infrastructure/auth/auth-context';
 import { DrizzleProductRepository } from '@/modules/products/infrastructure/drizzle-product-repository';
 import { DrizzleInventoryRepository } from '@/modules/inventory/infrastructure/drizzle-inventory-repository';
+import { ProductDeactivatedError } from '@/modules/products/domain/product-errors';
 import { FindProductByBarcodeUseCase } from '@/modules/products/application/find-product-by-barcode.use-case';
 
 export async function GET(
@@ -35,6 +36,9 @@ export async function GET(
   } catch (error) {
     if (error && typeof error === 'object' && 'digest' in error) {
       throw error;
+    }
+    if (error instanceof ProductDeactivatedError) {
+      return NextResponse.json({ code: 'PRODUCT_INACTIVE', message: error.message }, { status: 404 });
     }
     if (error instanceof UnauthorizedError) {
       return NextResponse.json({ message: error.message }, { status: 401 });

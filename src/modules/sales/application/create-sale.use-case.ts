@@ -17,6 +17,7 @@ import { Customer } from '@/modules/customers/domain/customer';
 import {
   CustomerNotFoundError,
   CustomerCreditBlockedError,
+  CustomerInactiveError,
   CreditLimitExceededError,
   InvalidOwnerPinError,
 } from '@/modules/customers/domain/errors';
@@ -219,7 +220,8 @@ export class CreateSaleUseCase {
       customerId: credit.customerId,
       movement,
       ensureAllowed: (locked, currentDebt) => {
-        // Both checks use the row read under the lock, not the customer read before it (D-26, 22.9g).
+        // All checks use the row read under the lock, not the customer read before it (D-26, D-27, 22.9g).
+        if (!locked.active) throw new CustomerInactiveError(credit.customerId);
         if (locked.creditBlocked) throw new CustomerCreditBlockedError();
         if (!credit.limitAuthorized && currentDebt.add(credit.amount).isGreaterThan(locked.creditLimit)) {
           throw new CreditLimitExceededError();

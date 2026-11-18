@@ -209,7 +209,7 @@ describe.skipIf(!TEST_DATABASE_URL)('DrizzleProductRepository.updateDetails (Pos
     expect(await row(b.id)).toEqual(b);
   });
 
-  it('the unit and the stock never change', async () => {
+  it('the unit and the stock never change (active is editable since D-27)', async () => {
     const merchantId = await freshMerchant();
     const product = await seed(merchantId, 'U1', { unit: 'KG' });
     await database.insert(inventoryItems).values({ merchantId, productId: product.id, availableQuantity: 1500 });
@@ -217,8 +217,8 @@ describe.skipIf(!TEST_DATABASE_URL)('DrizzleProductRepository.updateDetails (Pos
     await repo.updateDetails(
       merchantId,
       product.id,
-      // The type refuses these fields; the cast simulates a caller that ignores it.
-      { name: 'Queijo', unit: 'UN', active: false } as never,
+      // The type refuses the unit; the cast simulates a caller that ignores it.
+      { name: 'Queijo', unit: 'UN' } as never,
       ACTOR
     );
 

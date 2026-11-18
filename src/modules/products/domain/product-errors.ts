@@ -6,6 +6,14 @@ export class ProductBarcodeConflictError extends Error {
   }
 }
 
+/** D-27: the barcode belongs to a deactivated product (not the same as a barcode nobody has). */
+export class ProductDeactivatedError extends Error {
+  constructor(public readonly productName: string) {
+    super(`Produto "${productName}" está desativado.`);
+    this.name = 'ProductDeactivatedError';
+  }
+}
+
 /** The product was changed by someone else after the caller read it. */
 export class ProductChangedError extends Error {
   constructor() {

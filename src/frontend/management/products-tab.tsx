@@ -61,6 +61,12 @@ export function ProductsTab({ tab, stockControl, user, setFeedback, loadFailed, 
     restockReason,
     setRestockReason,
     loadProducts,
+    showDeleted,
+    showActive,
+    showDeletedList,
+    deleted,
+    deletedCount,
+    handleRestore,
     handleToggleStockControl,
     checkNewBarcode,
     handleNewBarcodeKeyDown,
@@ -74,9 +80,12 @@ export function ProductsTab({ tab, stockControl, user, setFeedback, loadFailed, 
   useBarcodeScan(handleScannedBarcode);
 
   const lowStockCount = needingRestockCount(summary);
-  const visibleProducts = products.filter(
-    (p) => !stockControl || matchesStockFilter(p.availableQuantity, stockFilter, p.unit)
-  );
+  // The excluded list shows no stock: its search is over the 100 already read, by name or code.
+  const showStock = stockControl && !showDeleted;
+  const text = productQuery.trim().toLowerCase();
+  const visibleProducts = showDeleted
+    ? (deleted ?? []).filter((p) => text === '' || p.name.toLowerCase().includes(text) || p.barcode.includes(text))
+    : products.filter((p) => !stockControl || matchesStockFilter(p.availableQuantity, stockFilter, p.unit));
 
   const stockFilters: { value: StockFilter; label: string }[] = [
     { value: 'all', label: 'Todos' },
@@ -149,7 +158,25 @@ export function ProductsTab({ tab, stockControl, user, setFeedback, loadFailed, 
                     loadProducts(e.target.value);
                   }}
                 />
-                {stockControl && (
+                {user?.isOwner && (
+                  <div role="group" aria-label="Lista de produtos" className="mg-filters">
+                    <button
+                      type="button"
+                      className="mg-segment"
+                      aria-pressed={!showDeleted}
+                      onClick={() => {
+                        showActive();
+                        edit.close();
+                      }}
+                    >
+                      Ativos ({summary ? summary.total : '—'})
+                    </button>
+                    <button type="button" className="mg-segment" aria-pressed={showDeleted} onClick={showDeletedList}>
+                      Excluídos{deletedCount !== null && ` (${deletedCount})`}
+                    </button>
+                  </div>
+                )}
+                {showStock && (
                   <div role="group" aria-label="Filtro de estoque" className="mg-filters">
                     {stockFilters.map((f) => (
                       <button
@@ -191,12 +218,12 @@ export function ProductsTab({ tab, stockControl, user, setFeedback, loadFailed, 
               </div>
 
               <div className="mg-table-wrap">
-                <div role="table" aria-label="Produtos" className={stockControl ? 'mg-list mg-list-stock' : 'mg-list'}>
+                <div role="table" aria-label="Produtos" className={showStock ? 'mg-list mg-list-stock' : 'mg-list'}>
                   <div role="rowgroup">
                     <div role="row" className="mg-list-head">
                       <div role="columnheader">Produto</div>
-                      {stockControl && <div role="columnheader" className="mg-num">Em estoque</div>}
-                      {stockControl && <div role="columnheader" className="mg-num">Entrada</div>}
+                      {showStock && <div role="columnheader" className="mg-num">Em estoque</div>}
+                      {showStock && <div role="columnheader" className="mg-num">Entrada</div>}
                       <div role="columnheader" className="mg-num">Preço</div>
                       <div role="columnheader">
                         <span className="sr-only">Ação</span>
@@ -212,17 +239,17 @@ export function ProductsTab({ tab, stockControl, user, setFeedback, loadFailed, 
                           <div role="row" className="mg-row">
                             <div role="cell">
                               <strong>{p.name}</strong>
-                              {stockControl && status === 'low' && <span className="mg-tag mg-tag-warn">Estoque baixo</span>}
-                              {stockControl && status === 'out' && <span className="mg-tag mg-tag-danger">Sem estoque</span>}
+                              {showStock && status === 'low' && <span className="mg-tag mg-tag-warn">Estoque baixo</span>}
+                              {showStock && status === 'out' && <span className="mg-tag mg-tag-danger">Sem estoque</span>}
                               <div className="muted mg-barcode num">{p.barcode}</div>
                             </div>
-                            {stockControl && (
+                            {showStock && (
                               <div role="cell" className={`mg-num mg-stock mg-stock-${status}`}>
                                 {formatQuantity(p.availableQuantity, p.unit)}
                                 {byWeight ? '' : ' un'}
                               </div>
                             )}
-                            {stockControl && (
+                            {showStock && (
                             <div role="cell" className="mg-num">
                               <button
                                 type="button"
@@ -244,7 +271,7 @@ export function ProductsTab({ tab, stockControl, user, setFeedback, loadFailed, 
                               {byWeight ? ' /kg' : ''}
                             </div>
                             <div role="cell" className="mg-row-end">
-                              {user?.isOwner && (
+                              {user?.isOwner && !showDeleted && (
                                 <button
                                   type="button"
                                   className="outline mg-row-action"
@@ -255,11 +282,22 @@ export function ProductsTab({ tab, stockControl, user, setFeedback, loadFailed, 
                                   Editar
                                 </button>
                               )}
+                              {showDeleted && (
+                                <button
+                                  type="button"
+                                  className="outline mg-row-action"
+                                  aria-label={`Restaurar ${p.name}`}
+                                  disabled={processing}
+                                  onClick={() => handleRestore(p)}
+                                >
+                                  Restaurar
+                                </button>
+                              )}
                             </div>
                           </div>
 
                           {/* Box de Reposição */}
-                          {stockControl && restockingId === p.id && (
+                          {showStock && restockingId === p.id && (
                             <div role="row" className="mg-restock-row">
                               <div role="cell" className="mg-row-full">
                                 <form onSubmit={(e) => handleRestock(e, p.id)} className="mg-restock">
@@ -304,7 +342,11 @@ export function ProductsTab({ tab, stockControl, user, setFeedback, loadFailed, 
                     {visibleProducts.length === 0 && (
                       <div role="row">
                         <div role="cell" className="mg-row-full mg-empty-cell">
-                          Nenhum produto cadastrado com os critérios pesquisados.
+                          {showDeleted
+                            ? deleted === null
+                              ? 'Carregando os produtos excluídos...'
+                              : 'Nenhum produto excluído com a busca escolhida.'
+                            : 'Nenhum produto cadastrado com os critérios pesquisados.'}
                         </div>
                       </div>
                     )}
@@ -312,16 +354,16 @@ export function ProductsTab({ tab, stockControl, user, setFeedback, loadFailed, 
                 </div>
               </div>
 
-              {stockControl && stockFilter !== 'all' && hasMore && (
+              {showStock && stockFilter !== 'all' && hasMore && (
                 <p className="mg-help mg-foot" role="status">
                   O filtro vale só para os produtos já carregados; use Carregar mais.
                 </p>
               )}
               <p className="mg-foot">
-                {shownText(visibleProducts.length, summary ? summary.total : null)}
-                {stockControl && ' · Entrada registra compra ou reposição de estoque'}
+                {shownText(visibleProducts.length, showDeleted ? null : summary ? summary.total : null)}
+                {showStock && ' · Entrada registra compra ou reposição de estoque'}
               </p>
-              {(hasMore || loadMoreFailed) && (
+              {!showDeleted && (hasMore || loadMoreFailed) && (
                 <div className="mg-foot">
                   {loadMoreFailed && (
                     <span className="mg-help mg-help-warn" role="alert">
@@ -374,6 +416,8 @@ export function ProductsTab({ tab, stockControl, user, setFeedback, loadFailed, 
                 scanWarning={edit.scanWarning}
                 closing={edit.closing}
                 error={edit.error}
+                stockControl={stockControl}
+                deleteFlow={edit.deleteFlow}
                 nameRef={edit.nameRef}
                 onDraft={edit.changeDraft}
                 onSubmit={edit.handleSubmit}

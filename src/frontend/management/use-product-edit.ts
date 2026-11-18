@@ -2,6 +2,8 @@
 
 import React, { useState, useRef } from 'react';
 import { apiClient, type ProductItem } from '@/frontend/lib/api-client';
+import { deletedNotice, submitProductActive } from '@/frontend/management/deactivate';
+import { useDeleteConfirm } from '@/frontend/management/use-delete-confirm';
 import { findProductWithBarcode, takenBarcodeMessage } from '@/frontend/management/barcode-check';
 import {
   GENERATE_BARCODE_QUESTION,
@@ -14,11 +16,13 @@ interface UseProductEditParams {
   setFeedback: (feedback: { text: string; isError?: boolean; isSuccess?: boolean } | null) => void;
   setProcessing: (processing: boolean) => void;
   applyEdit: (item: ProductItem) => void;
+  /** The product was excluded: the list drops it and the excluded list is read again. */
+  applyDeleted: (item: ProductItem) => void;
   reload: () => Promise<void>;
 }
 
 /** State and actions of editing one product of the list. Called by useProductsTab, so the draft survives a tab change. */
-export function useProductEdit({ setFeedback, setProcessing, applyEdit, reload }: UseProductEditParams) {
+export function useProductEdit({ setFeedback, setProcessing, applyEdit, applyDeleted, reload }: UseProductEditParams) {
   // A copy taken on open: its updatedAt and original values do not change if the list is loaded again.
   const [target, setTarget] = useState<ProductItem | null>(null);
   // The panel plays its exit while closing; it calls finishClose at the end, and only then the target is dropped.
@@ -29,6 +33,7 @@ export function useProductEdit({ setFeedback, setProcessing, applyEdit, reload }
   // A barcode scan while the panel is open: the panel shows the notice (the page feedback is behind the modal).
   const [scanWarning, setScanWarning] = useState(false);
   const nameRef = useRef<HTMLInputElement>(null);
+  const del = useDeleteConfirm();
 
   function open(product: ProductItem) {
     setClosing(false);
@@ -37,10 +42,12 @@ export function useProductEdit({ setFeedback, setProcessing, applyEdit, reload }
     setBarcodeNote(null);
     setError(null);
     setScanWarning(false);
+    del.reset();
   }
 
   function close() {
     setClosing(true);
+    del.reset();
   }
 
   function finishClose() {
@@ -120,6 +127,25 @@ export function useProductEdit({ setFeedback, setProcessing, applyEdit, reload }
     }
   }
 
+  async function handleDelete() {
+    if (!target) return;
+    setProcessing(true);
+    setFeedback(null);
+    del.setError(null);
+    try {
+      const result = await submitProductActive(apiClient.updateProduct, target, false);
+      if (result.kind === 'failed') {
+        del.setError({ text: result.text, reload: result.reload });
+        return;
+      }
+      applyDeleted(result.item);
+      setFeedback({ text: deletedNotice(target.name), isSuccess: true });
+      close();
+    } finally {
+      setProcessing(false);
+    }
+  }
+
   // Closes the edit and loads the list again: the way out of a conflict.
   async function handleReload() {
     close();
@@ -145,5 +171,15 @@ export function useProductEdit({ setFeedback, setProcessing, applyEdit, reload }
     handleSubmit,
     handleGenerateBarcode,
     handleReload,
+    deleteFlow: {
+      asking: del.asking,
+      pin: del.pin,
+      error: del.error,
+      onAsk: del.ask,
+      onCancel: del.reset,
+      onPin: del.changePin,
+      onConfirm: handleDelete,
+      onReload: handleReload,
+    },
   };
 }

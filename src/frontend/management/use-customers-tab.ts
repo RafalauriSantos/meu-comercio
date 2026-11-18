@@ -4,6 +4,7 @@ import React, { useState, useCallback } from 'react';
 import { apiClient, CustomerItem, CustomerBalance, CreditMetricsData } from '@/frontend/lib/api-client';
 import { formatMoney, parseCurrencyInput, getErrorMessage } from '@/frontend/lib/formatters';
 import type { CustomerFilter } from './customers-list';
+import { restoredNotice, submitCustomerActive } from './deactivate';
 import { useCustomerEdit } from './use-customer-edit';
 import { useCustomerStatement } from './use-customer-statement';
 
@@ -25,6 +26,10 @@ export function useCustomersTab({ setFeedback, setProcessing, setLoadFailed, loa
   const [customerBalances, setCustomerBalances] = useState<Record<string, CustomerBalance>>({});
   const [customerQuery, setCustomerQuery] = useState('');
   const [customerFilter, setCustomerFilter] = useState<CustomerFilter>('all');
+  // The excluded customers: read when the owner opens the filter (and again after each delete or restore), so the first load of the page has no new request.
+  // Null until read; only the owner can read them. They never enter the counts, the balances or the indicators.
+  const [showDeleted, setShowDeleted] = useState(false);
+  const [deleted, setDeleted] = useState<CustomerItem[] | null>(null);
   const [showNewCustomer, setShowNewCustomer] = useState(false);
   const [newCustName, setNewCustName] = useState('');
   const [newCustPhone, setNewCustPhone] = useState('');
@@ -71,6 +76,16 @@ export function useCustomersTab({ setFeedback, setProcessing, setLoadFailed, loa
     }
   }, [setLoadFailed]);
 
+  const loadDeleted = useCallback(async () => {
+    try {
+      const res = await apiClient.listCustomers(false);
+      setDeleted(res.items || []);
+    } catch (err) {
+      setFeedback({ text: 'Não foi possível carregar os clientes excluídos. Tente de novo.', isError: true });
+      console.error('Erro ao carregar clientes excluídos:', err);
+    }
+  }, [setFeedback]);
+
   const loadCreditMetrics = useCallback(async () => {
     try {
       const data = await apiClient.getCreditMetrics();
@@ -108,6 +123,10 @@ export function useCustomersTab({ setFeedback, setProcessing, setLoadFailed, loa
       setCustomers((cur) => cur.map((c) => (c.id === item.id ? { ...c, ...item } : c)));
       void loadCustomers();
     },
+    applyDeleted: (item) => {
+      setCustomers((cur) => cur.filter((c) => c.id !== item.id));
+      void loadDeleted();
+    },
     reload: loadCustomers,
   });
 
@@ -132,6 +151,23 @@ export function useCustomersTab({ setFeedback, setProcessing, setLoadFailed, loa
       await loadCustomers();
     } catch (err) {
       setFeedback({ text: getErrorMessage(err, 'Erro ao cadastrar cliente.'), isError: true });
+    } finally {
+      setProcessing(false);
+    }
+  }
+
+  async function handleRestore(customer: CustomerItem) {
+    setProcessing(true);
+    setFeedback(null);
+    try {
+      const result = await submitCustomerActive(apiClient.updateCustomer, customer, true);
+      if (result.kind === 'failed') {
+        setFeedback({ text: result.text, isError: true });
+        if (result.reload) await loadDeleted();
+        return;
+      }
+      setFeedback({ text: restoredNotice(customer.name), isSuccess: true });
+      await Promise.all([loadCustomers(), loadDeleted()]);
     } finally {
       setProcessing(false);
     }
@@ -182,6 +218,15 @@ export function useCustomersTab({ setFeedback, setProcessing, setLoadFailed, loa
     settleNote,
     setSettleNote,
     creditMetrics,
+    showDeleted,
+    showDeletedList: () => {
+      setShowDeleted(true);
+      void loadDeleted();
+    },
+    hideDeletedList: () => setShowDeleted(false),
+    deleted,
+    deletedCount: deleted ? String(deleted.length) : null,
+    handleRestore,
     loadCustomers,
     loadCreditMetrics,
     loadMissingBalances,

@@ -14,6 +14,8 @@ import {
   type CustomerEditError,
 } from '@/frontend/management/customer-edit';
 import { useDialogPanel } from '@/frontend/lib/use-dialog-panel';
+import { customerDeleteBlock } from '@/frontend/management/deactivate';
+import { DeleteArea, DeleteConfirmDialog, type DeleteFlowView } from '@/frontend/management/delete-pieces';
 
 interface CustomerEditPanelProps {
   target: CustomerItem;
@@ -23,6 +25,7 @@ interface CustomerEditPanelProps {
   processing: boolean;
   closing: boolean;
   error: CustomerEditError | null;
+  deleteFlow: DeleteFlowView;
   nameRef: React.RefObject<HTMLInputElement | null>;
   onDraft: (change: Partial<CustomerDraft>) => void;
   onSubmit: (e: React.FormEvent) => void;
@@ -39,6 +42,7 @@ export function CustomerEditPanel({
   processing,
   closing,
   error,
+  deleteFlow,
   nameRef,
   onDraft,
   onSubmit,
@@ -141,6 +145,7 @@ export function CustomerEditPanel({
               )}
             </div>
           )}
+          <DeleteArea kind="customer" blockText={customerDeleteBlock(debtCents)} disabled={processing} onAsk={deleteFlow.onAsk} />
         </div>
         <div className="mg-panel-foot">
           {unchanged && <div className="mg-panel-hint">Altere algo para poder salvar.</div>}
@@ -154,6 +159,21 @@ export function CustomerEditPanel({
           </div>
         </div>
       </form>
+      {/* The confirmation is a sibling of the form: Enter in it must never save the edit. */}
+      {deleteFlow.asking && (
+        <DeleteConfirmDialog
+          kind="customer"
+          name={target.name}
+          stockWarning={null}
+          pin={deleteFlow.pin}
+          error={deleteFlow.error}
+          processing={processing}
+          onPin={deleteFlow.onPin}
+          onCancel={deleteFlow.onCancel}
+          onConfirm={deleteFlow.onConfirm}
+          onReload={deleteFlow.onReload}
+        />
+      )}
     </dialog>
   );
 }

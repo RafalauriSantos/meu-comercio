@@ -18,7 +18,13 @@ function render({
   hasMore = false,
   restockingId = null,
   editing = null,
+  showDeleted = false,
+  deleted = null,
+  deletedCount = null,
 }: {
+  showDeleted?: boolean;
+  deleted?: ProductItem[] | null;
+  deletedCount?: string | null;
   stockControl?: boolean;
   owner?: boolean;
   products?: ProductItem[];
@@ -37,6 +43,9 @@ function render({
     restockingId,
     restockQty: '',
     restockReason: '',
+    showDeleted,
+    deleted,
+    deletedCount,
     edit: {
       close: noop,
       targetId: editing?.id ?? null,
@@ -44,6 +53,7 @@ function render({
       draft: editing ? draftFromProduct(editing) : null,
       error: null,
       barcodeNote: null,
+      deleteFlow: { asking: false, pin: '', error: null, onAsk: noop, onCancel: noop, onPin: noop, onConfirm: noop, onReload: noop },
     },
   } as unknown as ReturnType<typeof useProductsTab>;
   return renderToStaticMarkup(
@@ -141,6 +151,34 @@ describe('catalog dense list', () => {
     expect(html).toContain('aria-haspopup="dialog"');
     expect(render()).not.toContain('<dialog');
     expect(render({ editing: rice, owner: false })).not.toContain('edit-name-a');
+  });
+
+  it('gives the owner Ativos (n) and Excluídos beside the search, and the operator neither', () => {
+    const owner = render({ deletedCount: '3' });
+    expect(owner).toMatch(/aria-label="Lista de produtos"[\s\S]*aria-pressed="true"[^>]*>Ativos \(199\)<\/button>/);
+    expect(owner).toMatch(/aria-pressed="false"[^>]*>Excluídos \(3\)<\/button>/);
+    // Before the excluded list is read there is no number.
+    expect(render()).toMatch(/>Excluídos<\/button>/);
+    expect(render({ owner: false })).not.toContain('Excluídos');
+  });
+
+  it('in the excluded view lists only them, each with Restaurar, without Editar, stock or Carregar mais, even with stock control on', () => {
+    const html = render({ stockControl: true, showDeleted: true, deleted: [beans], deletedCount: '1', hasMore: true });
+    expect(html).toContain('<strong>Feijão</strong>');
+    expect(html).not.toContain('Arroz 5kg');
+    expect(html).toContain('aria-label="Restaurar Feijão"');
+    expect(html).not.toContain('Editar');
+    expect(html).not.toContain('Entrada');
+    expect(html).not.toContain('Em estoque');
+    expect(html).not.toContain('Filtro de estoque');
+    expect(html).not.toContain('Carregar mais');
+    expect(html).toContain('Mostrando 1 produto');
+    expect(html).toMatch(/aria-pressed="true"[^>]*>Excluídos/);
+  });
+
+  it('says it is loading before the excluded list arrives, and that there is none when it is empty', () => {
+    expect(render({ showDeleted: true, deleted: null })).toContain('Carregando os produtos excluídos...');
+    expect(render({ showDeleted: true, deleted: [] })).toContain('Nenhum produto excluído com a busca escolhida.');
   });
 
   it('shows the empty message in a full-width row', () => {

@@ -6,10 +6,10 @@ const source = readScreenSource('gestao').replace(/\r\n/g, '\n');
 
 describe('product edit (source locks)', () => {
   it('only the owner sees the Editar button', () => {
-    expect(source).toMatch(/\{user\?\.isOwner && \(\s*<button\s+type="button"\s+className="outline mg-row-action"\s+aria-haspopup="dialog"/);
+    expect(source).toMatch(/\{user\?\.isOwner && !showDeleted && \(\s*<button\s+type="button"\s+className="outline mg-row-action"\s+aria-haspopup="dialog"/);
     expect(source).toContain('aria-label={`Editar ${p.name}`}');
     // Editar has its own cell (the one after the price), not the product cell.
-    expect(source).toMatch(/<div role="cell" className="mg-row-end">\s*\{user\?\.isOwner && \(\s*<button/);
+    expect(source).toMatch(/<div role="cell" className="mg-row-end">\s*\{user\?\.isOwner && !showDeleted && \(\s*<button/);
   });
 
   it('the Enter of the barcode reader does not submit the edit form', () => {

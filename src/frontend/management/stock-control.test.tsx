@@ -47,12 +47,12 @@ describe('the management panel when the shop does not control its stock', () => 
   it('hides what is about stock: the indicators, the filters, the balance, the entry and the tags', () => {
     expect(page).toMatch(/\{stockControl && \(\s*<div className="mg-summary-warn">\s*<strong className="num">\{lowStockCount \?\? '—'\}/);
     expect(page).toMatch(/\{stockControl && \(\s*<div>\s*<strong className="num">\{stockValueText\(summary\)\}/);
-    expect(page).toMatch(/\{stockControl && \(\s*<div role="group" aria-label="Filtro de estoque"/);
-    expect(page).toContain('{stockControl && <div role="columnheader" className="mg-num">Em estoque</div>}');
-    expect(page).toContain('{stockControl && <div role="columnheader" className="mg-num">Entrada</div>}');
-    expect(page).toContain("{stockControl && status === 'low'");
-    expect(page).toContain("{stockControl && status === 'out'");
-    expect(page).toContain('{stockControl && restockingId === p.id && (');
+    expect(page).toMatch(/\{showStock && \(\s*<div role="group" aria-label="Filtro de estoque"/);
+    expect(page).toContain('{showStock && <div role="columnheader" className="mg-num">Em estoque</div>}');
+    expect(page).toContain('{showStock && <div role="columnheader" className="mg-num">Entrada</div>}');
+    expect(page).toContain("{showStock && status === 'low'");
+    expect(page).toContain("{showStock && status === 'out'");
+    expect(page).toContain('{showStock && restockingId === p.id && (');
     expect(page).toContain('<div role="cell" className="mg-row-full">');
   });
 

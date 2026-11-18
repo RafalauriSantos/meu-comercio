@@ -2,7 +2,7 @@
 
 import { useState, useCallback, useRef } from 'react';
 import { apiClient, ProductsSummary, type ProductItem } from '@/frontend/lib/api-client';
-import { PRODUCTS_PAGE_SIZE, addToStock, applyPage, emptyList, replaceProduct } from '@/frontend/management/products-list';
+import { PRODUCTS_PAGE_SIZE, addToStock, applyPage, emptyList, removeProduct, replaceProduct } from '@/frontend/management/products-list';
 
 interface UseProductsListParams {
   setLoadFailed: (update: (f: { products?: boolean }) => { products?: boolean }) => void;
@@ -86,5 +86,11 @@ export function useProductsList({ setLoadFailed }: UseProductsListParams) {
     void loadSummary();
   }
 
-  return { products: list.items, hasMore: list.hasMore, summary, loadingMore, loadMoreFailed, loadProducts, loadMore, applyRestock, applyEdit };
+  // An excluded product leaves the loaded pages; the summary only counts active products, so it is read again.
+  function applyDeleted(productId: string) {
+    setList((cur) => ({ ...cur, items: removeProduct(cur.items, productId) }));
+    void loadSummary();
+  }
+
+  return { products: list.items, hasMore: list.hasMore, summary, loadingMore, loadMoreFailed, loadProducts, loadMore, applyRestock, applyEdit, applyDeleted };
 }

@@ -3,11 +3,13 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import type { ProductItem } from '@/frontend/lib/api-client';
 import { draftFromProduct } from './product-edit';
 import { ProductEditPanel } from './product-edit-panel';
+import type { DeleteFlowView } from './delete-pieces';
 
 const rice: ProductItem = { id: 'a', barcode: '789', name: 'Arroz 5kg', salePrice: 25.5, availableQuantity: 12, updatedAt: '2026-11-16T10:00:00.000Z' };
 const cheese: ProductItem = { id: 'q', barcode: '9', name: 'Queijo', salePrice: 42.9, availableQuantity: 2500, unit: 'KG' };
 
 const noop = () => {};
+const flow: DeleteFlowView = { asking: false, pin: '', error: null, onAsk: noop, onCancel: noop, onPin: noop, onConfirm: noop, onReload: noop };
 function render(over: Partial<React.ComponentProps<typeof ProductEditPanel>> = {}) {
   const target = over.target ?? rice;
   return renderToStaticMarkup(
@@ -18,6 +20,8 @@ function render(over: Partial<React.ComponentProps<typeof ProductEditPanel>> = {
       barcodeNote={null}
       scanWarning={false}
       error={null}
+      stockControl
+      deleteFlow={flow}
       nameRef={{ current: null }}
       onDraft={noop}
       onSubmit={noop}
@@ -115,6 +119,38 @@ describe('ProductEditPanel', () => {
   it('shows the finish-the-edit notice inside the panel only after a scan', () => {
     expect(render()).not.toContain('Termine ou cancele a edição');
     expect(render({ scanWarning: true })).toContain('Termine ou cancele a edição antes de cadastrar um produto novo.');
+  });
+
+  it('ends with the Excluir produto area: help text and a red outline button that is not a submit', () => {
+    const html = render();
+    expect(html).toContain('Excluir produto</h3>');
+    expect(html).toContain('O produto sai do caixa e da busca. O histórico de vendas fica guardado.');
+    expect(html).toMatch(/<button[^>]*class="outline mg-danger"[^>]*>Excluir produto<\/button>/);
+    expect(html.indexOf('Excluir produto</h3>')).toBeGreaterThan(html.indexOf('Código de Barras'));
+    expect(html).not.toContain('role="alertdialog"');
+  });
+
+  it('asks to confirm: an alert dialog with the stock warning, Cancelar first, and no PIN for a product', () => {
+    const html = render({ deleteFlow: { ...flow, asking: true } });
+    expect(html).toContain('role="alertdialog"');
+    expect(html).toContain('Excluir Arroz 5kg?');
+    expect(html).toContain('Este produto tem 12 un. em estoque. Ele continua guardado, mas o produto some do caixa.');
+    expect(html).not.toContain('PIN da proprietária');
+    const from = html.indexOf('alertdialog');
+    expect(html.indexOf('>Cancelar</button>', from)).toBeLessThan(html.indexOf('>Excluir</button>', from));
+    expect(html).toMatch(/<button[^>]*class="primary mg-danger-fill"[^>]*>Excluir<\/button>/);
+  });
+
+  it('leaves the stock warning out with stock control off or no balance, and keeps the confirm button enabled', () => {
+    expect(render({ stockControl: false, deleteFlow: { ...flow, asking: true } })).not.toContain('em estoque. Ele continua');
+    expect(render({ target: { ...rice, availableQuantity: 0 }, deleteFlow: { ...flow, asking: true } })).not.toContain('em estoque. Ele continua');
+    expect(render({ deleteFlow: { ...flow, asking: true } })).not.toMatch(/<button[^>]*disabled=""[^>]*>Excluir<\/button>/);
+  });
+
+  it('shows the delete error with a reload button inside the confirmation', () => {
+    const html = render({ deleteFlow: { ...flow, asking: true, error: { text: 'Este produto foi alterado por outra pessoa.', reload: true } } });
+    expect(html).toContain('Este produto foi alterado por outra pessoa.');
+    expect(html).toContain('Recarregar a lista');
   });
 
   it('has a secondary Gerar código button beside the barcode, enabled while nothing else changed', () => {

@@ -14,6 +14,8 @@ import {
   type EditError,
 } from '@/frontend/management/product-edit';
 import { useDialogPanel } from '@/frontend/lib/use-dialog-panel';
+import { productStockWarning } from '@/frontend/management/deactivate';
+import { DeleteArea, DeleteConfirmDialog, type DeleteFlowView } from '@/frontend/management/delete-pieces';
 
 interface ProductEditPanelProps {
   target: ProductItem;
@@ -23,6 +25,8 @@ interface ProductEditPanelProps {
   scanWarning: boolean;
   closing: boolean;
   error: EditError | null;
+  stockControl: boolean;
+  deleteFlow: DeleteFlowView;
   nameRef: React.RefObject<HTMLInputElement | null>;
   onDraft: (change: Partial<EditDraft>) => void;
   onSubmit: (e: React.FormEvent) => void;
@@ -43,6 +47,8 @@ export function ProductEditPanel({
   scanWarning,
   closing,
   error,
+  stockControl,
+  deleteFlow,
   nameRef,
   onDraft,
   onSubmit,
@@ -158,6 +164,7 @@ export function ProductEditPanel({
               )}
             </div>
           )}
+          <DeleteArea kind="product" blockText={null} disabled={processing} onAsk={deleteFlow.onAsk} />
         </div>
         <div className="mg-panel-foot">
           {unchanged && <div className="mg-panel-hint">Altere algo para poder salvar.</div>}
@@ -171,6 +178,21 @@ export function ProductEditPanel({
           </div>
         </div>
       </form>
+      {/* The confirmation is a sibling of the form: Enter in it must never save the edit. */}
+      {deleteFlow.asking && (
+        <DeleteConfirmDialog
+          kind="product"
+          name={target.name}
+          stockWarning={productStockWarning(target, stockControl)}
+          pin={deleteFlow.pin}
+          error={deleteFlow.error}
+          processing={processing}
+          onPin={deleteFlow.onPin}
+          onCancel={deleteFlow.onCancel}
+          onConfirm={deleteFlow.onConfirm}
+          onReload={deleteFlow.onReload}
+        />
+      )}
     </dialog>
   );
 }

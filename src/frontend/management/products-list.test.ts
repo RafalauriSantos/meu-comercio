@@ -7,6 +7,7 @@ import {
   applyPage,
   emptyList,
   needingRestockCount,
+  removeProduct,
   replaceProduct,
   shownText,
   stockValueText,
@@ -93,6 +94,14 @@ describe('replaceProduct', () => {
     expect(ids(out)).toEqual(['a', 'b', 'c']);
     expect(out[1].name).toBe('Novo');
     expect(out[0]).toBe(items[0]);
+  });
+});
+
+describe('removeProduct', () => {
+  it('drops only the item with that id', () => {
+    const items = [p('a'), p('b'), p('c')];
+    expect(ids(removeProduct(items, 'b'))).toEqual(['a', 'c']);
+    expect(ids(removeProduct(items, 'zz'))).toEqual(['a', 'b', 'c']);
   });
 });
 

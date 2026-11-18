@@ -7,9 +7,10 @@ import type { useProductsTab } from './use-products-tab';
 const noop = () => {};
 const summary: ProductsSummary = { total: 199, lowStockCount: 3, outOfStockCount: 2, stockValue: '1500.00' };
 
-function render({ stockControl, owner, withSummary = true, showNew = false }: { stockControl: boolean; owner: boolean; withSummary?: boolean; showNew?: boolean }) {
+function render({ stockControl, owner, withSummary = true, showNew = false, showImport = false }: { stockControl: boolean; owner: boolean; withSummary?: boolean; showNew?: boolean; showImport?: boolean }) {
   const tab = {
     showNewProduct: showNew,
+    showImport,
     newBarcode: '789',
     newName: '',
     newPrice: '',
@@ -89,6 +90,19 @@ describe('catalog toolbar', () => {
     expect(html).toMatch(/class="primary mg-toolbar-new"[^>]*>＋ Novo Produto/);
     expect(html).toMatch(/class="outline mg-toolbar-import"[^>]*>Importar planilha/);
     expect(html).toContain('mg-search-wide');
+  });
+
+  it('opens clean: the import card is hidden and the button says it is collapsed', () => {
+    const html = render({ stockControl: true, owner: true });
+    expect(html).not.toContain('Importar produtos de uma planilha');
+    expect(html).toMatch(/class="outline mg-toolbar-import"[^>]*aria-expanded="false"/);
+  });
+
+  it('shows the import card, with Fechar, once the button is on', () => {
+    const html = render({ stockControl: true, owner: true, showImport: true });
+    expect(html).toContain('Importar produtos de uma planilha');
+    expect(html).toContain('aria-label="Fechar a importação"');
+    expect(html).toMatch(/class="outline mg-toolbar-import"[^>]*aria-expanded="true"/);
   });
 
   it('does not show Import to who is not the owner', () => {

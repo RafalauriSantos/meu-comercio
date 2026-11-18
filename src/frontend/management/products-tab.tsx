@@ -132,6 +132,7 @@ export function ProductsTab({ tab, stockControl, user, setFeedback, loadFailed, 
             {showImport && user?.isOwner && (
               <ImportProductsPanel
                 stockControl={stockControl}
+                onClose={() => setShowImport(false)}
                 onImported={async (createdCount) => {
                   setShowImport(false);
                   setFeedback({

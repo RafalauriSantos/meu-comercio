@@ -83,11 +83,11 @@ describe('the management panel when the shop does not control its stock', () => 
 
 describe('the import panel', () => {
   it('says the Estoque column is ignored when the stock is not controlled, and does not show it in the preview', () => {
-    const off = renderToStaticMarkup(<ImportProductsPanel stockControl={false} onImported={() => {}} />);
-    const on = renderToStaticMarkup(<ImportProductsPanel stockControl onImported={() => {}} />);
+    const off = renderToStaticMarkup(<ImportProductsPanel stockControl={false} onImported={() => {}} onClose={() => {}} />);
+    const on = renderToStaticMarkup(<ImportProductsPanel stockControl onImported={() => {}} onClose={() => {}} />);
 
     expect(off).toContain('controle de estoque está desligado');
     expect(on).not.toContain('controle de estoque está desligado');
-    expect(on).toContain('preço, estoque e');
+    expect(on).toContain('preço por quilo e estoque em quilos');
   });
 });

@@ -33,6 +33,7 @@ lançar uma versão estão em `docs/PROJECT_WORKFLOW.md`.
 
 ### Alterado
 
+- **Importar planilha:** a planilha-modelo para baixar saiu. No lugar, o card mostra um exemplo na tela (só para ver o formato), com a regra do código de barras de verdade; o card só aparece ao clicar em "Importar planilha" e tem o botão "Fechar".
 - **Limite de fiado:** o teto passou a ser R$ 500,00, e qualquer aumento de limite (no cadastro ou na edição) pede o PIN da proprietária. A operadora continua cadastrando clientes, sempre com limite R$ 0,00; só a proprietária libera valor.
 - **Quitação de fiado** passou a gravar o caixa, o saldo e a auditoria numa operação só, com trava: duas quitações ao mesmo tempo não pagam mais do que a dívida, e uma falha no meio não deixa nada pela metade.
 - **Preço do produto** com máscara de centavos (digita 1250 e vira 12,50).

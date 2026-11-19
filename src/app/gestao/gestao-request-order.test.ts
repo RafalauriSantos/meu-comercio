@@ -291,12 +291,12 @@ function findNotice(node: unknown): Notice | undefined {
 
 describe('/gestao: the apiClient calls and the /login redirects in the source of the whole screen', () => {
   // The whole screen: the page plus the files of src/frontend/management. Counts as at HEAD plus the barcode scan: 21 apiClient. and
-  // 2 router.push('/login') in page.tsx, plus 2 apiClient. of import-products-panel.tsx (its own file).
+  // 2 router.push('/login') in page.tsx, plus 3 apiClient. of use-import-products.ts (its own file).
   const source = readScreenSource('gestao');
   const count = (needle: string) => source.split(needle).length - 1;
 
-  it('has 21 + 2 + 2 apiClient. (the product edit adds updateProduct and its barcode lookup, the customer edit adds updateCustomer, Gerar código adds a second updateProduct, the statement adds getCustomerStatement, Excluir and Restaurar add 2 updateProduct, 2 updateCustomer and the 2 excluded lists) and 2 router.push(/login)', () => {
-    expect(count('apiClient.')).toBe(21 + 2 + 2 + 2 + 1 + 1 + 1 + 6);
+  it('has 21 + 2 + 3 apiClient. (the product edit adds updateProduct and its barcode lookup, the customer edit adds updateCustomer, Gerar código adds a second updateProduct, the statement adds getCustomerStatement, Excluir and Restaurar add 2 updateProduct, 2 updateCustomer and the 2 excluded lists) and 2 router.push(/login)', () => {
+    expect(count('apiClient.')).toBe(21 + 2 + 3 + 2 + 1 + 1 + 1 + 6);
     expect(count("router.push('/login')") + count('router.push(loginUrlHere())')).toBe(2);
   });
 
@@ -316,7 +316,7 @@ describe('/gestao: the apiClient calls and the /login redirects in the source of
       getCustomerStatement: 1, // use-customer-statement.ts
       getSalesReport: 1, // sales-report-panel.tsx; written on two lines, so it is not in the literal count
       getStoreSettings: 1, // page.tsx; also on several lines (`.getStoreSettings()` on its own line), so also not in the literal count
-      importProducts: 2,
+      importProducts: 3,
       listCustomers: 2, // the list and the excluded ones (read only when the filter is opened)
       listOperators: 1,
       getProductsSummary: 1,

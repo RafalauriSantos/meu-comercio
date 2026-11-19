@@ -64,7 +64,6 @@ describe('screens choose success for confirmations', () => {
         'cadastrado com sucesso!`',
         'cadastrado com sucesso!${typedBarcode',
         'Estoque reposto com sucesso',
-        'produtos importados com sucesso',
         'Controle de estoque ligado',
       ],
     ],

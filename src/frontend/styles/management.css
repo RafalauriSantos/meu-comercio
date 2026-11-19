@@ -1207,6 +1207,147 @@ body:has(.mg-panel[open]) {
   text-align: right;
 }
 
+/* Import preview: five numbers, the "only names" switch and the before/after list. */
+.management-page .mg-import-check {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 44px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.management-page .mg-import-check input {
+  width: 22px;
+  height: 22px;
+  margin: 0;
+  accent-color: var(--primary);
+}
+
+.management-page .mg-import-check input:focus-visible {
+  outline: 3px solid var(--primary);
+  outline-offset: 2px;
+}
+
+.management-page .mg-import-counts {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.management-page .mg-import-count {
+  padding: 12px 14px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface);
+}
+
+.management-page .mg-import-count[data-tone='done'] {
+  border-color: var(--success);
+  background: var(--success-soft);
+  color: var(--success);
+}
+
+.management-page .mg-import-count[data-tone='error'] {
+  border-color: var(--danger);
+  background: var(--danger-soft);
+  color: var(--danger);
+}
+
+.management-page .mg-import-count-n {
+  font-size: 26px;
+  font-weight: 700;
+}
+
+.management-page .mg-import-count-label {
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.management-page .mg-import-hint {
+  color: var(--muted);
+}
+
+.management-page .mg-import-list-title {
+  margin: 0 0 8px;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+/* Scrolls inside, so a long list does not push the buttons away. */
+.management-page .mg-fixes {
+  max-height: 300px;
+  overflow: auto;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+}
+
+.management-page .mg-fixes:focus-visible {
+  outline: 3px solid var(--primary);
+  outline-offset: 2px;
+}
+
+.management-page .mg-fixes .mg-table {
+  min-width: 720px;
+  font-size: 14px;
+}
+
+.management-page .mg-fixes .mg-table th {
+  position: sticky;
+  top: 0;
+  padding: 8px 12px;
+  background: var(--surface-2);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.management-page .mg-fixes .mg-table td {
+  padding: 8px 12px;
+}
+
+.management-page .mg-fixes tr[data-warn] {
+  background: var(--warn-soft);
+}
+
+.management-page .mg-import-before,
+.management-page .mg-import-kept {
+  color: var(--muted);
+}
+
+.management-page .mg-import-kept {
+  font-size: 12px;
+}
+
+.management-page .mg-import-new-price {
+  padding: 1px 6px;
+  border-radius: 6px;
+  background: var(--primary-soft);
+  color: var(--primary-text);
+}
+
+.management-page .mg-import-warn {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--warn-soft);
+  color: var(--warn);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.management-page .mg-import-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+@media (max-width: 640px) {
+  .management-page .mg-import-counts {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
 @media (max-width: 600px) {
   .management-page {
     padding: 12px 12px 40px;

@@ -7,7 +7,7 @@ import { DrizzleProductImportStore } from '@/modules/products/infrastructure/dri
 import { ImportProductsUseCase } from '@/modules/products/application/import-products.use-case';
 import { ImportFileError } from '@/modules/products/application/parse-product-csv';
 
-const MAX_CSV_CHARACTERS = 300_000;
+const MAX_CSV_CHARACTERS = 600_000;
 
 export async function POST(request: NextRequest) {
   try {
@@ -23,9 +23,13 @@ export async function POST(request: NextRequest) {
     const body = await request.json().catch(() => null);
     const csv = body && typeof body === 'object' ? (body as { csv?: unknown }).csv : undefined;
     const dryRun = body && typeof body === 'object' ? (body as { dryRun?: unknown }).dryRun !== false : true;
+    const onlyNames = body && typeof body === 'object' ? (body as { onlyNames?: unknown }).onlyNames : undefined;
 
     if (typeof csv !== 'string' || csv.trim() === '') {
       return NextResponse.json({ message: 'Envie o conteúdo da planilha.' }, { status: 400 });
+    }
+    if (onlyNames !== undefined && typeof onlyNames !== 'boolean') {
+      return NextResponse.json({ message: 'O campo onlyNames deve ser verdadeiro ou falso.' }, { status: 400 });
     }
     if (csv.length > MAX_CSV_CHARACTERS) {
       return NextResponse.json({ message: 'A planilha é grande demais. Divida em partes.' }, { status: 413 });
@@ -37,6 +41,7 @@ export async function POST(request: NextRequest) {
     const report = await useCase.execute(session.merchantId, session.username, csv, {
       dryRun,
       stockControl: stockControlEnabled,
+      onlyNames,
     });
 
     // Confirming with a problem in the sheet creates nothing.

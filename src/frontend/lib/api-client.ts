@@ -34,7 +34,20 @@ export interface ProductImportReport {
     unit: ProductUnit;
     initialStock: number;
   }>;
-  skipped: Array<{ line: number; barcode: string; name: string }>;
+  /** Existing products that the sheet corrects, with name and price before and after. */
+  corrected: Array<{
+    line: number;
+    barcode: string;
+    unit: ProductUnit;
+    before: { name: string; salePrice: string };
+    after: { name: string; salePrice: string };
+    /** The price moves by more than 50 percent, up or down. */
+    priceChangeOver50: boolean;
+  }>;
+  /** Existing products already equal to the sheet. */
+  unchanged: Array<{ line: number; barcode: string; name: string }>;
+  /** Deleted products: left as they are. */
+  skipped: Array<{ line: number; barcode: string; name: string; reason: string }>;
   errors: Array<{ line: number; message: string }>;
   imported: boolean;
 }
@@ -454,7 +467,7 @@ export const apiClient = {
     if (params.to) query.set('to', params.to);
     return apiRequest<SalesReport>(`/api/reports/sales?${query.toString()}`);
   },
-  importProducts: (payload: { csv: string; dryRun: boolean }) =>
+  importProducts: (payload: { csv: string; dryRun: boolean; onlyNames?: boolean }) =>
     apiRequest<ProductImportReport>('/api/products/import', {
       method: 'POST',
       body: JSON.stringify(payload),

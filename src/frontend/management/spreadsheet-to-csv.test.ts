@@ -102,8 +102,8 @@ describe('an .xlsx through the importer', () => {
     const csv = rowsToCsv(rows);
 
     const useCase = new ImportProductsUseCase({
-      findExistingBarcodes: async () => new Set(),
-      importAll: async () => {},
+      findProductsByBarcodes: async () => new Map(),
+      importAll: async () => [],
     });
     const report = await useCase.execute('m1', 'dona', csv, { dryRun: true });
 

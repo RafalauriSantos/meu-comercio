@@ -1,18 +1,53 @@
 import { describe, it, expect, beforeEach } from 'vitest';
+import { Money } from '@/shared/domain/money';
 import { ImportProductsUseCase } from './import-products.use-case';
 import { ImportFileError, MAX_IMPORT_ROWS, normalizePriceText, parseProductCsv } from './parse-product-csv';
-import { ProductImportItem, ProductImportStore } from '../domain/product-import-store.port';
+import {
+  CorrectionOutcome,
+  ExistingProduct,
+  ProductImportBatch,
+  ProductImportItem,
+  ProductImportStore,
+} from '../domain/product-import-store.port';
 
 class FakeStore implements ProductImportStore {
-  public existing = new Set<string>();
-  public imported: ProductImportItem[][] = [];
+  public products = new Map<string, ExistingProduct>();
+  /** What the store answers for a correction at write time. Default: it applies the sheet to what it has. */
+  public writeOverride = new Map<string, CorrectionOutcome>();
+  public batches: ProductImportBatch[] = [];
 
-  async findExistingBarcodes(_merchantId: string, barcodes: string[]): Promise<Set<string>> {
-    return new Set(barcodes.filter((barcode) => this.existing.has(barcode)));
+  /** The items created, batch by batch (empty when nothing is created). */
+  get imported(): ProductImportItem[][] {
+    return this.batches.map((batch) => batch.create).filter((items) => items.length > 0);
   }
 
-  async importAll(_merchantId: string, _actorId: string, items: ProductImportItem[]): Promise<void> {
-    this.imported.push(items);
+  addProduct(barcode: string, name: string, salePrice: string, unit: 'UN' | 'KG' = 'UN', active = true): void {
+    this.products.set(barcode, { barcode, name, salePrice, unit, active });
+  }
+
+  async findProductsByBarcodes(_merchantId: string, barcodes: string[]): Promise<Map<string, ExistingProduct>> {
+    const found = new Map<string, ExistingProduct>();
+    for (const barcode of barcodes) {
+      const product = this.products.get(barcode);
+      if (product) found.set(barcode, product);
+    }
+    return found;
+  }
+
+  async importAll(_merchantId: string, _actorId: string, batch: ProductImportBatch): Promise<CorrectionOutcome[]> {
+    this.batches.push(batch);
+    return batch.correct.map((correction) => {
+      const override = this.writeOverride.get(correction.barcode);
+      if (override) return override;
+      const current = this.products.get(correction.barcode)!;
+      const currentPrice = Money.fromDecimal(current.salePrice).toDecimal();
+      return {
+        barcode: correction.barcode,
+        outcome: 'corrected',
+        before: { name: current.name, salePrice: currentPrice },
+        after: { name: correction.name, salePrice: correction.salePrice ?? currentPrice },
+      };
+    });
   }
 }
 
@@ -178,25 +213,6 @@ describe('ImportProductsUseCase', () => {
     expect(report.errors[0].message).toContain('linha 2');
   });
 
-  it('leaves the products that already exist as they are and creates the new ones', async () => {
-    store.existing.add('7891000100103');
-
-    const report = await useCase.execute('m1', 'dona', sheet('7891000100103;Arroz novo nome;99;50', '7891000200209;Feijão;3;1'), { dryRun: false });
-
-    expect(report.skipped).toEqual([{ line: 2, barcode: '7891000100103', name: 'Arroz novo nome' }]);
-    expect(store.imported[0].map((item) => item.barcode)).toEqual(['7891000200209']);
-    expect(report.imported).toBe(true);
-  });
-
-  it('does not report an import when everything in the sheet already exists', async () => {
-    store.existing.add('7891000100103');
-
-    const report = await useCase.execute('m1', 'dona', sheet('7891000100103;Arroz;1;1'), { dryRun: false });
-
-    expect(report.imported).toBe(false);
-    expect(store.imported).toEqual([]);
-  });
-
   it('refuses a row with an invalid barcode, with the line and the code, and creates nothing (D-30)', async () => {
     const lines = ['123', '1001', 'sem-1', 'abc', '7891000100104', '12345671', '036000291453', '17891000100101', '123456789'];
     const report = await useCase.execute(
@@ -234,5 +250,261 @@ describe('ImportProductsUseCase', () => {
     const report = await useCase.execute('m1', 'dona', sheet(';Arroz;5;1'), { dryRun: true });
 
     expect(report.errors).toEqual([{ line: 2, message: 'Código de barras é obrigatório' }]);
+  });
+
+  describe('products that already exist (D-31)', () => {
+    const ARROZ = '7891000100103';
+    const FEIJAO = '7891000200209';
+    const SAL = '7891000300305';
+    const withUnit = (...lines: string[]) => ['codigo;nome;preco;estoque;unidade', ...lines].join('\n');
+
+    it('has the limit at 1000 rows', () => {
+      expect(MAX_IMPORT_ROWS).toBe(1000);
+    });
+
+    it('corrects the name and the price of an active product, with before and after, and writes it on confirm (13, 14)', async () => {
+      store.addProduct(ARROZ, 'arroz', '24.9000');
+      const csv = sheet(`${ARROZ};  Arroz Tipo 1 5kg ;25,50;99`);
+
+      const preview = await useCase.execute('m1', 'dona', csv, { dryRun: true });
+
+      expect(preview.errors).toEqual([]);
+      expect(preview.valid).toEqual([]);
+      expect(preview.corrected).toEqual([
+        {
+          line: 2,
+          barcode: ARROZ,
+          unit: 'UN',
+          before: { name: 'arroz', salePrice: '24.90' },
+          after: { name: 'Arroz Tipo 1 5kg', salePrice: '25.50' },
+          priceChangeOver50: false,
+        },
+      ]);
+      expect(preview.imported).toBe(false);
+      expect(store.batches).toEqual([]);
+
+      const confirmed = await useCase.execute('m1', 'dona', csv, { dryRun: false });
+
+      expect(confirmed.imported).toBe(true);
+      expect(confirmed.corrected).toEqual(preview.corrected);
+      expect(store.batches).toEqual([{ create: [], correct: [{ barcode: ARROZ, name: 'Arroz Tipo 1 5kg', salePrice: '25.50' }] }]);
+    });
+
+    it('counts a row equal to the register as unchanged, comparing the price in cents and the name case-sensitively (15)', async () => {
+      store.addProduct(ARROZ, 'Arroz', '24.9000');
+      store.addProduct(FEIJAO, 'Feijão', '8.5000');
+
+      const report = await useCase.execute('m1', 'dona', sheet(`${ARROZ}; Arroz ;24,9;5`, `${FEIJAO};feijão;8,50;5`), { dryRun: false });
+
+      expect(report.unchanged).toEqual([{ line: 2, barcode: ARROZ, name: 'Arroz' }]);
+      expect(report.corrected.map((row) => row.barcode)).toEqual([FEIJAO]);
+    });
+
+    it('writes nothing, and reports no import, when every row is unchanged (9)', async () => {
+      store.addProduct(ARROZ, 'Arroz', '24.9000');
+
+      const report = await useCase.execute('m1', 'dona', sheet(`${ARROZ};Arroz;24,90;5`), { dryRun: false });
+
+      expect(report.unchanged).toHaveLength(1);
+      expect(report.imported).toBe(false);
+      expect(store.batches).toEqual([]);
+    });
+
+    it('refuses a name that is empty, too short or too long, with the same message as the register (16)', async () => {
+      store.addProduct(ARROZ, 'Arroz', '5.0000');
+      store.addProduct(FEIJAO, 'Feijão', '5.0000');
+      store.addProduct(SAL, 'Sal', '5.0000');
+
+      const report = await useCase.execute(
+        'm1',
+        'dona',
+        sheet(`${ARROZ};;5;1`, `${FEIJAO};A;5;1`, `${SAL};${'x'.repeat(161)};5;1`),
+        { dryRun: false }
+      );
+
+      expect(report.errors.map((error) => error.line)).toEqual([2, 3, 4]);
+      expect(report.errors[0].message).toBe('Nome deve ter no mínimo 2 caracteres');
+      expect(report.errors[2].message).toMatch(/160/);
+      expect(store.batches).toEqual([]);
+    });
+
+    it('refuses an unreadable or negative price with the current message (17)', async () => {
+      store.addProduct(ARROZ, 'Arroz', '5.0000');
+      store.addProduct(FEIJAO, 'Feijão', '5.0000');
+      store.addProduct(SAL, 'Sal', '5.0000');
+
+      const report = await useCase.execute('m1', 'dona', sheet(`${ARROZ};Arroz;abc;1`, `${FEIJAO};Feijão;1,2,3;1`, `${SAL};Sal;-3;1`), { dryRun: true });
+
+      expect(report.errors.map((error) => error.line)).toEqual([2, 3, 4]);
+      expect(report.errors.every((error) => error.message.startsWith('Preço inválido'))).toBe(true);
+    });
+
+    it('accepts a zero price only when the product is already at zero (18)', async () => {
+      store.addProduct(ARROZ, 'Arroz', '5.0000');
+      store.addProduct(FEIJAO, 'Feijão', '0.0000');
+
+      const report = await useCase.execute('m1', 'dona', sheet(`${ARROZ};Arroz;0,00;1`, `${FEIJAO};Feijão;0,00;1`), { dryRun: true });
+
+      expect(report.errors).toEqual([{ line: 2, message: 'O preço precisa ser maior que zero' }]);
+      expect(report.unchanged.map((row) => row.barcode)).toEqual([FEIJAO]);
+    });
+
+    it('ignores the stock of an existing product, even a stock that would be invalid (19)', async () => {
+      store.addProduct(ARROZ, 'Arroz', '5.0000');
+      store.addProduct(FEIJAO, 'Feijão', '5.0000');
+
+      const report = await useCase.execute('m1', 'dona', sheet(`${ARROZ};Arroz;5;999`, `${FEIJAO};Feijão;5;abc`), { dryRun: false });
+
+      expect(report.errors).toEqual([]);
+      expect(report.unchanged).toHaveLength(2);
+      expect(store.batches).toEqual([]);
+    });
+
+    it('refuses a filled unit that differs from the registered one, and does not compare a blank unit (20)', async () => {
+      store.addProduct(ARROZ, 'Arroz', '5.0000', 'UN');
+      store.addProduct(FEIJAO, 'Queijo', '40.0000', 'KG');
+      store.addProduct(SAL, 'Sal', '3.0000', 'UN');
+
+      const report = await useCase.execute(
+        'm1',
+        'dona',
+        withUnit(`${ARROZ};Arroz;5;1;kg`, `${FEIJAO};Queijo;40;1;un`, `${SAL};Sal;3;1;`),
+        { dryRun: true }
+      );
+
+      expect(report.errors).toEqual([
+        { line: 2, message: 'A unidade de um produto cadastrado não muda; a planilha diz kg e o produto é vendido por unidade' },
+        { line: 3, message: 'A unidade de um produto cadastrado não muda; a planilha diz un e o produto é vendido por peso' },
+      ]);
+      expect(report.unchanged.map((row) => row.line)).toEqual([4]);
+    });
+
+    it('matches an existing product by an old invalid barcode and corrects it; an invalid new one still fails (21)', async () => {
+      store.addProduct('SEM-1', 'Velho', '5.0000');
+
+      const report = await useCase.execute('m1', 'dona', sheet('SEM-1;Novo nome;5;1', '123;Outro;5;1'), { dryRun: true });
+
+      expect(report.corrected.map((row) => row.barcode)).toEqual(['SEM-1']);
+      expect(report.errors).toEqual([{ line: 3, message: 'Código de barras inválido: "123". Use um código de barras de verdade.' }]);
+    });
+
+    it('still creates a code that does not exist, and counts it as created (23)', async () => {
+      store.addProduct(ARROZ, 'Arroz', '5.0000');
+
+      const report = await useCase.execute('m1', 'dona', sheet(`${ARROZ};Arroz Novo;6;1`, `${FEIJAO};Feijão;3;4`), { dryRun: false });
+
+      expect(report.valid.map((row) => row.barcode)).toEqual([FEIJAO]);
+      expect(report.corrected.map((row) => row.barcode)).toEqual([ARROZ]);
+      expect(store.batches).toHaveLength(1);
+      expect(store.batches[0].create.map((item) => [item.barcode, item.initialStock])).toEqual([[FEIJAO, 4]]);
+      expect(store.batches[0].correct.map((item) => item.barcode)).toEqual([ARROZ]);
+    });
+
+    it('ignores a deleted product without error and never writes it, not even a bad row for it (24, 31)', async () => {
+      store.addProduct(ARROZ, 'Arroz velho', '5.0000', 'UN', false);
+
+      const report = await useCase.execute('m1', 'dona', sheet(`${ARROZ};Arroz;abc;1`, `${FEIJAO};Feijão;3;1`), { dryRun: false });
+
+      expect(report.errors).toEqual([]);
+      expect(report.skipped).toEqual([
+        { line: 2, barcode: ARROZ, name: 'Arroz', reason: 'Produto excluído: não é alterado nem recriado.' },
+      ]);
+      expect(report.valid.map((row) => row.barcode)).toEqual([FEIJAO]);
+      expect(store.batches[0].create.map((item) => item.barcode)).toEqual([FEIJAO]);
+      expect(store.batches[0].correct).toEqual([]);
+    });
+
+    it('refuses a repeated barcode also when it belongs to an existing product, and writes nothing (25, 26)', async () => {
+      store.addProduct(ARROZ, 'Arroz', '5.0000');
+
+      const report = await useCase.execute('m1', 'dona', sheet(`${ARROZ};Arroz um;6;1`, `${ARROZ};Arroz dois;7;1`, `${FEIJAO};Feijão;3;1`), { dryRun: false });
+
+      expect(report.errors).toHaveLength(1);
+      expect(report.errors[0]).toMatchObject({ line: 3 });
+      expect(report.errors[0].message).toContain('linha 2');
+      expect(report.imported).toBe(false);
+      expect(store.batches).toEqual([]);
+    });
+
+    it('writes nothing, neither creations nor corrections, when any row has an error (26)', async () => {
+      store.addProduct(ARROZ, 'Arroz', '5.0000');
+
+      const report = await useCase.execute('m1', 'dona', sheet(`${ARROZ};Arroz Novo;6;1`, `${FEIJAO};Feijão;abc;1`), { dryRun: false });
+
+      expect(report.imported).toBe(false);
+      expect(store.batches).toEqual([]);
+    });
+
+    it('flags a price change over 50 percent, up or down, and not exactly 50 (priceChangeOver50)', async () => {
+      const codes = [ARROZ, FEIJAO, SAL, '7891000400401', '7891000500507'];
+      ['10.0000', '10.0000', '10.0000', '10.0000', '0.0000'].forEach((price, i) => store.addProduct(codes[i], `A${i}`, price));
+
+      const report = await useCase.execute(
+        'm1',
+        'dona',
+        sheet(...['15,01', '15', '4,99', '5', '1'].map((price, i) => `${codes[i]};A${i}x;${price};1`)),
+        { dryRun: true }
+      );
+
+      expect(report.corrected.map((row) => row.priceChangeOver50)).toEqual([true, false, true, false, true]);
+    });
+
+    it('with onlyNames, ignores the price of the existing ones, even a bad one, but still corrects the name', async () => {
+      store.addProduct(ARROZ, 'arroz', '24.9000');
+      store.addProduct(FEIJAO, 'Feijão', '8.5000');
+
+      const report = await useCase.execute('m1', 'dona', sheet(`${ARROZ};Arroz;99;1`, `${FEIJAO};Feijão;abc;1`), { dryRun: false, onlyNames: true });
+
+      expect(report.errors).toEqual([]);
+      expect(report.corrected).toEqual([
+        {
+          line: 2,
+          barcode: ARROZ,
+          unit: 'UN',
+          before: { name: 'arroz', salePrice: '24.90' },
+          after: { name: 'Arroz', salePrice: '24.90' },
+          priceChangeOver50: false,
+        },
+      ]);
+      expect(report.unchanged.map((row) => row.barcode)).toEqual([FEIJAO]);
+      expect(store.batches[0].correct).toEqual([{ barcode: ARROZ, name: 'Arroz' }]);
+    });
+
+    it('with onlyNames, still demands a valid price on the new rows', async () => {
+      store.addProduct(ARROZ, 'Arroz', '5.0000');
+
+      const report = await useCase.execute('m1', 'dona', sheet(`${ARROZ};Arroz;5;1`, `${FEIJAO};Feijão;abc;1`), { dryRun: true, onlyNames: true });
+
+      expect(report.errors).toEqual([{ line: 3, message: expect.stringMatching(/Preço inválido/) }]);
+    });
+
+    it('reports what the store really did at write time: a product that changed or was deleted meanwhile (39, 40, 41)', async () => {
+      store.addProduct(ARROZ, 'Arroz', '5.0000');
+      store.addProduct(FEIJAO, 'Feijão', '5.0000');
+      store.addProduct(SAL, 'Sal', '5.0000');
+      store.writeOverride.set(ARROZ, {
+        barcode: ARROZ,
+        outcome: 'corrected',
+        before: { name: 'Arroz mudado', salePrice: '7.00' },
+        after: { name: 'Arroz Novo', salePrice: '6.00' },
+      });
+      store.writeOverride.set(FEIJAO, { barcode: FEIJAO, outcome: 'ignored' });
+      store.writeOverride.set(SAL, { barcode: SAL, outcome: 'unchanged' });
+
+      const report = await useCase.execute('m1', 'dona', sheet(`${ARROZ};Arroz Novo;6;1`, `${FEIJAO};Feijão novo;6;1`, `${SAL};Sal novo;6;1`), { dryRun: false });
+
+      expect(report.corrected).toEqual([
+        {
+          line: 2,
+          barcode: ARROZ,
+          unit: 'UN',
+          before: { name: 'Arroz mudado', salePrice: '7.00' },
+          after: { name: 'Arroz Novo', salePrice: '6.00' },
+          priceChangeOver50: false,
+        },
+      ]);
+      expect(report.skipped).toEqual([{ line: 3, barcode: FEIJAO, name: 'Feijão novo', reason: 'Produto excluído: não é alterado nem recriado.' }]);
+      expect(report.unchanged).toEqual([{ line: 4, barcode: SAL, name: 'Sal novo' }]);
+    });
   });
 });

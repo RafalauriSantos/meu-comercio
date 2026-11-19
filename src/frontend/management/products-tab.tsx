@@ -25,7 +25,7 @@ interface ProductsTabProps {
 }
 
 /** The products tab of the management panel (catalog and stock). The owner-only controls are decided here by `user?.isOwner`, as before. */
-export function ProductsTab({ tab, stockControl, user, setFeedback, loadFailed, retrying, processing, retry }: ProductsTabProps) {
+export function ProductsTab({ tab, stockControl, user, loadFailed, retrying, processing, retry }: ProductsTabProps) {
   const {
     products,
     hasMore,
@@ -133,14 +133,7 @@ export function ProductsTab({ tab, stockControl, user, setFeedback, loadFailed, 
               <ImportProductsPanel
                 stockControl={stockControl}
                 onClose={() => setShowImport(false)}
-                onImported={async (createdCount) => {
-                  setShowImport(false);
-                  setFeedback({
-                    text: createdCount === 1 ? '1 produto importado com sucesso!' : `${createdCount} produtos importados com sucesso!`,
-                    isSuccess: true,
-                  });
-                  await loadProducts();
-                }}
+                onImported={() => loadProducts()}
               />
             )}
 

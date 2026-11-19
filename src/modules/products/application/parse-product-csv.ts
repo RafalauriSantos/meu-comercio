@@ -1,7 +1,7 @@
 // Reads the CSV of a product list (the kind Excel and Google Sheets save): comma, semicolon or tab
 // separated, with a header row. Only reading: the rules for each value are in the import use case.
 
-export const MAX_IMPORT_ROWS = 500;
+export const MAX_IMPORT_ROWS = 1000;
 
 export interface CsvProductRow {
   /** Line of the file (the header is line 1), to point the owner at the exact row. */

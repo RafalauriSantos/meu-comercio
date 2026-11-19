@@ -81,6 +81,10 @@ describe('editErrorMessage', () => {
     const err = new ApiError(400, 'Dados inválidos.', [{ field: 'salePrice', message: 'Preço inválido' }]);
     expect(editErrorMessage(err)).toEqual({ text: 'Dados inválidos. (Preço inválido)', reload: false });
   });
+  it('400 of an invalid barcode shows the server message as it is (D-30)', () => {
+    const message = 'Código de barras inválido. Use um código de barras de verdade ou deixe em branco para gerar um.';
+    expect(editErrorMessage(new ApiError(400, message))).toEqual({ text: message, reload: false });
+  });
   it('409 without code shows the server message', () => {
     expect(editErrorMessage(new ApiError(409, 'Código já usado.'))).toEqual({ text: 'Código já usado.', reload: false });
   });

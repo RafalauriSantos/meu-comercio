@@ -85,7 +85,7 @@ describe('ProductEditPanel', () => {
 
   it('warns about labels only when the barcode differs, and about offline cashiers only when the price differs', () => {
     const base = draftFromProduct(rice);
-    const barcode = render({ draft: { ...base, barcode: '111' } });
+    const barcode = render({ draft: { ...base, barcode: '7891000100103' } });
     expect(barcode).toContain('As etiquetas impressas com o código antigo deixam de funcionar');
     expect(barcode).not.toContain('Caixas sem internet');
     expect(barcode).not.toMatch(/<button[^>]*disabled=""[^>]*>Salvar<\/button>/);
@@ -167,5 +167,49 @@ describe('ProductEditPanel', () => {
     expect(edited).toMatch(disabled);
     expect(edited).toContain('Salve as alterações antes de gerar um código.');
     expect(render()).not.toContain('Salve as alterações antes');
+  });
+});
+
+describe('ProductEditPanel barcode warnings (D-30)', () => {
+  const INVALID = 'Código de barras inválido. Use um código de barras de verdade ou deixe em branco para gerar um.';
+  const HINT = 'Corrija o código de barras, ou deixe em branco, para salvar.';
+  const withCode = (barcode: string) => render({ draft: { ...draftFromProduct(rice), barcode } });
+  const saveDisabled = (html: string) => /<button[^>]*type="submit"[^>]*disabled=""/.test(html);
+
+  it('old invalid code, not touched: no warning, and a changed name still saves', () => {
+    const html = render({ draft: { ...draftFromProduct(rice), name: 'Arroz 10kg' } });
+    expect(html).not.toContain('role="alert"');
+    expect(html).not.toContain('aria-invalid="true"');
+    expect(html).not.toContain(HINT);
+    expect(saveDisabled(html)).toBe(false);
+  });
+
+  it('typed invalid code: red alert, aria-invalid, Salvar disabled with the hint, Gerar código still there', () => {
+    const html = withCode('abc123');
+    expect(html).toMatch(new RegExp(`role="alert"[^>]*>${INVALID}<`));
+    expect(html).toMatch(/<input[^>]*id="edit-barcode-a"[^>]*aria-invalid="true"/);
+    expect(html).toContain(HINT);
+    expect(saveDisabled(html)).toBe(true);
+    expect(html).toContain('Gerar código');
+  });
+
+  it('digits below 8: neutral warning, Salvar disabled (the server would refuse it)', () => {
+    const html = withCode('123');
+    expect(html).toContain('Um código de barras tem 8, 12, 13 ou 14 números. Você digitou 3.');
+    expect(saveDisabled(html)).toBe(true);
+  });
+
+  it('typed valid code: green status with the type', () => {
+    const html = withCode('7891000100103');
+    expect(html).toMatch(/role="status"[^>]*>Código válido \(EAN-13\)</);
+    expect(saveDisabled(html)).toBe(false);
+  });
+
+  it('empty field: the help text, tied to the field by aria-describedby', () => {
+    const html = withCode('');
+    expect(html).toContain('Bipe o produto ou digite o código. Em branco, o sistema gera um.');
+    const id = html.match(/<input[^>]*id="edit-barcode-a"[^>]*aria-describedby="([^"]+)"/)?.[1];
+    expect(id).toBeTruthy();
+    expect(html).toContain(`id="${id}"`);
   });
 });

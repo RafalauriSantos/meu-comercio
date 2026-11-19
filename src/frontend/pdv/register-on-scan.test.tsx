@@ -99,3 +99,27 @@ describe('the sales screen wiring', () => {
     expect(pdv).not.toContain('initialStock');
   });
 });
+
+describe('RegisterOnScanPanel barcode warnings (D-30)', () => {
+  const html = (barcode: string) => renderToStaticMarkup(<RegisterOnScanPanel register={{ ...register, barcode }} />);
+
+  it('a scanned valid code opens with no warning, only the green status', () => {
+    const out = html('7891000100103');
+    expect(out).not.toContain('role="alert"');
+    expect(out).not.toContain('aria-invalid="true"');
+    expect(out).toContain('Código válido (EAN-13)');
+  });
+
+  it('a scanned invalid code opens with the red warning and Salvar disabled', () => {
+    const out = html('1234');
+    expect(out).toContain('Um código de barras tem 8, 12, 13 ou 14 números. Você digitou 4.');
+    const bad = html('12345678');
+    expect(bad).toContain('role="alert"');
+    expect(bad).toMatch(/<button[^>]*type="submit"[^>]*disabled=""/);
+    expect(bad).toContain('Corrija o código de barras, ou deixe em branco, para salvar.');
+  });
+
+  it('the empty help is the one for the sales screen', () => {
+    expect(html('')).toContain('Bipe o produto ou digite o código. Em branco, o sistema gera um.');
+  });
+});

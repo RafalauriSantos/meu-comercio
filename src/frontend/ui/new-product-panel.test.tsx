@@ -56,7 +56,7 @@ describe('NewProductPanel', () => {
       expect(html).toContain(`for="np-${field}"`);
       expect(html).toContain(`id="np-${field}"`);
     }
-    expect(html).toContain('placeholder="Gerado automaticamente se ficar vazio"');
+    expect(html).toContain('placeholder="Deixe em branco para gerar"');
     expect(html).not.toMatch(/<input[^>]*id="np-barcode"[^>]*required/);
     expect(html).not.toMatch(/<input[^>]*required[^>]*id="np-barcode"/);
     expect(html).toContain('Por unidade');
@@ -94,5 +94,63 @@ describe('NewProductPanel', () => {
     const withError = render({ error: 'Erro ao cadastrar produto.' });
     expect(withError).toContain('Erro ao cadastrar produto.');
     expect(withError).toContain('role="alert"');
+  });
+});
+
+describe('NewProductPanel barcode warnings (D-30)', () => {
+  const INVALID = 'Código de barras inválido. Use um código de barras de verdade ou deixe em branco para gerar um.';
+  const HINT = 'Corrija o código de barras, ou deixe em branco, para salvar.';
+  const saveDisabled = (html: string) => /<button[^>]*type="submit"[^>]*disabled=""/.test(html);
+
+  it('empty: neutral help that a code will be generated, the new placeholder, Salvar enabled', () => {
+    const html = render();
+    expect(html).toContain('Deixe em branco e o sistema gera um código para este produto.');
+    expect(html).toContain('placeholder="Deixe em branco para gerar"');
+    expect(html).not.toContain('aria-invalid="true"');
+    expect(html).not.toContain(HINT);
+    expect(saveDisabled(html)).toBe(false);
+  });
+
+  it('on the sales screen the empty help tells to scan or type, with no placeholder', () => {
+    const html = render({ forSale: true });
+    expect(html).toContain('Bipe o produto ou digite o código. Em branco, o sistema gera um.');
+    expect(html).not.toContain('Deixe em branco para gerar');
+  });
+
+  it('digits below 8: neutral warning with the length, not an alert, Salvar disabled (the server would refuse it)', () => {
+    const html = render({ barcode: '123' });
+    expect(html).toContain('Um código de barras tem 8, 12, 13 ou 14 números. Você digitou 3.');
+    expect(html).not.toContain('role="alert"');
+    expect(html).not.toContain('aria-invalid="true"');
+    expect(saveDisabled(html)).toBe(true);
+  });
+
+  it.each(['abc123', '7891000100104', '123456789'])('invalid %s: red alert, aria-invalid, Salvar disabled with the hint', (barcode) => {
+    const html = render({ barcode });
+    expect(html).toMatch(new RegExp(`role="alert"[^>]*>${INVALID}<`));
+    expect(html).toMatch(/<input[^>]*id="np-barcode"[^>]*aria-invalid="true"/);
+    expect(html).toContain(HINT);
+    expect(saveDisabled(html)).toBe(true);
+  });
+
+  it('valid: green status badge with the type, Salvar enabled', () => {
+    const html = render({ barcode: '7891000100103' });
+    expect(html).toMatch(/role="status"[^>]*>Código válido \(EAN-13\)</);
+    expect(html).not.toContain('aria-invalid="true"');
+    expect(saveDisabled(html)).toBe(false);
+  });
+
+  it('ties the field to the message with aria-describedby', () => {
+    for (const barcode of ['', '123', 'abc', '7891000100103']) {
+      const html = render({ barcode });
+      const id = html.match(/<input[^>]*id="np-barcode"[^>]*aria-describedby="([^"]+)"/)?.[1];
+      expect(id).toBeTruthy();
+      expect(html).toContain(`id="${id}"`);
+    }
+  });
+
+  it('keeps the taken-code note beside the format warning', () => {
+    const html = render({ barcode: '7891000100103', barcodeNote: 'Este código já está cadastrado: Arroz.' });
+    expect(html).toContain('Este código já está cadastrado: Arroz.');
   });
 });

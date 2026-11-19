@@ -131,7 +131,7 @@ export function ProductEditPanel({
                 required
                 autoComplete="off"
                 value={draft.barcode}
-                onChange={(e) => onDraft({ barcode: e.target.value.replace(/s/g, '') })}
+                onChange={(e) => onDraft({ barcode: e.target.value.replace(/\s/g, '') })}
                 onKeyDown={onBarcodeKeyDown}
                 onBlur={(e) => onBarcodeBlur(e.target.value)}
                 aria-invalid={barcodeState?.kind === 'invalid' || undefined}

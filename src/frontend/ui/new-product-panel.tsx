@@ -103,7 +103,7 @@ export function NewProductPanel({
               className="input"
               autoComplete="off"
               value={barcode}
-              onChange={(e) => onBarcode(e.target.value.replace(/s/g, ''))}
+              onChange={(e) => onBarcode(e.target.value.replace(/\s/g, ''))}
               onKeyDown={onBarcodeKeyDown}
               onBlur={(e) => onBarcodeBlur(e.target.value)}
               placeholder={forSale ? undefined : 'Deixe em branco para gerar'}

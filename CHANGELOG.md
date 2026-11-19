@@ -9,6 +9,7 @@ lançar uma versão estão em `docs/PROJECT_WORKFLOW.md`.
 
 ### Adicionado
 
+- **Avisos de código de barras** no Novo produto, na edição e no cadastro na venda: ajuda quando vazio, contagem quando curto, alerta vermelho (Salvar travado) quando inválido e etiqueta verde com o tipo (EAN-13, EAN-8, UPC-A, GTIN-14) quando válido (D-30, 22.23b).
 - **Extrato do cliente** (Clientes e Fiado, para a proprietária e para a operadora): botão "Extrato" que abre um painel com as compras no fiado, os pagamentos e os estornos, com o saldo depois de cada movimento, o operador e a data em horário de Brasília.
 - **Excluir e restaurar produto e cliente** (só a proprietária): "excluir" esconde o item do caixa, da busca e das listas, mas guarda o histórico de vendas e de fiado; o filtro "Excluídos" mostra o que foi excluído, com o botão "Restaurar". Um cliente só pode ser excluído com a dívida zerada e com o PIN da proprietária.
 - **Novo cliente em painel lateral**, com o botão "Salvar cliente" sempre visível e o telefone com máscara.

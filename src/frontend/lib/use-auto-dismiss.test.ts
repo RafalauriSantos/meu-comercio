@@ -80,7 +80,7 @@ describe('where the notices go away by themselves', () => {
   it('is used for the notices of the management panel, the PDV and the import panel', () => {
     expect(readScreenSource('gestao')).toContain('useAutoDismiss(feedback, () => setFeedback(null));');
     expect(readScreenSource('pdv')).toContain('useAutoDismiss(message, () => setMessage(null));');
-    expect(read('src', 'frontend', 'management', 'import-products-panel.tsx')).toContain(
+    expect(read('src', 'frontend', 'management', 'use-import-products.ts')).toContain(
       'useAutoDismiss(message, () => setMessage(null));'
     );
   });

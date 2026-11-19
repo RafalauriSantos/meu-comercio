@@ -100,10 +100,10 @@ describe('/gestao loading failures and requests (locked as at HEAD, baseline.md)
 
   // HEAD has 19 (baseline.md). Step 5 adds exactly one on purpose: the retry of the missing balances
   // (apiClient.getCustomerBalance inside the retry). Every other retry reuses the existing loadX functions.
-  // Counted over the whole screen: the 20 of page.tsx plus the 2 of import-products-panel.tsx, which is its
+  // Counted over the whole screen: the 20 of page.tsx plus the 3 of use-import-products.ts, which is its
   // own file and does not move.
-  it('has 21 apiClient calls: the 19 of HEAD plus the single retry of the missing balances, plus the barcode scan lookup, plus updateProduct and the barcode lookup of the product edit (and 2 in import-products-panel), plus updateCustomer of the customer edit, plus updateProduct of Gerar código, plus getCustomerStatement of the customer statement, plus the excluded lists (listProducts, listCustomers) and updateProduct / updateCustomer of Excluir and Restaurar (read only when the owner opens the filter, never on the first load)', () => {
-    expect(count(source, 'apiClient.')).toBe(21 + 2 + 2 + 2 + 1 + 1 + 1 + 6);
+  it('has 21 apiClient calls: the 19 of HEAD plus the single retry of the missing balances, plus the barcode scan lookup, plus updateProduct and the barcode lookup of the product edit (and 3 in use-import-products), plus updateCustomer of the customer edit, plus updateProduct of Gerar código, plus getCustomerStatement of the customer statement, plus the excluded lists (listProducts, listCustomers) and updateProduct / updateCustomer of Excluir and Restaurar (read only when the owner opens the filter, never on the first load)', () => {
+    expect(count(source, 'apiClient.')).toBe(21 + 2 + 3 + 2 + 1 + 1 + 1 + 6);
     expect(count(source, 'apiClient.getCustomerBalance(')).toBe(2);
     expect(count(source, 'apiClient.listCustomers(')).toBe(2);
     expect(count(source, 'apiClient.listProducts(')).toBe(3);

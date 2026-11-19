@@ -333,9 +333,9 @@ Este documento rastreia formalmente as fatias verticais de entrega, critérios d
   - [x] 22.23a Servidor: validador `isValidBarcode` no domínio (EAN-13, EAN-8, UPC-A, GTIN-14), `POST /api/products` e `PATCH /api/products/[id]` recusam código inválido com 400 (no PATCH só se o código enviado difere do atual), importação CSV recusa a linha com a lista de erros. Sem migração.
   - [x] 22.23b Telas: aviso em vermelho no Novo Produto, na edição e no cadastro na venda (painel compartilhado), com a mesma mensagem do servidor. Feito na tela de importar: a planilha-modelo para baixar saiu e, no lugar, o card (aberto só pelo botão "Importar planilha", com "Fechar") mostra um exemplo só visual com códigos válidos e a regra do código de barras de verdade.
 - [ ] 22.24 **Exportar produtos e corrigir nome e preço pela planilha** (D-31; spec em `.dev-team/spec-export-reimport-products.md`), em fatias:
-  - [ ] 22.24a Servidor da importação: linha com código de produto ativo corrige nome e preço (prévia com antes e depois, aviso acima de 50%, marcador só nomes, auditoria `PRODUCT_UPDATED`, limite 1000). Muda o preço do caixa: o PR espera a aprovação da proprietária.
+  - [x] 22.24a Servidor da importação: linha com código de produto ativo corrige nome e preço (prévia com antes e depois, aviso acima de 50%, marcador só nomes, auditoria `PRODUCT_UPDATED`, limite 1000). Muda o preço do caixa: o PR espera a aprovação da proprietária.
   - [ ] 22.24b Exportação em CSV (servidor e botão, só proprietária). O botão só aparece depois da 22.24a em produção.
-  - [ ] 22.24c Tela de importar: cinco números, lista antes e depois, marcador só nomes, texto de ajuda e "até 1000 produtos".
+  - [x] 22.24c Tela de importar: cinco números, lista antes e depois, marcador só nomes, texto de ajuda e "até 1000 produtos".
 
 ### [ ] Slice 23: Sessão e erros de rede (pedidos da dona, uso real da loja)
 > A sessão caía a cada 30 minutos fixos, mesmo com a dona usando, e a tela ficava parada com "Não autorizado". As regras D-09 e D-16 já diziam "até fechar o caixa, teto de 12 h", e o código não as cumpria.

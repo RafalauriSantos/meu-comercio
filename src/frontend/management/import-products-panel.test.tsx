@@ -14,7 +14,8 @@ describe('ImportProductsPanel', () => {
     expect(markup).toContain('Importar produtos de uma planilha');
     expect(markup).toContain('Escolher a planilha');
     expect(markup).toContain('Excel (.xlsx) ou CSV');
-    expect(markup).toContain('até 500 produtos');
+    expect(markup).toContain('até 1.000 produtos');
+    expect(markup).not.toContain('500');
     expect(markup.match(/type="file"/g)).toHaveLength(1);
     expect(markup).toMatch(/<input[^>]*type="file"[^>]*accept="\.xlsx,\.csv,text\/csv/);
   });
@@ -61,8 +62,17 @@ describe('ImportProductsPanel', () => {
     for (const code of codes) expect(isValidBarcode(code)).toBe(true);
   });
 
+  it('explains that products with the same barcode are corrected, without promising an export button', () => {
+    expect(markup).toContain(
+      'Corrija os nomes e os preços na sua planilha e importe: produtos com o mesmo código de barras são corrigidos. O estoque da planilha é ignorado nos produtos que já existem. Até 1.000 produtos.'
+    );
+    expect(markup).not.toContain('Baixe a planilha');
+    expect(markup).not.toContain('Exportar');
+    expect(markup).not.toContain('não são alterados');
+  });
+
   it('starts with nothing to confirm and no alert', () => {
-    expect(markup).not.toContain('Importar 0 produtos');
+    expect(markup).not.toContain('Confirmar e gravar');
     expect(markup).not.toContain('role="alert"');
   });
 });

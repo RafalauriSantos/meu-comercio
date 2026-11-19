@@ -219,12 +219,13 @@ describe.skipIf(!TEST_DATABASE_URL)('Exclude and restore a product, D-27 (Postgr
     expect((await row(other.id)).barcode).toBe('A2');
   });
 
-  it('the CSV import sees the excluded barcode as already registered', async () => {
+  it('the CSV import sees the excluded barcode as registered, and as deleted', async () => {
     const { merchantId, product } = await seedShop('A1');
     await update().execute(merchantId, 'dona', product.id, { active: false });
 
-    const found = await new DrizzleProductImportStore(database).findExistingBarcodes(merchantId, ['A1', 'ZZ']);
+    const found = await new DrizzleProductImportStore(database).findProductsByBarcodes(merchantId, ['A1', 'ZZ']);
 
-    expect([...found]).toEqual(['A1']);
+    expect([...found.keys()]).toEqual(['A1']);
+    expect(found.get('A1')?.active).toBe(false);
   });
 });

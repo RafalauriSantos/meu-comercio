@@ -1457,3 +1457,20 @@ body:has(.mg-panel[open]) {
 .management-page .mg-stmt-credit {
   color: var(--success);
 }
+
+/* Barcode field warnings (D-30). */
+.management-page .barcode-alert {
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: var(--danger-soft);
+  color: var(--danger);
+}
+
+.management-page .barcode-ok {
+  display: inline-block;
+  margin-top: 8px;
+}
+
+.management-page .input[aria-invalid='true'] {
+  border-color: var(--danger);
+}

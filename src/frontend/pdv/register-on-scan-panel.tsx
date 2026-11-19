@@ -25,6 +25,7 @@ export function RegisterOnScanPanel({ register }: { register: ReturnType<typeof 
         stockControl={false}
         processing={register.processing}
         barcodeNote={null}
+        forSale
         scanWarning={false}
         closing={register.closing}
         error={register.error}

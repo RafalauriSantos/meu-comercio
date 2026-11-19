@@ -3,6 +3,13 @@ import { maskCurrencyDigits } from '@/frontend/lib/currency-mask';
 import { noticeView } from '@/frontend/ui/notice-view';
 import type { ProductUnit } from '@/shared/domain/product-unit';
 import { useDialogPanel } from '@/frontend/lib/use-dialog-panel';
+import { barcodeFieldState } from '@/frontend/lib/barcode-field';
+import {
+  BARCODE_EMPTY_HELP,
+  BARCODE_EMPTY_HELP_NEW,
+  BARCODE_SAVE_HINT,
+  BarcodeFieldMessage,
+} from '@/frontend/ui/barcode-field-message';
 
 export const SCAN_DURING_NEW_NOTICE = 'Termine ou cancele o cadastro antes de bipar outro produto.';
 
@@ -15,6 +22,8 @@ interface NewProductPanelProps {
   stockControl: boolean;
   processing: boolean;
   barcodeNote: string | null;
+  /** The sales screen: other help text and no placeholder, the code usually comes from a scan. */
+  forSale?: boolean;
   scanWarning: boolean;
   closing: boolean;
   error: string | null;
@@ -41,6 +50,7 @@ export function NewProductPanel({
   stockControl,
   processing,
   barcodeNote,
+  forSale = false,
   scanWarning,
   closing,
   error,
@@ -59,6 +69,9 @@ export function NewProductPanel({
   const titleId = useId();
   const dialogRef = useRef<HTMLDialogElement>(null);
   const barcodeRef = useRef<HTMLInputElement>(null);
+  const barcodeMessageId = useId();
+  const barcodeState = barcodeFieldState(barcode);
+  const barcodeBlocked = barcodeState.kind === 'short' || barcodeState.kind === 'invalid';
   // The focus starts in the barcode field; after a scan the tab moves it to the name.
   useDialogPanel(dialogRef, barcodeRef, closing, onClosed);
   return (
@@ -90,11 +103,14 @@ export function NewProductPanel({
               className="input"
               autoComplete="off"
               value={barcode}
-              onChange={(e) => onBarcode(e.target.value)}
+              onChange={(e) => onBarcode(e.target.value.replace(/s/g, ''))}
               onKeyDown={onBarcodeKeyDown}
               onBlur={(e) => onBarcodeBlur(e.target.value)}
-              placeholder="Gerado automaticamente se ficar vazio"
+              placeholder={forSale ? undefined : 'Deixe em branco para gerar'}
+              aria-invalid={barcodeState.kind === 'invalid' || undefined}
+              aria-describedby={barcodeMessageId}
             />
+            <BarcodeFieldMessage id={barcodeMessageId} state={barcodeState} emptyHelp={forSale ? BARCODE_EMPTY_HELP : BARCODE_EMPTY_HELP_NEW} />
             {barcodeNote && (
               <span className="mg-help mg-help-warn" role="alert">
                 {barcodeNote}
@@ -164,11 +180,12 @@ export function NewProductPanel({
           {error && <div {...noticeView({ text: error, isError: true })}>{error}</div>}
         </div>
         <div className="mg-panel-foot">
+          {barcodeBlocked && <div className="mg-panel-hint">{BARCODE_SAVE_HINT}</div>}
           <div className="mg-panel-actions">
             <button className="outline" type="button" onClick={onCancel}>
               Cancelar
             </button>
-            <button className="primary" type="submit" disabled={processing}>
+            <button className="primary" type="submit" disabled={processing || barcodeBlocked}>
               {processing ? 'Salvando...' : 'Salvar Produto'}
             </button>
           </div>

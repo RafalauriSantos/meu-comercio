@@ -230,6 +230,10 @@
   border-radius: 10px;
 }
 
+.management-page .mg-toolbar-export {
+  min-height: 44px;
+}
+
 .management-page .mg-import-drop {
   position: relative;
   display: flex;

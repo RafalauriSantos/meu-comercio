@@ -9,6 +9,7 @@ lançar uma versão estão em `docs/PROJECT_WORKFLOW.md`.
 
 ### Adicionado
 
+- **Exportar planilha** (só proprietária): botão na aba de produtos que baixa um CSV com todos os produtos ativos no mesmo modelo da importação (D-31, 22.24b). Corrija nomes e preços na planilha e importe de volta.
 - **Importar planilha corrige nome e preço** dos produtos que já existem (mesmo código de barras): prévia com nome e preço antes e depois, aviso quando o preço varia mais de 50%, marcador "Corrigir só os nomes", resultado com cinco números e auditoria de cada correção; limite de 1.000 produtos (D-31, 22.24a e 22.24c). A exportação da planilha vem na 22.24b.
 - **Avisos de código de barras** no Novo produto, na edição e no cadastro na venda: ajuda quando vazio, contagem quando curto, alerta vermelho (Salvar travado) quando inválido e etiqueta verde com o tipo (EAN-13, EAN-8, UPC-A, GTIN-14) quando válido (D-30, 22.23b).
 - **Extrato do cliente** (Clientes e Fiado, para a proprietária e para a operadora): botão "Extrato" que abre um painel com as compras no fiado, os pagamentos e os estornos, com o saldo depois de cada movimento, o operador e a data em horário de Brasília.

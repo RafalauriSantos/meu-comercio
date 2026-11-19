@@ -276,11 +276,13 @@ export interface SaleResponse {
 export type ApiRequestOptions = RequestInit & {
   /** Overrides the time limit of this call in ms. null: no limit. Missing: by route (see timeoutFor). */
   timeoutMs?: number | null;
+  /** Success returns the Response itself (a file), not parsed JSON. Errors are handled the same way. */
+  raw?: boolean;
 };
 
 export async function apiRequest<T>(
   path: string,
-  { timeoutMs, ...options }: ApiRequestOptions = {}
+  { timeoutMs, raw, ...options }: ApiRequestOptions = {}
 ): Promise<T> {
   const headers = new Headers(options.headers);
   if (options.body && !headers.has('Content-Type')) {
@@ -333,6 +335,8 @@ export async function apiRequest<T>(
       throw new ApiError(response.status, message, errors, code, kind);
     }
 
+    if (raw) return response as unknown as T;
+
     if (response.status === 204) {
       return undefined as unknown as T;
     }
@@ -346,6 +350,13 @@ export async function apiRequest<T>(
   } finally {
     clearTimeout(timer);
   }
+}
+
+/** The sheet of the active products (owner only). The name comes from Content-Disposition. */
+export async function exportProducts(): Promise<{ blob: Blob; filename: string }> {
+  const response = await apiRequest<Response>('/api/products/export', { raw: true });
+  const filename = /filename="?([^";]+)"?/.exec(response.headers.get('Content-Disposition') ?? '')?.[1] ?? 'produtos.csv';
+  return { blob: await response.blob(), filename };
 }
 
 export const apiClient = {

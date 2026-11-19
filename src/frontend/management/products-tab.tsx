@@ -8,6 +8,8 @@ import { LoadFailureNotice } from '@/frontend/ui/load-failure-notice';
 import { ImportProductsPanel } from '@/frontend/management/import-products-panel';
 import { matchesStockFilter, stockStatus, type StockFilter } from '@/frontend/management/stock';
 import { needingRestockCount, shownText, stockValueText } from '@/frontend/management/products-list';
+import { ExportNotice, ExportProductsButton } from '@/frontend/management/export-products-view';
+import { useExportProducts } from '@/frontend/management/use-export-products';
 import { ProductEditPanel } from '@/frontend/management/product-edit-panel';
 import { NewProductPanel } from '@/frontend/ui/new-product-panel';
 import { useBarcodeScan } from '@/frontend/lib/use-barcode-scan';
@@ -78,6 +80,7 @@ export function ProductsTab({ tab, stockControl, user, loadFailed, retrying, pro
   } = tab;
 
   useBarcodeScan(handleScannedBarcode);
+  const exporting = useExportProducts();
 
   const lowStockCount = needingRestockCount(summary);
   // The excluded list shows no stock: its search is over the 100 already read, by name or code.
@@ -136,6 +139,8 @@ export function ProductsTab({ tab, stockControl, user, loadFailed, retrying, pro
                 onImported={() => loadProducts()}
               />
             )}
+
+            {user?.isOwner && <ExportNotice busy={exporting.busy} notice={exporting.notice} />}
 
             <section className="card mg-card-flush" aria-label="Catálogo de produtos">
               <div className="mg-toolbar">
@@ -209,6 +214,7 @@ export function ProductsTab({ tab, stockControl, user, loadFailed, retrying, pro
                     Importar planilha
                   </button>
                 )}
+                {user?.isOwner && <ExportProductsButton busy={exporting.busy} onClick={exporting.handleExport} />}
               </div>
 
               <div className="mg-table-wrap">

@@ -109,6 +109,13 @@ describe('catalog toolbar', () => {
     expect(render({ stockControl: false, owner: false })).not.toContain('Importar planilha');
   });
 
+  it('has Exportar planilha after Importar planilha, for the owner only', () => {
+    const html = render({ stockControl: false, owner: true });
+    expect(html.indexOf('Exportar planilha')).toBeGreaterThan(html.indexOf('Importar planilha'));
+    expect(html).not.toContain('role="alert"');
+    expect(render({ stockControl: false, owner: false })).not.toContain('Exportar planilha');
+  });
+
   it('keeps the New product button as is while the panel is open (it does not turn into Cancelar)', () => {
     const html = render({ stockControl: false, owner: true, showNew: true });
     expect(html).toMatch(/class="primary mg-toolbar-new"[^>]*>＋ Novo Produto/);

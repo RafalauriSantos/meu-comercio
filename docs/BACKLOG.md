@@ -334,7 +334,7 @@ Este documento rastreia formalmente as fatias verticais de entrega, critérios d
   - [x] 22.23b Telas: aviso em vermelho no Novo Produto, na edição e no cadastro na venda (painel compartilhado), com a mesma mensagem do servidor. Feito na tela de importar: a planilha-modelo para baixar saiu e, no lugar, o card (aberto só pelo botão "Importar planilha", com "Fechar") mostra um exemplo só visual com códigos válidos e a regra do código de barras de verdade.
 - [ ] 22.24 **Exportar produtos e corrigir nome e preço pela planilha** (D-31; spec em `.dev-team/spec-export-reimport-products.md`), em fatias:
   - [x] 22.24a Servidor da importação: linha com código de produto ativo corrige nome e preço (prévia com antes e depois, aviso acima de 50%, marcador só nomes, auditoria `PRODUCT_UPDATED`, limite 1000). Muda o preço do caixa: o PR espera a aprovação da proprietária.
-  - [ ] 22.24b Exportação em CSV (servidor e botão, só proprietária). O botão só aparece depois da 22.24a em produção.
+  - [x] 22.24b Exportação em CSV (servidor e botão, só proprietária). O botão só aparece depois da 22.24a em produção.
   - [x] 22.24c Tela de importar: cinco números, lista antes e depois, marcador só nomes, texto de ajuda e "até 1000 produtos".
 
 ### [ ] Slice 23: Sessão e erros de rede (pedidos da dona, uso real da loja)

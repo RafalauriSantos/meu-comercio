@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
-import { apiRequest, ApiError, apiClient, shouldGoToLogin, loadErrorMessage } from './api-client';
+import { apiRequest, ApiError, apiClient, exportProducts, shouldGoToLogin, loadErrorMessage } from './api-client';
 import { subscribeSessionExpired } from './session-expired';
 
 describe('apiRequest errors', () => {
@@ -378,5 +378,39 @@ describe('createProduct barcode', () => {
   it('leaves barcode out of the body when empty or absent', async () => {
     expect(await postedBody('')).not.toHaveProperty('barcode');
     expect(await postedBody()).not.toHaveProperty('barcode');
+  });
+});
+
+describe('exportProducts', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it('calls the export route and returns the file with the name of the header', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response('a,b\n1,2\n', { status: 200, headers: { 'Content-Disposition': 'attachment; filename="produtos-2026-11-19.csv"' } })
+    );
+    vi.stubGlobal('fetch', fetchMock);
+
+    const { blob, filename } = await exportProducts();
+
+    expect(String(fetchMock.mock.calls[0][0])).toBe('/api/products/export');
+    expect(filename).toBe('produtos-2026-11-19.csv');
+    expect(await blob.text()).toBe('a,b\n1,2\n');
+  });
+
+  it('falls back to produtos.csv without the header', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response('a\n', { status: 200 })));
+
+    expect((await exportProducts()).filename).toBe('produtos.csv');
+  });
+
+  it('turns an error answer into an ApiError with the message of the server', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(new Response(JSON.stringify({ message: 'Não há produtos para exportar.' }), { status: 422 }))
+    );
+
+    await expect(exportProducts()).rejects.toMatchObject({ name: 'ApiError', status: 422, message: 'Não há produtos para exportar.' });
   });
 });

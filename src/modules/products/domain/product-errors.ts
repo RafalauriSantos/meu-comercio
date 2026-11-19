@@ -25,6 +25,22 @@ export class InvalidBarcodeError extends Error {
   }
 }
 
+/** D-31: nothing to export (no active product). */
+export class NoProductsToExportError extends Error {
+  constructor() {
+    super('Não há produtos para exportar.');
+    this.name = 'NoProductsToExportError';
+  }
+}
+
+/** D-31: more active products than one import takes, so the sheet would not come back whole. */
+export class ExportTooLargeError extends Error {
+  constructor(total: number, limit: number) {
+    super(`A planilha exporta até ${limit.toLocaleString('pt-BR')} produtos e a loja tem ${total.toLocaleString('pt-BR')}. Fale com o suporte.`);
+    this.name = 'ExportTooLargeError';
+  }
+}
+
 /** The product was changed by someone else after the caller read it. */
 export class ProductChangedError extends Error {
   constructor() {

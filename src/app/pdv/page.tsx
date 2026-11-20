@@ -40,7 +40,6 @@ import { acceptsScan } from '@/frontend/pdv/scan-gate';
 import { useBarcodeScan } from '@/frontend/lib/use-barcode-scan';
 import { createEscapeDismiss } from '@/frontend/lib/dismiss-on-escape';
 import { isNameSearch, moveHighlight, SEARCH_DEBOUNCE_MS } from '@/frontend/pdv/product-search';
-import { SearchResults, SEARCH_LIST_ID, searchOptionId } from '@/frontend/pdv/search-results';
 import { useAutoDismiss } from '@/frontend/lib/use-auto-dismiss';
 import { useSkeletonGate } from '@/frontend/lib/use-skeleton-gate';
 import { settleOfflineSale } from '@/frontend/lib/offline-sale-sender';
@@ -51,12 +50,14 @@ import {
 } from '@/frontend/pdv/quick-amounts';
 import { LoadFailureNotice } from '@/frontend/ui/load-failure-notice';
 import { AppHeader } from '@/frontend/ui/app-header';
+import { ScanCard } from '@/frontend/pdv/scan-card';
+import { CartTable, type CartLine } from '@/frontend/pdv/cart-table';
 import { WeightPrompt } from '@/frontend/pdv/weight-prompt';
 import { CancelSaleModal } from '@/frontend/pdv/cancel-sale-modal';
 import { ReceiptModal, type PrintModalData } from '@/frontend/pdv/receipt-modal';
 import { VersionLabel } from '@/frontend/ui/version-label';
 import { WEIGHT_STEP_GRAMS } from '@/frontend/pdv/weight-input';
-import { formatQuantity, lineSubtotal } from '@/shared/domain/product-unit';
+import { lineSubtotal } from '@/shared/domain/product-unit';
 import { noticeView } from '@/frontend/ui/notice-view';
 import { CREDIT_BLOCKED_NOTICE, creditBlockedCustomer, isCreditBlockedError } from '@/frontend/pdv/credit-block';
 import { useSessionExpired } from '@/frontend/auth/use-session-expired';
@@ -69,11 +70,6 @@ import { RegisterOnScanPanel } from '@/frontend/pdv/register-on-scan-panel';
 import '@/frontend/styles/pdv.css';
 // The new product panel draws with the mg-* rules of the management screen, scoped by .management-page.
 import '@/frontend/styles/management.css';
-
-interface CartLine {
-  product: ProductItem;
-  quantity: number;
-}
 
 export default function PdvTerminalPage() {
   const router = useRouter();
@@ -1015,141 +1011,21 @@ export default function PdvTerminalPage() {
           {loading ? <PdvMainSkeleton shape={shape} /> : initError ? (
             <LoadFailureNotice what="o PDV" reason={initError} onRetry={retryInit} />
           ) : (<>
-          <div className="card pdv-scan">
-            <label htmlFor="barcode-scanner" className="pdv-card-title">
-              Adicionar produto
-            </label>
-            <form onSubmit={handleBarcodeSubmit} className="pdv-scan-row">
-              <input
-                id="barcode-scanner"
-                ref={barcodeInputRef}
-                className="pdv-scan-input"
-                type="text"
-                autoFocus
-                autoComplete="off"
-                placeholder="Escaneie, digite o código ou o nome do produto"
-                value={barcodeInput}
-                onChange={(e) => setBarcodeInput(e.target.value)}
-                onKeyDown={handleSearchKeyDown}
-                role="combobox"
-                aria-expanded={showSearch}
-                aria-controls={SEARCH_LIST_ID}
-                aria-autocomplete="list"
-                aria-activedescendant={showSearch ? searchOptionId(highlighted) : undefined}
-              />
-              <button className="primary pdv-scan-submit" type="submit">
-                Adicionar
-              </button>
-            </form>
-            {showSearch && (
-              <SearchResults
-                results={searchResults}
-                highlighted={highlighted}
-                onPick={pickSearchResult}
-                showStock={stockControl}
-              />
-            )}
-            <p className="pdv-scan-hint pdv-hide-sm">
-              Enter adiciona · F4 recebe · Esc limpa a venda
-            </p>
-            <p className="sr-only" aria-live="polite">
-              {lastItem ? (
-                <>
-                  <span className="muted">Último lido:</span> <strong>{lastItem.name}</strong>
-                  <span className="muted num">
-                    {' '}
-                    · {formatMoney(lastItem.salePrice)} {stockControl && (
-                      <>
-                        {' '}
-                        · disponível: {formatQuantity(lastItem.availableQuantity, lastItem.unit)}
-                        {lastItem.unit === 'KG' ? '' : ' un'}
-                      </>
-                    )}
-                  </span>
-                </>
-              ) : (
-                <span className="muted">Nenhum produto escaneado ainda.</span>
-              )}
-            </p>
-          </div>
+          <ScanCard
+            barcodeInput={barcodeInput}
+            onBarcodeInputChange={setBarcodeInput}
+            barcodeInputRef={barcodeInputRef}
+            onSubmit={handleBarcodeSubmit}
+            onKeyDown={handleSearchKeyDown}
+            showSearch={showSearch}
+            searchResults={searchResults}
+            highlighted={highlighted}
+            onPick={pickSearchResult}
+            stockControl={stockControl}
+            lastItem={lastItem}
+          />
 
-          <div className="card pdv-cart">
-            <div className="pdv-cart-head">
-              <h2 className="pdv-title">Itens da venda</h2>
-              <span className="pdv-meta">{itemsSummary}</span>
-            </div>
-
-            <div className="pdv-table-wrap">
-              <table className="pdv-table">
-                <thead>
-                  <tr>
-                    <th scope="col">Produto</th>
-                    <th scope="col" className="pdv-center">
-                      Qtd
-                    </th>
-                    <th scope="col" className="pdv-right pdv-hide-sm">
-                      Preço
-                    </th>
-                    <th scope="col" className="pdv-right">
-                      Total
-                    </th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {cart.map((line) => {
-                    const isLatest = lastItem?.id === line.product.id;
-                    const lineTotal = line.product.salePrice
-                      ? lineSubtotal(Money.fromDecimal(line.product.salePrice), line.quantity, line.product.unit)
-                      : Money.zero();
-
-                    return (
-                      <tr key={line.product.id} className={isLatest ? 'is-latest' : undefined}>
-                        <td className="pdv-product">
-                          {line.product.name}
-                          {isLatest && <span className="pdv-latest-tag pdv-hide-sm">último lido</span>}
-                          <span className="pdv-unit num">
-                            {formatMoney(line.product.salePrice)} {line.product.unit === 'KG' ? 'por kg' : 'cada'}
-                          </span>
-                        </td>
-                        <td className="pdv-center">
-                          <span className="pdv-qty">
-                            <button
-                              className="pdv-qbtn"
-                              type="button"
-                              aria-label={`Diminuir quantidade de ${line.product.name}`}
-                              onClick={() => updateLineQuantity(line.product.id, -1)}
-                            >
-                              −
-                            </button>
-                            <span className="pdv-qty-value num">{formatQuantity(line.quantity, line.product.unit)}</span>
-                            <button
-                              className="pdv-qbtn"
-                              type="button"
-                              aria-label={`Aumentar quantidade de ${line.product.name}`}
-                              onClick={() => updateLineQuantity(line.product.id, 1)}
-                            >
-                              +
-                            </button>
-                          </span>
-                        </td>
-                        <td className="pdv-right pdv-hide-sm pdv-price num">{formatMoney(line.product.salePrice)}
-                          {line.product.unit === 'KG' ? '/kg' : ''}
-                        </td>
-                        <td className="pdv-right pdv-line-total num">{lineTotal.formatBrl()}</td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-
-              {cart.length === 0 && (
-                <div className="pdv-empty">
-                  <p className="pdv-empty-title">Carrinho vazio</p>
-                  <p className="muted">Escaneie ou digite o código de barras de um produto para iniciar a venda.</p>
-                </div>
-              )}
-            </div>
-          </div>
+          <CartTable cart={cart} lastItem={lastItem} itemsSummary={itemsSummary} onChangeQuantity={updateLineQuantity} />
           </>)}
         </section>
 

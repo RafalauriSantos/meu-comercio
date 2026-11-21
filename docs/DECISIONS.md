@@ -449,3 +449,19 @@ Este documento registra formalmente as decisões de arquitetura e de produto do 
   - *Positivo*: a localização de clientes não chega ao Sentry; a configuração fica pequena e tem um teste real de ponta a ponta.
   - *Negativo*: erros que só acontecem no navegador (tela travada sem chamar o servidor) não aparecem no Sentry. O stack trace fica minificado até enviar os source maps. Texto livre que não bate com a lista de permissão pode passar (risco aceito, descrito no PR 84).
   - *A fazer*: enviar source maps; capturar explicitamente os 500 tratados em `catch` das rotas (as de dinheiro e login exigem aprovação do dono); o monitor de disponibilidade (UptimeRobot) é feito pelo dono.
+
+## ADR-023: E-mail de Verificação da Proprietária (Brevo, Link de Uso Único, Limite por Janela no Banco)
+
+- **Data**: 2026-11-21
+- **Status**: Implementado na slice 2a (servidor) da D-32. As telas vêm na 2b.
+- **Contexto**: a proprietária precisa confirmar um e-mail para, depois, recuperar senha e PIN (D-32). O envio sai pela API transacional do Brevo, com o Gmail dela como remetente. O limite do ADR-013 guarda um contador por loja e não serve para "3 pedidos por hora por conta".
+- **Decisão**:
+  - Porta de envio (`EmailSender`) e adaptador Brevo, com tempo máximo de 8 s. As variáveis são lidas só na hora do envio, então o build não depende delas.
+  - O link tem 256 bits aleatórios, só o hash vai ao banco, vale 30 minutos e é de uso único. O código vai no fragmento da URL (`#token=`) e no corpo de um POST, nunca na query.
+  - Limite por janela de 60 minutos, contado no banco com `pg_advisory_xact_lock`: 3 por conta, 10 por IP, 250 por dia, 60 s entre reenvios. As chaves são HMAC com o `SESSION_SECRET`.
+  - Cadastrar ou trocar o e-mail exige a senha atual. Reenviar ao e-mail já gravado não exige.
+  - O e-mail verificado é único entre lojas (índice parcial).
+- **Alternativas descartadas**: generalizar o store do ADR-013; limite em memória; módulo `email` separado; código do link na query da URL.
+- **Trade-offs / Consequências**:
+  - *Positivo*: limite correto sob pedidos simultâneos, sem variável nova e sem segredo no log.
+  - *Negativo (riscos aceitos)*: o teto de 250 por dia vale para o sistema todo e pode ser esgotado por contas falsas; a mensagem "e-mail já em uso" revela que outra loja o usa (só a quem está logada); o limite por IP só é à prova de forja na Vercel; trocar o `SESSION_SECRET` zera os contadores uma vez.

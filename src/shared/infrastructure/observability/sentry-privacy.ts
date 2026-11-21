@@ -32,6 +32,8 @@ const SAFE_MESSAGES: Record<string, string> = {
   DebtSettlementExceedsBalanceError: "Payment amount exceeds current customer debt",
   NoOpenCashSessionError: "Cannot settle customer debt without an active open cash session",
   SaleAlreadyCancelledError: "Venda já se encontra cancelada.",
+  // src/modules/users/domain/email-sender.port.ts: fixed text, no address, key or response body (D-32).
+  EmailDeliveryError: "E-mail delivery failed",
 };
 const SAFE_MESSAGE_TEXTS = new Set(Object.values(SAFE_MESSAGES));
 

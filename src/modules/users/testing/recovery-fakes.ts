@@ -9,10 +9,10 @@ import { IssueRecoveryTokenParams, RecoveryTokenRecord, RecoveryTokenRepository 
 export class StubRecoveryLimiter implements RecoveryRequestLimiter {
   decision: RecoveryDecision = { status: 'ALLOWED' };
   tokenDecision: RecoveryDecision = { status: 'ALLOWED' };
-  reserved: Array<{ accountKey: string; ipKey: string; enforceResend?: boolean }> = [];
+  reserved: Array<{ accountKey: string; ipKey: string; targetKey: string; enforceResend?: boolean }> = [];
   tokenAttempts: string[] = [];
 
-  async reserve(keys: { accountKey: string; ipKey: string; enforceResend?: boolean }): Promise<RecoveryDecision> {
+  async reserve(keys: { accountKey: string; ipKey: string; targetKey: string; enforceResend?: boolean }): Promise<RecoveryDecision> {
     this.reserved.push(keys);
     return this.decision;
   }

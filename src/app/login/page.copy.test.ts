@@ -46,8 +46,23 @@ describe('login page composition', () => {
     }
   });
 
+  it('asks for the e-mail on sign up (AC-8), the one design field added on purpose', () => {
+    expect(source).toContain('type="email"');
+    expect(source).toContain('autoComplete="email"');
+    expect(source).toContain('htmlFor="setup-email"');
+    expect(source).toContain('Usado para recuperar a senha e o PIN.');
+    // One field only, in the sign up form: the login form still has just user and password.
+    expect(source.match(/type="email"/g)).toHaveLength(1);
+  });
+
+  it('hands the e-mail result of the sign up to the cash screen as a notice (AC-8)', () => {
+    expect(source).toContain('verificationEmailSent');
+    expect(source).toContain('registerEmailNotice(');
+    expect(source).toContain('notice={');
+  });
+
   it('does not add the design fields the app does not have', () => {
-    for (const text of ['type="email"', 'Esqueci a senha', 'Continuar conectado', 'Celular', 'Tipo de comércio']) {
+    for (const text of ['Esqueci a senha', 'Continuar conectado', 'Celular', 'Tipo de comércio']) {
       expect(source).not.toContain(text);
     }
   });

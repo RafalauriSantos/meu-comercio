@@ -8,7 +8,7 @@ export const RegisterMerchantSchema = z.object({
   username: z.string().trim().regex(/^[a-zA-Z0-9._-]{3,120}$/, 'Nome de usuário inválido (3 a 120 caracteres alfanuméricos, ponto, traço ou underline)'),
   password: z.string().min(8, 'A senha deve ter no mínimo 8 caracteres'),
   authorizationPin: z.string().regex(/^\d{6}$/, 'O PIN de autorização deve conter exatamente 6 dígitos numéricos'),
-  email: z.string().trim().email('E-mail inválido').max(254).optional().nullable(),
+  email: z.string().trim().email('E-mail inválido').max(254),
 });
 
 export type RegisterMerchantInput = z.infer<typeof RegisterMerchantSchema>;
@@ -48,7 +48,7 @@ export class RegisterMerchantUseCase {
       username: input.username,
       passwordHash,
       authorizationPinHash,
-      email: input.email ?? null,
+      email: input.email,
       authorities: OWNER_AUTHORITIES,
     });
   }

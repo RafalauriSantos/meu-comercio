@@ -14,6 +14,7 @@ import { CashOpenScreen } from '@/frontend/auth/cash-open-screen';
 import { PasswordField } from '@/frontend/auth/password-field';
 import { PinField } from '@/frontend/auth/pin-field';
 import { passwordsMismatch } from '@/frontend/auth/passwords-mismatch';
+import { registerEmailNotice } from '@/frontend/auth/register-email-notice';
 import { FormError } from '@/frontend/auth/form-error';
 import { useAutoDismiss } from '@/frontend/lib/use-auto-dismiss';
 import '@/frontend/styles/auth.css';
@@ -43,6 +44,8 @@ export default function LoginPage() {
   const [setupPassword, setSetupPassword] = useState('');
   const [setupConfirm, setSetupConfirm] = useState('');
   const [setupPin, setSetupPin] = useState('');
+  const [setupEmail, setSetupEmail] = useState('');
+  const [emailNotice, setEmailNotice] = useState('');
 
   // Abertura de Caixa
   const [openingBalance, setOpeningBalance] = useState('100.00');
@@ -152,10 +155,12 @@ export default function LoginPage() {
         username: setupUsername,
         password: setupPassword,
         authorizationPin: setupPin,
+        email: setupEmail.trim(),
       });
 
       setSetupRequired(false);
       setUser(createdUser);
+      setEmailNotice(registerEmailNotice(setupEmail.trim(), createdUser.verificationEmailSent));
 
       const cash = await apiClient.getCurrentCash();
       setCashOpen(cash.open);
@@ -208,6 +213,7 @@ export default function LoginPage() {
         onBack={() => router.push('/gestao')}
         processing={processing}
         error={error}
+        notice={emailNotice}
         now={new Date()}
       />
     );
@@ -381,6 +387,26 @@ export default function LoginPage() {
               </p>
             )}
           </div>
+        </div>
+
+        <div>
+          <label className="field-label" htmlFor="setup-email">
+            E-mail
+          </label>
+          <input
+            id="setup-email"
+            className="input"
+            type="email"
+            required
+            autoComplete="email"
+            value={setupEmail}
+            onChange={(e) => setSetupEmail(e.target.value)}
+            placeholder="Ex.: maria@email.com"
+            aria-describedby="setup-email-hint"
+          />
+          <p className="auth-hint" id="setup-email-hint">
+            Usado para recuperar a senha e o PIN.
+          </p>
         </div>
 
         <PinField

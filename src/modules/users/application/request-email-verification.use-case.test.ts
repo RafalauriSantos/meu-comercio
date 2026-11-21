@@ -134,7 +134,7 @@ describe('RequestEmailVerificationUseCase', () => {
 
   it('AC-39: conta o pedido pelo usuário e pelo IP antes de enviar', async () => {
     await run('maria@gmail.com');
-    expect(limiter.reserved).toEqual([{ accountKey: 'dona', ipKey: '1.2.3.4', enforceResend: true }]);
+    expect(limiter.reserved).toEqual([{ accountKey: 'dona', ipKey: '1.2.3.4', targetKey: 'maria@gmail.com', enforceResend: true }]);
   });
 
   it('AC-5: e-mail já verificado por outra loja é recusado e o da dona segue como estava', async () => {

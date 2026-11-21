@@ -68,4 +68,12 @@ describe('CashOpenScreen', () => {
     expect(markup).toContain('role="alert"');
     expect(markup).toContain('Erro ao abrir caixa.');
   });
+
+  it('shows the optional notice as a status message, and nothing without it', () => {
+    expect(render()).not.toContain('role="status"');
+
+    const markup = render({ notice: 'Enviamos um link para maria@loja.com. Ele vale 30 minutos.' });
+
+    expect(markup).toMatch(/<p[^>]*role="status"[^>]*>Enviamos um link para maria@loja.com. Ele vale 30 minutos.<\/p>/);
+  });
 });

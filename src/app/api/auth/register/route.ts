@@ -7,6 +7,8 @@ import {
 } from '@/modules/users/application/register-merchant.use-case';
 import { createSessionToken } from '@/shared/infrastructure/auth/session';
 import { setSessionCookie } from '@/shared/infrastructure/auth/auth-context';
+import { getClientIp } from '@/modules/users/infrastructure/client-ip';
+import { buildRecoveryServices } from '@/modules/users/infrastructure/recovery-services';
 
 export async function POST(request: NextRequest) {
   try {
@@ -24,11 +26,27 @@ export async function POST(request: NextRequest) {
 
     await setSessionCookie(sessionToken);
 
+    // The account is already created: whatever goes wrong with the e-mail (Brevo, limit, e-mail confirmed by
+    // another store) must not undo it, and must not tell whether the e-mail is already in use (AC-8).
+    let verificationEmailSent = false;
+    try {
+      await buildRecoveryServices().requestEmailVerification.execute({
+        merchantId: user.merchantId,
+        username: user.username,
+        ip: getClientIp(request),
+        now: new Date(),
+      });
+      verificationEmailSent = true;
+    } catch (error) {
+      console.error('Registration verification e-mail failed:', error instanceof Error ? error.name : 'unknown');
+    }
+
     return NextResponse.json({
       username: user.username,
       merchantId: user.merchantId,
       authorities: Array.from(user.authorities),
       isOwner: true,
+      verificationEmailSent,
     }, { status: 201 });
   } catch (error) {
     if (error instanceof UsernameAlreadyTakenError) {

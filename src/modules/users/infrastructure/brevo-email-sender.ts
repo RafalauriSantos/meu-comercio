@@ -9,7 +9,7 @@ const TIMEOUT_MS = 8000;
  * HTTP status.
  */
 export class BrevoEmailSender implements EmailSender {
-  async send({ to, subject, text }: OutgoingEmail): Promise<void> {
+  async send({ to, subject, text, html }: OutgoingEmail): Promise<void> {
     const apiKey = process.env.BREVO_API_KEY;
     const senderEmail = process.env.BREVO_SENDER_EMAIL;
     if (!apiKey || !senderEmail) throw new EmailDeliveryError('not_configured');
@@ -25,6 +25,7 @@ export class BrevoEmailSender implements EmailSender {
           sender: { email: senderEmail, name: process.env.BREVO_SENDER_NAME || 'Meu Comércio' },
           to: [{ email: to }],
           subject,
+          htmlContent: html,
           textContent: text,
         }),
         signal: controller.signal,

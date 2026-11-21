@@ -5,7 +5,7 @@ import { EmailDeliveryError } from '../domain/email-sender.port';
 // A made-up key, only to prove it never leaks. No test calls the real Brevo: fetch is replaced.
 const TEST_KEY = 'xkeysib-TESTE-chave-inventada-0123456789';
 const RECIPIENT = 'destinatario@exemplo.com';
-const MAIL = { to: RECIPIENT, subject: 'Meu Comércio: teste', text: 'corpo do e-mail' };
+const MAIL = { to: RECIPIENT, subject: 'Meu Comércio: teste', text: 'corpo do e-mail', html: '<p>corpo do e-mail</p>' };
 
 const fetchMock = vi.fn();
 
@@ -35,7 +35,7 @@ function everythingAbout(error: Error): string {
 }
 
 describe('BrevoEmailSender', () => {
-  it('envia por POST à API transacional com a chave no cabeçalho e o corpo em texto', async () => {
+  it('envia por POST à API transacional com a chave no cabeçalho e o corpo em HTML e em texto (multipart)', async () => {
     fetchMock.mockResolvedValue(new Response('{"messageId":"x"}', { status: 201 }));
 
     await new BrevoEmailSender().send(MAIL);
@@ -48,8 +48,10 @@ describe('BrevoEmailSender', () => {
       sender: { email: 'loja@exemplo.com', name: 'Meu Comércio' },
       to: [{ email: RECIPIENT }],
       subject: MAIL.subject,
+      htmlContent: MAIL.html,
       textContent: MAIL.text,
     });
+    expect(init.body).not.toContain(TEST_KEY);
     expect(init.signal).toBeInstanceOf(AbortSignal);
   });
 

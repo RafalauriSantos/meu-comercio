@@ -7,6 +7,8 @@ vi.mock('next/server', async (importOriginal) => ({
   connection: () => Promise.resolve(),
 }));
 
+vi.mock('@/modules/users/infrastructure/drizzle-credentials-version', () => ({ getCredentialsChangedAt: async () => null }));
+
 import { getCurrentSession, requireAuthSession } from './auth-context';
 import { createSessionToken, getSessionCookieName, verifySessionToken } from './session';
 import { GET as me } from '@/app/api/auth/me/route';

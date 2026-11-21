@@ -13,6 +13,11 @@ export function isSessionOwner(session: SessionData): boolean {
   return session.authorities.includes('ROLE_OWNER');
 }
 
+/** True when the owner changed the password after this session began. A cookie without startedAt counts as older (D-32, AC-52). */
+export function isSessionRevoked(session: SessionData, credentialsChangedAt: Date | null): boolean {
+  return credentialsChangedAt !== null && (session.startedAt ?? 0) <= credentialsChangedAt.getTime();
+}
+
 export function hasSessionAuthority(session: SessionData, authority: UserAuthority): boolean {
   return isSessionOwner(session) || session.authorities.includes(authority);
 }

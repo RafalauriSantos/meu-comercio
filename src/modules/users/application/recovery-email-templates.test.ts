@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { emailChangedNotice, verificationEmail } from './recovery-email-templates';
+import { emailChangedNotice, passwordChangedNotice, passwordResetEmail, verificationEmail } from './recovery-email-templates';
 
 const LINK = 'https://meucomercio.vercel.app/verificar-email#token=EXEMPLO';
 const WHEN = new Date('2026-11-21T15:30:00Z');
@@ -67,5 +67,61 @@ describe('emailChangedNotice', () => {
     expect(html).not.toContain('<script>');
     expect(html).toContain('&lt;script&gt;');
     expect(html).toContain('&quot;x&quot;');
+  });
+});
+
+describe('passwordResetEmail (AC-16, AC-67)', () => {
+  const RESET_LINK = 'https://meucomercio.vercel.app/redefinir-senha#token=EXEMPLO';
+  const mail = passwordResetEmail(RESET_LINK, WHEN, 'Mercearia da Maria');
+
+  it('assunto fixo começando pelo nome do sistema', () => {
+    expect(mail.subject).toBe('Meu Comércio: redefinir sua senha');
+  });
+
+  it('texto puro: loja, link, 30 minutos, hora de Brasília e "ignore"', () => {
+    expect(mail.text).toContain('Mercearia da Maria');
+    expect(mail.text).toContain(RESET_LINK);
+    expect(mail.text).toContain('O link vale 30 minutos.');
+    expect(mail.text).toContain('21/11/2026');
+    expect(mail.text).toContain('Se não foi você, ignore este e-mail: sua senha não muda.');
+  });
+
+  it('HTML: loja, botão com o link, validade, data e rodapé; sem imagem, script nem outro http', () => {
+    expect(mail.html).toContain('lang="pt-BR"');
+    expect(mail.html).toContain('Mercearia da Maria');
+    expect(mail.html).toContain(`href="${RESET_LINK}"`);
+    expect(mail.html).toContain('Redefinir senha');
+    expect(mail.html).toContain('O link vale 30 minutos');
+    expect(mail.html).toContain('21/11/2026');
+    expect(mail.html).toContain('Se não foi você, ignore este e-mail: sua senha não muda.');
+    expect(mail.html).not.toMatch(/<img|<script/i);
+    expect(mail.html.replaceAll(RESET_LINK, '')).not.toMatch(/https?:\/\//);
+  });
+
+  it('escapa o nome da loja e só aceita link http(s)', () => {
+    const { html, text } = passwordResetEmail(RESET_LINK, WHEN, '<script>alert("x")</script>');
+    expect(html).not.toContain('<script>');
+    expect(html).toContain('&lt;script&gt;');
+    expect(text).toContain('<script>');
+    expect(() => passwordResetEmail('javascript:alert(1)', WHEN, 'Loja')).toThrow();
+  });
+});
+
+describe('passwordChangedNotice (AC-44)', () => {
+  const mail = passwordChangedNotice(WHEN);
+
+  it('assunto fixo, o que mudou, hora de Brasília e orientação', () => {
+    expect(mail.subject).toBe('Meu Comércio: sua senha foi alterada');
+    expect(mail.text).toContain('senha');
+    expect(mail.text).toContain('21/11/2026');
+    expect(mail.text).toContain('Não foi você? Entre em contato e troque sua senha de e-mail.');
+    expect(mail.html).toContain('lang="pt-BR"');
+    expect(mail.html).toContain('21/11/2026');
+    expect(mail.html).toContain('Não foi você? Entre em contato e troque sua senha de e-mail.');
+  });
+
+  it('sem link, botão, imagem, script nem token', () => {
+    expect(mail.html).not.toMatch(/<img|<script|<a |http|token/i);
+    expect(mail.text).not.toMatch(/http|token/i);
   });
 });

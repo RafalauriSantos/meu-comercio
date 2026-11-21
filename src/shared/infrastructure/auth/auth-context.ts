@@ -1,6 +1,9 @@
 import { cookies } from 'next/headers';
+import { getCredentialsChangedAt } from '@/modules/users/infrastructure/drizzle-credentials-version';
 import {
   getSessionCookieName,
+  isSessionOwner,
+  isSessionRevoked,
   verifySessionToken,
   renewSessionToken,
   INACTIVITY_MINUTES,
@@ -10,7 +13,12 @@ import {
 export async function getCurrentSession(): Promise<SessionData | null> {
   const cookieStore = await cookies();
   const token = cookieStore.get(getSessionCookieName())?.value;
-  return token ? verifySessionToken(token) : null;
+  const session = token ? verifySessionToken(token) : null;
+  // ADR-024: only the owner's session is checked against the last password change (one SELECT by primary key).
+  if (session && isSessionOwner(session) && isSessionRevoked(session, await getCredentialsChangedAt(session.username))) {
+    return null;
+  }
+  return session;
 }
 
 export async function requireAuthSession(): Promise<SessionData> {

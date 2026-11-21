@@ -468,3 +468,26 @@ Este documento registra formalmente as decisões de arquitetura e de produto do 
   - *Negativo (riscos aceitos, cadastro com e-mail obrigatório, slice 2b-2)*: o cadastro é público e o teto de 250 por dia é compartilhado com a recuperação; fica mitigado por 10 por hora por IP e 3 por hora por e-mail de destino (escopo `TARGET_EMAIL`, HMAC do e-mail normalizado), sem CAPTCHA. O envio no cadastro é síncrono (até 8 s), e a diferença de tempo entre e-mail livre e já confirmado por outra loja é aceita (o cadastro nunca diz que o e-mail está em uso). O IP vem de `x-forwarded-for` e só é à prova de forja na Vercel.
   - *Negativo (risco aceito do limite por destino)*: quem cadastra contas ou pede o link com o e-mail de outra pessoa esgota as 3 vagas por hora dela, e a dona real recebe 429 ao tentar confirmar o próprio e-mail naquela hora.
   - *Regra para as slices 3 e 4*: podem existir várias contas com o mesmo e-mail NÃO confirmado (o cadastro não checa unicidade). A recuperação por e-mail deve casar só e-mails CONFIRMADOS.
+  - *Negativo (risco aceito, pedido público de senha, slice 3a)*: o teto diário global de 250 conta também pedidos com e-mails inexistentes (o tempo de resposta precisa ser igual), então pedidos falsos podem esgotá-lo e impedir a recuperação da dona naquele dia. Mitigação: 10 por hora por IP, 3 por hora por conta e por e-mail de destino, alerta no Sentry. Rever se o sistema crescer.
+
+## ADR-024: Sessão da Proprietária Revogada pela Data da Última Troca de Senha
+
+- **Data**: 2026-11-21
+- **Status**: Implementado na slice 3a da D-32 (servidor do "esqueci a senha").
+- **Contexto**: a sessão é só um cookie assinado, sem estado no banco. Quando a proprietária redefine a senha pelo link, as sessões abertas antes (um aparelho perdido, um acesso de quem tinha a senha antiga) continuariam valendo até 12 horas. A D-32 manda encerrá-las (AC-52).
+- **Decisão**:
+  - `getCurrentSession` consulta `app_users.credentials_changed_at` (1 SELECT por chave primária) a cada requisição de sessão de proprietária. Se o `startedAt` do cookie é anterior à troca, devolve `null` e as rotas respondem 401. É o único ponto que lê o cookie, então as rotas e `/api/auth/me` não mudam.
+  - Cookie sem `startedAt` conta como anterior à troca. Sessão iniciada depois da troca vale. A renovação do cookie preserva `startedAt`, então renovar não ressuscita sessão antiga.
+  - Operadoras ficam de fora: não pagam a consulta e não são derrubadas (AC-54).
+  - A regra é a função pura `isSessionRevoked` (`session.ts`); a leitura fica em `users` (`drizzle-credentials-version.ts`), dono do schema. Falha do banco nessa consulta falha a requisição (500), nunca deixa passar.
+  - Enquanto nenhuma conta tiver `credentials_changed_at`, a consulta não muda o resultado de nenhuma requisição.
+- **Alternativas descartadas**:
+  - Cache por instância de poucos segundos: tira a consulta de parte das requisições, mas afrouxa o AC-52 até o fim do cache, e as instâncias da Vercel não compartilham memória.
+  - Tabela de sessões no banco: revoga uma a uma, mas exige migração e leitura e escrita por sessão; mais código do que o problema pede.
+  - Trocar o `SESSION_SECRET`: derruba todas as lojas e operadoras de uma vez.
+  - Guardar a data da troca dentro do cookie: o cookie antigo não sabe da troca nova.
+- **Trade-offs / Consequências**:
+  - *Positivo*: a troca de senha encerra de imediato as sessões antigas da proprietária, sem migração e sem tocar nas rotas autenticadas.
+  - *Negativo*: +1 SELECT por chave primária (Neon, gru1) em toda requisição da proprietária. Se pesar, o cache por instância fica para decisão dela.
+  - *Negativo (aceito)*: `credentials_changed_at` usa o relógio do servidor que trocou a senha e `startedAt` o do servidor que fez o login; uma diferença de milissegundos só pode derrubar um login feito no mesmo instante da troca.
+  - *Efeito na tela*: todo 401 de rota autenticada já mostra "Sua sessão expirou. Você será levada ao login."; o texto do AC-52 ("Sua sessão terminou. Entre de novo.") não foi criado. Decisão pendente dela.

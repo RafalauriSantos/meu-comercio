@@ -1,4 +1,5 @@
-import { pgTable, varchar, uuid, boolean, integer, timestamp, uniqueIndex, primaryKey } from 'drizzle-orm/pg-core';
+import { sql } from 'drizzle-orm';
+import { pgTable, varchar, uuid, boolean, integer, timestamp, uniqueIndex, index, primaryKey } from 'drizzle-orm/pg-core';
 
 export const merchants = pgTable('merchants', {
   id: uuid('id').primaryKey().defaultRandom(),
@@ -17,10 +18,13 @@ export const appUsers = pgTable('app_users', {
   enabled: boolean('enabled').notNull().default(true),
   failedLoginAttempts: integer('failed_login_attempts').notNull().default(0),
   lockedUntil: timestamp('locked_until', { withTimezone: true }),
+  emailVerifiedAt: timestamp('email_verified_at', { withTimezone: true }),
+  credentialsChangedAt: timestamp('credentials_changed_at', { withTimezone: true }),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 }, (table) => [
   uniqueIndex('uq_app_users_merchant_username').on(table.merchantId, table.username),
   uniqueIndex('uq_app_users_owner_email').on(table.merchantId, table.email),
+  uniqueIndex('uq_app_users_verified_email').on(table.email).where(sql`${table.emailVerifiedAt} is not null`),
 ]);
 
 export const userAuthorities = pgTable('user_authorities', {
@@ -38,5 +42,17 @@ export const ownerRecoveryTokens = pgTable('owner_recovery_tokens', {
   tokenHash: varchar('token_hash', { length: 64 }).notNull().unique(),
   expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
   usedAt: timestamp('used_at', { withTimezone: true }),
+  purpose: varchar('purpose', { length: 32 }),
+  email: varchar('email', { length: 254 }),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 });
+
+// Durable counter for the recovery request limits (D-32). key_hash is an HMAC, never the e-mail or the IP.
+export const accessRecoveryRequests = pgTable('access_recovery_requests', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  scope: varchar('scope', { length: 16 }).notNull(),
+  keyHash: varchar('key_hash', { length: 64 }).notNull(),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+}, (table) => [
+  index('idx_access_recovery_requests_scope_key_created').on(table.scope, table.keyHash, table.createdAt),
+]);

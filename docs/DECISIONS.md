@@ -453,15 +453,18 @@ Este documento registra formalmente as decisões de arquitetura e de produto do 
 ## ADR-023: E-mail de Verificação da Proprietária (Brevo, Link de Uso Único, Limite por Janela no Banco)
 
 - **Data**: 2026-11-21
-- **Status**: Implementado na slice 2a (servidor) da D-32. As telas vêm na 2b.
+- **Status**: Implementado na slice 2a (servidor), na 2b-1 (telas em Gestão e `/verificar-email`) e na 2b-2 (e-mail obrigatório no cadastro) da D-32.
 - **Contexto**: a proprietária precisa confirmar um e-mail para, depois, recuperar senha e PIN (D-32). O envio sai pela API transacional do Brevo, com o Gmail dela como remetente. O limite do ADR-013 guarda um contador por loja e não serve para "3 pedidos por hora por conta".
 - **Decisão**:
   - Porta de envio (`EmailSender`) e adaptador Brevo, com tempo máximo de 8 s. As variáveis são lidas só na hora do envio, então o build não depende delas.
   - O link tem 256 bits aleatórios, só o hash vai ao banco, vale 30 minutos e é de uso único. O código vai no fragmento da URL (`#token=`) e no corpo de um POST, nunca na query.
-  - Limite por janela de 60 minutos, contado no banco com `pg_advisory_xact_lock`: 3 por conta, 10 por IP, 250 por dia, 60 s entre reenvios. As chaves são HMAC com o `SESSION_SECRET`.
+  - Limite por janela de 60 minutos, contado no banco com `pg_advisory_xact_lock`: 3 por conta, 3 por e-mail de destino (`TARGET_EMAIL`), 10 por IP, 250 por dia, 60 s entre reenvios. As chaves são HMAC com o `SESSION_SECRET`.
   - Cadastrar ou trocar o e-mail exige a senha atual. Reenviar ao e-mail já gravado não exige.
   - O e-mail verificado é único entre lojas (índice parcial).
 - **Alternativas descartadas**: generalizar o store do ADR-013; limite em memória; módulo `email` separado; código do link na query da URL.
 - **Trade-offs / Consequências**:
   - *Positivo*: limite correto sob pedidos simultâneos, sem variável nova e sem segredo no log.
   - *Negativo (riscos aceitos)*: o teto de 250 por dia vale para o sistema todo e pode ser esgotado por contas falsas; a mensagem "e-mail já em uso" revela que outra loja o usa (só a quem está logada); o limite por IP só é à prova de forja na Vercel; trocar o `SESSION_SECRET` zera os contadores uma vez.
+  - *Negativo (riscos aceitos, cadastro com e-mail obrigatório, slice 2b-2)*: o cadastro é público e o teto de 250 por dia é compartilhado com a recuperação; fica mitigado por 10 por hora por IP e 3 por hora por e-mail de destino (escopo `TARGET_EMAIL`, HMAC do e-mail normalizado), sem CAPTCHA. O envio no cadastro é síncrono (até 8 s), e a diferença de tempo entre e-mail livre e já confirmado por outra loja é aceita (o cadastro nunca diz que o e-mail está em uso). O IP vem de `x-forwarded-for` e só é à prova de forja na Vercel.
+  - *Negativo (risco aceito do limite por destino)*: quem cadastra contas ou pede o link com o e-mail de outra pessoa esgota as 3 vagas por hora dela, e a dona real recebe 429 ao tentar confirmar o próprio e-mail naquela hora.
+  - *Regra para as slices 3 e 4*: podem existir várias contas com o mesmo e-mail NÃO confirmado (o cadastro não checa unicidade). A recuperação por e-mail deve casar só e-mails CONFIRMADOS.

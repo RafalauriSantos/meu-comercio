@@ -377,9 +377,9 @@ export const apiClient = {
     username: string;
     password: string;
     authorizationPin: string;
-    email?: string | null;
+    email: string;
   }) =>
-    apiRequest<AuthUser>('/api/auth/register', {
+    apiRequest<AuthUser & { verificationEmailSent: boolean }>('/api/auth/register', {
       method: 'POST',
       body: JSON.stringify(payload),
     }),

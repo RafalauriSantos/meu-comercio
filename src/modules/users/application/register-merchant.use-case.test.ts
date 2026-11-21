@@ -85,6 +85,15 @@ describe('RegisterMerchantUseCase (SaaS Self-Service Registration)', () => {
     expect(await verifySecret('987654', result.authorizationPinHash!)).toBe(true);
   });
 
+  it('requires a valid e-mail (AC-8)', async () => {
+    const base = { merchantName: 'Loja', username: 'rafael', password: 'password-12345', authorizationPin: '111111' };
+
+    await expect(useCase.execute(base)).rejects.toThrow(/email/i);
+    await expect(useCase.execute({ ...base, email: null })).rejects.toThrow();
+    await expect(useCase.execute({ ...base, email: '  ' })).rejects.toThrow();
+    await expect(useCase.execute({ ...base, email: 'sem-arroba' })).rejects.toThrow('E-mail inválido');
+  });
+
   it('should reject an authorization PIN that does not have exactly 6 digits', async () => {
     for (const authorizationPin of ['1234', '12345', '1234567', 'abcdef']) {
       await expect(
@@ -93,6 +102,7 @@ describe('RegisterMerchantUseCase (SaaS Self-Service Registration)', () => {
           username: 'rafael',
           password: 'password-12345',
           authorizationPin,
+          email: 'dono1@loja.com',
         })
       ).rejects.toThrow(/6 dígitos/);
     }
@@ -104,6 +114,7 @@ describe('RegisterMerchantUseCase (SaaS Self-Service Registration)', () => {
       username: 'rafael',
       password: 'password-12345',
       authorizationPin: '111111',
+      email: 'dono2@loja.com',
     });
 
     const store2 = await useCase.execute({
@@ -111,6 +122,7 @@ describe('RegisterMerchantUseCase (SaaS Self-Service Registration)', () => {
       username: 'maria',
       password: 'password-67890',
       authorizationPin: '222222',
+      email: 'dono3@loja.com',
     });
 
     expect(store1.merchantId).not.toBe(store2.merchantId);
@@ -124,6 +136,7 @@ describe('RegisterMerchantUseCase (SaaS Self-Service Registration)', () => {
       username: 'dono_comum',
       password: 'password-12345',
       authorizationPin: '123456',
+      email: 'dono4@loja.com',
     });
 
     await expect(
@@ -132,6 +145,7 @@ describe('RegisterMerchantUseCase (SaaS Self-Service Registration)', () => {
         username: 'dono_comum',
         password: 'password-67890',
         authorizationPin: '567890',
+        email: 'dono5@loja.com',
       })
     ).rejects.toThrow(UsernameAlreadyTakenError);
   });
@@ -143,6 +157,7 @@ describe('RegisterMerchantUseCase (SaaS Self-Service Registration)', () => {
         username: 'usuario',
         password: '123',
         authorizationPin: '123456',
+        email: 'dono6@loja.com',
       })
     ).rejects.toThrow('A senha deve ter no mínimo 8 caracteres');
 
@@ -152,6 +167,7 @@ describe('RegisterMerchantUseCase (SaaS Self-Service Registration)', () => {
         username: 'usuario',
         password: 'valid-password-123',
         authorizationPin: 'abc',
+        email: 'dono7@loja.com',
       })
     ).rejects.toThrow('O PIN de autorização deve conter exatamente 6 dígitos numéricos');
   });

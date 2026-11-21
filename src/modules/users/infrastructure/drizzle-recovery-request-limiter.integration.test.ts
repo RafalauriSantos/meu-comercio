@@ -38,7 +38,7 @@ describe.skipIf(!TEST_DATABASE_URL)('DrizzleRecoveryRequestLimiter (Postgres)', 
     const accountKey = fresh('conta');
 
     const results = await Promise.all(
-      Array.from({ length: 10 }, (_, i) => limiter.reserve({ accountKey, ipKey: fresh(`ip${i}`) }, now))
+      Array.from({ length: 10 }, (_, i) => limiter.reserve({ targetKey: fresh('email'), accountKey, ipKey: fresh(`ip${i}`) }, now))
     );
 
     expect(results.filter((r) => r.status === 'ALLOWED')).toHaveLength(3);
@@ -49,7 +49,7 @@ describe.skipIf(!TEST_DATABASE_URL)('DrizzleRecoveryRequestLimiter (Postgres)', 
     const accountKey = fresh('conta');
 
     const results = await Promise.all(
-      Array.from({ length: 10 }, (_, i) => limiter.reserve({ accountKey, ipKey: fresh(`ip${i}`), enforceResend: true }, now))
+      Array.from({ length: 10 }, (_, i) => limiter.reserve({ targetKey: fresh('email'), accountKey, ipKey: fresh(`ip${i}`), enforceResend: true }, now))
     );
 
     expect(results.filter((r) => r.status === 'ALLOWED')).toHaveLength(1);
@@ -60,26 +60,63 @@ describe.skipIf(!TEST_DATABASE_URL)('DrizzleRecoveryRequestLimiter (Postgres)', 
     const accountKey = fresh('conta');
     const ipKey = fresh('ip');
     // 3 allowed, one minute apart (the 60 s resend rule).
-    for (let i = 0; i < 3; i++) expect((await limiter.reserve({ accountKey, ipKey }, after(i * 61))).status).toBe('ALLOWED');
+    for (let i = 0; i < 3; i++) expect((await limiter.reserve({ targetKey: fresh('email'), accountKey, ipKey }, after(i * 61))).status).toBe('ALLOWED');
 
-    const denied = await limiter.reserve({ accountKey, ipKey }, after(200));
+    const denied = await limiter.reserve({ targetKey: fresh('email'), accountKey, ipKey }, after(200));
     expect(denied.status).toBe('ACCOUNT_LIMITED');
-    await limiter.reserve({ accountKey, ipKey }, after(300));
+    await limiter.reserve({ targetKey: fresh('email'), accountKey, ipKey }, after(300));
 
     // The wait ends 60 min after the FIRST request, as if the denied ones never happened.
-    expect((await limiter.reserve({ accountKey, ipKey }, after(3599))).status).toBe('ACCOUNT_LIMITED');
-    expect((await limiter.reserve({ accountKey, ipKey }, after(3600))).status).toBe('ALLOWED');
+    expect((await limiter.reserve({ targetKey: fresh('email'), accountKey, ipKey }, after(3599))).status).toBe('ACCOUNT_LIMITED');
+    expect((await limiter.reserve({ targetKey: fresh('email'), accountKey, ipKey }, after(3600))).status).toBe('ALLOWED');
   });
 
   it('AC-38: o 11º pedido do mesmo IP em 60 min é recusado, para contas diferentes', async () => {
     const ipKey = fresh('ip');
     for (let i = 0; i < 10; i++) {
-      expect((await limiter.reserve({ accountKey: fresh('conta'), ipKey }, after(i))).status).toBe('ALLOWED');
+      expect((await limiter.reserve({ targetKey: fresh('email'), accountKey: fresh('conta'), ipKey }, after(i))).status).toBe('ALLOWED');
     }
 
-    const decision = await limiter.reserve({ accountKey: fresh('conta'), ipKey }, after(11));
+    const decision = await limiter.reserve({ targetKey: fresh('email'), accountKey: fresh('conta'), ipKey }, after(11));
     expect(decision).toMatchObject({ status: 'IP_LIMITED' });
     expect((decision as { retryAfterSeconds: number }).retryAfterSeconds).toBe(3589);
+  });
+
+  it('o 4º pedido ao mesmo e-mail de destino é recusado, mesmo por contas e IPs diferentes', async () => {
+    const targetKey = fresh('destino');
+    for (let i = 0; i < 3; i++) {
+      expect((await limiter.reserve({ accountKey: fresh('conta'), ipKey: fresh('ip'), targetKey }, after(i))).status).toBe('ALLOWED');
+    }
+
+    const decision = await limiter.reserve({ accountKey: fresh('conta'), ipKey: fresh('ip'), targetKey }, after(10));
+    expect(decision).toMatchObject({ status: 'EMAIL_LIMITED', retryAfterSeconds: 3590 });
+    expect((await limiter.reserve({ accountKey: fresh('conta'), ipKey: fresh('ip'), targetKey: fresh('outro') }, after(10))).status).toBe('ALLOWED');
+  });
+
+  it('pedido negado por e-mail de destino não consome o contador da conta nem o do IP', async () => {
+    const targetKey = fresh('destino');
+    for (let i = 0; i < 3; i++) await limiter.reserve({ accountKey: fresh('conta'), ipKey: fresh('ip'), targetKey }, after(i));
+    const accountKey = fresh('conta');
+    const ipKey = fresh('ip');
+
+    for (let i = 0; i < 5; i++) {
+      expect((await limiter.reserve({ accountKey, ipKey, targetKey }, after(10 + i))).status).toBe('EMAIL_LIMITED');
+    }
+
+    // Nothing was counted for the account or the IP: 3 more requests to other destinations still pass (account limit is 3).
+    for (let i = 0; i < 3; i++) {
+      expect((await limiter.reserve({ accountKey, ipKey, targetKey: fresh('destino') }, after(100 + i))).status).toBe('ALLOWED');
+    }
+    expect((await limiter.reserve({ accountKey, ipKey, targetKey: fresh('destino') }, after(200))).status).toBe('ACCOUNT_LIMITED');
+  });
+
+  it('o e-mail de destino também é guardado só como HMAC', async () => {
+    const targetKey = fresh('maria@loja.com');
+    await limiter.reserve({ accountKey: fresh('conta'), ipKey: fresh('ip'), targetKey }, now);
+
+    const rows = await database.select().from(accessRecoveryRequests);
+    expect(JSON.stringify(rows)).not.toContain(targetKey);
+    expect(rows.some((r) => r.scope === 'TARGET_EMAIL')).toBe(true);
   });
 
   it('AC-41: 10 tentativas de link por IP em 60 min, a 11ª é recusada, e outro IP não é afetado', async () => {
@@ -94,13 +131,13 @@ describe.skipIf(!TEST_DATABASE_URL)('DrizzleRecoveryRequestLimiter (Postgres)', 
     const ipKey = fresh('ip');
     for (let i = 0; i < 10; i++) await limiter.reserveTokenAttempt(ipKey, now);
 
-    expect((await limiter.reserve({ accountKey: fresh('conta'), ipKey }, now)).status).toBe('ALLOWED');
+    expect((await limiter.reserve({ targetKey: fresh('email'), accountKey: fresh('conta'), ipKey }, now)).status).toBe('ALLOWED');
   });
 
   it('AC-43: só guarda HMAC das chaves, nunca a conta nem o IP em texto', async () => {
     const accountKey = fresh('dona-maria');
     const ipKey = '203.0.113.77';
-    await limiter.reserve({ accountKey, ipKey }, now);
+    await limiter.reserve({ targetKey: fresh('email'), accountKey, ipKey }, now);
     await limiter.reserveTokenAttempt(ipKey, now);
 
     const rows = await database.select().from(accessRecoveryRequests);
@@ -108,14 +145,14 @@ describe.skipIf(!TEST_DATABASE_URL)('DrizzleRecoveryRequestLimiter (Postgres)', 
     expect(dump).not.toContain(accountKey);
     expect(dump).not.toContain(ipKey);
     expect(rows.every((r) => /^[0-9a-f]{64}$/.test(r.keyHash))).toBe(true);
-    expect(new Set(rows.map((r) => r.scope))).toEqual(new Set(['ACCOUNT', 'IP', 'GLOBAL_DAY', 'IP_TOKEN']));
+    expect(new Set(rows.map((r) => r.scope))).toEqual(new Set(['ACCOUNT', 'IP', 'GLOBAL_DAY', 'IP_TOKEN', 'TARGET_EMAIL']));
   });
 
   it('AC-43: descarta linhas com mais de 24 h', async () => {
     await database.execute(sql`delete from access_recovery_requests where key_hash = ${'0'.repeat(64)}`);
     await database.insert(accessRecoveryRequests).values({ scope: 'IP', keyHash: '0'.repeat(64), createdAt: new Date(now.getTime() - 25 * 3600 * 1000) });
 
-    await limiter.reserve({ accountKey: fresh('conta'), ipKey: fresh('ip') }, now);
+    await limiter.reserve({ targetKey: fresh('email'), accountKey: fresh('conta'), ipKey: fresh('ip') }, now);
 
     const old = await database.select().from(accessRecoveryRequests).where(sql`key_hash = ${'0'.repeat(64)}`);
     expect(old).toHaveLength(0);
@@ -128,7 +165,7 @@ describe.skipIf(!TEST_DATABASE_URL)('DrizzleRecoveryRequestLimiter (Postgres)', 
     );
 
     try {
-      expect((await limiter.reserve({ accountKey: fresh('conta'), ipKey: fresh('ip') }, day)).status).toBe('DAILY_LIMITED');
+      expect((await limiter.reserve({ targetKey: fresh('email'), accountKey: fresh('conta'), ipKey: fresh('ip') }, day)).status).toBe('DAILY_LIMITED');
     } finally {
       await database.execute(sql`delete from access_recovery_requests where key_hash = ${'g'.repeat(64)}`);
     }

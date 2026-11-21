@@ -14,6 +14,8 @@ interface CashOpenScreenProps {
   onBack: () => void;
   processing: boolean;
   error: string;
+  /** Optional info message, e.g. the result of sending the e-mail link right after sign up. */
+  notice?: string;
   now: Date;
 }
 
@@ -26,6 +28,7 @@ export function CashOpenScreen({
   onBack,
   processing,
   error,
+  notice,
   now,
 }: CashOpenScreenProps) {
   const current = parseCurrencyInput(openingBalance);
@@ -52,6 +55,12 @@ export function CashOpenScreen({
             <div style={{ marginTop: 16 }}>
               <FormError message={error} />
             </div>
+          )}
+
+          {notice && (
+            <p className="cash-hint" role="status">
+              {notice}
+            </p>
           )}
 
           <form onSubmit={onSubmit}>

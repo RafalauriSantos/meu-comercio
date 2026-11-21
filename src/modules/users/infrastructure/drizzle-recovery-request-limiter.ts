@@ -24,7 +24,7 @@ function hmacSecret(): string {
   return 'development-session-secret-must-be-at-least-32-chars-long';
 }
 
-type Scope = 'ACCOUNT' | 'IP' | 'GLOBAL_DAY' | 'IP_TOKEN';
+type Scope = 'ACCOUNT' | 'IP' | 'GLOBAL_DAY' | 'IP_TOKEN' | 'TARGET_EMAIL';
 
 /** The key is stored as an HMAC (D-32, AC-43): neither the account nor the IP can be read from a dump. */
 function keyHash(scope: Scope, key: string): string {
@@ -37,22 +37,23 @@ export class DrizzleRecoveryRequestLimiter<TSchema extends Record<string, unknow
   /**
    * The rule lives in decideRecoveryRequest. There is no single row to lock (FOR UPDATE, as in ADR-013),
    * so a transaction-scoped advisory lock per key serializes count, decision and insert. The locks are taken in
-   * a fixed order (scope names sort as ACCOUNT, GLOBAL_DAY, IP), so two requests cannot deadlock.
+   * a fixed order (scope names sort as ACCOUNT, GLOBAL_DAY, IP, TARGET_EMAIL), so two requests cannot deadlock.
    */
   async reserve(
-    keys: { accountKey: string; ipKey: string; enforceResend?: boolean },
+    keys: { accountKey: string; ipKey: string; targetKey: string; enforceResend?: boolean },
     now: Date
   ): Promise<RecoveryDecision> {
     const account = keyHash('ACCOUNT', keys.accountKey);
     const ip = keyHash('IP', keys.ipKey);
     const day = keyHash('GLOBAL_DAY', 'app');
+    const target = keyHash('TARGET_EMAIL', keys.targetKey);
 
     // Rows older than 24 h are of no use to any limit. Deleted before the locks, in its own statement, so no
     // advisory lock is held while rows are locked by the DELETE (a rare deadlock between two requests).
     await this.database.delete(accessRecoveryRequests).where(lt(accessRecoveryRequests.createdAt, new Date(now.getTime() - DAY_MS)));
 
     return this.database.transaction(async (tx) => {
-      for (const [scope, hash] of [['ACCOUNT', account], ['GLOBAL_DAY', day], ['IP', ip]] as const) {
+      for (const [scope, hash] of [['ACCOUNT', account], ['GLOBAL_DAY', day], ['IP', ip], ['TARGET_EMAIL', target]] as const) {
         await tx.execute(sql`select pg_advisory_xact_lock(hashtext(${`${scope}:${hash}`}))`);
       }
 
@@ -70,7 +71,7 @@ export class DrizzleRecoveryRequestLimiter<TSchema extends Record<string, unknow
         .where(and(eq(accessRecoveryRequests.scope, 'GLOBAL_DAY'), gt(accessRecoveryRequests.createdAt, new Date(now.getTime() - DAY_MS))));
 
       const decision = decideRecoveryRequest(
-        { accountRequests: await times('ACCOUNT', account), ipRequests: await times('IP', ip), dailyCount },
+        { accountRequests: await times('ACCOUNT', account), ipRequests: await times('IP', ip), targetRequests: await times('TARGET_EMAIL', target), dailyCount },
         now,
         keys.enforceResend
       );
@@ -79,6 +80,7 @@ export class DrizzleRecoveryRequestLimiter<TSchema extends Record<string, unknow
           { scope: 'ACCOUNT', keyHash: account, createdAt: now },
           { scope: 'IP', keyHash: ip, createdAt: now },
           { scope: 'GLOBAL_DAY', keyHash: day, createdAt: now },
+          { scope: 'TARGET_EMAIL', keyHash: target, createdAt: now },
         ]);
       }
       return decision;

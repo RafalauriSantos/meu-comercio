@@ -44,7 +44,7 @@ export class RequestEmailVerificationUseCase {
     if (!current || !isValidEmail(email)) throw new InvalidEmailError();
     if (current.verifiedAt) throw new EmailAlreadyVerifiedError();
 
-    assertRecoveryAllowed(await limiter.reserve({ accountKey: username, ipKey: ip, enforceResend: true }, now));
+    assertRecoveryAllowed(await limiter.reserve({ accountKey: username, ipKey: ip, targetKey: email, enforceResend: true }, now));
 
     if (email !== current.email) {
       const user = await users.findByUsername(username);

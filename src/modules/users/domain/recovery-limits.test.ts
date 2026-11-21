@@ -3,7 +3,7 @@ import { decideRecoveryRequest, decideTokenAttempt } from './recovery-limits';
 
 const now = new Date('2026-11-21T12:00:00Z');
 const ago = (seconds: number) => new Date(now.getTime() - seconds * 1000);
-const none = { accountRequests: [], ipRequests: [], dailyCount: 0 };
+const none = { accountRequests: [], ipRequests: [], targetRequests: [], dailyCount: 0 };
 
 describe('decideRecoveryRequest', () => {
   it('permite o primeiro pedido', () => {
@@ -32,6 +32,13 @@ describe('decideRecoveryRequest', () => {
     const ipRequests = Array.from({ length: 10 }, (_, i) => ago(100 + i * 100));
     expect(decideRecoveryRequest({ ...none, ipRequests }, now)).toEqual({ status: 'IP_LIMITED', retryAfterSeconds: 2600 });
     expect(decideRecoveryRequest({ ...none, ipRequests: ipRequests.slice(1) }, now)).toEqual({ status: 'ALLOWED' });
+  });
+
+  it('limita o e-mail de destino a 3 pedidos em 60 min, venham de onde vierem', () => {
+    const targetRequests = [ago(3000), ago(2000), ago(1000)];
+    expect(decideRecoveryRequest({ ...none, targetRequests }, now)).toEqual({ status: 'EMAIL_LIMITED', retryAfterSeconds: 600 });
+    expect(decideRecoveryRequest({ ...none, targetRequests: targetRequests.slice(1) }, now)).toEqual({ status: 'ALLOWED' });
+    expect(decideRecoveryRequest({ ...none, targetRequests: [ago(3601), ago(3700), ago(3800)] }, now)).toEqual({ status: 'ALLOWED' });
   });
 
   it('limita o app a 250 por dia', () => {

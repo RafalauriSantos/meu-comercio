@@ -49,7 +49,7 @@ export class ChangeOwnerEmailUseCase {
     // Same e-mail as now: nothing to change, and the verification must not be lost.
     if ((await owners.getEmail(username))?.email === email) return { email };
 
-    assertRecoveryAllowed(await limiter.reserve({ accountKey: username, ipKey: ip, enforceResend: true }, now));
+    assertRecoveryAllowed(await limiter.reserve({ accountKey: username, ipKey: ip, targetKey: email, enforceResend: true }, now));
 
     const user = await users.findByUsername(username);
     if (!user || !(await verifySecret(currentPassword, user.passwordHash))) throw new InvalidCurrentPasswordError();

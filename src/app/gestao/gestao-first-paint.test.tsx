@@ -103,13 +103,14 @@ describe('/gestao loading failures and requests (locked as at HEAD, baseline.md)
   // Counted over the whole screen: the 20 of page.tsx plus the 3 of use-import-products.ts, which is its
   // own file and does not move.
   it('has 21 apiClient calls: the 19 of HEAD plus the single retry of the missing balances, plus the barcode scan lookup, plus updateProduct and the barcode lookup of the product edit (and 3 in use-import-products), plus updateCustomer of the customer edit, plus updateProduct of Gerar código, plus getCustomerStatement of the customer statement, plus the excluded lists (listProducts, listCustomers) and updateProduct / updateCustomer of Excluir and Restaurar (read only when the owner opens the filter, never on the first load)', () => {
-    expect(count(source, 'apiClient.')).toBe(21 + 2 + 3 + 2 + 1 + 1 + 1 + 6);
+    expect(count(source, 'apiClient.')).toBe(21 + 2 + 3 + 2 + 1 + 1 + 1 + 6 + 4); // + the owner e-mail tab: getOwnerEmail, changeOwnerEmail, 2 requestEmailVerification
     expect(count(source, 'apiClient.getCustomerBalance(')).toBe(2);
     expect(count(source, 'apiClient.listCustomers(')).toBe(2);
     expect(count(source, 'apiClient.listProducts(')).toBe(3);
     expect(count(source, 'apiClient.getCurrentCash(')).toBe(1);
     expect(count(source, 'apiClient.getCreditMetrics(')).toBe(1);
     expect(count(source, 'apiClient.listOperators(')).toBe(1);
+    expect(count(source, 'apiClient.getOwnerEmail(')).toBe(1);
   });
 
   it('keeps the first load: me() first, only an expired session goes to /login, any other failure is an in-screen error, and then loading ends', () => {
@@ -134,7 +135,7 @@ describe('/gestao failure notice (step 5, source)', () => {
     expect(count(source, '<LoadFailureNotice')).toBeGreaterThanOrEqual(5);
   });
 
-  it.each(['loadProducts', 'loadCustomers', 'loadCash', 'loadCreditMetrics', 'loadOperators'])(
+  it.each(['loadProducts', 'loadCustomers', 'loadCash', 'loadCreditMetrics', 'loadOperators', 'loadOwnerEmail'])(
     '%s marks the failure in the catch and keeps its console.error',
     (name) => {
       const body = loaderBody(name);
@@ -146,8 +147,9 @@ describe('/gestao failure notice (step 5, source)', () => {
   it('keeps the first-load requests in the same order and the effect dependencies unchanged but for the retry counter (no new automatic run)', () => {
     expect(source).toMatch(/loadProducts\(\),\s*loadCustomers\(\),\s*loadCash\(\),\s*loadCreditMetrics\(\),\s*\];/);
     expect(source).toMatch(/tasks\.push\(loadOperators\(\)\)/);
+    expect(source).toMatch(/if \(me\.isOwner\) \{\s*tasks\.push\(loadOperators\(\)\);\s*tasks\.push\(loadOwnerEmail\(\)\);\s*\}/); // AC-9: only the owner reads it
     // `attempt` only changes on the click of Tentar de novo (retryInit), so there is still no new automatic run.
-    expect(source).toContain('}, [router, loadProducts, loadCustomers, loadCash, loadCreditMetrics, loadOperators, attempt]);');
+    expect(source).toContain('}, [router, loadProducts, loadCustomers, loadCash, loadCreditMetrics, loadOperators, loadOwnerEmail, attempt]);');
   });
 
   it('has no notice and no failure text in the server HTML of the first visit (failures only exist after the load)', () => {

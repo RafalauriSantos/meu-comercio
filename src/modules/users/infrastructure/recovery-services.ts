@@ -3,6 +3,7 @@ import { db } from '@/shared/infrastructure/db/connection';
 import { DrizzleAuditService } from '@/modules/audit/infrastructure/drizzle-audit-service';
 import { ChangeOwnerEmailUseCase } from '../application/change-owner-email.use-case';
 import { ConfirmEmailVerificationUseCase } from '../application/confirm-email-verification.use-case';
+import { GetOwnerEmailStatusUseCase } from '../application/get-owner-email-status.use-case';
 import { InspectEmailVerificationUseCase } from '../application/inspect-email-verification.use-case';
 import { RequestEmailVerificationUseCase } from '../application/request-email-verification.use-case';
 import { DrizzleOwnerEmailRepository } from './drizzle-owner-email-repository';
@@ -30,6 +31,7 @@ export function buildRecoveryServices() {
       users: new DrizzleUserRepository(),
       reportError: (error) => Sentry.captureException(error),
     }),
+    getOwnerEmailStatus: new GetOwnerEmailStatusUseCase({ owners }),
     inspectEmailVerification: new InspectEmailVerificationUseCase({ limiter, owners, tokens }),
     confirmEmailVerification: new ConfirmEmailVerificationUseCase({ limiter, owners, audit }),
   };

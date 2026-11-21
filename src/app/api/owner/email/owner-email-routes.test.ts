@@ -12,7 +12,7 @@ import {
 } from '@/modules/users/domain/errors';
 import { EmailDeliveryError } from '@/modules/users/domain/email-sender.port';
 import { POST as verificationPost } from './verification/route';
-import { PUT as emailPut } from './route';
+import { GET as emailGet, PUT as emailPut } from './route';
 import { POST as inspectPost } from './verification/inspect/route';
 import { POST as confirmPost } from './verification/confirm/route';
 
@@ -24,6 +24,7 @@ vi.mock('@/shared/infrastructure/auth/auth-context', async (importOriginal) => {
 });
 
 const services = {
+  getOwnerEmailStatus: { execute: vi.fn() },
   requestEmailVerification: { execute: vi.fn() },
   changeOwnerEmail: { execute: vi.fn() },
   inspectEmailVerification: { execute: vi.fn() },
@@ -147,6 +148,40 @@ describe('POST /api/owner/email/verification', () => {
     expect(res.status).toBe(500);
     expect(JSON.stringify(await res.json())).not.toContain('maria');
     expect(JSON.stringify((console.error as unknown as { mock: { calls: unknown[] } }).mock.calls)).not.toContain('maria');
+  });
+});
+
+describe('GET /api/owner/email', () => {
+  const get = () => emailGet();
+
+  it('AC-9: operador recebe 403 e nada é lido', async () => {
+    mockSession.mockResolvedValue(operator);
+    const res = await get();
+    expect(res.status).toBe(403);
+    expect(services.getOwnerEmailStatus.execute).not.toHaveBeenCalled();
+  });
+
+  it('sem sessão: 401', async () => {
+    mockSession.mockRejectedValue(new UnauthorizedError());
+    expect((await get()).status).toBe(401);
+  });
+
+  it('AC-62/63: a dona recebe o estado do e-mail dela, no-store', async () => {
+    services.getOwnerEmailStatus.execute.mockResolvedValue({ email: 'maria@gmail.com', verified: false });
+
+    const res = await get();
+
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({ email: 'maria@gmail.com', verified: false });
+    expect(res.headers.get('Cache-Control')).toBe('no-store');
+    expect(services.getOwnerEmailStatus.execute).toHaveBeenCalledWith({ username: 'dona' });
+  });
+
+  it('erro inesperado é 500 genérico', async () => {
+    services.getOwnerEmailStatus.execute.mockRejectedValue(new Error('boom maria@gmail.com'));
+    const res = await get();
+    expect(res.status).toBe(500);
+    expect(JSON.stringify(await res.json())).not.toContain('maria');
   });
 });
 

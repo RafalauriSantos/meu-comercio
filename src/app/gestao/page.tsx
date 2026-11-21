@@ -19,6 +19,9 @@ import { useSkeletonGate } from '@/frontend/lib/use-skeleton-gate';
 import { ManagementDataSkeleton } from '@/frontend/management/management-skeleton';
 import { SalesReportPanel } from '@/frontend/management/sales-report-panel';
 import { OperatorsTab } from '@/frontend/management/operators-tab';
+import { OwnerEmailTab } from '@/frontend/management/owner-email-tab';
+import { OwnerEmailBanner } from '@/frontend/management/owner-email-banner';
+import { useOwnerEmailTab } from '@/frontend/management/use-owner-email-tab';
 import { useOperatorsTab } from '@/frontend/management/use-operators-tab';
 import { ProductsTab } from '@/frontend/management/products-tab';
 import { CustomersTab } from '@/frontend/management/customers-tab';
@@ -30,11 +33,11 @@ import { SessionExpiredNotice } from '@/frontend/auth/session-expired-notice';
 import { loginUrlHere } from '@/frontend/auth/safe-return-path';
 import '@/frontend/styles/management.css';
 
-type LoadKey = 'products' | 'customers' | 'balances' | 'cash' | 'metrics' | 'operators';
+type LoadKey = 'products' | 'customers' | 'balances' | 'cash' | 'metrics' | 'operators' | 'ownerEmail';
 
 export default function GestaoPage() {
   const router = useRouter();
-  const [activeTab, setActiveTab] = useState<'produtos' | 'fiado' | 'caixa' | 'operadores' | 'relatorios'>('produtos');
+  const [activeTab, setActiveTab] = useState<'produtos' | 'fiado' | 'caixa' | 'operadores' | 'relatorios' | 'email'>('produtos');
   const [user, setUser] = useState<AuthUser | null>(null);
   const [loading, setLoading] = useState(true);
   // The first load failed for a reason other than an expired session: the error stays on the screen with a retry.
@@ -64,6 +67,8 @@ export default function GestaoPage() {
   const [retrying, setRetrying] = useState(false);
   const operatorsTab = useOperatorsTab({ setFeedback, setProcessing, setLoadFailed });
   const { operators, loadOperators } = operatorsTab;
+  const ownerEmailTab = useOwnerEmailTab({ setProcessing, setLoadFailed });
+  const { loadOwnerEmail } = ownerEmailTab;
   // Se a loja controla o estoque. Desligado, somem o saldo, as entradas, os alertas e o valor em estoque.
   const [stockControl, setStockControl] = useState(true);
   const productsTab = useProductsTab({ setFeedback, setProcessing, setLoadFailed, stockControl, setStockControl });
@@ -111,6 +116,7 @@ export default function GestaoPage() {
         ];
         if (me.isOwner) {
           tasks.push(loadOperators());
+          tasks.push(loadOwnerEmail());
         }
         await Promise.all(tasks);
       } catch (err) {
@@ -121,7 +127,7 @@ export default function GestaoPage() {
       }
     }
     init();
-  }, [router, loadProducts, loadCustomers, loadCash, loadCreditMetrics, loadOperators, attempt]);
+  }, [router, loadProducts, loadCustomers, loadCash, loadCreditMetrics, loadOperators, loadOwnerEmail, attempt]);
 
   // Only on the click: loads everything again.
   function retryInit() {
@@ -265,6 +271,7 @@ export default function GestaoPage() {
         {loading ? <ManagementDataSkeleton shape={shape} /> : initError ? (
           <LoadFailureNotice what="o painel" reason={initError} onRetry={retryInit} />
         ) : (<>
+        {user?.isOwner && activeTab !== 'email' && <OwnerEmailBanner status={ownerEmailTab.status} onOpen={() => setActiveTab('email')} />}
         {/* Abas */}
         <div role="group" aria-label="Seções da gestão" className="mg-tabs">
           <button
@@ -309,6 +316,11 @@ export default function GestaoPage() {
               onClick={() => setActiveTab('operadores')}
             >
               Operadores ({operators.length})
+            </button>
+          )}
+          {user?.isOwner && (
+            <button type="button" className="mg-segment" aria-pressed={activeTab === 'email'} onClick={() => setActiveTab('email')}>
+              E-mail de recuperação
             </button>
           )}
         </div>
@@ -497,6 +509,10 @@ export default function GestaoPage() {
 
         {activeTab === 'operadores' && user?.isOwner && (
           <OperatorsTab tab={operatorsTab} loadFailed={loadFailed} retrying={retrying} processing={processing} retry={retry} />
+        )}
+
+        {activeTab === 'email' && user?.isOwner && (
+          <OwnerEmailTab tab={ownerEmailTab} loadFailed={loadFailed} retrying={retrying} processing={processing} retry={retry} />
         )}
 
         {/* MODAL DE SANGRIA E SUPRIMENTO DE CAIXA */}

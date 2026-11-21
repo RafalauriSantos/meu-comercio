@@ -33,6 +33,7 @@ const h = vi.hoisted(() => ({
     getCurrentCash: vi.fn(),
     getCreditMetrics: vi.fn(),
     listOperators: vi.fn(),
+    getOwnerEmail: vi.fn(),
     createCustomer: vi.fn(),
   },
 }));
@@ -245,6 +246,7 @@ beforeEach(() => {
   h.api.getCurrentCash.mockResolvedValue({ open: false, session: null });
   h.api.getCreditMetrics.mockResolvedValue({ totalOutstandingCredit: '60.00', totalSettledCredit: '0.00', activeDebtorsCount: 3 });
   h.api.listOperators.mockResolvedValue({ items: [] });
+  h.api.getOwnerEmail.mockResolvedValue({ email: 'maria@gmail.com', verified: true });
   h.api.createCustomer.mockResolvedValue({});
 });
 
@@ -308,7 +310,7 @@ describe('/gestao without failures (control: nothing changes at HEAD)', () => {
     }
     expect(counts()).toEqual({
       me: 1, getStoreSettings: 1, listProducts: 1, getProductsSummary: 1, listCustomers: 1, getCustomerBalance: 3,
-      getCurrentCash: 1, getCreditMetrics: 1, listOperators: 1,
+      getCurrentCash: 1, getCreditMetrics: 1, listOperators: 1, getOwnerEmail: 1,
     });
     expect(h.router.push).not.toHaveBeenCalled();
     // The reference values the failure tests compare against.
@@ -542,7 +544,7 @@ describe('/gestao: no new automatic requests and no change in the login redirect
     expect(h.router.push).not.toHaveBeenCalled();
     expect(counts()).toEqual({
       me: 1, getStoreSettings: 1, listProducts: 1, getProductsSummary: 1, listCustomers: 1, getCustomerBalance: 0,
-      getCurrentCash: 1, getCreditMetrics: 1, listOperators: 1,
+      getCurrentCash: 1, getCreditMetrics: 1, listOperators: 1, getOwnerEmail: 1,
     });
     expect(whats().length).toBe(1); // Produtos tab
     openTab(FIADO);
@@ -572,7 +574,7 @@ describe('/gestao: no new automatic requests and no change in the login redirect
     expect(whats()).toEqual([]);
     expect(counts()).toEqual({
       me: 1, getStoreSettings: 0, listProducts: 0, getProductsSummary: 0, listCustomers: 0, getCustomerBalance: 0,
-      getCurrentCash: 0, getCreditMetrics: 0, listOperators: 0,
+      getCurrentCash: 0, getCreditMetrics: 0, listOperators: 0, getOwnerEmail: 0,
     });
   });
 });
@@ -834,5 +836,66 @@ describe('/gestao: more races of the balance retry (A2 acceptance gaps)', () => 
     openTab(FIADO);
     expect(whats()).toEqual([]);
     expect(h.api.getCustomerBalance).not.toHaveBeenCalled();
+  });
+});
+
+describe('/gestao: recovery e-mail of the owner (D-32, slice 2b-1)', () => {
+  const EMAIL_TAB = 'E-mail de recuperação';
+  const REGISTER = 'Cadastre e confirme seu e-mail para poder recuperar a senha e o PIN';
+  const CONFIRM = 'Falta confirmar seu e-mail';
+
+  it('AC-62: owner with no e-mail sees the fixed notice in the tabs; its button opens the e-mail tab, where the notice is not repeated', async () => {
+    h.api.getOwnerEmail.mockResolvedValue({ email: null, verified: false });
+    await mount();
+    for (const tab of [PRODUTOS, FIADO, CAIXA, OPERADORES]) {
+      openTab(tab);
+      expect(text(tree), tab).toContain(REGISTER);
+    }
+    openTab('Cadastrar e-mail');
+    expect(text(tree)).not.toContain(REGISTER);
+    expect(text(tree)).toContain('Nenhum e-mail cadastrado.');
+    expect(whats()).toEqual([]);
+  });
+
+  it('AC-63: e-mail saved but not confirmed shows "Falta confirmar seu e-mail"', async () => {
+    h.api.getOwnerEmail.mockResolvedValue({ email: 'maria@gmail.com', verified: false });
+    await mount();
+    expect(text(tree)).toContain(CONFIRM);
+    expect(text(tree)).not.toContain(REGISTER);
+  });
+
+  it('AC-62/63: with the e-mail confirmed the notice is gone, and the tab shows it as confirmed', async () => {
+    await mount(); // default: confirmed
+    expect(text(tree)).not.toContain(REGISTER);
+    expect(text(tree)).not.toContain(CONFIRM);
+    openTab(EMAIL_TAB);
+    expect(text(tree)).toContain('maria@gmail.com');
+    expect(text(tree)).toContain('confirmado.');
+  });
+
+  it('AC-9: an operator never reads the e-mail, has no e-mail tab and no notice', async () => {
+    h.api.me.mockResolvedValue({ username: 'caixa', merchantId: 'm', authorities: [], isOwner: false });
+    h.api.getOwnerEmail.mockResolvedValue({ email: null, verified: false });
+    await mount();
+    expect(h.api.getOwnerEmail).not.toHaveBeenCalled();
+    expect(() => openTab(EMAIL_TAB)).toThrow(/not found/);
+    expect(text(tree)).not.toContain(REGISTER);
+  });
+
+  it('a failed read does not break Gestão: no notice anywhere but the e-mail tab, which shows the failure with a retry that reads only the e-mail', async () => {
+    h.api.getOwnerEmail.mockRejectedValueOnce(new Error('boom'));
+    await mount();
+    expect(whats()).toEqual([]); // Produtos tab: the rest loaded as always
+    expect(text(tree)).not.toContain(REGISTER);
+    expect(h.router.push).not.toHaveBeenCalled();
+    openTab(EMAIL_TAB);
+    expect(whats()).toEqual(['o e-mail de recuperação']);
+    expect(text(tree)).not.toContain('Senha atual'); // the form waits for a known state
+    const before = counts();
+    await notices()[0].props.onRetry();
+    await settle();
+    expect(counts()).toEqual({ ...before, getOwnerEmail: 2 });
+    expect(whats()).toEqual([]);
+    expect(text(tree)).toContain('Senha atual');
   });
 });

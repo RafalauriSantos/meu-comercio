@@ -62,9 +62,14 @@ describe('login page composition', () => {
   });
 
   it('does not add the design fields the app does not have', () => {
-    for (const text of ['Esqueci a senha', 'Continuar conectado', 'Celular', 'Tipo de comércio']) {
+    for (const text of ['Continuar conectado', 'Celular', 'Tipo de comércio']) {
       expect(source).not.toContain(text);
     }
+  });
+
+  it('AC-11/57: links to the forgot password page and tells the operator whom to ask', () => {
+    expect(source).toMatch(/<Link href="\/esqueci-senha"[^>]*>\s*Esqueci a senha\s*<\/Link>/);
+    expect(source).toContain('Operadora: peça à proprietária para ajudar.');
   });
 
   it('gives every keyed element of the screen its own key', () => {

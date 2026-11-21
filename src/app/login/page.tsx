@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { apiClient, ApiError, AuthUser } from '@/frontend/lib/api-client';
 import { getErrorMessage, parseCurrencyInput } from '@/frontend/lib/formatters';
@@ -295,6 +296,14 @@ export default function LoginPage() {
           )}
         </button>
       </form>
+
+      <p className="auth-hint">
+        <Link href="/esqueci-senha" className="auth-link">
+          Esqueci a senha
+        </Link>
+        <br />
+        Operadora: peça à proprietária para ajudar.
+      </p>
     </AuthShell>
   ) : (
     <AuthShell wide labelledBy="auth-title" footer={footer}>

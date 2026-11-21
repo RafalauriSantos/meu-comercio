@@ -29,7 +29,9 @@ export function recoveryErrorResponse(error: unknown) {
 
   if (error instanceof UnauthorizedError) return recoveryJson({ message: error.message }, 401);
   if (error instanceof ZodError) return recoveryJson({ message: 'Dados inválidos.' }, 400);
-  if (error instanceof InvalidEmailError || error instanceof InvalidNewPasswordError || error instanceof InvalidOrExpiredLinkError) {
+  // The code tells a refused password (the link still works) from a refused link or body.
+  if (error instanceof InvalidNewPasswordError) return recoveryJson({ message: error.message, code: 'INVALID_PASSWORD' }, 400);
+  if (error instanceof InvalidEmailError || error instanceof InvalidOrExpiredLinkError) {
     return recoveryJson({ message: error.message }, 400);
   }
   if (error instanceof InvalidCurrentPasswordError) return recoveryJson({ message: error.message }, 403);

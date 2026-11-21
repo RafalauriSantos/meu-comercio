@@ -191,7 +191,7 @@ describe('POST /api/auth/password-reset/confirm', () => {
     const res = await call(confirmPost, 'confirm', { ...body, confirmPassword: 'outra' });
 
     expect(res.status).toBe(400);
-    expect(await res.json()).toEqual({ message: 'As senhas não conferem.' });
+    expect(await res.json()).toEqual({ message: 'As senhas não conferem.', code: 'INVALID_PASSWORD' });
   });
 
   it('AC-22/25: link recusado é 400 com a mensagem única', async () => {

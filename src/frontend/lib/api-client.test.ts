@@ -2,6 +2,32 @@ import { describe, it, expect, vi, afterEach } from 'vitest';
 import { apiRequest, ApiError, apiClient, exportProducts, shouldGoToLogin, loadErrorMessage } from './api-client';
 import { subscribeSessionExpired } from './session-expired';
 
+describe('password reset calls (D-32)', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it('send the token and the passwords in a POST body, never in the URL', async () => {
+    const fetchMock = vi.fn().mockImplementation(() => Promise.resolve(new Response('{"ok":true}', { status: 200 })));
+    vi.stubGlobal('fetch', fetchMock);
+
+    await apiClient.requestPasswordReset('maria@gmail.com');
+    await apiClient.inspectPasswordReset('TOKEN123');
+    await apiClient.confirmPasswordReset('TOKEN123', 'senha-nova-1', 'senha-nova-2');
+
+    const calls = fetchMock.mock.calls.map(([url, init]) => [url, init.method, JSON.parse(init.body)]);
+    expect(calls).toEqual([
+      ['/api/auth/password-reset/request', 'POST', { email: 'maria@gmail.com' }],
+      ['/api/auth/password-reset/inspect', 'POST', { token: 'TOKEN123' }],
+      [
+        '/api/auth/password-reset/confirm',
+        'POST',
+        { token: 'TOKEN123', password: 'senha-nova-1', confirmPassword: 'senha-nova-2' },
+      ],
+    ]);
+  });
+});
+
 describe('apiRequest errors', () => {
   afterEach(() => {
     vi.unstubAllGlobals();

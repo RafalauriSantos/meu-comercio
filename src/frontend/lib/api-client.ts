@@ -601,5 +601,20 @@ export const apiClient = {
       method: 'POST',
       body: JSON.stringify({ token }),
     }),
+  requestPasswordReset: (email: string) =>
+    apiRequest<{ message: string }>('/api/auth/password-reset/request', {
+      method: 'POST',
+      body: JSON.stringify({ email }),
+    }),
+  inspectPasswordReset: (token: string) =>
+    apiRequest<{ ok: true }>('/api/auth/password-reset/inspect', {
+      method: 'POST',
+      body: JSON.stringify({ token }),
+    }),
+  confirmPasswordReset: (token: string, password: string, confirmPassword: string) =>
+    apiRequest<{ ok: true }>('/api/auth/password-reset/confirm', {
+      method: 'POST',
+      body: JSON.stringify({ token, password, confirmPassword }),
+    }),
 };
 

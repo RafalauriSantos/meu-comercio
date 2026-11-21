@@ -96,3 +96,52 @@ export function emailChangedNotice(maskedNewEmail: string, changedAt: Date) {
     ),
   };
 }
+
+export function passwordResetEmail(link: string, requestedAt: Date, merchantName: string) {
+  if (!/^https?:\/\//i.test(link)) throw new Error('Reset link must be http(s)');
+  const when = brasilia.format(requestedAt);
+  const safeLink = esc(link);
+  const body = `<p style="margin:0 0 16px;">Recebemos um pedido para redefinir a senha da loja <strong>${esc(merchantName)}</strong>. Clique no botão abaixo para escolher uma nova senha.</p>
+<table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:0 0 24px;"><tr><td align="center" bgcolor="${BRAND_BLUE}" style="border-radius:8px;"><a href="${safeLink}" style="display:inline-block;padding:16px 32px;font-family:${FONT};font-size:18px;font-weight:bold;line-height:24px;color:#ffffff;text-decoration:none;border-radius:8px;">Redefinir senha</a></td></tr></table>
+<p style="margin:0 0 4px;font-size:14px;line-height:20px;color:#55647a;">Se o botão não abrir, copie e cole este link no navegador:</p>
+<p style="margin:0 0 24px;font-size:14px;line-height:20px;word-break:break-all;"><a href="${safeLink}" style="color:#1b449c;">${safeLink}</a></p>
+<p style="margin:0 0 4px;"><strong>O link vale 30 minutos.</strong></p>
+<p style="margin:0;font-size:14px;line-height:20px;color:#55647a;">Pedido feito em ${esc(when)} (horário de Brasília).</p>`;
+  return {
+    subject: 'Meu Comércio: redefinir sua senha',
+    text: [
+      `Recebemos um pedido para redefinir a senha da loja ${merchantName}. Abra o link abaixo para escolher uma nova senha.`,
+      '',
+      link,
+      '',
+      'O link vale 30 minutos.',
+      `Pedido feito em ${when} (horário de Brasília).`,
+      'Se não foi você, ignore este e-mail: sua senha não muda.',
+    ].join('\n'),
+    html: layout(
+      'Redefina sua senha. O link vale 30 minutos.',
+      'Redefinir sua senha',
+      body,
+      'Se não foi você, ignore este e-mail: sua senha não muda.'
+    ),
+  };
+}
+
+export function passwordChangedNotice(changedAt: Date) {
+  const when = brasilia.format(changedAt);
+  const body = `<p style="margin:0 0 16px;">A senha da sua conta foi alterada.</p>
+<p style="margin:0;font-size:14px;line-height:20px;color:#55647a;">Alteração feita em ${esc(when)} (horário de Brasília).</p>`;
+  return {
+    subject: 'Meu Comércio: sua senha foi alterada',
+    text: [
+      `A senha da sua conta foi alterada em ${when} (horário de Brasília).`,
+      'Não foi você? Entre em contato e troque sua senha de e-mail.',
+    ].join('\n'),
+    html: layout(
+      'A senha da sua conta foi alterada.',
+      'Sua senha foi alterada',
+      body,
+      'Não foi você? Entre em contato e troque sua senha de e-mail.'
+    ),
+  };
+}

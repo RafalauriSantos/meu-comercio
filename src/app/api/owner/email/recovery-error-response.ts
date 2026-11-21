@@ -1,4 +1,4 @@
-import { NextResponse } from 'next/server';
+import { NextResponse, after } from 'next/server';
 import * as Sentry from '@sentry/nextjs';
 import { ZodError } from 'zod';
 import { UnauthorizedError } from '@/shared/infrastructure/auth/auth-context';
@@ -8,6 +8,7 @@ import {
   EmailSendFailedError,
   InvalidCurrentPasswordError,
   InvalidEmailError,
+  InvalidNewPasswordError,
   InvalidOrExpiredLinkError,
   RecoveryRateLimitedError,
 } from '@/modules/users/domain/errors';
@@ -28,7 +29,7 @@ export function recoveryErrorResponse(error: unknown) {
 
   if (error instanceof UnauthorizedError) return recoveryJson({ message: error.message }, 401);
   if (error instanceof ZodError) return recoveryJson({ message: 'Dados inválidos.' }, 400);
-  if (error instanceof InvalidEmailError || error instanceof InvalidOrExpiredLinkError) {
+  if (error instanceof InvalidEmailError || error instanceof InvalidNewPasswordError || error instanceof InvalidOrExpiredLinkError) {
     return recoveryJson({ message: error.message }, 400);
   }
   if (error instanceof InvalidCurrentPasswordError) return recoveryJson({ message: error.message }, 403);
@@ -51,4 +52,15 @@ export function recoveryErrorResponse(error: unknown) {
   console.error('Erro na recuperação de acesso:', error instanceof Error ? error.name : 'desconhecido');
   Sentry.captureException(error);
   return recoveryJson({ message: 'Erro interno. Tente novamente.' }, 500);
+}
+
+/**
+ * Runs the task after the response (Next `after()`), then flushes Sentry: a serverless function can freeze
+ * right after, and an error captured by the task would be lost.
+ */
+export function runAfterResponse(task: () => Promise<void>): void {
+  after(async () => {
+    await task();
+    await Sentry.flush(2000);
+  });
 }

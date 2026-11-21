@@ -1,5 +1,6 @@
 import type { AuditPort } from '@/modules/audit/domain/audit.port';
 import { EmailInUseError } from '../domain/errors';
+import { PasswordResetRepository } from '../domain/password-reset-repository.port';
 import { OwnerEmailRecord, OwnerEmailRepository } from '../domain/owner-email-repository.port';
 import { RecoveryDecision } from '../domain/recovery-limits';
 import { RecoveryRequestLimiter } from '../domain/recovery-request-limiter.port';
@@ -107,5 +108,57 @@ export class InMemoryRecoveryStore implements OwnerEmailRepository, RecoveryToke
 
   async invalidate(tokenHash: string, now: Date) {
     for (const t of this.tokens) if (t.tokenHash === tokenHash && !t.usedAt) t.expiresAt = now;
+  }
+}
+
+interface StoredAccount {
+  passwordHash: string;
+  isOwner: boolean;
+  enabled: boolean;
+  merchantName: string;
+  failedLoginAttempts: number;
+  lockedUntil: Date | null;
+  credentialsChangedAt: Date | null;
+}
+
+/** Recovery store plus the password reset queries, with the same rules as DrizzlePasswordResetRepository. */
+export class InMemoryPasswordResetStore extends InMemoryRecoveryStore implements PasswordResetRepository {
+  readonly accounts = new Map<string, StoredAccount>();
+
+  addAccount(username: string, user: Partial<OwnerEmailRecord> = {}, account: Partial<StoredAccount> = {}): void {
+    this.addUser(username, user);
+    this.accounts.set(username, {
+      passwordHash: 'old-hash', isOwner: true, enabled: true, merchantName: 'Loja da Maria',
+      failedLoginAttempts: 0, lockedUntil: null, credentialsChangedAt: null, ...account,
+    });
+  }
+
+  async findOwnerByVerifiedEmail(email: string) {
+    for (const [username, user] of this.users) {
+      const account = this.accounts.get(username);
+      if (account?.isOwner && account.enabled && user.verifiedAt && user.email === email) {
+        return { merchantId: user.merchantId, username, merchantName: account.merchantName };
+      }
+    }
+    return null;
+  }
+
+  async getCredentials(username: string) {
+    const account = this.accounts.get(username);
+    const user = this.users.get(username);
+    return account?.isOwner && account.enabled && user ? { passwordHash: account.passwordHash, email: user.email, verifiedAt: user.verifiedAt } : null;
+  }
+
+  async resetPassword({ tokenHash, passwordHash, now }: { tokenHash: string; passwordHash: string; now: Date }) {
+    const token = this.tokens.find(
+      (t) => t.tokenHash === tokenHash && t.purpose === 'PASSWORD_RESET' && !t.usedAt && t.expiresAt > now
+    );
+    if (!token) return null;
+    token.usedAt = now;
+    const user = this.users.get(token.username);
+    const account = this.accounts.get(token.username);
+    if (!user || !account?.isOwner || !account.enabled || !user.verifiedAt || user.email !== token.email) return null;
+    Object.assign(account, { passwordHash, credentialsChangedAt: new Date(), failedLoginAttempts: 0, lockedUntil: null });
+    return { merchantId: token.merchantId, username: token.username, email: token.email };
   }
 }

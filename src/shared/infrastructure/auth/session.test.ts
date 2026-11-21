@@ -1,6 +1,6 @@
 import crypto from 'crypto';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { createSessionToken, renewSessionToken, verifySessionToken } from './session';
+import { createSessionToken, isSessionRevoked, renewSessionToken, verifySessionToken } from './session';
 
 describe('Session Token Management', () => {
   it('should generate and verify a valid session token', () => {
@@ -145,5 +145,24 @@ describe('Sliding session', () => {
 
     vi.setSystemTime(T0 + 31 * MIN);
     expect(verifySessionToken(token)).toBeNull();
+  });
+});
+
+describe('isSessionRevoked (D-32, AC-52, AC-55)', () => {
+  const base = { username: 'dona', merchantId: 'm', authorities: ['ROLE_OWNER' as const], expiresAt: Date.now() + 60_000 };
+  const changedAt = new Date('2026-11-21T12:00:00Z');
+
+  it('sem troca de senha registrada, nada é revogado', () => {
+    expect(isSessionRevoked({ ...base, startedAt: 1 }, null)).toBe(false);
+  });
+
+  it('sessão iniciada antes da troca é revogada; depois, vale', () => {
+    expect(isSessionRevoked({ ...base, startedAt: changedAt.getTime() - 1 }, changedAt)).toBe(true);
+    expect(isSessionRevoked({ ...base, startedAt: changedAt.getTime() }, changedAt)).toBe(true); // same millisecond: revoked
+    expect(isSessionRevoked({ ...base, startedAt: changedAt.getTime() + 1 }, changedAt)).toBe(false);
+  });
+
+  it('cookie sem startedAt conta como anterior à troca', () => {
+    expect(isSessionRevoked(base, changedAt)).toBe(true);
   });
 });

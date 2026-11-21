@@ -52,3 +52,11 @@ export class EmailSendFailedError extends Error {
     this.name = 'EmailSendFailedError';
   }
 }
+
+/** The new password is refused (short, different from the repetition, or equal to the current). The message is for the field; the link is not used. */
+export class InvalidNewPasswordError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'InvalidNewPasswordError';
+  }
+}

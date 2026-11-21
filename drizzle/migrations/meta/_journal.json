@@ -43,6 +43,13 @@
       "when": 1795023837129,
       "tag": "0005_replace_sem_barcodes",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1795217110165,
+      "tag": "0006_access_recovery",
+      "breakpoints": true
     }
   ]
 }

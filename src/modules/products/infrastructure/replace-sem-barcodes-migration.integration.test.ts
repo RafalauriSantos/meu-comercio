@@ -125,14 +125,14 @@ describe.skipIf(!TEST_DATABASE_URL)('migration 0005 replace invalid barcodes (Po
     baseName = `sem_swap_${randomBytes(4).toString('hex')}_base_test`;
     await admin.query(`CREATE DATABASE ${baseName}`);
 
-    // Migrations 0000 to 0004 only: a copy of the folder with the journal cut before 0005.
+    // Migrations 0000 to 0004 only: a copy of the folder with the journal cut before 0005 (later ones are left out too).
     const folder = mkdtempSync(join(tmpdir(), 'sem-swap-migrations-'));
     mkdirSync(join(folder, 'meta'));
     for (const file of readdirSync(MIGRATIONS)) {
-      if (file.endsWith('.sql') && !file.startsWith('0005')) cpSync(join(MIGRATIONS, file), join(folder, file));
+      if (file.endsWith('.sql') && Number(file.slice(0, 4)) < 5) cpSync(join(MIGRATIONS, file), join(folder, file));
     }
     const journal = JSON.parse(readFileSync(`${MIGRATIONS}/meta/_journal.json`, 'utf8'));
-    journal.entries = journal.entries.filter((e: { tag: string }) => e.tag !== MIGRATION_TAG);
+    journal.entries = journal.entries.filter((e: { idx: number }) => e.idx < 5);
     writeFileSync(join(folder, 'meta', '_journal.json'), JSON.stringify(journal));
 
     const pool = newPool(toUrl(baseName));
@@ -261,9 +261,9 @@ describe.skipIf(!TEST_DATABASE_URL)('migration 0005 replace invalid barcodes (Po
   type Row = Record<string, unknown> & { id: string; barcode: string; merchant_id: string };
   const byId = (rows: Row[]) => new Map(rows.map((r) => [r.id, r]));
 
-  it('journal and file agree: 6 entries, 0005 is the last, tag matches the file', () => {
+  it('journal and file agree: 0005 is entry 5, tag matches the file', () => {
     const journal = JSON.parse(readFileSync(`${MIGRATIONS}/meta/_journal.json`, 'utf8'));
-    expect(journal.entries).toHaveLength(6);
+    expect(journal.entries.length).toBeGreaterThanOrEqual(6);
     expect(journal.entries[5]).toMatchObject({ idx: 5, tag: MIGRATION_TAG, breakpoints: true });
     expect(journal.entries[5].when).toBeGreaterThan(journal.entries[4].when);
   });
@@ -390,7 +390,7 @@ describe.skipIf(!TEST_DATABASE_URL)('migration 0005 replace invalid barcodes (Po
       const database = drizzle(pool);
       await migrate(database, { migrationsFolder: MIGRATIONS });
       const { rows: recorded } = await c.query('SELECT count(*)::int AS n FROM drizzle.__drizzle_migrations');
-      expect(recorded[0].n).toBe(6);
+      expect(recorded[0].n).toBe(JSON.parse(readFileSync(`${MIGRATIONS}/meta/_journal.json`, 'utf8')).entries.length);
       const afterFirst = await snapshot(c);
       expect((afterFirst.products as Row[]).filter((p) => !refValid(p.barcode))).toEqual([]);
       expect(afterFirst.auditEvents).toHaveLength(N);

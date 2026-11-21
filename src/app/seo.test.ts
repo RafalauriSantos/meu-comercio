@@ -4,6 +4,7 @@ import robots from './robots';
 import { metadata as loginMetadata } from './login/layout';
 import { metadata as pdvMetadata } from './pdv/layout';
 import { metadata as gestaoMetadata } from './gestao/layout';
+import { metadata as verifyEmailMetadata } from './verificar-email/layout';
 
 const SITE = 'https://meucomercio.vercel.app';
 
@@ -41,8 +42,12 @@ describe('robots', () => {
   });
 
   it('keeps the login, the PDV and the management screen out of the index', () => {
-    for (const metadata of [loginMetadata, pdvMetadata, gestaoMetadata]) {
+    for (const metadata of [loginMetadata, pdvMetadata, gestaoMetadata, verifyEmailMetadata]) {
       expect(metadata.robots).toMatchObject({ index: false, follow: false });
     }
+  });
+
+  it('sends no Referer from the e-mail link page', () => {
+    expect(verifyEmailMetadata.referrer).toBe('no-referrer');
   });
 });

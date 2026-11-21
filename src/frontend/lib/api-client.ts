@@ -174,6 +174,11 @@ export interface OperatorItem {
   authorities: string[];
 }
 
+/** The recovery e-mail of the owner: null when none is saved; `verified` once the link was confirmed. */
+export interface OwnerEmailStatus {
+  email: string | null;
+  verified: boolean;
+}
 
 export interface CustomerBalance {
   customerId: string;
@@ -571,6 +576,30 @@ export const apiClient = {
     apiRequest<OperatorItem>('/api/users/operators', {
       method: 'POST',
       body: JSON.stringify(payload),
+    }),
+
+  // Recovery e-mail of the owner (D-32). The token of the link goes in the body, never in the URL.
+  getOwnerEmail: () => apiRequest<OwnerEmailStatus>('/api/owner/email'),
+  /** Registers the e-mail (with the current password) or, with no payload, sends the link again to the saved one. */
+  requestEmailVerification: (payload: { email?: string; currentPassword?: string } = {}) =>
+    apiRequest<{ email: string }>('/api/owner/email/verification', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }),
+  changeOwnerEmail: (payload: { email: string; currentPassword: string }) =>
+    apiRequest<{ email: string }>('/api/owner/email', {
+      method: 'PUT',
+      body: JSON.stringify(payload),
+    }),
+  inspectEmailVerification: (token: string) =>
+    apiRequest<{ email: string }>('/api/owner/email/verification/inspect', {
+      method: 'POST',
+      body: JSON.stringify({ token }),
+    }),
+  confirmEmailVerification: (token: string) =>
+    apiRequest<{ email: string }>('/api/owner/email/verification/confirm', {
+      method: 'POST',
+      body: JSON.stringify({ token }),
     }),
 };
 

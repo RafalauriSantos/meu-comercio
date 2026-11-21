@@ -39,6 +39,7 @@ const h = vi.hoisted(() => ({
     getCurrentCash: vi.fn(),
     getCreditMetrics: vi.fn(),
     listOperators: vi.fn(),
+    getOwnerEmail: vi.fn(),
   },
 }));
 
@@ -185,6 +186,7 @@ function loadAs(me: { isOwner: boolean }) {
   respond('getCurrentCash', () => ({ open: false, session: null }));
   respond('getCreditMetrics', () => ({ totalOutstandingCredit: '30.00', totalSettledCredit: '0.00', activeDebtorsCount: 3 }));
   respond('listOperators', () => ({ items: [] }));
+  respond('getOwnerEmail', () => ({ email: 'maria@gmail.com', verified: true }));
 }
 
 beforeEach(() => {
@@ -208,6 +210,7 @@ describe('/gestao first load: the list and the order of the apiClient calls', ()
       'getCurrentCash',
       'getCreditMetrics',
       'listOperators',
+      'getOwnerEmail', // AC-9: only the owner reads it
       'getCustomerBalance:c1',
       'getCustomerBalance:c2',
       'getCustomerBalance:c3',
@@ -232,6 +235,7 @@ describe('/gestao first load: the list and the order of the apiClient calls', ()
       'getCustomerBalance:c3',
     ]);
     expect(h.api.listOperators).not.toHaveBeenCalled();
+    expect(h.api.getOwnerEmail).not.toHaveBeenCalled(); // AC-9
     expect(h.router.push).not.toHaveBeenCalled();
   });
 
@@ -295,8 +299,8 @@ describe('/gestao: the apiClient calls and the /login redirects in the source of
   const source = readScreenSource('gestao');
   const count = (needle: string) => source.split(needle).length - 1;
 
-  it('has 21 + 2 + 3 apiClient. (the product edit adds updateProduct and its barcode lookup, the customer edit adds updateCustomer, Gerar código adds a second updateProduct, the statement adds getCustomerStatement, Excluir and Restaurar add 2 updateProduct, 2 updateCustomer and the 2 excluded lists) and 2 router.push(/login)', () => {
-    expect(count('apiClient.')).toBe(21 + 2 + 3 + 2 + 1 + 1 + 1 + 6);
+  it('has 21 + 2 + 3 apiClient. (the owner e-mail tab adds getOwnerEmail, changeOwnerEmail and 2 requestEmailVerification, the product edit adds updateProduct and its barcode lookup, the customer edit adds updateCustomer, Gerar código adds a second updateProduct, the statement adds getCustomerStatement, Excluir and Restaurar add 2 updateProduct, 2 updateCustomer and the 2 excluded lists) and 2 router.push(/login)', () => {
+    expect(count('apiClient.')).toBe(21 + 2 + 3 + 2 + 1 + 1 + 1 + 6 + 4);
     expect(count("router.push('/login')") + count('router.push(loginUrlHere())')).toBe(2);
   });
 
@@ -308,11 +312,13 @@ describe('/gestao: the apiClient calls and the /login redirects in the source of
       closeCash: 1,
       createCustomer: 1,
       createOperator: 1,
+      changeOwnerEmail: 1, // use-owner-email-tab.ts
       createProduct: 1,
       findProductByBarcode: 3, // products tab: the barcode field, the scan that opens the form, and the barcode field of the edit
       getCreditMetrics: 1,
       getCurrentCash: 1,
       getCustomerBalance: 2,
+      getOwnerEmail: 1, // use-owner-email-tab.ts: only for the owner
       getCustomerStatement: 1, // use-customer-statement.ts
       getSalesReport: 1, // sales-report-panel.tsx; written on two lines, so it is not in the literal count
       getStoreSettings: 1, // page.tsx; also on several lines (`.getStoreSettings()` on its own line), so also not in the literal count
@@ -326,6 +332,7 @@ describe('/gestao: the apiClient calls and the /login redirects in the source of
       openCash: 1,
       recordDeposit: 1,
       recordWithdrawal: 1,
+      requestEmailVerification: 2, // use-owner-email-tab.ts: register and resend
       restockInventory: 1,
       settleCustomerDebt: 1,
       updateCustomer: 3, // the edit, Excluir and Restaurar

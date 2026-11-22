@@ -72,6 +72,12 @@ describe('login page composition', () => {
     expect(source).toContain('Operadora: peça à proprietária para ajudar.');
   });
 
+  it('AC-26: offers Esqueci o PIN beside Esqueci a senha, with no PIN field or flow added to the login', () => {
+    expect(source).toMatch(/<\/Link>\s*\{' · '\}\s*<ForgotPinLink \/>/);
+    expect(source.match(/<ForgotPinLink/g)).toHaveLength(1);
+    expect(source.match(/<PinField/g)).toHaveLength(1);
+  });
+
   it('gives every keyed element of the screen its own key', () => {
     // The header and the form of one mode are siblings: sharing a key makes React warn and misplace them.
     const keys = [...source.matchAll(/\bkey="([^"]+)"/g)].map((match) => match[1]);

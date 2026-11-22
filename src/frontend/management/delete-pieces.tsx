@@ -10,6 +10,7 @@ import {
   type DeleteError,
   type Kind,
 } from '@/frontend/management/deactivate';
+import { ForgotPinLink } from '@/frontend/auth/forgot-pin-link';
 
 /** What an edit panel needs to draw the Excluir area and its confirmation (the hook owns the state). */
 export interface DeleteFlowView {
@@ -142,6 +143,7 @@ export function DeleteConfirmDialog({
               onChange={(e) => onPin(e.target.value)}
             />
             <span className="mg-help" id={pinHelpId}>{PIN_HELP}</span>
+            <ForgotPinLink />
           </div>
         )}
         {error && (

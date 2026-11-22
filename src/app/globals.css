@@ -536,6 +536,16 @@ a:focus-visible {
   }
 }
 
+/* "Esqueci o PIN" beside the PIN fields of the PDV, management and login. No ::after, no side margin. */
+.forgot-pin-link {
+  display: inline-block;
+  margin-top: 4px;
+  color: var(--primary-text);
+  font-size: 14px;
+  font-weight: 600;
+  text-decoration: underline;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .skeleton::after {
     animation: none;

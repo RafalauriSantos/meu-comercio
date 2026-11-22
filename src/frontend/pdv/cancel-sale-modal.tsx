@@ -5,6 +5,7 @@ import { apiClient, type RecentSaleItem } from '@/frontend/lib/api-client';
 import { formatMoney, getErrorMessage } from '@/frontend/lib/formatters';
 import { createEscapeDismiss } from '@/frontend/lib/dismiss-on-escape';
 import { formatSaleTime, isOwnerPin, isReasonValid } from './cancel-sale';
+import { ForgotPinLink } from '@/frontend/auth/forgot-pin-link';
 
 interface CancelSaleModalProps {
   onClose: () => void;
@@ -120,6 +121,7 @@ export function CancelSaleModal({ onClose, onCancelled }: CancelSaleModalProps) 
               onChange={(e) => setOwnerPin(e.target.value)}
               placeholder="••••••"
             />
+            <ForgotPinLink />
           </div>
 
           <div className="pdv-field">

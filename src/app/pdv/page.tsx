@@ -67,6 +67,7 @@ import { browserDraftStorage, buildCartDraft, saveCartDraft, takeCartDraft } fro
 import { isRegistrableCode, isUnknownCodeError, registeredNotice } from '@/frontend/pdv/register-on-scan';
 import { useRegisterOnScan } from '@/frontend/pdv/use-register-on-scan';
 import { RegisterOnScanPanel } from '@/frontend/pdv/register-on-scan-panel';
+import { ForgotPinLink } from '@/frontend/auth/forgot-pin-link';
 import '@/frontend/styles/pdv.css';
 // The new product panel draws with the mg-* rules of the management screen, scoped by .management-page.
 import '@/frontend/styles/management.css';
@@ -1421,6 +1422,7 @@ export default function PdvTerminalPage() {
                 onChange={(e) => setOwnerPin(e.target.value)}
                 placeholder="••••••"
               />
+              <ForgotPinLink />
             </div>
 
             <footer className="pdv-modal-foot">

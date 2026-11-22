@@ -10,6 +10,7 @@ import {
   type NewCustomerDraft,
 } from '@/frontend/management/new-customer';
 import { useDialogPanel } from '@/frontend/lib/use-dialog-panel';
+import { ForgotPinLink } from '@/frontend/auth/forgot-pin-link';
 
 interface NewCustomerPanelProps {
   isOwner: boolean;
@@ -130,6 +131,7 @@ export function NewCustomerPanel({
                 onChange={(e) => onDraft({ ownerPin: sanitizePin(e.target.value) })}
               />
               <span className="mg-help">Por segurança, aumentar o limite pede o seu PIN.</span>
+              <ForgotPinLink />
             </div>
           )}
           {error && <div {...noticeView({ text: error, isError: true })}>{error}</div>}

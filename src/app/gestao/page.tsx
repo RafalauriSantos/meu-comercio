@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import {
@@ -32,10 +32,15 @@ import { loginUrlHere } from '@/frontend/auth/safe-return-path';
 import '@/frontend/styles/management.css';
 
 type LoadKey = 'products' | 'customers' | 'balances' | 'cash' | 'metrics' | 'operators' | 'ownerEmail';
+type TabKey = 'produtos' | 'fiado' | 'caixa' | 'relatorios' | 'ajustes';
 
 export default function GestaoPage() {
   const router = useRouter();
-  const [activeTab, setActiveTab] = useState<'produtos' | 'fiado' | 'caixa' | 'relatorios' | 'ajustes'>('produtos');
+  const [activeTab, setActiveTab] = useState<TabKey>('produtos');
+  // The tabs whose data is loaded. A tab is only drawn when it is ready, so its empty state never shows before its data.
+  const [readyTabs, setReadyTabs] = useState<Set<TabKey>>(() => new Set());
+  // The load of each tab, kept so that opening the tab again (or the init running twice) does not ask again.
+  const tabLoads = useRef(new Map<TabKey, Promise<void>>());
   const [user, setUser] = useState<AuthUser | null>(null);
   const [loading, setLoading] = useState(true);
   // The first load failed for a reason other than an expired session: the error stays on the screen with a retry.
@@ -96,27 +101,39 @@ export default function GestaoPage() {
     }
   }
 
+  // Loads only the data of one tab, once. Its failures show in the tab (with "Tentar de novo"), so this never throws.
+  const loadTab = useCallback((tab: TabKey): Promise<void> => {
+    const running = tabLoads.current.get(tab);
+    if (running) return running;
+    const load = (async () => {
+      if (tab === 'produtos') await loadProducts();
+      if (tab === 'fiado') await Promise.all([loadCustomers(), loadCreditMetrics()]);
+      if (tab === 'caixa') await loadCash();
+      if (tab === 'ajustes') await loadOperators();
+      setReadyTabs((ready) => new Set(ready).add(tab));
+    })();
+    tabLoads.current.set(tab, load);
+    return load;
+  }, [loadProducts, loadCustomers, loadCreditMetrics, loadCash, loadOperators]);
+
+  function openTab(tab: TabKey) {
+    setActiveTab(tab);
+    void loadTab(tab);
+  }
+
   useEffect(() => {
     async function init() {
       try {
-        const me = await apiClient.me();
-        setUser(me);
-        const tasks: Promise<unknown>[] = [
+        const [me, settings] = await Promise.all([
+          apiClient.me(),
           // Sem resposta, vale o controle de estoque ligado, como era antes.
-          apiClient
-            .getStoreSettings()
-            .then((settings) => setStockControl(settings.stockControlEnabled))
-            .catch(() => undefined),
-          loadProducts(),
-          loadCustomers(),
-          loadCash(),
-          loadCreditMetrics(),
-        ];
-        if (me.isOwner) {
-          tasks.push(loadOperators());
-          tasks.push(loadOwnerEmail());
-        }
-        await Promise.all(tasks);
+          apiClient.getStoreSettings().catch(() => null),
+        ]);
+        setUser(me);
+        if (settings) setStockControl(settings.stockControlEnabled);
+        // The dot of Ajustes (e-mail not confirmed) is shown on every tab, so the owner's e-mail status loads with the page.
+        if (me.isOwner) void loadOwnerEmail();
+        await loadTab('produtos');
       } catch (err) {
         if (shouldGoToLogin(err)) router.push(loginUrlHere());
         else setInitError(loadErrorMessage(err));
@@ -125,7 +142,7 @@ export default function GestaoPage() {
       }
     }
     init();
-  }, [router, loadProducts, loadCustomers, loadCash, loadCreditMetrics, loadOperators, loadOwnerEmail, attempt]);
+  }, [router, loadTab, loadOwnerEmail, attempt]);
 
   // Only on the click: loads everything again.
   function retryInit() {
@@ -241,6 +258,10 @@ export default function GestaoPage() {
   // Sem e-mail ou sem confirmar: a aba Ajustes mostra o ponto de alerta (estado desconhecido não alerta).
   const emailPending = Boolean(user?.isOwner && ownerEmailTab.status && !ownerEmailTab.status.verified);
   const shape = skeletonGate === 'skeleton';
+  // The open tab is still loading its data: the tab row stays, the content is the skeleton.
+  const tabPending = !loading && !readyTabs.has(activeTab);
+  const tabGate = useSkeletonGate(tabPending);
+  const at = (tab: TabKey) => activeTab === tab && !tabPending;
 
   return (
     <>
@@ -270,7 +291,7 @@ export default function GestaoPage() {
             type="button"
             className="mg-segment"
             aria-pressed={activeTab === 'produtos'}
-            onClick={() => setActiveTab('produtos')}
+            onClick={() => openTab('produtos')}
           >
             Catálogo
           </button>
@@ -278,7 +299,7 @@ export default function GestaoPage() {
             type="button"
             className="mg-segment"
             aria-pressed={activeTab === 'fiado'}
-            onClick={() => setActiveTab('fiado')}
+            onClick={() => openTab('fiado')}
           >
             Clientes
           </button>
@@ -286,7 +307,7 @@ export default function GestaoPage() {
             type="button"
             className="mg-segment"
             aria-pressed={activeTab === 'caixa'}
-            onClick={() => setActiveTab('caixa')}
+            onClick={() => openTab('caixa')}
           >
             Caixa
           </button>
@@ -295,7 +316,7 @@ export default function GestaoPage() {
               type="button"
               className="mg-segment"
               aria-pressed={activeTab === 'relatorios'}
-              onClick={() => setActiveTab('relatorios')}
+              onClick={() => openTab('relatorios')}
             >
               Relatórios
             </button>
@@ -305,7 +326,7 @@ export default function GestaoPage() {
               type="button"
               className="mg-segment"
               aria-pressed={activeTab === 'ajustes'}
-              onClick={() => setActiveTab('ajustes')}
+              onClick={() => openTab('ajustes')}
             >
               Ajustes
               {emailPending && (
@@ -319,17 +340,19 @@ export default function GestaoPage() {
         </div>
 
         {/* TAB 1: PRODUTOS */}
-        {activeTab === 'produtos' && (
+        {tabPending && <ManagementDataSkeleton shape={tabGate === 'skeleton'} tabs={false} />}
+
+        {at('produtos') && (
           <ProductsTab tab={productsTab} stockControl={stockControl} user={user} setFeedback={setFeedback} loadFailed={loadFailed} retrying={retrying} processing={processing} retry={retry} />
         )}
 
         {/* TAB 2: CLIENTES & FIADO */}
-        {activeTab === 'fiado' && (
+        {at('fiado') && (
           <CustomersTab tab={customersTab} user={user} loadFailed={loadFailed} retrying={retrying} processing={processing} retry={retry} />
         )}
 
         {/* TAB 3: CONTROLE & FECHAMENTO DE CAIXA */}
-        {activeTab === 'caixa' && (
+        {at('caixa') && (
           <section className="mg-section">
             {loadFailed.cash && (
               <LoadFailureNotice what="o caixa" busy={retrying} onRetry={() => retry(loadCash)} />
@@ -497,10 +520,10 @@ export default function GestaoPage() {
         )}
 
         {/* TAB: RELATÓRIOS (só a dona) */}
-        {activeTab === 'relatorios' && user?.isOwner && <SalesReportPanel />}
+        {at('relatorios') && user?.isOwner && <SalesReportPanel />}
 
         {/* TAB: AJUSTES (só a dona) */}
-        {activeTab === 'ajustes' && user?.isOwner && (
+        {at('ajustes') && user?.isOwner && (
           <SettingsTab
             operatorsTab={operatorsTab}
             ownerEmailTab={ownerEmailTab}

@@ -122,6 +122,6 @@ describe('the reports tab of the management panel', () => {
 
   it('is for the owner only, in the tab and in the content', () => {
     expect(page).toMatch(/user\?\.isOwner && \(\s*<button[^>]*\s*type="button"[^>]*aria-pressed=\{activeTab === 'relatorios'\}/);
-    expect(page).toContain("{activeTab === 'relatorios' && user?.isOwner && <SalesReportPanel />}");
+    expect(page).toContain("{at('relatorios') && user?.isOwner && <SalesReportPanel />}");
   });
 });

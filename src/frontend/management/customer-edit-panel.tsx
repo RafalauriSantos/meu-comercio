@@ -18,6 +18,7 @@ import { sanitizePin } from '@/frontend/auth/sanitize-pin';
 import { useDialogPanel } from '@/frontend/lib/use-dialog-panel';
 import { customerDeleteBlock } from '@/frontend/management/deactivate';
 import { DeleteArea, DeleteConfirmDialog, type DeleteFlowView } from '@/frontend/management/delete-pieces';
+import { ForgotPinLink } from '@/frontend/auth/forgot-pin-link';
 
 interface CustomerEditPanelProps {
   target: CustomerItem;
@@ -139,6 +140,7 @@ export function CustomerEditPanel({
                 onChange={(e) => onDraft({ ownerPin: sanitizePin(e.target.value) })}
               />
               <span className="mg-help">Por segurança, aumentar o limite pede o seu PIN.</span>
+              <ForgotPinLink />
             </div>
           )}
           <div>

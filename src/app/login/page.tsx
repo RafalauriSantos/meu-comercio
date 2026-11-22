@@ -17,6 +17,7 @@ import { PinField } from '@/frontend/auth/pin-field';
 import { passwordsMismatch } from '@/frontend/auth/passwords-mismatch';
 import { registerEmailNotice } from '@/frontend/auth/register-email-notice';
 import { FormError } from '@/frontend/auth/form-error';
+import { ForgotPinLink } from '@/frontend/auth/forgot-pin-link';
 import { useAutoDismiss } from '@/frontend/lib/use-auto-dismiss';
 import '@/frontend/styles/auth.css';
 
@@ -301,6 +302,8 @@ export default function LoginPage() {
         <Link href="/esqueci-senha" className="auth-link">
           Esqueci a senha
         </Link>
+        {' · '}
+        <ForgotPinLink />
         <br />
         Operadora: peça à proprietária para ajudar.
       </p>

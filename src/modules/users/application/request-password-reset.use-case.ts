@@ -7,7 +7,7 @@ import { safeToReport } from './safe-report';
 import { RecoveryLinkDeps, sendRecoveryLink } from './send-recovery-link';
 
 // Account-key prefix of the limiter for an e-mail with no account, per purpose.
-const UNKNOWN_ACCOUNT_PREFIX = { PASSWORD_RESET: 'pwd-reset' };
+const UNKNOWN_ACCOUNT_PREFIX = { PASSWORD_RESET: 'pwd-reset', PIN_RESET: 'pin-reset' };
 
 export interface RequestPasswordResetDeps extends RecoveryLinkDeps {
   /** Which recovery this request starts. Defaults to the password reset. */

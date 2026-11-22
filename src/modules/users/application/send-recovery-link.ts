@@ -4,7 +4,7 @@ import { EmailSendFailedError } from '../domain/errors';
 import { maskEmail } from '../domain/owner-email';
 import { generateRecoveryToken, hashToken, recoveryTokenExpiresAt } from '../domain/recovery-token';
 import { RecoveryTokenRepository } from '../domain/recovery-token-repository.port';
-import { passwordResetEmail, verificationEmail } from './recovery-email-templates';
+import { passwordResetEmail, pinResetEmail, verificationEmail } from './recovery-email-templates';
 
 /** Per purpose: where the link opens and which e-mail carries it. */
 const RECOVERY_LINKS = {
@@ -15,6 +15,10 @@ const RECOVERY_LINKS = {
   PASSWORD_RESET: {
     path: '/redefinir-senha',
     buildEmail: (link: string, now: Date, merchantName: string) => passwordResetEmail(link, now, merchantName),
+  },
+  PIN_RESET: {
+    path: '/redefinir-pin',
+    buildEmail: (link: string, now: Date, merchantName: string) => pinResetEmail(link, now, merchantName),
   },
 };
 

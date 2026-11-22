@@ -11,3 +11,9 @@ export function validateNewPassword(password: string, confirmPassword: string): 
     throw new InvalidNewPasswordError('A senha é longa demais. Use até 72 bytes (letras com acento contam como 2).');
   }
 }
+
+/** Form rules for a new PIN (the same 6 digits as the sign-up). Throws InvalidNewPasswordError with the text shown to the user. */
+export function validateNewPin(pin: string, confirmPin: string): void {
+  if (pin !== confirmPin) throw new InvalidNewPasswordError('Os PINs não conferem.');
+  if (!/^\d{6}$/.test(pin)) throw new InvalidNewPasswordError('O PIN deve ter exatamente 6 números.');
+}

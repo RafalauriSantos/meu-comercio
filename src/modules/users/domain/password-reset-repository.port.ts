@@ -24,4 +24,14 @@ export interface PasswordResetRepository {
     passwordHash: string;
     now: Date;
   }): Promise<{ merchantId: string; username: string; email: string } | null>;
+  /**
+   * Same as resetPassword for the PIN_RESET link, and the new authorization PIN hash is saved in the same transaction
+   * (AC-29: both or none). The only way to change the PIN: the password always goes with it (AC-28).
+   */
+  resetPasswordAndPin(params: {
+    tokenHash: string;
+    passwordHash: string;
+    pinHash: string;
+    now: Date;
+  }): Promise<{ merchantId: string; username: string; email: string } | null>;
 }

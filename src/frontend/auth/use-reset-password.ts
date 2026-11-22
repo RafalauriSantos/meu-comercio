@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { apiClient, ApiError } from '@/frontend/lib/api-client';
+import { sanitizePin } from './sanitize-pin';
 import { describeLinkFailure, readTokenFromHash, type LinkFailure } from './verify-email-link';
 
 export type ResetPhase =
@@ -17,24 +18,27 @@ const toPhase = (failure: LinkFailure): ResetPhase => (failure.name === 'in-use'
 /**
  * State of the page that opens the password link. Opening only reads the link; the password changes on the
  * submit (a mail scanner that opens the link must not use it). The code is read from the URL fragment, the
- * fragment is cleared, and the code lives only in a ref and in the body of the two calls.
+ * fragment is cleared, and the code lives only in a ref and in the body of the two calls. With kind 'pin' the
+ * same page also takes the new PIN, and the PIN never changes without the new password (AC-28).
  */
-export function useResetPassword() {
+export function useResetPassword(kind: 'password' | 'pin' = 'password') {
   const token = useRef<string | null | undefined>(undefined); // undefined: the fragment was not read yet
   const [phase, setPhase] = useState<ResetPhase>({ name: 'reading' });
   const [password, setPassword] = useState('');
   const [confirm, setConfirm] = useState('');
+  const [pin, setPin] = useState('');
+  const [confirmPin, setConfirmPin] = useState('');
 
   const inspect = useCallback(async () => {
     if (!token.current) return setPhase({ name: 'invalid' });
     setPhase({ name: 'reading' });
     try {
-      await apiClient.inspectPasswordReset(token.current);
+      await (kind === 'pin' ? apiClient.inspectPinReset(token.current) : apiClient.inspectPasswordReset(token.current));
       setPhase({ name: 'ready' });
     } catch (err) {
       setPhase(toPhase(describeLinkFailure(err)));
     }
-  }, []);
+  }, [kind]);
 
   useEffect(() => {
     // Strict Mode runs this twice: the second run would find the fragment already cleared.
@@ -47,9 +51,15 @@ export function useResetPassword() {
   async function submit() {
     if (phase.name !== 'ready' || !token.current) return;
     if (password !== confirm) return setPhase({ name: 'ready', error: 'As senhas não conferem.' });
+    if (kind === 'pin') {
+      if (!/^\d{6}$/.test(pin)) return setPhase({ name: 'ready', error: 'O PIN deve ter 6 números.' });
+      if (pin !== confirmPin) return setPhase({ name: 'ready', error: 'Os PINs não conferem.' });
+    }
     setPhase({ name: 'submitting' });
     try {
-      await apiClient.confirmPasswordReset(token.current, password, confirm);
+      await (kind === 'pin'
+        ? apiClient.confirmPinReset(token.current, password, confirm, pin, confirmPin)
+        : apiClient.confirmPasswordReset(token.current, password, confirm));
       token.current = null;
       setPhase({ name: 'done' });
     } catch (err) {
@@ -62,5 +72,17 @@ export function useResetPassword() {
     }
   }
 
-  return { phase, password, setPassword, confirm, setConfirm, submit, retry: inspect };
+  return {
+    phase,
+    password,
+    setPassword,
+    confirm,
+    setConfirm,
+    pin,
+    setPin: (value: string) => setPin(sanitizePin(value)),
+    confirmPin,
+    setConfirmPin: (value: string) => setConfirmPin(sanitizePin(value)),
+    submit,
+    retry: inspect,
+  };
 }

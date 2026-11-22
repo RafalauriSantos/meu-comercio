@@ -28,6 +28,32 @@ describe('password reset calls (D-32)', () => {
   });
 });
 
+describe('PIN reset calls (D-32)', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it('send the token, passwords and PINs in a POST body, never in the URL', async () => {
+    const fetchMock = vi.fn().mockImplementation(() => Promise.resolve(new Response('{"ok":true}', { status: 200 })));
+    vi.stubGlobal('fetch', fetchMock);
+
+    await apiClient.requestPinReset('maria@gmail.com');
+    await apiClient.inspectPinReset('TOKEN123');
+    await apiClient.confirmPinReset('TOKEN123', 'senha-nova-1', 'senha-nova-2', '123456', '654321');
+
+    const calls = fetchMock.mock.calls.map(([url, init]) => [url, init.method, JSON.parse(init.body)]);
+    expect(calls).toEqual([
+      ['/api/auth/pin-reset/request', 'POST', { email: 'maria@gmail.com' }],
+      ['/api/auth/pin-reset/inspect', 'POST', { token: 'TOKEN123' }],
+      [
+        '/api/auth/pin-reset/confirm',
+        'POST',
+        { token: 'TOKEN123', password: 'senha-nova-1', confirmPassword: 'senha-nova-2', pin: '123456', confirmPin: '654321' },
+      ],
+    ]);
+  });
+});
+
 describe('apiRequest errors', () => {
   afterEach(() => {
     vi.unstubAllGlobals();

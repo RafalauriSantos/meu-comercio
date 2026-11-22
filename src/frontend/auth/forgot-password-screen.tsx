@@ -4,6 +4,7 @@ import { AuthShell } from './auth-shell';
 import { FormError } from './form-error';
 import {
   FORGOT_CONFIRMED_ONLY,
+  FORGOT_COPY,
   FORGOT_NEUTRAL_MESSAGE,
   FORGOT_OPERATOR_NOTE,
   FORGOT_SPAM_HELP,
@@ -11,6 +12,7 @@ import {
 import type { ForgotPhase } from './use-forgot-password';
 
 interface ForgotPasswordScreenProps {
+  copy?: { title: string; subtitle: string };
   phase: ForgotPhase;
   email: string;
   honeypot: string;
@@ -22,6 +24,7 @@ interface ForgotPasswordScreenProps {
 
 /** The page of the password reset request: only draws each phase. The state is in use-forgot-password.ts. */
 export function ForgotPasswordScreen({
+  copy = FORGOT_COPY.password,
   phase,
   email,
   honeypot,
@@ -61,9 +64,9 @@ export function ForgotPasswordScreen({
     <AuthShell labelledBy="forgot-title">
       <header className="auth-header">
         <h1 className="auth-title" id="forgot-title">
-          Esqueci a senha
+          {copy.title}
         </h1>
-        <p className="auth-subtitle">Informe o e-mail da proprietária para receber um link.</p>
+        <p className="auth-subtitle">{copy.subtitle}</p>
       </header>
 
       {phase.name === 'form' && phase.error && <FormError message={phase.error} />}

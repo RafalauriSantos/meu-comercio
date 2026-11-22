@@ -616,5 +616,21 @@ export const apiClient = {
       method: 'POST',
       body: JSON.stringify({ token, password, confirmPassword }),
     }),
+  requestPinReset: (email: string) =>
+    apiRequest<{ message: string }>('/api/auth/pin-reset/request', {
+      method: 'POST',
+      body: JSON.stringify({ email }),
+    }),
+  inspectPinReset: (token: string) =>
+    apiRequest<{ ok: true }>('/api/auth/pin-reset/inspect', {
+      method: 'POST',
+      body: JSON.stringify({ token }),
+    }),
+  confirmPinReset: (token: string, password: string, confirmPassword: string, pin: string, confirmPin: string) =>
+    apiRequest<{ ok: true }>('/api/auth/pin-reset/confirm', {
+      method: 'POST',
+      body: JSON.stringify({ token, password, confirmPassword, pin, confirmPin }),
+    }),
 };
+
 

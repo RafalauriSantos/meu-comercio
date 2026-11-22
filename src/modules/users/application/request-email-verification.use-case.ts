@@ -8,7 +8,7 @@ import { UserRepository } from '../domain/user-repository.port';
 import { RecoveryRequestLimiter } from '../domain/recovery-request-limiter.port';
 import { RecoveryTokenRepository } from '../domain/recovery-token-repository.port';
 import { assertRecoveryAllowed } from './recovery-decision';
-import { sendVerificationLink } from './send-verification-link';
+import { sendRecoveryLink } from './send-recovery-link';
 
 export interface RequestEmailVerificationDeps {
   limiter: RecoveryRequestLimiter;
@@ -55,7 +55,7 @@ export class RequestEmailVerificationUseCase {
 
     if (await owners.isVerifiedByAnother(email, username)) throw new EmailInUseError();
     await owners.setUnverifiedEmail(username, email);
-    await sendVerificationLink(this.deps, { merchantId, username, email, now });
+    await sendRecoveryLink(this.deps, 'EMAIL_VERIFICATION', { merchantId, username, email, now });
     return { email };
   }
 }

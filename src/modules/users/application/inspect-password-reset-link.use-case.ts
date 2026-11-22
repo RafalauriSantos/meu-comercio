@@ -9,6 +9,8 @@ export interface InspectPasswordResetLinkDeps {
   limiter: RecoveryRequestLimiter;
   resets: PasswordResetRepository;
   tokens: RecoveryTokenRepository;
+  /** Which link is inspected. Defaults to the password reset. */
+  purpose?: 'PASSWORD_RESET';
 }
 
 /** Opening the link only checks it: nothing is used or changed (AC-18). Says nothing about the account. */
@@ -19,7 +21,7 @@ export class InspectPasswordResetLinkUseCase {
     assertRecoveryAllowed(await this.deps.limiter.reserveTokenAttempt(input.ip, input.now));
 
     const record = await this.deps.tokens.find(hashToken(input.token), input.now);
-    if (!record || record.purpose !== 'PASSWORD_RESET') throw new InvalidOrExpiredLinkError();
+    if (!record || record.purpose !== (this.deps.purpose ?? 'PASSWORD_RESET')) throw new InvalidOrExpiredLinkError();
     const owner = await this.deps.resets.getCredentials(record.username);
     if (!owner?.verifiedAt || owner.email !== record.email) throw new InvalidOrExpiredLinkError();
   }

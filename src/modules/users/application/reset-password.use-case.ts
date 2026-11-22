@@ -7,12 +7,10 @@ import { PasswordResetRepository } from '../domain/password-reset-repository.por
 import { RecoveryRequestLimiter } from '../domain/recovery-request-limiter.port';
 import { hashToken } from '../domain/recovery-token';
 import { RecoveryTokenRepository } from '../domain/recovery-token-repository.port';
+import { validateNewPassword } from './new-credentials';
 import { safeToReport } from './safe-report';
 import { assertRecoveryAllowed } from './recovery-decision';
 import { passwordChangedNotice } from './recovery-email-templates';
-
-const MIN_PASSWORD_LENGTH = 8; // same rule as the sign-up (register-merchant)
-const MAX_PASSWORD_BYTES = 72; // bcrypt ignores everything after 72 bytes
 
 export interface ResetPasswordDeps {
   limiter: RecoveryRequestLimiter;
@@ -36,11 +34,7 @@ export class ResetPasswordUseCase {
     const { limiter, resets, tokens, audit, sender, defer, reportError } = this.deps;
     const { password, now } = input;
     // Form errors come first: they say nothing about the link and do not use up the IP's attempts.
-    if (password !== input.confirmPassword) throw new InvalidNewPasswordError('As senhas não conferem.');
-    if (password.length < MIN_PASSWORD_LENGTH) throw new InvalidNewPasswordError('A senha deve ter no mínimo 8 caracteres.');
-    if (Buffer.byteLength(password, 'utf8') > MAX_PASSWORD_BYTES) {
-      throw new InvalidNewPasswordError('A senha é longa demais. Use até 72 bytes (letras com acento contam como 2).');
-    }
+    validateNewPassword(password, input.confirmPassword);
 
     assertRecoveryAllowed(await limiter.reserveTokenAttempt(input.ip, now));
 

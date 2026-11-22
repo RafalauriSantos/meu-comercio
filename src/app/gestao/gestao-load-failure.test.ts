@@ -192,10 +192,10 @@ function openTab(label: string) {
   (button.props.onClick as () => void)();
 }
 
-const PRODUTOS = 'Catálogo & Estoque';
-const FIADO = 'Clientes & Fiado';
-const CAIXA = 'Controle de Caixa';
-const OPERADORES = 'Operadores';
+const PRODUTOS = 'Catálogo';
+const FIADO = 'Clientes';
+const CAIXA = 'Caixa';
+const AJUSTES = 'Ajustes';
 
 function deferred<T>() {
   let resolve!: (v: T) => void;
@@ -304,7 +304,7 @@ describe('harness: expand', () => {
 describe('/gestao without failures (control: nothing changes at HEAD)', () => {
   it('shows no notice in any tab and reads each thing exactly once at start', async () => {
     await mount();
-    for (const tab of [PRODUTOS, FIADO, CAIXA, OPERADORES]) {
+    for (const tab of [PRODUTOS, FIADO, CAIXA, AJUSTES]) {
       openTab(tab);
       expect(whats(), tab).toEqual([]);
     }
@@ -316,7 +316,7 @@ describe('/gestao without failures (control: nothing changes at HEAD)', () => {
     // The reference values the failure tests compare against.
     openTab(FIADO);
     for (const value of [10, 20, 30, 60]) expect(text(tree)).toContain(formatMoney(value));
-    expect(text(tree)).toContain(`${FIADO} (3)`);
+    expect(text(tree)).not.toContain(`${FIADO} (3)`); // no counter in the tab label
   });
 });
 
@@ -326,8 +326,7 @@ describe('/gestao: products fail', () => {
     await mount();
     expect(whats().length).toBe(1);
     expect(whats()[0]).toMatch(/produtos/i);
-    expect(text(tree)).toContain(`${PRODUTOS} (0)`); // value as today
-    for (const tab of [FIADO, CAIXA, OPERADORES]) {
+    for (const tab of [FIADO, CAIXA, AJUSTES]) {
       openTab(tab);
       expect(whats().some((w) => /produtos/i.test(w)), tab).toBe(false);
     }
@@ -381,7 +380,6 @@ describe('/gestao: customers fail', () => {
     expect(whats().length).toBe(1);
     expect(whats()[0]).toMatch(/clientes/i);
     expect(h.api.getCustomerBalance).not.toHaveBeenCalled();
-    expect(text(tree)).toContain(`${FIADO} (0)`); // value as today
     openTab(PRODUTOS);
     expect(whats()).toEqual([]);
     openTab(FIADO);
@@ -390,7 +388,6 @@ describe('/gestao: customers fail', () => {
     expect(h.api.listCustomers).toHaveBeenCalledTimes(2);
     expect(h.api.getCustomerBalance).toHaveBeenCalledTimes(3);
     expect(whats()).toEqual([]);
-    expect(text(tree)).toContain(`${FIADO} (3)`);
   });
 });
 
@@ -474,10 +471,9 @@ describe('/gestao: some balances fail (the money case)', () => {
 });
 
 describe('/gestao: cash fails', () => {
-  it('shows the notice only in Caixa, keeps "Fechado" and the open-cash form as today; retry reads the cash again', async () => {
+  it('shows the notice only in Caixa, keeps the open-cash form as today; retry reads the cash again', async () => {
     h.api.getCurrentCash.mockRejectedValueOnce(new Error('boom'));
     await mount();
-    expect(text(tree)).toContain('● Fechado'); // value as today
     openTab(CAIXA);
     expect(whats().length).toBe(1);
     expect(whats()[0]).toMatch(/caixa/i);
@@ -494,7 +490,7 @@ describe('/gestao: cash fails', () => {
     await settle();
     expect(counts()).toEqual({ ...before, getCurrentCash: 2 });
     expect(whats()).toEqual([]);
-    expect(text(tree)).toContain('● Aberto');
+    expect(text(tree)).toContain('Dados do turno');
   });
 });
 
@@ -517,13 +513,13 @@ describe('/gestao: fiado metrics fail', () => {
 });
 
 describe('/gestao: operators fail', () => {
-  it('shows the notice only in Operadores; retry reads only the operators', async () => {
+  it('shows the notice only in Ajustes; retry reads only the operators', async () => {
     h.api.listOperators.mockRejectedValueOnce(new Error('boom'));
     await mount();
-    openTab(OPERADORES);
+    expect(whats()).toEqual([]); // the other tabs show no operators notice
+    openTab(AJUSTES);
     expect(whats().length).toBe(1);
     expect(whats()[0]).toMatch(/operadores/i);
-    expect(text(tree)).toContain(`${OPERADORES} (0)`); // value as today
     const before = counts();
     await notices()[0].props.onRetry();
     await settle();
@@ -553,7 +549,7 @@ describe('/gestao: no new automatic requests and no change in the login redirect
     expect(whats().some((w) => /métricas/i.test(w))).toBe(true);
     openTab(CAIXA);
     expect(whats().length).toBe(1);
-    openTab(OPERADORES);
+    openTab(AJUSTES);
     expect(whats().length).toBe(1);
   });
 
@@ -840,55 +836,70 @@ describe('/gestao: more races of the balance retry (A2 acceptance gaps)', () => 
 });
 
 describe('/gestao: recovery e-mail of the owner (D-32, slice 2b-1)', () => {
-  const EMAIL_TAB = 'E-mail de recuperação';
   const REGISTER = 'Cadastre e confirme seu e-mail para poder recuperar a senha e o PIN';
   const CONFIRM = 'Falta confirmar seu e-mail';
+  const DOT = 'E-mail de recuperação sem confirmar'; // the accessible text of the alert dot in the Ajustes label
 
-  it('AC-62: owner with no e-mail sees the fixed notice in the tabs; its button opens the e-mail tab, where the notice is not repeated', async () => {
+  function dotCount() {
+    let found = 0;
+    walk(tree, (el) => {
+      if (el.type === 'span' && el.props.className === 'mg-dot') found++;
+    });
+    return found;
+  }
+
+  it('AC-62: owner with no e-mail sees the alert dot on Ajustes in every tab, no banner anywhere; the form is in Ajustes', async () => {
     h.api.getOwnerEmail.mockResolvedValue({ email: null, verified: false });
     await mount();
-    for (const tab of [PRODUTOS, FIADO, CAIXA, OPERADORES]) {
+    for (const tab of [PRODUTOS, FIADO, CAIXA, AJUSTES]) {
       openTab(tab);
-      expect(text(tree), tab).toContain(REGISTER);
+      expect(dotCount(), tab).toBe(1);
+      expect(text(tree), tab).toContain(DOT);
+      expect(text(tree), tab).not.toContain(REGISTER);
     }
-    openTab('Cadastrar e-mail');
-    expect(text(tree)).not.toContain(REGISTER);
     expect(text(tree)).toContain('Nenhum e-mail cadastrado.');
+    expect(text(tree)).toContain('Cadastrar e-mail');
     expect(whats()).toEqual([]);
   });
 
-  it('AC-63: e-mail saved but not confirmed shows "Falta confirmar seu e-mail"', async () => {
+  it('AC-63: e-mail saved but not confirmed shows the dot and, in Ajustes, "falta confirmar."', async () => {
     h.api.getOwnerEmail.mockResolvedValue({ email: 'maria@gmail.com', verified: false });
     await mount();
-    expect(text(tree)).toContain(CONFIRM);
-    expect(text(tree)).not.toContain(REGISTER);
+    expect(dotCount()).toBe(1);
+    expect(text(tree)).not.toContain(CONFIRM);
+    openTab(AJUSTES);
+    expect(text(tree)).toContain('falta confirmar.');
   });
 
-  it('AC-62/63: with the e-mail confirmed the notice is gone, and the tab shows it as confirmed', async () => {
+  it('AC-62/63: with the e-mail confirmed there is no dot, and Ajustes shows it as confirmed', async () => {
     await mount(); // default: confirmed
+    expect(dotCount()).toBe(0);
+    expect(text(tree)).not.toContain(DOT);
     expect(text(tree)).not.toContain(REGISTER);
-    expect(text(tree)).not.toContain(CONFIRM);
-    openTab(EMAIL_TAB);
+    openTab(AJUSTES);
     expect(text(tree)).toContain('maria@gmail.com');
     expect(text(tree)).toContain('confirmado.');
   });
 
-  it('AC-9: an operator never reads the e-mail, has no e-mail tab and no notice', async () => {
+  it('AC-9: an operator never reads the e-mail, has no Ajustes or Relatórios tab and no dot', async () => {
     h.api.me.mockResolvedValue({ username: 'caixa', merchantId: 'm', authorities: [], isOwner: false });
     h.api.getOwnerEmail.mockResolvedValue({ email: null, verified: false });
     await mount();
     expect(h.api.getOwnerEmail).not.toHaveBeenCalled();
-    expect(() => openTab(EMAIL_TAB)).toThrow(/not found/);
-    expect(text(tree)).not.toContain(REGISTER);
+    expect(() => openTab(AJUSTES)).toThrow(/not found/);
+    expect(() => openTab('Relatórios')).toThrow(/not found/);
+    for (const tab of [PRODUTOS, FIADO, CAIXA]) openTab(tab); // the three tabs of the operator stay
+    expect(dotCount()).toBe(0);
+    expect(text(tree)).not.toContain(DOT);
   });
 
-  it('a failed read does not break Gestão: no notice anywhere but the e-mail tab, which shows the failure with a retry that reads only the e-mail', async () => {
+  it('a failed read does not break Gestão: no notice anywhere but Ajustes, which shows the failure with a retry that reads only the e-mail', async () => {
     h.api.getOwnerEmail.mockRejectedValueOnce(new Error('boom'));
     await mount();
     expect(whats()).toEqual([]); // Produtos tab: the rest loaded as always
-    expect(text(tree)).not.toContain(REGISTER);
+    expect(dotCount()).toBe(0); // unknown state: no alert
     expect(h.router.push).not.toHaveBeenCalled();
-    openTab(EMAIL_TAB);
+    openTab(AJUSTES);
     expect(whats()).toEqual(['o e-mail de recuperação']);
     expect(text(tree)).not.toContain('Senha atual'); // the form waits for a known state
     const before = counts();
@@ -897,5 +908,73 @@ describe('/gestao: recovery e-mail of the owner (D-32, slice 2b-1)', () => {
     expect(counts()).toEqual({ ...before, getOwnerEmail: 2 });
     expect(whats()).toEqual([]);
     expect(text(tree)).toContain('Senha atual');
+  });
+});
+
+describe('/gestao: tabs and the stock control switch (shell of 5 tabs)', () => {
+  function tabLabels(): string[] {
+    const labels: string[] = [];
+    walk(tree, (el) => {
+      if (el.type === 'div' && el.props.className === 'mg-tabs') {
+        const buttons: El[] = [];
+        walk(el.props.children, (b) => {
+          if (b.type === 'button') buttons.push(b);
+        });
+        labels.push(...buttons.map((b) => text(b)));
+      }
+    });
+    return labels;
+  }
+
+  it('the owner has Catálogo, Clientes, Caixa, Relatórios and Ajustes, with no counter, no cash state and no old title', async () => {
+    await mount();
+    expect(tabLabels()).toEqual(['Catálogo', 'Clientes', 'Caixa', 'Relatórios', 'Ajustes']);
+    expect(text(tree)).not.toContain('Painel de Gestão do Comércio');
+    expect(text(tree)).not.toContain('Retaguarda');
+  });
+
+  it('the operator has only Catálogo, Clientes and Caixa', async () => {
+    h.api.me.mockResolvedValue({ username: 'caixa', merchantId: 'm', authorities: [], isOwner: false });
+    await mount();
+    expect(tabLabels()).toEqual(['Catálogo', 'Clientes', 'Caixa']);
+  });
+
+  it('the switch is in Ajustes and not in the catalog; it asks, saves and shows the new state', async () => {
+    const updateStoreSettings = vi.fn().mockResolvedValue({ stockControlEnabled: false });
+    (h.api as Record<string, unknown>).updateStoreSettings = updateStoreSettings;
+    const confirmFn = vi.fn(() => true);
+    vi.stubGlobal('confirm', confirmFn);
+    try {
+      await mount();
+      expect(text(tree)).not.toContain('Controle de estoque');
+      openTab(AJUSTES);
+      expect(text(tree)).toContain('Ligado.');
+      openTab('Desligar');
+      await settle();
+      expect(confirmFn).toHaveBeenCalledTimes(1);
+      expect(updateStoreSettings).toHaveBeenCalledWith({ stockControlEnabled: false });
+      expect(text(tree)).toContain('Desligado.');
+      expect(text(tree)).toContain('Ligar');
+    } finally {
+      delete (h.api as Record<string, unknown>).updateStoreSettings;
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it('does not save when the owner says no to the question', async () => {
+    const updateStoreSettings = vi.fn();
+    (h.api as Record<string, unknown>).updateStoreSettings = updateStoreSettings;
+    vi.stubGlobal('confirm', () => false);
+    try {
+      await mount();
+      openTab(AJUSTES);
+      openTab('Desligar');
+      await settle();
+      expect(updateStoreSettings).not.toHaveBeenCalled();
+      expect(text(tree)).toContain('Ligado.');
+    } finally {
+      delete (h.api as Record<string, unknown>).updateStoreSettings;
+      vi.unstubAllGlobals();
+    }
   });
 });

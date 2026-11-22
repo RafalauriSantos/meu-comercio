@@ -18,9 +18,7 @@ import { LoadFailureNotice } from '@/frontend/ui/load-failure-notice';
 import { useSkeletonGate } from '@/frontend/lib/use-skeleton-gate';
 import { ManagementDataSkeleton } from '@/frontend/management/management-skeleton';
 import { SalesReportPanel } from '@/frontend/management/sales-report-panel';
-import { OperatorsTab } from '@/frontend/management/operators-tab';
-import { OwnerEmailTab } from '@/frontend/management/owner-email-tab';
-import { OwnerEmailBanner } from '@/frontend/management/owner-email-banner';
+import { SettingsTab } from '@/frontend/management/settings-tab';
 import { useOwnerEmailTab } from '@/frontend/management/use-owner-email-tab';
 import { useOperatorsTab } from '@/frontend/management/use-operators-tab';
 import { ProductsTab } from '@/frontend/management/products-tab';
@@ -37,7 +35,7 @@ type LoadKey = 'products' | 'customers' | 'balances' | 'cash' | 'metrics' | 'ope
 
 export default function GestaoPage() {
   const router = useRouter();
-  const [activeTab, setActiveTab] = useState<'produtos' | 'fiado' | 'caixa' | 'operadores' | 'relatorios' | 'email'>('produtos');
+  const [activeTab, setActiveTab] = useState<'produtos' | 'fiado' | 'caixa' | 'relatorios' | 'ajustes'>('produtos');
   const [user, setUser] = useState<AuthUser | null>(null);
   const [loading, setLoading] = useState(true);
   // The first load failed for a reason other than an expired session: the error stays on the screen with a retry.
@@ -66,13 +64,13 @@ export default function GestaoPage() {
   // Um pedido por vez (limite de 30 requisições por minuto): enquanto um retry roda, todos os botões ficam bloqueados.
   const [retrying, setRetrying] = useState(false);
   const operatorsTab = useOperatorsTab({ setFeedback, setProcessing, setLoadFailed });
-  const { operators, loadOperators } = operatorsTab;
+  const { loadOperators } = operatorsTab;
   const ownerEmailTab = useOwnerEmailTab({ setProcessing, setLoadFailed });
   const { loadOwnerEmail } = ownerEmailTab;
   // Se a loja controla o estoque. Desligado, somem o saldo, as entradas, os alertas e o valor em estoque.
   const [stockControl, setStockControl] = useState(true);
   const productsTab = useProductsTab({ setFeedback, setProcessing, setLoadFailed, stockControl, setStockControl });
-  const { summary, loadProducts } = productsTab;
+  const { loadProducts } = productsTab;
 
   const loadCash = useCallback(async () => {
     try {
@@ -87,7 +85,7 @@ export default function GestaoPage() {
   }, []);
 
   const customersTab = useCustomersTab({ setFeedback, setProcessing, setLoadFailed, loadCash });
-  const { customers, loadCustomers, loadCreditMetrics } = customersTab;
+  const { loadCustomers, loadCreditMetrics } = customersTab;
 
   async function retry(load: () => Promise<void>) {
     setRetrying(true);
@@ -240,6 +238,8 @@ export default function GestaoPage() {
   }
 
 
+  // Sem e-mail ou sem confirmar: a aba Ajustes mostra o ponto de alerta (estado desconhecido não alerta).
+  const emailPending = Boolean(user?.isOwner && ownerEmailTab.status && !ownerEmailTab.status.verified);
   const shape = skeletonGate === 'skeleton';
 
   return (
@@ -252,13 +252,6 @@ export default function GestaoPage() {
       />
 
       <main className="management-page">
-        <div className="mg-titlebar">
-          <div>
-            <h1>Painel de Gestão do Comércio</h1>
-            <p className="muted">Retaguarda & Controle</p>
-          </div>
-        </div>
-
         {/* Alertas */}
         <SessionExpiredNotice session={sessionExpired} />
         {feedback && (
@@ -271,7 +264,6 @@ export default function GestaoPage() {
         {loading ? <ManagementDataSkeleton shape={shape} /> : initError ? (
           <LoadFailureNotice what="o painel" reason={initError} onRetry={retryInit} />
         ) : (<>
-        {user?.isOwner && activeTab !== 'email' && <OwnerEmailBanner status={ownerEmailTab.status} onOpen={() => setActiveTab('email')} />}
         {/* Abas */}
         <div role="group" aria-label="Seções da gestão" className="mg-tabs">
           <button
@@ -280,7 +272,7 @@ export default function GestaoPage() {
             aria-pressed={activeTab === 'produtos'}
             onClick={() => setActiveTab('produtos')}
           >
-            Catálogo & Estoque ({summary ? summary.total : '—'})
+            Catálogo
           </button>
           <button
             type="button"
@@ -288,7 +280,7 @@ export default function GestaoPage() {
             aria-pressed={activeTab === 'fiado'}
             onClick={() => setActiveTab('fiado')}
           >
-            Clientes & Fiado ({customers.length})
+            Clientes
           </button>
           <button
             type="button"
@@ -296,7 +288,7 @@ export default function GestaoPage() {
             aria-pressed={activeTab === 'caixa'}
             onClick={() => setActiveTab('caixa')}
           >
-            Controle de Caixa {cashOpen ? '● Aberto' : '● Fechado'}
+            Caixa
           </button>
           {user?.isOwner && (
             <button
@@ -312,15 +304,16 @@ export default function GestaoPage() {
             <button
               type="button"
               className="mg-segment"
-              aria-pressed={activeTab === 'operadores'}
-              onClick={() => setActiveTab('operadores')}
+              aria-pressed={activeTab === 'ajustes'}
+              onClick={() => setActiveTab('ajustes')}
             >
-              Operadores ({operators.length})
-            </button>
-          )}
-          {user?.isOwner && (
-            <button type="button" className="mg-segment" aria-pressed={activeTab === 'email'} onClick={() => setActiveTab('email')}>
-              E-mail de recuperação
+              Ajustes
+              {emailPending && (
+                <>
+                  <span className="mg-dot" aria-hidden="true">●</span>
+                  <span className="sr-only">E-mail de recuperação sem confirmar</span>
+                </>
+              )}
             </button>
           )}
         </div>
@@ -503,16 +496,21 @@ export default function GestaoPage() {
           </section>
         )}
 
-        {/* TAB 4: OPERADORES DE CAIXA */}
         {/* TAB: RELATÓRIOS (só a dona) */}
         {activeTab === 'relatorios' && user?.isOwner && <SalesReportPanel />}
 
-        {activeTab === 'operadores' && user?.isOwner && (
-          <OperatorsTab tab={operatorsTab} loadFailed={loadFailed} retrying={retrying} processing={processing} retry={retry} />
-        )}
-
-        {activeTab === 'email' && user?.isOwner && (
-          <OwnerEmailTab tab={ownerEmailTab} loadFailed={loadFailed} retrying={retrying} processing={processing} retry={retry} />
+        {/* TAB: AJUSTES (só a dona) */}
+        {activeTab === 'ajustes' && user?.isOwner && (
+          <SettingsTab
+            operatorsTab={operatorsTab}
+            ownerEmailTab={ownerEmailTab}
+            stockControl={stockControl}
+            onToggleStockControl={productsTab.handleToggleStockControl}
+            loadFailed={loadFailed}
+            retrying={retrying}
+            processing={processing}
+            retry={retry}
+          />
         )}
 
         {/* MODAL DE SANGRIA E SUPRIMENTO DE CAIXA */}

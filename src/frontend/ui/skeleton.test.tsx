@@ -164,7 +164,7 @@ describe('where the skeletons are used', () => {
 
   // The order is read inside ONE file, the one that renders the AppHeader: in a text made of many files
   // an indexOf would compare positions across files, which depend on the order they are joined in.
-  it('puts the real header (and the management title) before the first loading condition in the page text', () => {
+  it('puts the real header before the first loading condition in the page text', () => {
     const screenFile = (screen: 'pdv' | 'gestao') => {
       const withHeader = readScreenFiles(screen).filter((f) => /<AppHeader\b/.test(f.text));
       expect(withHeader.map((f) => f.file), `${screen}: the file that renders the AppHeader`).toHaveLength(1);
@@ -177,8 +177,6 @@ describe('where the skeletons are used', () => {
     expect(first(managementText)).toBeGreaterThan(-1);
     expect(pdvText.indexOf('<AppHeader')).toBeLessThan(first(pdvText));
     expect(managementText.indexOf('<AppHeader')).toBeLessThan(first(managementText));
-    expect(managementText.indexOf('<h1>Painel de Gestão do Comércio</h1>')).toBeGreaterThan(-1);
-    expect(managementText.indexOf('<h1>Painel de Gestão do Comércio</h1>')).toBeLessThan(first(managementText));
   });
 });
 

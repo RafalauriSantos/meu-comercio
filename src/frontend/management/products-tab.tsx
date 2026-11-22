@@ -69,7 +69,6 @@ export function ProductsTab({ tab, stockControl, user, loadFailed, retrying, pro
     deleted,
     deletedCount,
     handleRestore,
-    handleToggleStockControl,
     checkNewBarcode,
     handleNewBarcodeKeyDown,
     handleScannedBarcode,
@@ -117,19 +116,7 @@ export function ProductsTab({ tab, stockControl, user, loadFailed, retrying, pro
                     <strong className="num">{stockValueText(summary)}</strong> Valor em estoque (a preço de venda)
                   </div>
                 )}
-                <div className="muted">
-                  Controle de estoque: <strong>{stockControl ? 'ligado' : 'desligado'}</strong>.{' '}
-                  {stockControl
-                    ? 'As vendas baixam o estoque e não passam do saldo.'
-                    : 'As vendas não dependem do estoque: não precisam de saldo e não baixam nada.'}
-                </div>
               </div>
-              {/* Interruptor do controle de estoque (só a dona) */}
-              {user?.isOwner && (
-                <button type="button" className="outline mg-summary-action" onClick={handleToggleStockControl} disabled={processing}>
-                  {stockControl ? 'Desligar' : 'Ligar'}
-                </button>
-              )}
             </section>
 
             {showImport && user?.isOwner && (

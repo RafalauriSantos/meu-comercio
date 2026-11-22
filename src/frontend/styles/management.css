@@ -40,20 +40,6 @@
   letter-spacing: -0.02em;
 }
 
-/* Título da página */
-
-.management-page .mg-titlebar {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-}
-
-.management-page .mg-titlebar p {
-  font-size: 14px;
-}
-
 /* Abas e filtros (mesmo estilo de segmento) */
 
 .management-page .mg-tabs,
@@ -66,6 +52,25 @@
 
 .management-page .mg-segmented .mg-segment {
   flex: 1;
+}
+
+/* As abas ficam numa linha só, com rolagem horizontal no celular */
+.management-page .mg-tabs {
+  flex-wrap: nowrap;
+  overflow-x: auto;
+}
+
+.management-page .mg-tabs .mg-segment {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  white-space: nowrap;
+}
+
+.management-page .mg-dot {
+  color: var(--warn);
+  font-size: 14px;
 }
 
 .management-page .mg-segment {
@@ -1121,11 +1126,6 @@ body:has(.mg-panel[open]) {
   color: var(--warn);
 }
 
-.management-page .mg-summary-action {
-  min-height: 40px;
-  border-radius: 10px;
-}
-
 /* Relatório de vendas */
 
 .management-page .mg-period-custom {
@@ -1397,10 +1397,6 @@ body:has(.mg-panel[open]) {
   .management-page .mg-summary {
     flex-direction: column;
     align-items: stretch;
-  }
-
-  .management-page .mg-summary-action {
-    min-height: 44px;
   }
 
   .management-page .mg-toolbar {

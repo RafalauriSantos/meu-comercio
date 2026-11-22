@@ -36,14 +36,15 @@ const UNKNOWN = ['· Dona', '· Operador', 'Dona', 'Operador', 'Relatórios', 'O
 describe('/gestao first paint (server HTML, first visit)', () => {
   const markup = html(null);
 
-  it('has the real shell: brand, links, current page, Sair, title and subtitle', () => {
+  it('has the real shell: brand, links, current page, Sair, and no title', () => {
     expect(markup).toContain('Meu Comércio');
     expect(markup).toMatch(/<a[^>]*href="\/pdv"[^>]*>Venda<\/a>/);
     expect(markup).toMatch(/<a[^>]*href="\/gestao"[^>]*>Gestão<\/a>/);
     expect(markup).toMatch(/<a[^>]*aria-current="page"[^>]*>Gestão<\/a>/);
     expect(markup).toMatch(/<button[^>]*>Sair<\/button>/);
-    expect(markup).toMatch(/<h1>Painel de Gestão do Comércio<\/h1>/);
-    expect(markup).toContain('Retaguarda &amp; Controle');
+    expect(markup).not.toContain('Painel de Gestão do Comércio');
+    expect(markup).not.toContain('Retaguarda');
+    expect(markup).not.toMatch(/<h1[\s>]/);
     expect(markup).toContain('management-page');
   });
 
@@ -54,10 +55,9 @@ describe('/gestao first paint (server HTML, first visit)', () => {
     expect(markup).toContain('Carregando o painel de gestão');
   });
 
-  it('has no gray block in place of the header or the title', () => {
+  it('has no gray block in place of the header', () => {
     expect(markup).not.toContain('app-header-skeleton');
     expect(markup).not.toContain('app-nav-skeleton');
-    expect(markup).not.toMatch(/mg-titlebar[^>]*aria-hidden/); // the real title keeps its wrapper
   });
 
   it('has no data the server cannot know', () => {
@@ -73,7 +73,7 @@ describe('/gestao while waiting for the delay (reserved space, nothing visible)'
     expect(markup).toContain('Meu Comércio');
     expect(markup).toMatch(/<a[^>]*href="\/gestao"[^>]*>Gestão<\/a>/);
     expect(markup).toMatch(/<button[^>]*>Sair<\/button>/);
-    expect(markup).toMatch(/<h1>Painel de Gestão do Comércio<\/h1>/);
+    expect(markup).not.toContain('Painel de Gestão do Comércio');
   });
 
   it('has no role="status", no loading text and no visible skeleton', () => {

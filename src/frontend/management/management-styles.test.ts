@@ -145,9 +145,8 @@ describe('catalog phone css (max-width 600px)', () => {
     expect(phone).toMatch(/\.mg-restock \.input \{[^}]*width: 100%/);
   });
 
-  it('stacks the summary and gives the stock switch 44px', () => {
+  it('stacks the summary', () => {
     expect(phone).toMatch(/\.mg-summary \{[^}]*flex-direction: column[^}]*align-items: stretch/);
-    expect(phone).toMatch(/\.mg-summary-action \{[^}]*min-height: 44px/);
   });
 
   it('stacks the toolbar: full-width search, Novo Produto 48px, Importar side by side', () => {

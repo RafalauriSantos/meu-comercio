@@ -64,8 +64,10 @@ describe('the management panel when the shop does not control its stock', () => 
     expect(page).toContain('(p) => !stockControl || matchesStockFilter(');
   });
 
-  it('has the switch for the owner only, and asks before changing it', () => {
-    expect(page).toMatch(/\{user\?\.isOwner && \(\s*<button type="button" className="outline mg-summary-action" onClick=\{handleToggleStockControl\}/);
+  it('has the switch in Ajustes, for the owner only, and asks before changing it', () => {
+    expect(page).toContain("activeTab === 'ajustes' && user?.isOwner");
+    expect(page).toContain('<button type="button" className="outline" onClick={onToggleStockControl} disabled={processing}>');
+    expect(page).not.toContain('mg-summary-action');
     expect(page).toContain('if (!confirm(question)) return;');
     expect(page).toContain('apiClient.updateStoreSettings({ stockControlEnabled: !stockControl })');
   });

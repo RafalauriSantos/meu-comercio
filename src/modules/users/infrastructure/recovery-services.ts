@@ -1,6 +1,7 @@
 import * as Sentry from '@sentry/nextjs';
 import { db } from '@/shared/infrastructure/db/connection';
 import { DrizzleAuditService } from '@/modules/audit/infrastructure/drizzle-audit-service';
+import { DrizzleOwnerPinAttemptStore } from '@/modules/customers/infrastructure/drizzle-owner-pin-attempt-store';
 import { ChangeOwnerEmailUseCase } from '../application/change-owner-email.use-case';
 import { ConfirmEmailVerificationUseCase } from '../application/confirm-email-verification.use-case';
 import { GetOwnerEmailStatusUseCase } from '../application/get-owner-email-status.use-case';
@@ -9,6 +10,7 @@ import { InspectPasswordResetLinkUseCase } from '../application/inspect-password
 import { RequestEmailVerificationUseCase } from '../application/request-email-verification.use-case';
 import { RequestPasswordResetUseCase } from '../application/request-password-reset.use-case';
 import { ResetPasswordUseCase } from '../application/reset-password.use-case';
+import { ResetPinUseCase } from '../application/reset-pin.use-case';
 import { DrizzleOwnerEmailRepository } from './drizzle-owner-email-repository';
 import { DrizzlePasswordResetRepository } from './drizzle-password-reset-repository';
 import { DrizzleRecoveryRequestLimiter } from './drizzle-recovery-request-limiter';
@@ -29,6 +31,9 @@ export function buildRecoveryServices(defer: (task: () => Promise<void>) => void
   const audit = new DrizzleAuditService();
   const baseUrl = process.env.APP_BASE_URL;
   const reportError = (error: unknown) => Sentry.captureException(error);
+  // The only users -> customers import, here at the wiring point: the ADR-013 store clears the PIN lock (ADR-025).
+  const pinAttempts = new DrizzleOwnerPinAttemptStore(db);
+  const pinLock = { clear: (merchantId: string) => pinAttempts.reset(merchantId) };
 
   return {
     requestEmailVerification: new RequestEmailVerificationUseCase({
@@ -46,5 +51,8 @@ export function buildRecoveryServices(defer: (task: () => Promise<void>) => void
     requestPasswordReset: new RequestPasswordResetUseCase({ limiter, resets, tokens, sender, audit, baseUrl, defer, reportError }),
     inspectPasswordReset: new InspectPasswordResetLinkUseCase({ limiter, resets, tokens }),
     resetPassword: new ResetPasswordUseCase({ limiter, resets, tokens, audit, sender, defer, reportError }),
+    requestPinReset: new RequestPasswordResetUseCase({ purpose: 'PIN_RESET', limiter, resets, tokens, sender, audit, baseUrl, defer, reportError }),
+    inspectPinReset: new InspectPasswordResetLinkUseCase({ purpose: 'PIN_RESET', limiter, resets, tokens }),
+    resetPin: new ResetPinUseCase({ limiter, resets, tokens, audit, sender, pinLock, defer, reportError }),
   };
 }

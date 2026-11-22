@@ -491,3 +491,29 @@ Este documento registra formalmente as decisões de arquitetura e de produto do 
   - *Negativo*: +1 SELECT por chave primária (Neon, gru1) em toda requisição da proprietária. Se pesar, o cache por instância fica para decisão dela.
   - *Negativo (aceito)*: `credentials_changed_at` usa o relógio do servidor que trocou a senha e `startedAt` o do servidor que fez o login; uma diferença de milissegundos só pode derrubar um login feito no mesmo instante da troca.
   - *Efeito na tela*: todo 401 de rota autenticada já mostra "Sua sessão expirou. Você será levada ao login."; o texto do AC-52 ("Sua sessão terminou. Entre de novo.") não foi criado. Decisão pendente dela.
+
+## ADR-025: Redefinição do PIN da Proprietária por Link de E-mail (Senha e PIN Gravados Juntos)
+
+- **Data**: 2026-11-21
+- **Status**: Implementado na slice 4a-1 da D-32 (servidor do "esqueci o PIN", sem telas).
+- **Contexto**: o PIN de 6 dígitos libera dinheiro (estorno, limite de fiado, exclusão de cliente) e hoje nenhum caminho o troca depois do cadastro. A D-32 manda trocá-lo por link de e-mail, junto com a senha. O bloqueio do PIN da loja (ADR-013, `owner_pin_attempts`) pertence ao módulo `customers`.
+- **Decisão**:
+  - Link de purpose `PIN_RESET`, mesmas regras do link de senha (256 bits, só o hash no banco, 30 minutos, uso único, pedido com resposta neutra e tempo igual). Rotas `POST /api/auth/pin-reset/{request,inspect,confirm}`; o `confirm` recebe senha e PIN com as repetições.
+  - Não existe operação que grave só o PIN: o repositório tem apenas `resetPasswordAndPin`. Link, `password_hash`, `authorization_pin_hash`, `credentials_changed_at` e o bloqueio de login da conta mudam numa única transação (tudo ou nada). Os dois hashes bcrypt (o mesmo `hashSecret` do cadastro, compatível com o `BcryptOwnerPinVerifier`) são calculados antes da transação.
+  - Depois do commit, o bloqueio do PIN da loja é zerado por uma porta mínima (`OwnerPinLockReset.clear`), ligada em `recovery-services.ts` ao `DrizzleOwnerPinAttemptStore.reset`. É o único ponto em que `users` importa `customers`, e nenhum arquivo do ADR-013 muda. Se a limpeza falhar, o bloqueio continua (lado seguro), o erro vai ao Sentry sem dado pessoal e a troca vale.
+  - A troca só da senha (`PASSWORD_RESET`) continua sem zerar o bloqueio do PIN: o PIN antigo segue valendo e quem controla o e-mail não ganha tentativas novas.
+  - As sessões antigas da dona caem (`credentials_changed_at`, ADR-024). Auditoria `OWNER_PIN_RESET_COMPLETED` e aviso "senha e PIN foram alterados" ao e-mail confirmado, sem PIN, senha, link nem token.
+  - Não há migração: `PIN_RESET` já existe em `RecoveryPurpose` e `purpose` é `varchar` sem CHECK.
+- **Alternativas descartadas**:
+  - Não zerar nunca o bloqueio do PIN: a dona que esqueceu o PIN costuma estar bloqueada por 5 erros, e o PIN novo seria recusado por até 15 minutos depois de concluir.
+  - Zerar também na troca só da senha: daria tentativas novas do PIN antigo a quem controla o e-mail.
+  - Zerar dentro da transação da troca: exigiria `users` escrever em tabela de `customers` na mesma transação, ou mexer no store do ADR-013.
+  - Método que grava só o PIN, ou tela de PIN sem senha: abriria um caminho que troca o dinheiro-chave sem trocar a senha (AC-28).
+  - Recusar "PIN igual ao atual": não está na spec e exigiria outra comparação bcrypt; a dona pode querer manter o PIN e trocar a senha.
+- **Trade-offs / Consequências**:
+  - *Positivo*: a dona bloqueada recupera o acesso ao PIN no mesmo fluxo; a regra fica coerente (o bloqueio só cai quando o segredo que ele protege foi substituído).
+  - *Negativo (risco aceito, já na D-32)*: quem controla o e-mail confirmado controla senha e PIN. Mitigações: aviso por e-mail a cada troca, auditoria, sessões derrubadas, link de 30 minutos e uso único, limites do ADR-023.
+  - *Negativo (aceito)*: quem tem o e-mail pode "furar" um bloqueio ativo trocando o PIN; já podia trocar o PIN, e o bloqueio nunca foi barreira contra esse caminho.
+  - *Negativo (aceito)*: a limpeza não é atômica com a troca; se falhar, o bloqueio continua até expirar ou até um PIN correto.
+  - *Negativo (aceito)*: link de senha e link de PIN podem coexistir, porque `issue` encerra só os do mesmo purpose; ambos exigem o e-mail confirmado.
+  - *Negativo (aceito)*: o teto diário e o limite por e-mail de destino (ADR-023) contam pedidos de verificação, senha e PIN juntos.

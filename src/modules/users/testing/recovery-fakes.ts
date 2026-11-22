@@ -113,6 +113,7 @@ export class InMemoryRecoveryStore implements OwnerEmailRepository, RecoveryToke
 
 interface StoredAccount {
   passwordHash: string;
+  authorizationPinHash: string | null;
   isOwner: boolean;
   enabled: boolean;
   merchantName: string;
@@ -128,7 +129,7 @@ export class InMemoryPasswordResetStore extends InMemoryRecoveryStore implements
   addAccount(username: string, user: Partial<OwnerEmailRecord> = {}, account: Partial<StoredAccount> = {}): void {
     this.addUser(username, user);
     this.accounts.set(username, {
-      passwordHash: 'old-hash', isOwner: true, enabled: true, merchantName: 'Loja da Maria',
+      passwordHash: 'old-hash', authorizationPinHash: null, isOwner: true, enabled: true, merchantName: 'Loja da Maria',
       failedLoginAttempts: 0, lockedUntil: null, credentialsChangedAt: null, ...account,
     });
   }
@@ -150,15 +151,26 @@ export class InMemoryPasswordResetStore extends InMemoryRecoveryStore implements
   }
 
   async resetPassword({ tokenHash, passwordHash, now }: { tokenHash: string; passwordHash: string; now: Date }) {
-    const token = this.tokens.find(
-      (t) => t.tokenHash === tokenHash && t.purpose === 'PASSWORD_RESET' && !t.usedAt && t.expiresAt > now
-    );
+    return this.useLinkAndUpdate('PASSWORD_RESET', tokenHash, now, { passwordHash });
+  }
+
+  async resetPasswordAndPin({ tokenHash, passwordHash, pinHash, now }: { tokenHash: string; passwordHash: string; pinHash: string; now: Date }) {
+    return this.useLinkAndUpdate('PIN_RESET', tokenHash, now, { passwordHash, authorizationPinHash: pinHash });
+  }
+
+  private async useLinkAndUpdate(
+    purpose: 'PASSWORD_RESET' | 'PIN_RESET',
+    tokenHash: string,
+    now: Date,
+    values: { passwordHash: string; authorizationPinHash?: string }
+  ) {
+    const token = this.tokens.find((t) => t.tokenHash === tokenHash && t.purpose === purpose && !t.usedAt && t.expiresAt > now);
     if (!token) return null;
     token.usedAt = now;
     const user = this.users.get(token.username);
     const account = this.accounts.get(token.username);
     if (!user || !account?.isOwner || !account.enabled || !user.verifiedAt || user.email !== token.email) return null;
-    Object.assign(account, { passwordHash, credentialsChangedAt: new Date(), failedLoginAttempts: 0, lockedUntil: null });
+    Object.assign(account, { ...values, credentialsChangedAt: new Date(), failedLoginAttempts: 0, lockedUntil: null });
     return { merchantId: token.merchantId, username: token.username, email: token.email };
   }
 }

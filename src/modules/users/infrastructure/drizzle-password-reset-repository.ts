@@ -30,16 +30,37 @@ export class DrizzlePasswordResetRepository<TSchema extends Record<string, unkno
     return row ?? null;
   }
 
-  /**
-   * One transaction for "use the link" and "save the password". The UPDATE of the link is the atomic single use:
-   * a second concurrent call waits for the first one and then finds the link already used (AC-23).
-   */
   async resetPassword(params: {
     tokenHash: string;
     passwordHash: string;
     now: Date;
   }): Promise<{ merchantId: string; username: string; email: string } | null> {
-    const { tokenHash, passwordHash, now } = params;
+    return this.useLinkAndUpdate('PASSWORD_RESET', params.tokenHash, params.now, { passwordHash: params.passwordHash });
+  }
+
+  async resetPasswordAndPin(params: {
+    tokenHash: string;
+    passwordHash: string;
+    pinHash: string;
+    now: Date;
+  }): Promise<{ merchantId: string; username: string; email: string } | null> {
+    return this.useLinkAndUpdate('PIN_RESET', params.tokenHash, params.now, {
+      passwordHash: params.passwordHash,
+      authorizationPinHash: params.pinHash,
+    });
+  }
+
+  /**
+   * One transaction for "use the link" and "save the new credentials". The UPDATE of the link is the atomic single
+   * use: a second concurrent call waits for the first one and then finds the link already used (AC-23). The password
+   * is always part of the values, so nothing here can change the PIN alone (AC-28).
+   */
+  private async useLinkAndUpdate(
+    purpose: 'PASSWORD_RESET' | 'PIN_RESET',
+    tokenHash: string,
+    now: Date,
+    values: { passwordHash: string; authorizationPinHash?: string }
+  ): Promise<{ merchantId: string; username: string; email: string } | null> {
     return this.database.transaction(async (tx) => {
       const [link] = await tx
         .update(ownerRecoveryTokens)
@@ -47,7 +68,7 @@ export class DrizzlePasswordResetRepository<TSchema extends Record<string, unkno
         .where(
           and(
             eq(ownerRecoveryTokens.tokenHash, tokenHash),
-            eq(ownerRecoveryTokens.purpose, 'PASSWORD_RESET'),
+            eq(ownerRecoveryTokens.purpose, purpose),
             isNull(ownerRecoveryTokens.usedAt),
             gt(ownerRecoveryTokens.expiresAt, now)
           )
@@ -65,7 +86,7 @@ export class DrizzlePasswordResetRepository<TSchema extends Record<string, unkno
       if (!ownerRole) return null;
       const updated = await tx
         .update(appUsers)
-        .set({ passwordHash, credentialsChangedAt: new Date(), failedLoginAttempts: 0, lockedUntil: null })
+        .set({ ...values, credentialsChangedAt: new Date(), failedLoginAttempts: 0, lockedUntil: null })
         .where(and(eq(appUsers.username, link.username), eq(appUsers.email, link.email), isNotNull(appUsers.emailVerifiedAt), eq(appUsers.enabled, true)))
         .returning({ username: appUsers.username });
       if (updated.length === 0) return null;

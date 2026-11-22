@@ -46,16 +46,21 @@ ${body}
 </html>`;
 }
 
-export function verificationEmail(link: string, requestedAt: Date) {
-  if (!/^https?:\/\//i.test(link)) throw new Error('Verification link must be http(s)');
-  const when = brasilia.format(requestedAt);
+/** The button, the copy-and-paste fallback and the validity note shared by the e-mails that carry a link. */
+function linkBlock(link: string, buttonLabel: string, when: string): string {
   const safeLink = esc(link);
-  const body = `<p style="margin:0 0 24px;">Para confirmar este e-mail de recuperação, clique no botão abaixo.</p>
-<table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:0 0 24px;"><tr><td align="center" bgcolor="${BRAND_BLUE}" style="border-radius:8px;"><a href="${safeLink}" style="display:inline-block;padding:16px 32px;font-family:${FONT};font-size:18px;font-weight:bold;line-height:24px;color:#ffffff;text-decoration:none;border-radius:8px;">Confirmar e-mail</a></td></tr></table>
+  return `<table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:0 0 24px;"><tr><td align="center" bgcolor="${BRAND_BLUE}" style="border-radius:8px;"><a href="${safeLink}" style="display:inline-block;padding:16px 32px;font-family:${FONT};font-size:18px;font-weight:bold;line-height:24px;color:#ffffff;text-decoration:none;border-radius:8px;">${esc(buttonLabel)}</a></td></tr></table>
 <p style="margin:0 0 4px;font-size:14px;line-height:20px;color:#55647a;">Se o botão não abrir, copie e cole este link no navegador:</p>
 <p style="margin:0 0 24px;font-size:14px;line-height:20px;word-break:break-all;"><a href="${safeLink}" style="color:#1b449c;">${safeLink}</a></p>
 <p style="margin:0 0 4px;"><strong>O link vale 30 minutos.</strong></p>
 <p style="margin:0;font-size:14px;line-height:20px;color:#55647a;">Pedido feito em ${esc(when)} (horário de Brasília).</p>`;
+}
+
+export function verificationEmail(link: string, requestedAt: Date) {
+  if (!/^https?:\/\//i.test(link)) throw new Error('Verification link must be http(s)');
+  const when = brasilia.format(requestedAt);
+  const body = `<p style="margin:0 0 24px;">Para confirmar este e-mail de recuperação, clique no botão abaixo.</p>
+${linkBlock(link, 'Confirmar e-mail', when)}`;
   return {
     subject: 'Meu Comércio: confirme seu e-mail',
     text: [
@@ -100,13 +105,8 @@ export function emailChangedNotice(maskedNewEmail: string, changedAt: Date) {
 export function passwordResetEmail(link: string, requestedAt: Date, merchantName: string) {
   if (!/^https?:\/\//i.test(link)) throw new Error('Reset link must be http(s)');
   const when = brasilia.format(requestedAt);
-  const safeLink = esc(link);
   const body = `<p style="margin:0 0 16px;">Recebemos um pedido para redefinir a senha da loja <strong>${esc(merchantName)}</strong>. Clique no botão abaixo para escolher uma nova senha.</p>
-<table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:0 0 24px;"><tr><td align="center" bgcolor="${BRAND_BLUE}" style="border-radius:8px;"><a href="${safeLink}" style="display:inline-block;padding:16px 32px;font-family:${FONT};font-size:18px;font-weight:bold;line-height:24px;color:#ffffff;text-decoration:none;border-radius:8px;">Redefinir senha</a></td></tr></table>
-<p style="margin:0 0 4px;font-size:14px;line-height:20px;color:#55647a;">Se o botão não abrir, copie e cole este link no navegador:</p>
-<p style="margin:0 0 24px;font-size:14px;line-height:20px;word-break:break-all;"><a href="${safeLink}" style="color:#1b449c;">${safeLink}</a></p>
-<p style="margin:0 0 4px;"><strong>O link vale 30 minutos.</strong></p>
-<p style="margin:0;font-size:14px;line-height:20px;color:#55647a;">Pedido feito em ${esc(when)} (horário de Brasília).</p>`;
+${linkBlock(link, 'Redefinir senha', when)}`;
   return {
     subject: 'Meu Comércio: redefinir sua senha',
     text: [
@@ -140,6 +140,50 @@ export function passwordChangedNotice(changedAt: Date) {
     html: layout(
       'A senha da sua conta foi alterada.',
       'Sua senha foi alterada',
+      body,
+      'Não foi você? Entre em contato e troque sua senha de e-mail.'
+    ),
+  };
+}
+
+export function pinResetEmail(link: string, requestedAt: Date, merchantName: string) {
+  if (!/^https?:\/\//i.test(link)) throw new Error('Reset link must be http(s)');
+  const when = brasilia.format(requestedAt);
+  const body = `<p style="margin:0 0 16px;">Recebemos um pedido para redefinir o PIN e a senha da loja <strong>${esc(merchantName)}</strong>. Clique no botão abaixo para escolher uma nova senha e um novo PIN.</p>
+${linkBlock(link, 'Redefinir PIN e senha', when)}`;
+  return {
+    subject: 'Meu Comércio: redefinir seu PIN e sua senha',
+    text: [
+      `Recebemos um pedido para redefinir o PIN e a senha da loja ${merchantName}. Este é o link para redefinir o PIN: abra e escolha uma nova senha e um novo PIN.`,
+      '',
+      link,
+      '',
+      'O link vale 30 minutos.',
+      `Pedido feito em ${when} (horário de Brasília).`,
+      'Se não foi você, ignore este e-mail: seu PIN e sua senha não mudam.',
+    ].join('\n'),
+    html: layout(
+      'Redefina seu PIN e sua senha. O link vale 30 minutos.',
+      'Redefinir seu PIN e sua senha',
+      body,
+      'Se não foi você, ignore este e-mail: seu PIN e sua senha não mudam.'
+    ),
+  };
+}
+
+export function pinChangedNotice(changedAt: Date) {
+  const when = brasilia.format(changedAt);
+  const body = `<p style="margin:0 0 16px;">A senha e o PIN da sua conta foram alterados.</p>
+<p style="margin:0;font-size:14px;line-height:20px;color:#55647a;">Alteração feita em ${esc(when)} (horário de Brasília).</p>`;
+  return {
+    subject: 'Meu Comércio: sua senha e seu PIN foram alterados',
+    text: [
+      `A senha e o PIN da sua conta foram alterados em ${when} (horário de Brasília).`,
+      'Não foi você? Entre em contato e troque sua senha de e-mail.',
+    ].join('\n'),
+    html: layout(
+      'A senha e o PIN da sua conta foram alterados.',
+      'Sua senha e seu PIN foram alterados',
       body,
       'Não foi você? Entre em contato e troque sua senha de e-mail.'
     ),

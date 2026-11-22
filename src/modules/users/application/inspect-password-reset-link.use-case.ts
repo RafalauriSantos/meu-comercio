@@ -10,7 +10,7 @@ export interface InspectPasswordResetLinkDeps {
   resets: PasswordResetRepository;
   tokens: RecoveryTokenRepository;
   /** Which link is inspected. Defaults to the password reset. */
-  purpose?: 'PASSWORD_RESET';
+  purpose?: 'PASSWORD_RESET' | 'PIN_RESET';
 }
 
 /** Opening the link only checks it: nothing is used or changed (AC-18). Says nothing about the account. */

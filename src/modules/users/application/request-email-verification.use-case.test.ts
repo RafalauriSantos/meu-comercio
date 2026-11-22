@@ -166,6 +166,16 @@ describe('RequestEmailVerificationUseCase', () => {
     expect(audit.events[1].details).toEqual({ purpose: 'EMAIL_VERIFICATION', code: 'rejected', email: 'm***@gmail.com' });
   });
 
+  it('AC-48: se a limpeza do link falhar, o erro relatado continua sendo o do envio', async () => {
+    sender.failWith(new EmailDeliveryError('rejected', 401));
+    store.invalidate = async () => { throw new Error('db down'); };
+
+    const error = await run('maria@gmail.com').catch((e) => e);
+
+    expect(error).toBeInstanceOf(EmailSendFailedError);
+    expect(error.cause).toBeInstanceOf(EmailDeliveryError);
+  });
+
   it('AC-49: sem APP_BASE_URL o pedido falha como falha de envio, sem expor o nome da variável', async () => {
     const error = await new RequestEmailVerificationUseCase({ limiter, owners: store, tokens: store, sender, audit, users, baseUrl: undefined }).execute({ merchantId: 'merchant-1', username: 'dona', ip: '1.2.3.4', email: 'maria@gmail.com', currentPassword: PASSWORD, now }).catch((e) => e);
 

@@ -9,7 +9,7 @@ import { RecoveryTokenRepository } from '../domain/recovery-token-repository.por
 import { UserRepository } from '../domain/user-repository.port';
 import { assertRecoveryAllowed } from './recovery-decision';
 import { emailChangedNotice } from './recovery-email-templates';
-import { sendVerificationLink } from './send-verification-link';
+import { sendRecoveryLink } from './send-recovery-link';
 
 export interface ChangeOwnerEmailDeps {
   limiter: RecoveryRequestLimiter;
@@ -67,7 +67,7 @@ export class ChangeOwnerEmailUseCase {
       }
     }
 
-    await sendVerificationLink(this.deps, { merchantId, username, email, now });
+    await sendRecoveryLink(this.deps, 'EMAIL_VERIFICATION', { merchantId, username, email, now });
     return { email };
   }
 }

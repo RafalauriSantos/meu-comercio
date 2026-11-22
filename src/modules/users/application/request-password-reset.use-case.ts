@@ -4,9 +4,14 @@ import { isValidEmail, normalizeEmail } from '../domain/owner-email';
 import { PasswordResetRepository } from '../domain/password-reset-repository.port';
 import { RecoveryRequestLimiter } from '../domain/recovery-request-limiter.port';
 import { safeToReport } from './safe-report';
-import { PasswordResetLinkDeps, sendPasswordResetLink } from './send-password-reset-link';
+import { RecoveryLinkDeps, sendRecoveryLink } from './send-recovery-link';
 
-export interface RequestPasswordResetDeps extends PasswordResetLinkDeps {
+// Account-key prefix of the limiter for an e-mail with no account, per purpose.
+const UNKNOWN_ACCOUNT_PREFIX = { PASSWORD_RESET: 'pwd-reset' };
+
+export interface RequestPasswordResetDeps extends RecoveryLinkDeps {
+  /** Which recovery this request starts. Defaults to the password reset. */
+  purpose?: keyof typeof UNKNOWN_ACCOUNT_PREFIX;
   limiter: RecoveryRequestLimiter;
   resets: PasswordResetRepository;
   /** Runs the task after the response (`after()` in the route). Nobody waits for it, so it never throws. */
@@ -23,14 +28,14 @@ export class RequestPasswordResetUseCase {
   constructor(private readonly deps: RequestPasswordResetDeps) {}
 
   public async execute(input: { email: string; ip: string; now: Date }): Promise<void> {
-    const { limiter, resets, defer, reportError } = this.deps;
+    const { limiter, resets, defer, reportError, purpose = 'PASSWORD_RESET' } = this.deps;
     const { ip, now } = input;
     const email = normalizeEmail(input.email);
     if (!isValidEmail(email)) throw new InvalidEmailError();
 
     const owner = await resets.findOwnerByVerifiedEmail(email);
     const decision = await limiter.reserve(
-      { accountKey: owner?.username ?? `pwd-reset:${email}`, ipKey: ip, targetKey: email, enforceResend: true },
+      { accountKey: owner?.username ?? `${UNKNOWN_ACCOUNT_PREFIX[purpose]}:${email}`, ipKey: ip, targetKey: email, enforceResend: true },
       now
     );
     if (decision.status === 'IP_LIMITED') throw new RecoveryRateLimitedError(decision.retryAfterSeconds);
@@ -39,7 +44,7 @@ export class RequestPasswordResetUseCase {
     defer(async () => {
       if (!owner || decision.status !== 'ALLOWED') return;
       try {
-        await sendPasswordResetLink(this.deps, { ...owner, email, now });
+        await sendRecoveryLink(this.deps, purpose, { ...owner, email, now });
       } catch (error) {
         reportError(safeToReport(error));
       }

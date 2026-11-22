@@ -183,13 +183,15 @@ function whats(): string[] {
   return notices().map((n) => String(n.props.what));
 }
 
-function openTab(label: string) {
+// Opening a tab reads its data (once); the test waits for that read, as the screen does.
+async function openTab(label: string) {
   let button: El | undefined;
   walk(tree, (el) => {
     if (!button && el.type === 'button' && text(el).startsWith(label)) button = el;
   });
   if (!button) throw new Error(`tab "${label}" not found`);
   (button.props.onClick as () => void)();
+  await settle();
 }
 
 const PRODUTOS = 'Catálogo';
@@ -302,10 +304,14 @@ describe('harness: expand', () => {
 });
 
 describe('/gestao without failures (control: nothing changes at HEAD)', () => {
-  it('shows no notice in any tab and reads each thing exactly once at start', async () => {
+  it('shows no notice in any tab and reads each thing exactly once: at start only me, settings, products and the e-mail dot', async () => {
     await mount();
+    expect(counts()).toEqual({
+      me: 1, getStoreSettings: 1, listProducts: 1, getProductsSummary: 1, listCustomers: 0, getCustomerBalance: 0,
+      getCurrentCash: 0, getCreditMetrics: 0, listOperators: 0, getOwnerEmail: 1,
+    });
     for (const tab of [PRODUTOS, FIADO, CAIXA, AJUSTES]) {
-      openTab(tab);
+      await openTab(tab);
       expect(whats(), tab).toEqual([]);
     }
     expect(counts()).toEqual({
@@ -314,9 +320,30 @@ describe('/gestao without failures (control: nothing changes at HEAD)', () => {
     });
     expect(h.router.push).not.toHaveBeenCalled();
     // The reference values the failure tests compare against.
-    openTab(FIADO);
+    await openTab(FIADO);
     for (const value of [10, 20, 30, 60]) expect(text(tree)).toContain(formatMoney(value));
     expect(text(tree)).not.toContain(`${FIADO} (3)`); // no counter in the tab label
+  });
+
+  it('while a tab loads, its content is the skeleton, never the empty state of the tab', async () => {
+    await mount();
+    const slow = deferred<{ items: never[] }>();
+    h.api.listCustomers.mockReturnValueOnce(slow.promise);
+    await openTab(FIADO);
+    const skeletons = () => {
+      const found: El[] = [];
+      walk(tree, (el) => {
+        if (typeof el.type === 'function' && el.type.name === 'ManagementDataSkeleton') found.push(el);
+      });
+      return found;
+    };
+    expect(skeletons().map((s) => s.props.tabs)).toEqual([false]); // only the content, the tab row stays
+    expect(text(tree)).not.toContain('Nenhum cliente cadastrado ainda.');
+
+    slow.resolve({ items: [] });
+    await settle();
+    expect(skeletons()).toEqual([]);
+    expect(text(tree)).toContain('Nenhum cliente cadastrado ainda.');
   });
 });
 
@@ -327,10 +354,10 @@ describe('/gestao: products fail', () => {
     expect(whats().length).toBe(1);
     expect(whats()[0]).toMatch(/produtos/i);
     for (const tab of [FIADO, CAIXA, AJUSTES]) {
-      openTab(tab);
+      await openTab(tab);
       expect(whats().some((w) => /produtos/i.test(w)), tab).toBe(false);
     }
-    openTab(PRODUTOS);
+    await openTab(PRODUTOS);
     const before = counts();
     await notices()[0].props.onRetry();
     await settle();
@@ -376,13 +403,13 @@ describe('/gestao: customers fail', () => {
   it('shows the notice only in Fiado; no balance read; retry repeats loadCustomers and loads the balances', async () => {
     h.api.listCustomers.mockRejectedValueOnce(new Error('boom'));
     await mount();
-    openTab(FIADO);
+    await openTab(FIADO);
     expect(whats().length).toBe(1);
     expect(whats()[0]).toMatch(/clientes/i);
     expect(h.api.getCustomerBalance).not.toHaveBeenCalled();
-    openTab(PRODUTOS);
+    await openTab(PRODUTOS);
     expect(whats()).toEqual([]);
-    openTab(FIADO);
+    await openTab(FIADO);
     await notices()[0].props.onRetry();
     await settle();
     expect(h.api.listCustomers).toHaveBeenCalledTimes(2);
@@ -398,7 +425,7 @@ describe('/gestao: some balances fail (the money case)', () => {
       return balanceOf(id, DEBT[id]);
     });
     await mount();
-    openTab(FIADO);
+    await openTab(FIADO);
     expect(whats().length).toBe(1);
     expect(whats()[0]).toMatch(/saldo/i);
     expect(whats()[0]).toMatch(/\b2\b/);
@@ -428,7 +455,7 @@ describe('/gestao: some balances fail (the money case)', () => {
       return balanceOf(id, DEBT[id]);
     });
     await mount();
-    openTab(FIADO);
+    await openTab(FIADO);
     h.api.getCustomerBalance.mockClear();
     h.api.getCustomerBalance.mockImplementation(async (id: string) => {
       if (id === 'c3') throw new Error('429');
@@ -457,7 +484,7 @@ describe('/gestao: some balances fail (the money case)', () => {
       throw new Error('429');
     });
     await mount();
-    openTab(FIADO);
+    await openTab(FIADO);
     const slow = deferred<ReturnType<typeof balanceOf>>();
     h.api.getCustomerBalance.mockClear();
     h.api.getCustomerBalance.mockReturnValue(slow.promise);
@@ -474,13 +501,13 @@ describe('/gestao: cash fails', () => {
   it('shows the notice only in Caixa, keeps the open-cash form as today; retry reads the cash again', async () => {
     h.api.getCurrentCash.mockRejectedValueOnce(new Error('boom'));
     await mount();
-    openTab(CAIXA);
+    await openTab(CAIXA);
     expect(whats().length).toBe(1);
     expect(whats()[0]).toMatch(/caixa/i);
     expect(text(tree)).toContain('Abrir Caixa do Turno'); // as today
-    openTab(PRODUTOS);
+    await openTab(PRODUTOS);
     expect(whats()).toEqual([]);
-    openTab(CAIXA);
+    await openTab(CAIXA);
     h.api.getCurrentCash.mockResolvedValueOnce({
       open: true,
       session: { id: 's', openedBy: 'dona', openingBalance: '100.00', openedAt: '2026-01-01T10:00:00Z', expectedCash: '100.00' },
@@ -498,7 +525,7 @@ describe('/gestao: fiado metrics fail', () => {
   it('shows the notice in Fiado with the zero as today; retry reads only the metrics', async () => {
     h.api.getCreditMetrics.mockRejectedValueOnce(new Error('boom'));
     await mount();
-    openTab(FIADO);
+    await openTab(FIADO);
     expect(whats().length).toBe(1);
     expect(whats()[0]).toMatch(/métricas/i);
     expect(text(tree)).toContain(formatMoney(0)); // "Total de Fiado na Rua" as today
@@ -517,7 +544,7 @@ describe('/gestao: operators fail', () => {
     h.api.listOperators.mockRejectedValueOnce(new Error('boom'));
     await mount();
     expect(whats()).toEqual([]); // the other tabs show no operators notice
-    openTab(AJUSTES);
+    await openTab(AJUSTES);
     expect(whats().length).toBe(1);
     expect(whats()[0]).toMatch(/operadores/i);
     const before = counts();
@@ -539,18 +566,22 @@ describe('/gestao: no new automatic requests and no change in the login redirect
     await new Promise((resolve) => setTimeout(resolve, 50));
     expect(h.router.push).not.toHaveBeenCalled();
     expect(counts()).toEqual({
-      me: 1, getStoreSettings: 1, listProducts: 1, getProductsSummary: 1, listCustomers: 1, getCustomerBalance: 0,
-      getCurrentCash: 1, getCreditMetrics: 1, listOperators: 1, getOwnerEmail: 1,
+      me: 1, getStoreSettings: 1, listProducts: 1, getProductsSummary: 1, listCustomers: 0, getCustomerBalance: 0,
+      getCurrentCash: 0, getCreditMetrics: 0, listOperators: 0, getOwnerEmail: 1,
     });
     expect(whats().length).toBe(1); // Produtos tab
-    openTab(FIADO);
+    await openTab(FIADO);
     expect(whats().length).toBe(2);
     expect(whats().some((w) => /clientes/i.test(w))).toBe(true);
     expect(whats().some((w) => /métricas/i.test(w))).toBe(true);
-    openTab(CAIXA);
+    await openTab(CAIXA);
     expect(whats().length).toBe(1);
-    openTab(AJUSTES);
+    await openTab(AJUSTES);
     expect(whats().length).toBe(1);
+    expect(counts()).toEqual({
+      me: 1, getStoreSettings: 1, listProducts: 1, getProductsSummary: 1, listCustomers: 1, getCustomerBalance: 0,
+      getCurrentCash: 1, getCreditMetrics: 1, listOperators: 1, getOwnerEmail: 1,
+    });
   });
 
   it('a failure of me() that is not an expired session stays on the screen with one notice and no other read', async () => {
@@ -569,7 +600,7 @@ describe('/gestao: no new automatic requests and no change in the login redirect
     expect(h.router.push).toHaveBeenCalledWith('/login');
     expect(whats()).toEqual([]);
     expect(counts()).toEqual({
-      me: 1, getStoreSettings: 0, listProducts: 0, getProductsSummary: 0, listCustomers: 0, getCustomerBalance: 0,
+      me: 1, getStoreSettings: 1, listProducts: 0, getProductsSummary: 0, listCustomers: 0, getCustomerBalance: 0,
       getCurrentCash: 0, getCreditMetrics: 0, listOperators: 0, getOwnerEmail: 0,
     });
   });
@@ -582,12 +613,12 @@ describe('/gestao: race between the balance retry and another loadCustomers', ()
       return balanceOf(id, DEBT[id]);
     });
     await mount();
-    openTab(FIADO);
+    await openTab(FIADO);
     expect(whats().length).toBe(1);
   }
 
   function submitNewCustomer() {
-    openTab('＋ Novo Cliente');
+    void openTab('＋ Novo Cliente');
     let form: El | undefined;
     walk(tree, (el) => {
       if (!form && typeof el.type === 'function' && el.type.name === 'NewCustomerPanel') form = el;
@@ -667,7 +698,7 @@ describe('/gestao: race between the balance retry and another loadCustomers', ()
       return balanceOf(id, DEBT[id]);
     });
     await mount();
-    openTab(FIADO);
+    await openTab(FIADO);
     expect(notices().length).toBe(2);
     const slow = deferred<ReturnType<typeof balanceOf>>();
     h.api.getCustomerBalance.mockReset();
@@ -688,12 +719,12 @@ describe('/gestao: more races of the balance retry (A2 acceptance gaps)', () => 
       return balanceOf(id, DEBT[id]);
     });
     await mount();
-    openTab(FIADO);
+    await openTab(FIADO);
     expect(whats().length).toBe(1);
   }
 
   function submitNewCustomer() {
-    openTab('＋ Novo Cliente');
+    void openTab('＋ Novo Cliente');
     let form: El | undefined;
     walk(tree, (el) => {
       if (!form && typeof el.type === 'function' && el.type.name === 'NewCustomerPanel') form = el;
@@ -829,7 +860,7 @@ describe('/gestao: more races of the balance retry (A2 acceptance gaps)', () => 
   it('empty customer list: no balance notice and no balance read', async () => {
     h.api.listCustomers.mockResolvedValue({ items: [] });
     await mount();
-    openTab(FIADO);
+    await openTab(FIADO);
     expect(whats()).toEqual([]);
     expect(h.api.getCustomerBalance).not.toHaveBeenCalled();
   });
@@ -852,7 +883,7 @@ describe('/gestao: recovery e-mail of the owner (D-32, slice 2b-1)', () => {
     h.api.getOwnerEmail.mockResolvedValue({ email: null, verified: false });
     await mount();
     for (const tab of [PRODUTOS, FIADO, CAIXA, AJUSTES]) {
-      openTab(tab);
+      await openTab(tab);
       expect(dotCount(), tab).toBe(1);
       expect(text(tree), tab).toContain(DOT);
       expect(text(tree), tab).not.toContain(REGISTER);
@@ -867,7 +898,7 @@ describe('/gestao: recovery e-mail of the owner (D-32, slice 2b-1)', () => {
     await mount();
     expect(dotCount()).toBe(1);
     expect(text(tree)).not.toContain(CONFIRM);
-    openTab(AJUSTES);
+    await openTab(AJUSTES);
     expect(text(tree)).toContain('falta confirmar.');
   });
 
@@ -876,7 +907,7 @@ describe('/gestao: recovery e-mail of the owner (D-32, slice 2b-1)', () => {
     expect(dotCount()).toBe(0);
     expect(text(tree)).not.toContain(DOT);
     expect(text(tree)).not.toContain(REGISTER);
-    openTab(AJUSTES);
+    await openTab(AJUSTES);
     expect(text(tree)).toContain('maria@gmail.com');
     expect(text(tree)).toContain('confirmado.');
   });
@@ -886,9 +917,9 @@ describe('/gestao: recovery e-mail of the owner (D-32, slice 2b-1)', () => {
     h.api.getOwnerEmail.mockResolvedValue({ email: null, verified: false });
     await mount();
     expect(h.api.getOwnerEmail).not.toHaveBeenCalled();
-    expect(() => openTab(AJUSTES)).toThrow(/not found/);
-    expect(() => openTab('Relatórios')).toThrow(/not found/);
-    for (const tab of [PRODUTOS, FIADO, CAIXA]) openTab(tab); // the three tabs of the operator stay
+    await expect(openTab(AJUSTES)).rejects.toThrow(/not found/);
+    await expect(openTab('Relatórios')).rejects.toThrow(/not found/);
+    for (const tab of [PRODUTOS, FIADO, CAIXA]) await openTab(tab); // the three tabs of the operator stay
     expect(dotCount()).toBe(0);
     expect(text(tree)).not.toContain(DOT);
   });
@@ -899,7 +930,7 @@ describe('/gestao: recovery e-mail of the owner (D-32, slice 2b-1)', () => {
     expect(whats()).toEqual([]); // Produtos tab: the rest loaded as always
     expect(dotCount()).toBe(0); // unknown state: no alert
     expect(h.router.push).not.toHaveBeenCalled();
-    openTab(AJUSTES);
+    await openTab(AJUSTES);
     expect(whats()).toEqual(['o e-mail de recuperação']);
     expect(text(tree)).not.toContain('Senha atual'); // the form waits for a known state
     const before = counts();
@@ -947,9 +978,9 @@ describe('/gestao: tabs and the stock control switch (shell of 5 tabs)', () => {
     try {
       await mount();
       expect(text(tree)).not.toContain('Controle de estoque');
-      openTab(AJUSTES);
+      await openTab(AJUSTES);
       expect(text(tree)).toContain('Ligado.');
-      openTab('Desligar');
+      await openTab('Desligar');
       await settle();
       expect(confirmFn).toHaveBeenCalledTimes(1);
       expect(updateStoreSettings).toHaveBeenCalledWith({ stockControlEnabled: false });
@@ -967,8 +998,8 @@ describe('/gestao: tabs and the stock control switch (shell of 5 tabs)', () => {
     vi.stubGlobal('confirm', () => false);
     try {
       await mount();
-      openTab(AJUSTES);
-      openTab('Desligar');
+      await openTab(AJUSTES);
+      await openTab('Desligar');
       await settle();
       expect(updateStoreSettings).not.toHaveBeenCalled();
       expect(text(tree)).toContain('Ligado.');

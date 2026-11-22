@@ -196,44 +196,72 @@ beforeEach(() => {
   vi.spyOn(console, 'error').mockImplementation(() => {});
 });
 
+// Clicks a tab (the same click the screen gets) and lets its first load finish.
+async function openTab(label: string) {
+  const button = findButton(h.tree, label);
+  if (!button) throw new Error(`tab "${label}" not found`);
+  (button.props.onClick as () => void)();
+  await settle();
+}
+
+type ButtonNode = { type: unknown; props: { children?: unknown; onClick?: () => void } };
+function findButton(node: unknown, label: string): ButtonNode | undefined {
+  if (Array.isArray(node)) return node.map((n) => findButton(n, label)).find(Boolean);
+  if (!node || typeof node !== 'object' || !('props' in node)) return undefined;
+  const el = node as ButtonNode;
+  if (el.type === 'button' && textOf(el.props.children).startsWith(label)) return el;
+  return findButton(el.props.children, label);
+}
+function textOf(node: unknown): string {
+  if (typeof node === 'string' || typeof node === 'number') return String(node);
+  if (Array.isArray(node)) return node.map(textOf).join('');
+  if (node && typeof node === 'object' && 'props' in node) return textOf((node as ButtonNode).props.children);
+  return '';
+}
+
 describe('/gestao first load: the list and the order of the apiClient calls', () => {
-  it('owner: me first, then settings and the five loads started together in this order, then one balance per customer', async () => {
+  it('owner: only me and the settings, then the products (with the summary) and the e-mail dot; each tab reads its own data when opened', async () => {
     loadAs({ isOwner: true });
     await mount();
 
     expect(h.calls).toEqual([
       'me',
       'getStoreSettings',
+      'getOwnerEmail', // AC-9: only the owner reads it; it is here for the dot of Ajustes, which shows on every tab
       'listProducts:', // the first load asks for page 1 of the list: listProducts('', 1, 50)
       'getProductsSummary', // started together with the list, right after it
-      'listCustomers',
-      'getCurrentCash',
-      'getCreditMetrics',
-      'listOperators',
-      'getOwnerEmail', // AC-9: only the owner reads it
-      'getCustomerBalance:c1',
-      'getCustomerBalance:c2',
-      'getCustomerBalance:c3',
     ]);
+    h.calls.length = 0;
+
+    await openTab('Clientes');
+    expect(h.calls).toEqual(['listCustomers', 'getCreditMetrics', 'getCustomerBalance:c1', 'getCustomerBalance:c2', 'getCustomerBalance:c3']);
+    h.calls.length = 0;
+
+    await openTab('Caixa');
+    expect(h.calls).toEqual(['getCurrentCash']);
+    h.calls.length = 0;
+
+    await openTab('Ajustes');
+    expect(h.calls).toEqual(['listOperators']);
+    h.calls.length = 0;
+
+    // Opening a tab again reads nothing.
+    await openTab('Catálogo');
+    await openTab('Clientes');
+    await openTab('Ajustes');
+    expect(h.calls).toEqual([]);
     expect(h.router.push).not.toHaveBeenCalled();
   });
 
-  it('operator (not the owner): the same calls, without listOperators', async () => {
+  it('operator (not the owner): me, the settings and the products at start; Clientes and Caixa read when opened, never the e-mail or the operators', async () => {
     loadAs({ isOwner: false });
     await mount();
 
-    expect(h.calls).toEqual([
-      'me',
-      'getStoreSettings',
-      'listProducts:', // the first load asks for page 1 of the list: listProducts('', 1, 50)
-      'getProductsSummary', // started together with the list, right after it
-      'listCustomers',
-      'getCurrentCash',
-      'getCreditMetrics',
-      'getCustomerBalance:c1',
-      'getCustomerBalance:c2',
-      'getCustomerBalance:c3',
-    ]);
+    expect(h.calls).toEqual(['me', 'getStoreSettings', 'listProducts:', 'getProductsSummary']);
+    h.calls.length = 0;
+    await openTab('Clientes');
+    await openTab('Caixa');
+    expect(h.calls).toEqual(['listCustomers', 'getCreditMetrics', 'getCustomerBalance:c1', 'getCustomerBalance:c2', 'getCustomerBalance:c3', 'getCurrentCash']);
     expect(h.api.listOperators).not.toHaveBeenCalled();
     expect(h.api.getOwnerEmail).not.toHaveBeenCalled(); // AC-9
     expect(h.router.push).not.toHaveBeenCalled();
@@ -248,11 +276,11 @@ describe('/gestao first load: the list and the order of the apiClient calls', ()
     });
   }
 
-  it('does nothing else until me() answers, and goes to /login once if me() answers 401 (expired session)', async () => {
+  it('reads only me() and the settings until me() answers, and goes to /login once if me() answers 401 (expired session)', async () => {
     meFails(new ApiError(401, 'Não autenticado.'));
     await mount();
 
-    expect(h.calls).toEqual(['me']);
+    expect(h.calls).toEqual(['me', 'getStoreSettings']);
     expect(h.router.push).toHaveBeenCalledTimes(1);
     expect(h.router.push).toHaveBeenCalledWith('/login');
   });
@@ -266,7 +294,7 @@ describe('/gestao first load: the list and the order of the apiClient calls', ()
     meFails(error);
     await mount();
 
-    expect(h.calls).toEqual(['me']);
+    expect(h.calls).toEqual(['me', 'getStoreSettings']);
     expect(h.router.push).not.toHaveBeenCalled();
     const notice = findNotice(h.tree);
     expect(notice?.props.reason).toBe(error.message);
@@ -278,7 +306,7 @@ describe('/gestao first load: the list and the order of the apiClient calls', ()
     await settle();
 
     expect(h.calls[0]).toBe('me');
-    expect(h.calls).toContain('getCurrentCash');
+    expect(h.calls).toContain('listProducts:');
     expect(h.router.push).not.toHaveBeenCalled();
     expect(findNotice(h.tree)).toBeUndefined();
   });
@@ -299,8 +327,8 @@ describe('/gestao: the apiClient calls and the /login redirects in the source of
   const source = readScreenSource('gestao');
   const count = (needle: string) => source.split(needle).length - 1;
 
-  it('has 21 + 2 + 3 apiClient. (the owner e-mail tab adds getOwnerEmail, changeOwnerEmail and 2 requestEmailVerification, the product edit adds updateProduct and its barcode lookup, the customer edit adds updateCustomer, Gerar código adds a second updateProduct, the statement adds getCustomerStatement, Excluir and Restaurar add 2 updateProduct, 2 updateCustomer and the 2 excluded lists) and 2 router.push(/login)', () => {
-    expect(count('apiClient.')).toBe(21 + 2 + 3 + 2 + 1 + 1 + 1 + 6 + 4);
+  it('has 21 + 2 + 3 apiClient. (the owner e-mail tab adds getOwnerEmail, changeOwnerEmail and 2 requestEmailVerification, the product edit adds updateProduct and its barcode lookup, the customer edit adds updateCustomer, Gerar código adds a second updateProduct, the statement adds getCustomerStatement, Excluir and Restaurar add 2 updateProduct, 2 updateCustomer and the 2 excluded lists, and the page reads getStoreSettings on one line) and 2 router.push(/login)', () => {
+    expect(count('apiClient.')).toBe(21 + 2 + 3 + 2 + 1 + 1 + 1 + 6 + 4 + 1);
     expect(count("router.push('/login')") + count('router.push(loginUrlHere())')).toBe(2);
   });
 
@@ -321,7 +349,7 @@ describe('/gestao: the apiClient calls and the /login redirects in the source of
       getOwnerEmail: 1, // use-owner-email-tab.ts: only for the owner
       getCustomerStatement: 1, // use-customer-statement.ts
       getSalesReport: 1, // sales-report-panel.tsx; written on two lines, so it is not in the literal count
-      getStoreSettings: 1, // page.tsx; also on several lines (`.getStoreSettings()` on its own line), so also not in the literal count
+      getStoreSettings: 1, // page.tsx, read in the same Promise.all as me()
       importProducts: 3,
       listCustomers: 2, // the list and the excluded ones (read only when the filter is opened)
       listOperators: 1,

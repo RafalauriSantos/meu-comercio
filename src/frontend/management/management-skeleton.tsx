@@ -8,7 +8,8 @@ const TABLE_ROWS = [0, 1, 2, 3, 4];
 // the spacing between them is the same as the real content. The tabs and the search field share the row (flex)
 // instead of copying the pixel width of today's labels, so a renamed tab does not make the skeleton drift.
 // `shape` false (before the delay) keeps the same markup invisible, so the space is reserved.
-export function ManagementDataSkeleton({ shape }: { shape: boolean }) {
+// `tabs` false leaves the tab row out: a tab that is loading keeps the real row and shows only its content.
+export function ManagementDataSkeleton({ shape, tabs = true }: { shape: boolean; tabs?: boolean }) {
   return (
     <div style={{ display: 'contents', visibility: shape ? undefined : 'hidden' }}>
       {shape && (
@@ -17,11 +18,13 @@ export function ManagementDataSkeleton({ shape }: { shape: boolean }) {
         </span>
       )}
 
-      <div className="mg-tabs" aria-hidden="true">
-        {TABS.map((tab) => (
-          <Skeleton key={tab} height={44} radius={12} style={{ flex: '1 1 190px', maxWidth: 241 }} />
-        ))}
-      </div>
+      {tabs && (
+        <div className="mg-tabs" aria-hidden="true">
+          {TABS.map((tab) => (
+            <Skeleton key={tab} height={44} radius={12} style={{ flex: '1 1 190px', maxWidth: 241 }} />
+          ))}
+        </div>
+      )}
 
       <section className="mg-section" aria-hidden="true">
         <div className="mg-summary">

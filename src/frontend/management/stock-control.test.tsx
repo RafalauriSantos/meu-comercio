@@ -65,7 +65,7 @@ describe('the management panel when the shop does not control its stock', () => 
   });
 
   it('has the switch in Ajustes, for the owner only, and asks before changing it', () => {
-    expect(page).toContain("activeTab === 'ajustes' && user?.isOwner");
+    expect(page).toContain("at('ajustes') && user?.isOwner");
     expect(page).toContain('<button type="button" className="outline" onClick={onToggleStockControl} disabled={processing}>');
     expect(page).not.toContain('mg-summary-action');
     expect(page).toContain('if (!confirm(question)) return;');
@@ -79,7 +79,7 @@ describe('the management panel when the shop does not control its stock', () => 
 
   it('loads the settings with the rest, and keeps the old behavior if they do not arrive', () => {
     expect(page).toContain('.getStoreSettings()');
-    expect(page).toContain('.catch(() => undefined)');
+    expect(page).toContain('.catch(() => null)');
   });
 });
 

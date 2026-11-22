@@ -11,7 +11,7 @@ export type ForgotPhase = { name: 'form'; error?: string } | { name: 'sending' }
  * State of the "forgot password" page. Every accepted request ends in the same "sent" phase, whether the
  * e-mail exists or not (AC-13); the text shown there is fixed, never read from the answer.
  */
-export function useForgotPassword() {
+export function useForgotPassword(kind: 'password' | 'pin' = 'password') {
   const [email, setEmail] = useState('');
   const [honeypot, setHoneypot] = useState('');
   const [phase, setPhase] = useState<ForgotPhase>({ name: 'form' });
@@ -26,7 +26,7 @@ export function useForgotPassword() {
     }
     setPhase({ name: 'sending' });
     try {
-      await apiClient.requestPasswordReset(email);
+      await (kind === 'pin' ? apiClient.requestPinReset(email) : apiClient.requestPasswordReset(email));
       countdown.start();
       setPhase({ name: 'sent' });
     } catch (err) {

@@ -9,4 +9,15 @@ export const FORGOT_CONFIRMED_ONLY = 'Esta tela só funciona com e-mail confirma
 
 export const FORGOT_OPERATOR_NOTE = 'Operadora: peça à proprietária para ajudar.';
 
+export const FORGOT_COPY = {
+  password: {
+    title: 'Esqueci a senha',
+    subtitle: 'Informe o e-mail da proprietária para receber um link.',
+  },
+  pin: {
+    title: 'Esqueci o PIN',
+    subtitle: 'Informe o e-mail da proprietária para receber um link para redefinir o PIN.',
+  },
+};
+
 export const FORGOT_RATE_LIMIT_MESSAGE = 'Muitas tentativas. Tente de novo mais tarde.';

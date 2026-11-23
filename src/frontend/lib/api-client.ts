@@ -311,6 +311,7 @@ export async function apiRequest<T>(
 
   try {
     let response: Response;
+    const started = performance.now();
     try {
       response = await fetch(path, {
         ...options,
@@ -321,6 +322,8 @@ export async function apiRequest<T>(
     } catch {
       throw noAnswer();
     }
+    // Temporário: tempo de cada chamada no console do navegador, para medir a lentidão em produção.
+    console.info('[api]', options.method ?? 'GET', path, `${Math.round(performance.now() - started)}ms`, response.status);
 
     if (!response.ok) {
       const kind = classifyStatus(response.status, path);

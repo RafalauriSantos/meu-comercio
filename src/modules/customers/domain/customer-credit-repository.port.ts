@@ -30,6 +30,15 @@ export interface CustomerCreditRepository {
   findMovementsBySaleId?(merchantId: string, saleId: string): Promise<CreditMovement[]>;
 }
 
+export interface CustomerCreditBalanceOf extends CustomerCreditBalance {
+  customerId: string;
+}
+
+/** Read-only: the balance of every customer of the merchant with ledger movements, in one query. Customers without movements are absent. */
+export interface CustomerBalancesReader {
+  getBalances(merchantId: string): Promise<CustomerCreditBalanceOf[]>;
+}
+
 /** D-28: read-only statement of the credit ledger. */
 export interface CustomerStatementReader {
   /** Newest first (createdAt, then id), strictly after `after` when given, at most `limit` rows. */

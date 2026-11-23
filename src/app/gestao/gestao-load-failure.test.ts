@@ -30,6 +30,7 @@ const h = vi.hoisted(() => ({
     getProductsSummary: vi.fn(),
     listCustomers: vi.fn(),
     getCustomerBalance: vi.fn(),
+    getCustomerBalances: vi.fn(),
     getCurrentCash: vi.fn(),
     getCreditMetrics: vi.fn(),
     listOperators: vi.fn(),
@@ -244,6 +245,7 @@ beforeEach(() => {
   h.api.listCustomers.mockResolvedValue({
     items: ['c1', 'c2', 'c3'].map((id) => ({ id, name: `Cliente ${id}`, phone: `9${id}`, creditLimit: '100.00' })),
   });
+  h.api.getCustomerBalances.mockImplementation(async () => ({ items: ['c1', 'c2', 'c3'].map((id) => balanceOf(id, DEBT[id])) }));
   h.api.getCustomerBalance.mockImplementation(async (id: string) => balanceOf(id, DEBT[id]));
   h.api.getCurrentCash.mockResolvedValue({ open: false, session: null });
   h.api.getCreditMetrics.mockResolvedValue({ totalOutstandingCredit: '60.00', totalSettledCredit: '0.00', activeDebtorsCount: 3 });
@@ -307,7 +309,7 @@ describe('/gestao without failures (control: nothing changes at HEAD)', () => {
   it('shows no notice in any tab and reads each thing exactly once: at start only me, settings, products and the e-mail dot', async () => {
     await mount();
     expect(counts()).toEqual({
-      me: 1, getStoreSettings: 1, listProducts: 1, getProductsSummary: 1, listCustomers: 0, getCustomerBalance: 0,
+      me: 1, getStoreSettings: 1, listProducts: 1, getProductsSummary: 1, listCustomers: 0, getCustomerBalances: 0, getCustomerBalance: 0,
       getCurrentCash: 0, getCreditMetrics: 0, listOperators: 0, getOwnerEmail: 1,
     });
     for (const tab of [PRODUTOS, FIADO, CAIXA, AJUSTES]) {
@@ -315,7 +317,7 @@ describe('/gestao without failures (control: nothing changes at HEAD)', () => {
       expect(whats(), tab).toEqual([]);
     }
     expect(counts()).toEqual({
-      me: 1, getStoreSettings: 1, listProducts: 1, getProductsSummary: 1, listCustomers: 1, getCustomerBalance: 3,
+      me: 1, getStoreSettings: 1, listProducts: 1, getProductsSummary: 1, listCustomers: 1, getCustomerBalances: 1, getCustomerBalance: 0,
       getCurrentCash: 1, getCreditMetrics: 1, listOperators: 1, getOwnerEmail: 1,
     });
     expect(h.router.push).not.toHaveBeenCalled();
@@ -406,24 +408,21 @@ describe('/gestao: customers fail', () => {
     await openTab(FIADO);
     expect(whats().length).toBe(1);
     expect(whats()[0]).toMatch(/clientes/i);
-    expect(h.api.getCustomerBalance).not.toHaveBeenCalled();
+    expect(h.api.getCustomerBalances).not.toHaveBeenCalled();
     await openTab(PRODUTOS);
     expect(whats()).toEqual([]);
     await openTab(FIADO);
     await notices()[0].props.onRetry();
     await settle();
     expect(h.api.listCustomers).toHaveBeenCalledTimes(2);
-    expect(h.api.getCustomerBalance).toHaveBeenCalledTimes(3);
+    expect(h.api.getCustomerBalances).toHaveBeenCalledTimes(1);
     expect(whats()).toEqual([]);
   });
 });
 
 describe('/gestao: some balances fail (the money case)', () => {
   it('counts the failures in the notice, keeps the R$ 0,00 of today, and retries only the balances that are missing', async () => {
-    h.api.getCustomerBalance.mockImplementation(async (id: string) => {
-      if (id !== 'c1') throw new Error('429');
-      return balanceOf(id, DEBT[id]);
-    });
+    h.api.getCustomerBalances.mockResolvedValue({ items: [balanceOf('c1', DEBT.c1)] });
     await mount();
     await openTab(FIADO);
     expect(whats().length).toBe(1);
@@ -450,10 +449,7 @@ describe('/gestao: some balances fail (the money case)', () => {
   });
 
   it('keeps a smaller notice when only part of the retry works, and the next retry asks only for what is still missing', async () => {
-    h.api.getCustomerBalance.mockImplementation(async (id: string) => {
-      if (id !== 'c1') throw new Error('429');
-      return balanceOf(id, DEBT[id]);
-    });
+    h.api.getCustomerBalances.mockResolvedValue({ items: [balanceOf('c1', DEBT.c1)] });
     await mount();
     await openTab(FIADO);
     h.api.getCustomerBalance.mockClear();
@@ -479,10 +475,7 @@ describe('/gestao: some balances fail (the money case)', () => {
   });
 
   it('is busy while the balance retry is in flight (no second burst against the 30 requests per minute limit)', async () => {
-    h.api.getCustomerBalance.mockImplementation(async (id: string) => {
-      if (id === 'c1') return balanceOf(id, DEBT[id]);
-      throw new Error('429');
-    });
+    h.api.getCustomerBalances.mockResolvedValue({ items: [balanceOf('c1', DEBT.c1)] });
     await mount();
     await openTab(FIADO);
     const slow = deferred<ReturnType<typeof balanceOf>>();
@@ -566,7 +559,7 @@ describe('/gestao: no new automatic requests and no change in the login redirect
     await new Promise((resolve) => setTimeout(resolve, 50));
     expect(h.router.push).not.toHaveBeenCalled();
     expect(counts()).toEqual({
-      me: 1, getStoreSettings: 1, listProducts: 1, getProductsSummary: 1, listCustomers: 0, getCustomerBalance: 0,
+      me: 1, getStoreSettings: 1, listProducts: 1, getProductsSummary: 1, listCustomers: 0, getCustomerBalances: 0, getCustomerBalance: 0,
       getCurrentCash: 0, getCreditMetrics: 0, listOperators: 0, getOwnerEmail: 1,
     });
     expect(whats().length).toBe(1); // Produtos tab
@@ -579,7 +572,7 @@ describe('/gestao: no new automatic requests and no change in the login redirect
     await openTab(AJUSTES);
     expect(whats().length).toBe(1);
     expect(counts()).toEqual({
-      me: 1, getStoreSettings: 1, listProducts: 1, getProductsSummary: 1, listCustomers: 1, getCustomerBalance: 0,
+      me: 1, getStoreSettings: 1, listProducts: 1, getProductsSummary: 1, listCustomers: 1, getCustomerBalances: 0, getCustomerBalance: 0,
       getCurrentCash: 1, getCreditMetrics: 1, listOperators: 1, getOwnerEmail: 1,
     });
   });
@@ -600,7 +593,7 @@ describe('/gestao: no new automatic requests and no change in the login redirect
     expect(h.router.push).toHaveBeenCalledWith('/login');
     expect(whats()).toEqual([]);
     expect(counts()).toEqual({
-      me: 1, getStoreSettings: 1, listProducts: 0, getProductsSummary: 0, listCustomers: 0, getCustomerBalance: 0,
+      me: 1, getStoreSettings: 1, listProducts: 0, getProductsSummary: 0, listCustomers: 0, getCustomerBalances: 0, getCustomerBalance: 0,
       getCurrentCash: 0, getCreditMetrics: 0, listOperators: 0, getOwnerEmail: 0,
     });
   });
@@ -608,10 +601,7 @@ describe('/gestao: no new automatic requests and no change in the login redirect
 
 describe('/gestao: race between the balance retry and another loadCustomers', () => {
   async function failTwoBalances() {
-    h.api.getCustomerBalance.mockImplementation(async (id: string) => {
-      if (id !== 'c1') throw new Error('429');
-      return balanceOf(id, DEBT[id]);
-    });
+    h.api.getCustomerBalances.mockResolvedValue({ items: [balanceOf('c1', DEBT.c1)] });
     await mount();
     await openTab(FIADO);
     expect(whats().length).toBe(1);
@@ -637,8 +627,7 @@ describe('/gestao: race between the balance retry and another loadCustomers', ()
     const retry = notices()[0].props.onRetry();
     await settle();
     // Meanwhile another loadCustomers finishes (customer created) and c2 is now 5,00 on the server.
-    h.api.getCustomerBalance.mockReset();
-    h.api.getCustomerBalance.mockImplementation(async (id: string) => balanceOf(id, id === 'c2' ? '5.00' : DEBT[id]));
+    h.api.getCustomerBalances.mockResolvedValue({ items: ['c1', 'c2', 'c3'].map((id) => balanceOf(id, id === 'c2' ? '5.00' : DEBT[id])) });
     await submitNewCustomer();
     await settle();
     expect(text(tree)).toContain(formatMoney(5));
@@ -663,14 +652,14 @@ describe('/gestao: race between the balance retry and another loadCustomers', ()
     h.api.listCustomers.mockResolvedValue({
       items: ['c1', 'c2', 'c3', 'c4'].map((id) => ({ id, name: `Cliente ${id}`, phone: `9${id}`, creditLimit: '100.00' })),
     });
-    const holds = Object.fromEntries(['c1', 'c2', 'c3', 'c4'].map((id) => [id, deferred<ReturnType<typeof balanceOf>>()]));
-    h.api.getCustomerBalance.mockReset();
-    h.api.getCustomerBalance.mockImplementation((id: string) => holds[id].promise);
+    const hold = deferred<{ items: ReturnType<typeof balanceOf>[] }>();
+    h.api.getCustomerBalances.mockClear(); // the first load already read them once
+    h.api.getCustomerBalances.mockReturnValue(hold.promise);
     const submit = submitNewCustomer();
     await settle();
-    expect(h.api.getCustomerBalance).toHaveBeenCalledTimes(4);
+    expect(h.api.getCustomerBalances).toHaveBeenCalledTimes(1);
     expect(whats()).toEqual([]);
-    for (const id of ['c1', 'c2', 'c3', 'c4']) holds[id].resolve(balanceOf(id, DEBT[id] ?? '1.00'));
+    hold.resolve({ items: ['c1', 'c2', 'c3', 'c4'].map((id) => balanceOf(id, DEBT[id] ?? '1.00')) });
     await submit;
     await settle();
     expect(whats()).toEqual([]);
@@ -693,10 +682,7 @@ describe('/gestao: race between the balance retry and another loadCustomers', ()
 
   it('while any retry is in flight, every notice of the Fiado tab is busy (one request burst at a time)', async () => {
     h.api.getCreditMetrics.mockRejectedValueOnce(new Error('429'));
-    h.api.getCustomerBalance.mockImplementation(async (id: string) => {
-      if (id !== 'c1') throw new Error('429');
-      return balanceOf(id, DEBT[id]);
-    });
+    h.api.getCustomerBalances.mockResolvedValue({ items: [balanceOf('c1', DEBT.c1)] });
     await mount();
     await openTab(FIADO);
     expect(notices().length).toBe(2);
@@ -714,10 +700,7 @@ describe('/gestao: race between the balance retry and another loadCustomers', ()
 
 describe('/gestao: more races of the balance retry (A2 acceptance gaps)', () => {
   async function failTwoBalances() {
-    h.api.getCustomerBalance.mockImplementation(async (id: string) => {
-      if (id !== 'c1') throw new Error('429');
-      return balanceOf(id, DEBT[id]);
-    });
+    h.api.getCustomerBalances.mockResolvedValue({ items: [balanceOf('c1', DEBT.c1)] });
     await mount();
     await openTab(FIADO);
     expect(whats().length).toBe(1);
@@ -763,11 +746,7 @@ describe('/gestao: more races of the balance retry (A2 acceptance gaps)', () => 
     h.api.listCustomers.mockResolvedValue({
       items: ['c1', 'c3'].map((id) => ({ id, name: `Cliente ${id}`, phone: `9${id}`, creditLimit: '100.00' })),
     });
-    h.api.getCustomerBalance.mockReset();
-    h.api.getCustomerBalance.mockImplementation(async (id: string) => {
-      if (id === 'c3') throw new Error('429');
-      return balanceOf(id, DEBT[id]);
-    });
+    h.api.getCustomerBalances.mockResolvedValue({ items: [balanceOf('c1', DEBT.c1)] });
     await submitNewCustomer();
     await settle();
     expect(text(tree)).not.toContain('Cliente c2');
@@ -813,11 +792,7 @@ describe('/gestao: more races of the balance retry (A2 acceptance gaps)', () => 
       await settle();
       // Settle c1 (10,00 -> 0,00) while the retry is in flight; the reload shows c1 paid and c2/c3 still failing.
       clickSettle();
-      h.api.getCustomerBalance.mockReset();
-      h.api.getCustomerBalance.mockImplementation(async (id: string) => {
-        if (id === 'c1') return balanceOf('c1', '0.00');
-        throw new Error('429');
-      });
+      h.api.getCustomerBalances.mockResolvedValue({ items: [balanceOf('c1', '0.00')] });
       await submitSettle();
       await settle();
       expect(text(tree)).not.toContain(`Dívida Atual em Aberto${formatMoney(10)}`);

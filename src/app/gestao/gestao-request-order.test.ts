@@ -36,6 +36,7 @@ const h = vi.hoisted(() => ({
     getProductsSummary: vi.fn(),
     listCustomers: vi.fn(),
     getCustomerBalance: vi.fn(),
+    getCustomerBalances: vi.fn(),
     getCurrentCash: vi.fn(),
     getCreditMetrics: vi.fn(),
     listOperators: vi.fn(),
@@ -172,16 +173,18 @@ function loadAs(me: { isOwner: boolean }) {
   respond('listCustomers', () => ({
     items: ['c1', 'c2', 'c3'].map((id) => ({ id, name: `Cliente ${id}`, phone: `9${id}`, creditLimit: '100.00' })),
   }));
-  respond('getCustomerBalance', (id) => ({
-    customerId: id,
-    name: id,
-    phone: '1',
-    active: true,
-    creditLimit: '100.00',
-    currentDebt: '10.00',
-    availableCredit: '0.00',
-    totalDebits: '0.00',
-    totalCredits: '0.00',
+  respond('getCustomerBalances', () => ({
+    items: ['c1', 'c2', 'c3'].map((id) => ({
+      customerId: id,
+      name: id,
+      phone: '1',
+      active: true,
+      creditLimit: '100.00',
+      currentDebt: '10.00',
+      availableCredit: '0.00',
+      totalDebits: '0.00',
+      totalCredits: '0.00',
+    })),
   }));
   respond('getCurrentCash', () => ({ open: false, session: null }));
   respond('getCreditMetrics', () => ({ totalOutstandingCredit: '30.00', totalSettledCredit: '0.00', activeDebtorsCount: 3 }));
@@ -234,7 +237,7 @@ describe('/gestao first load: the list and the order of the apiClient calls', ()
     h.calls.length = 0;
 
     await openTab('Clientes');
-    expect(h.calls).toEqual(['listCustomers', 'getCreditMetrics', 'getCustomerBalance:c1', 'getCustomerBalance:c2', 'getCustomerBalance:c3']);
+    expect(h.calls).toEqual(['listCustomers', 'getCreditMetrics', 'getCustomerBalances']);
     h.calls.length = 0;
 
     await openTab('Caixa');
@@ -261,7 +264,7 @@ describe('/gestao first load: the list and the order of the apiClient calls', ()
     h.calls.length = 0;
     await openTab('Clientes');
     await openTab('Caixa');
-    expect(h.calls).toEqual(['listCustomers', 'getCreditMetrics', 'getCustomerBalance:c1', 'getCustomerBalance:c2', 'getCustomerBalance:c3', 'getCurrentCash']);
+    expect(h.calls).toEqual(['listCustomers', 'getCreditMetrics', 'getCustomerBalances', 'getCurrentCash']);
     expect(h.api.listOperators).not.toHaveBeenCalled();
     expect(h.api.getOwnerEmail).not.toHaveBeenCalled(); // AC-9
     expect(h.router.push).not.toHaveBeenCalled();
@@ -345,7 +348,8 @@ describe('/gestao: the apiClient calls and the /login redirects in the source of
       findProductByBarcode: 3, // products tab: the barcode field, the scan that opens the form, and the barcode field of the edit
       getCreditMetrics: 1,
       getCurrentCash: 1,
-      getCustomerBalance: 2,
+      getCustomerBalance: 1, // the retry of the missing balances
+      getCustomerBalances: 1, // the balances of the list, in one call
       getOwnerEmail: 1, // use-owner-email-tab.ts: only for the owner
       getCustomerStatement: 1, // use-customer-statement.ts
       getSalesReport: 1, // sales-report-panel.tsx; written on two lines, so it is not in the literal count

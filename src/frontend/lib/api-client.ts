@@ -512,6 +512,7 @@ export const apiClient = {
     }),
   getCustomerBalance: (customerId: string) =>
     apiRequest<CustomerBalance>(`/api/customers/${encodeURIComponent(customerId)}/balance`),
+  getCustomerBalances: () => apiRequest<{ items: CustomerBalance[] }>('/api/customers/balances'),
   getCustomerStatement: (customerId: string, limit: number, cursor?: string) => {
     const qs = new URLSearchParams({ limit: String(limit) });
     if (cursor) qs.set('cursor', cursor);

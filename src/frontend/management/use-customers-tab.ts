@@ -49,19 +49,13 @@ export function useCustomersTab({ setFeedback, setProcessing, setLoadFailed, loa
       // A marca só vale para "saldo pedido e falhou", não para "saldo ainda não chegou".
       setLoadFailed((f) => ({ ...f, balances: false }));
 
-      // Carregar saldos devedores de cada cliente em paralelo
-      const balancePromises = list.map(async (c) => {
-        try {
-          const b = await apiClient.getCustomerBalance(c.id);
-          return { id: c.id, balance: b };
-        } catch {
-          return null;
-        }
-      });
-      const results = await Promise.all(balancePromises);
+      // Um pedido traz os saldos de todos os clientes. Se ele falhar, nenhum saldo chega e a marca avisa.
       const balances: Record<string, CustomerBalance> = {};
-      for (const r of results) {
-        if (r) balances[r.id] = r.balance;
+      try {
+        const res = await apiClient.getCustomerBalances();
+        for (const b of res.items) balances[b.customerId] = b;
+      } catch (err) {
+        console.error('Erro ao carregar saldos de clientes:', err);
       }
       setCustomerBalances(balances);
       setLoadFailed((f) => ({ ...f, customers: false, balances: list.some((c) => !balances[c.id]) }));

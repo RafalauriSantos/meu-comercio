@@ -110,6 +110,19 @@ describe.skipIf(!TEST_DATABASE_URL)('DrizzleCustomerRepository.updateDetails (Po
     expect(await auditOf(mine.id)).toHaveLength(0);
   });
 
+  it('22.18c: a phone that belongs to a deactivated customer is a conflict that says so', async () => {
+    const merchantId = await freshMerchant();
+    const mine = await seed(merchantId, '11999998888');
+    const gone = await seed(merchantId, '(11) 98888-7777', { active: false });
+
+    const attempt = repo.updateDetails(merchantId, mine.id, { phone: '11988887777' }, ACTOR);
+
+    await expect(attempt).rejects.toBeInstanceOf(CustomerAlreadyExistsError);
+    await expect(attempt).rejects.toThrow(/desativado/);
+    expect(await row(mine.id)).toEqual(mine);
+    expect(await row(gone.id)).toEqual(gone);
+  });
+
   it('the same phone as the customer itself, in another format, is not a conflict', async () => {
     const merchantId = await freshMerchant();
     const legacy = await seed(merchantId, '(11) 99999-8888');

@@ -6,7 +6,7 @@ import * as schema from '@/shared/infrastructure/db/schema';
 import { customers, customerCreditLedger } from './customers.schema';
 import { Customer } from '../domain/customer';
 import { CustomerChanges, CustomerRepository, CustomerUpdateContext } from '../domain/customer-repository.port';
-import { CustomerAlreadyExistsError, CustomerChangedError, CustomerHasDebtError, OWNER_PIN_REQUIRED_TO_DELETE, OwnerPinRequiredError } from '../domain/errors';
+import { CustomerAlreadyExistsError, CustomerChangedError, CustomerHasDebtError, CustomerPhoneInactiveError, OWNER_PIN_REQUIRED_TO_DELETE, OwnerPinRequiredError } from '../domain/errors';
 import { auditEvents } from '@/modules/audit/infrastructure/audit.schema';
 import { toAuditEventRow } from '@/modules/audit/infrastructure/audit-event-row';
 import { phoneDigits } from '../domain/phone';
@@ -113,7 +113,7 @@ export class DrizzleCustomerRepository implements CustomerRepository {
 
         if (diff.phone) {
           const [other] = await tx
-            .select({ id: customers.id })
+            .select({ id: customers.id, active: customers.active })
             .from(customers)
             .where(
               and(
@@ -123,7 +123,7 @@ export class DrizzleCustomerRepository implements CustomerRepository {
               )
             )
             .limit(1);
-          if (other) throw new CustomerAlreadyExistsError(after.phone);
+          if (other) throw other.active ? new CustomerAlreadyExistsError(after.phone) : new CustomerPhoneInactiveError(after.phone);
         }
 
         const [row] = await tx

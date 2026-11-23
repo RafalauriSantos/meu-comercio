@@ -1,7 +1,6 @@
 import { z } from 'zod';
 import { ProductRepository } from '@/modules/products/domain/product-repository.port';
 import { InventoryRepository } from '../domain/inventory-repository.port';
-import { InventoryItem } from '../domain/inventory-item';
 import { AuditPort } from '@/modules/audit/domain/audit.port';
 
 export const RestockInventorySchema = z.object({
@@ -34,23 +33,10 @@ export class RestockInventoryUseCase {
       throw new ProductNotFoundError(input.productId);
     }
 
-    let item = await this.inventoryRepository.findByProductId(merchantId, input.productId);
-    if (!item) {
-      item = new InventoryItem({
-        merchantId,
-        productId: input.productId,
-        availableQuantity: 0,
-        updatedAt: new Date(),
-      });
-    }
-
-    item.restock(input.quantity);
-    await this.inventoryRepository.save(item);
-
-    await this.inventoryRepository.addMovement(
+    // The repository adds to the quantity that is in the database and records the movement in one transaction.
+    const newAvailableQuantity = await this.inventoryRepository.restock(
       merchantId,
       input.productId,
-      'RESTOCK',
       input.quantity,
       input.reason,
       actorId
@@ -66,11 +52,11 @@ export class RestockInventoryUseCase {
         productName: product.name,
         barcode: product.barcode,
         quantityRestocked: input.quantity,
-        newAvailableQuantity: item.availableQuantity,
+        newAvailableQuantity,
         reason: input.reason,
       }
     );
 
-    return item.availableQuantity;
+    return newAvailableQuantity;
   }
 }

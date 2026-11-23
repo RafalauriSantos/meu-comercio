@@ -8,7 +8,7 @@ function render(overrides: Partial<Parameters<typeof CashOpenScreen>[0]> = {}): 
   return renderToStaticMarkup(
     <CashOpenScreen
       username="maria"
-      openingBalance="100.00"
+      openingBalance="100,00"
       onOpeningBalanceChange={noop}
       onSubmit={noop}
       onBack={noop}
@@ -32,13 +32,14 @@ describe('CashOpenScreen', () => {
     expect(markup).toContain('08/11/2026');
   });
 
-  it('keeps the money field as it was: a labelled number input with the default value', () => {
+  it('the money field is a labelled text input with the cents mask and the default value (22.5)', () => {
     const markup = render();
 
     expect(markup).toMatch(/<label[^>]*for="opening-balance"[^>]*>Fundo de troco em dinheiro<\/label>/);
-    expect(markup).toMatch(/<input[^>]*id="opening-balance"[^>]*type="number"/);
-    expect(markup).toContain('value="100.00"');
-    expect(markup).toContain('step="0.01"');
+    expect(markup).toMatch(/<input[^>]*id="opening-balance"[^>]*type="text"/);
+    expect(markup).toContain('inputMode="numeric"');
+    expect(markup).toContain('value="100,00"');
+    expect(markup).not.toContain('type="number"');
   });
 
   it('offers the four quick amounts and marks the one that is set', () => {

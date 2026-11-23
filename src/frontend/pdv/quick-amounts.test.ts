@@ -27,9 +27,10 @@ describe('suggestCashAmounts', () => {
 });
 
 describe('quick amount formatting', () => {
-  it('formats cents for the cash input', () => {
-    expect(centsToInputValue(6000)).toBe('60.00');
-    expect(centsToInputValue(12345)).toBe('123.45');
+  it('formats cents as the masked text of the cash input', () => {
+    expect(centsToInputValue(6000)).toBe('60,00');
+    expect(centsToInputValue(12345)).toBe('123,45');
+    expect(centsToInputValue(5)).toBe('0,05');
   });
 
   it('labels whole reais without decimals', () => {

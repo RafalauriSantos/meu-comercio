@@ -26,6 +26,7 @@ import { CustomersTab } from '@/frontend/management/customers-tab';
 import { useCustomersTab } from '@/frontend/management/use-customers-tab';
 import { useProductsTab } from '@/frontend/management/use-products-tab';
 import { noticeView } from '@/frontend/ui/notice-view';
+import { MoneyInput } from '@/frontend/ui/money-input';
 import { useSessionExpired } from '@/frontend/auth/use-session-expired';
 import { SessionExpiredNotice } from '@/frontend/auth/session-expired-notice';
 import { loginUrlHere } from '@/frontend/auth/safe-return-path';
@@ -56,7 +57,7 @@ export default function GestaoPage() {
   const [cashOpen, setCashOpen] = useState(false);
   const [closingCounted, setClosingCounted] = useState('');
   const [discrepancyReason, setDiscrepancyReason] = useState('');
-  const [openingBalance, setOpeningBalance] = useState('100.00');
+  const [openingBalance, setOpeningBalance] = useState('100,00');
   const [processing, setProcessing] = useState(false);
 
   // Sangria e Suprimento
@@ -434,16 +435,13 @@ export default function GestaoPage() {
                     <label className="field-label" htmlFor="cash-closing">
                       Quanto tem na gaveta? (R$)
                     </label>
-                    <input
+                    <MoneyInput
                       id="cash-closing"
                       className="input mg-count num"
-                      type="number"
-                      step="0.01"
-                      min="0"
                       required
                       value={closingCounted}
-                      onChange={(e) => setClosingCounted(e.target.value)}
-                      placeholder="0.00"
+                      onValueChange={setClosingCounted}
+                      placeholder="0,00"
                     />
 
                     {closingCounted && (
@@ -500,15 +498,12 @@ export default function GestaoPage() {
                 <p className="muted">O caixa está fechado no momento. Abra um novo turno para registrar vendas em dinheiro.</p>
                 <form onSubmit={handleOpenCash}>
                   <label className="field-label" htmlFor="open-bal">Fundo de Troco Inicial (R$)</label>
-                  <input
+                  <MoneyInput
                     id="open-bal"
                     className="input mg-amount num"
-                    type="number"
-                    step="0.01"
-                    min="0"
                     required
                     value={openingBalance}
-                    onChange={(e) => setOpeningBalance(e.target.value)}
+                    onValueChange={setOpeningBalance}
                   />
                   <button className="primary mg-form-submit mg-full" type="submit" disabled={processing}>
                     {processing ? 'Abrindo...' : 'Abrir Caixa do Turno'}
@@ -582,17 +577,14 @@ export default function GestaoPage() {
 
               <div>
                 <label className="field-label" htmlFor="gestao-cash-amount">Valor (R$)</label>
-                <input
+                <MoneyInput
                   id="gestao-cash-amount"
                   className="input mg-amount num"
-                  type="number"
-                  step="0.01"
-                  min="0.01"
                   required
                   autoFocus
                   value={cashOpAmount}
-                  onChange={(e) => setCashOpAmount(e.target.value)}
-                  placeholder="0.00"
+                  onValueChange={setCashOpAmount}
+                  placeholder="0,00"
                 />
               </div>
 

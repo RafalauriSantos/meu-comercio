@@ -120,7 +120,7 @@ Este documento rastreia formalmente as fatias verticais de entrega, critérios d
   - [x] 11.2.2 Reversão atômica: marca venda como `'CANCELLED'` e impede re-cancelamento. *Conferido em 23/11/2026: o cancelamento grava numa transação só (`commitCancellation`, ADR-021), com trava na venda; AC-10 resolvido.*
   - [x] 11.2.3 Retorno dos itens ao estoque físico com movimentação de inventário do tipo `'RETURN'`.
   - [x] 11.2.4 Estorno de dinheiro na gaveta via movimentação `'CASH_CANCEL'` no caixa ativo (se houve pagamento em dinheiro e com validação de saldo).
-  - [ ] 11.2.5 Amortização automática de fiado no extrato do cliente com movimento compensatório `'CREDIT'` (se a venda teve lançamento em fiado). *Conferido em 23/11/2026: o PDV envia `externalReference` nas vendas fiado (`src/app/pdv/page.tsx`), então o estorno de fiado gera o `CREDIT` compensatório.*
+  - [x] 11.2.5 Amortização automática de fiado no extrato do cliente com movimento compensatório `'CREDIT'` (se a venda teve lançamento em fiado). *Conferido em 23/11/2026: o PDV envia `externalReference` nas vendas fiado (`src/app/pdv/page.tsx`), então o estorno de fiado gera o `CREDIT` compensatório.*
   - [x] 11.2.6 Trilha de auditoria imutável compulsória do evento `'SALE_CANCELLED'`.
   - [x] 11.2.7 Rota de API `POST /api/sales/[id]/cancel`.
 - [x] 11.3 **Métricas de Fiado na Rua (GetCreditMetricsUseCase)**:

@@ -12,6 +12,7 @@ import {
   NoOpenCashSessionError,
 } from '@/modules/customers/domain/errors';
 import { Money } from '@/shared/domain/money';
+import { driverCauseOf, sqlStateOf } from '@/shared/infrastructure/http/driver-error';
 
 const SettleCustomerDebtBodySchema = z.object({
   amount: z.union([z.number(), z.string()]).refine((val) => {
@@ -83,6 +84,11 @@ export async function POST(
         },
         { status: 400 }
       );
+    }
+    if (driverCauseOf(error) !== null) {
+      // Database failures carry SQL text and parameters in their message: log the SQLSTATE only.
+      console.error('Database error settling customer debt, SQLSTATE', sqlStateOf(error) ?? 'unknown');
+      return NextResponse.json({ message: 'Erro interno ao quitar débito de cliente.' }, { status: 500 });
     }
     if (error instanceof Error && !(error instanceof TypeError)) {
       return NextResponse.json({ message: error.message }, { status: 400 });

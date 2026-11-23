@@ -36,6 +36,16 @@ class MemoryStorage implements Storage {
 }
 
 describe('OfflineSyncManager', () => {
+  it('forgetCachedProduct remove só o produto do código e mantém os outros (22.17c)', () => {
+    offlineSync.saveProductsCache('m1', 'op1', [
+      { id: 'p1', barcode: '111', name: 'Azeite', salePrice: 1000, availableQuantity: 5, unit: 'UN' },
+      { id: 'p2', barcode: '222', name: 'Sal', salePrice: 300, availableQuantity: 5, unit: 'UN' },
+    ]);
+    offlineSync.forgetCachedProduct('m1', 'op1', '111');
+    expect(offlineSync.findProductByBarcode('m1', 'op1', '111')).toBeNull();
+    expect(offlineSync.findProductByBarcode('m1', 'op1', '222')).not.toBeNull();
+  });
+
   let storage: Storage;
   let offlineSync: OfflineSyncManager;
 

@@ -11,6 +11,7 @@ import {
   InsufficientCashForRefundError,
 } from '@/modules/sales/application/cancel-sale.use-case';
 import { InvalidOwnerPinError, NoOpenCashSessionError } from '@/modules/customers/domain/errors';
+import { driverCauseOf, sqlStateOf } from '@/shared/infrastructure/http/driver-error';
 
 const CancelSaleSchema = z.object({
   ownerPin: z.string().trim().regex(/^\d{6}$/, 'O PIN da proprietária deve conter exatamente 6 dígitos.'),
@@ -73,6 +74,11 @@ export async function POST(
         },
         { status: 400 }
       );
+    }
+    if (driverCauseOf(error) !== null) {
+      // Database failures carry SQL text and parameters in their message: log the SQLSTATE only.
+      console.error('Database error cancelling sale, SQLSTATE', sqlStateOf(error) ?? 'unknown');
+      return NextResponse.json({ message: 'Erro interno ao cancelar venda.' }, { status: 500 });
     }
     if (error instanceof Error && !(error instanceof TypeError)) {
       return NextResponse.json({ message: error.message }, { status: 400 });

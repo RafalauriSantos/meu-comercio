@@ -21,6 +21,7 @@ import { DrizzleCustomerCreditRepository } from '@/modules/customers/infrastruct
 import { BcryptOwnerPinVerifier } from '@/modules/customers/infrastructure/bcrypt-owner-pin-verifier';
 import { DrizzleStoreSettingsRepository } from '@/modules/settings/infrastructure/drizzle-store-settings-repository';
 import { db } from '@/shared/infrastructure/db/connection';
+import { driverCauseOf, sqlStateOf } from '@/shared/infrastructure/http/driver-error';
 import {
   CustomerNotFoundError,
   CustomerInactiveError,
@@ -32,20 +33,6 @@ import {
 const UNIQUE_VIOLATION = '23505';
 // Matches the length of sales.idempotency_key.
 const MAX_IDEMPOTENCY_KEY_LENGTH = 128;
-
-// Drizzle wraps driver errors: the SQL and params are in the message, the driver error is in `cause`.
-function driverCauseOf(error: unknown): object | null {
-  if (!(error instanceof Error) || !('cause' in error)) return null;
-  return typeof error.cause === 'object' && error.cause !== null ? error.cause : null;
-}
-
-function sqlStateOf(error: unknown): string | null {
-  const cause = driverCauseOf(error);
-  if (cause !== null && 'code' in cause && typeof cause.code === 'string') {
-    return cause.code;
-  }
-  return null;
-}
 
 const isValidMoney = (val: unknown, check: (m: Money) => boolean) => {
   if (val === undefined || val === null) return true;

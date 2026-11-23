@@ -1,5 +1,6 @@
 import { NextResponse, connection } from 'next/server';
 import { DrizzleUserRepository } from '@/modules/users/infrastructure/drizzle-user-repository';
+import { sqlStateOf } from '@/shared/infrastructure/http/driver-error';
 
 export async function GET() {
   // Cache Components prerenders a handler that touches no request-time data. Waiting for the
@@ -16,11 +17,8 @@ export async function GET() {
     const hasUsers = await userRepository.hasAnyUser();
     return NextResponse.json({ setupRequired: !hasUsers, databaseConnected: true });
   } catch (error) {
-    console.error('Error checking setup status:', error);
-    // If DATABASE_URL is not configured yet or connection fails, inform client
-    return NextResponse.json(
-      { error: 'Não foi possível verificar o status de instalação.', details: error instanceof Error ? error.message : 'Unknown error' },
-      { status: 500 }
-    );
+    // Public route: the error stays in the server log. Its message can hold the SQL and its parameters.
+    console.error('Error checking setup status, SQLSTATE', sqlStateOf(error) ?? 'unknown');
+    return NextResponse.json({ error: 'Não foi possível verificar o status de instalação.' }, { status: 500 });
   }
 }

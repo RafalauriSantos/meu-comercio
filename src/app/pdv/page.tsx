@@ -24,6 +24,7 @@ import {
   OfflineSyncManager,
   OfflineSale,
 } from '@/frontend/lib/offline-sync';
+import { describeOfflineSync } from '@/frontend/lib/offline-sync-notice';
 import {
   formatMoney,
   parseCurrencyInput,
@@ -201,12 +202,8 @@ export default function PdvTerminalPage() {
           )
       );
 
-      if (result.syncedCount > 0) {
-        setMessage({
-          text: `${result.syncedCount} venda(s) offline sincronizada(s) com o servidor com sucesso!`,
-          isSuccess: true,
-        });
-      }
+      const notice = describeOfflineSync(result);
+      if (notice) setMessage(notice);
       const count = offlineManagerRef.current.getQueue(
         userRef.current.merchantId,
         userRef.current.username

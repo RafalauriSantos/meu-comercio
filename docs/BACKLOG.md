@@ -62,7 +62,7 @@ Este documento rastreia formalmente as fatias verticais de entrega, critérios d
 - [x] 5.4 `CreateCustomerUseCase`: cadastro de clientes com telefone obrigatório, limite inicial de crédito e emissão do evento de auditoria `CUSTOMER_CREATED`.
 - [x] 5.5 `GetCustomerBalanceUseCase`: consulta de saldo devedor consolidado (`SUM(DEBIT) - SUM(CREDIT)`) e crédito disponível em tempo real.
 - [x] 5.6 a verificação de crédito dentro de `CreateSaleUseCase` (pagamento `TAB`); o caso de uso separado e a rota `POST /api/customers/[id]/authorize-credit` foram removidos: verificação de limite disponível para compras a prazo; exigência e validação de PIN da proprietária (`ROLE_OWNER` via `bcrypt`) em caso de excesso de limite, com auditoria compulsória `CREDIT_SALE_LIMIT_AUTHORIZED`.
-- [ ] 5.7 `SettleCustomerDebtUseCase`: quitação total ou parcial de dívida exigindo sessão de caixa aberta (`OPEN`), registrando entrada de dinheiro na gaveta (`DEBT_PAYMENT`), amortização no extrato e auditoria `CUSTOMER_DEBT_SETTLED`. *Reaberto: sem transação nem trava sobre o saldo; ver AC-12.*
+- [x] 5.7 `SettleCustomerDebtUseCase`: quitação total ou parcial de dívida exigindo sessão de caixa aberta (`OPEN`), registrando entrada de dinheiro na gaveta (`DEBT_PAYMENT`), amortização no extrato e auditoria `CUSTOMER_DEBT_SETTLED`. *Conferido em 23/11/2026: a quitação grava numa transação só, com a trava do cliente (`commitDebtSettlement`, ADR-021); AC-12 resolvido.*
 - [x] 5.8 Tratamento de invariantes de domínio e erros de negócio explícitos (`CustomerNotFoundError`, `CustomerAlreadyExistsError`, `CustomerInactiveError`, `CreditLimitExceededError`, `InvalidOwnerPinError`, `DebtSettlementExceedsBalanceError`, `NoOpenCashSessionError`).
 - **Status:** Reaberto (5.7). Sem artefato de PR Reviewer em `docs/reviews/`. Commit 33d423c.
 
@@ -117,10 +117,10 @@ Este documento rastreia formalmente as fatias verticais de entrega, critérios d
   - [x] 11.1.5 Endpoints HTTP e rotas de API `/api/cash/withdrawal` e `/api/cash/deposit`.
 - [x] 11.2 **Cancelamento e Estorno Atômico de Venda (CancelSaleUseCase)**:
   - [x] 11.2.1 Autorização mandatória via PIN da proprietária com reaproveitamento do `OwnerPinVerifier`.
-  - [ ] 11.2.2 Reversão atômica: marca venda como `'CANCELLED'` e impede re-cancelamento. *Reaberto: escritas sequenciais sem transação e sem update condicional (AC-10).*
+  - [x] 11.2.2 Reversão atômica: marca venda como `'CANCELLED'` e impede re-cancelamento. *Conferido em 23/11/2026: o cancelamento grava numa transação só (`commitCancellation`, ADR-021), com trava na venda; AC-10 resolvido.*
   - [x] 11.2.3 Retorno dos itens ao estoque físico com movimentação de inventário do tipo `'RETURN'`.
   - [x] 11.2.4 Estorno de dinheiro na gaveta via movimentação `'CASH_CANCEL'` no caixa ativo (se houve pagamento em dinheiro e com validação de saldo).
-  - [ ] 11.2.5 Amortização automática de fiado no extrato do cliente com movimento compensatório `'CREDIT'` (se a venda teve lançamento em fiado). *Reaberto: só roda com `externalReference`, que o PDV nunca envia. A venda fiado do PDV passa a criar venda no PR #30 (AC-11).*
+  - [x] 11.2.5 Amortização automática de fiado no extrato do cliente com movimento compensatório `'CREDIT'` (se a venda teve lançamento em fiado). *Conferido em 23/11/2026: o PDV envia `externalReference` nas vendas fiado (`src/app/pdv/page.tsx`), então o estorno de fiado gera o `CREDIT` compensatório.*
   - [x] 11.2.6 Trilha de auditoria imutável compulsória do evento `'SALE_CANCELLED'`.
   - [x] 11.2.7 Rota de API `POST /api/sales/[id]/cancel`.
 - [x] 11.3 **Métricas de Fiado na Rua (GetCreditMetricsUseCase)**:

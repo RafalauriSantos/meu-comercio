@@ -124,6 +124,10 @@ class InMemoryInventoryRepository implements InventoryRepository {
     this.movements.push({ merchantId, productId, movementType, quantity, reason, actorId });
   }
 
+  async restock(): Promise<number> {
+    throw new Error('not used in these tests');
+  }
+
   async getAvailableQuantity(merchantId: string, productId: string): Promise<number> {
     const item = await this.findByProductId(merchantId, productId);
     return item?.availableQuantity ?? 0;

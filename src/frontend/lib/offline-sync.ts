@@ -182,6 +182,12 @@ export class OfflineSyncManager {
     }
   }
 
+  /** Removes one product from the offline cache, e.g. after the server says it is deactivated. */
+  public forgetCachedProduct(merchantId: string, username: string, barcode: string): void {
+    const kept = this.getCachedProducts(merchantId, username).filter((p) => p.barcode !== barcode);
+    this.saveProductsCache(merchantId, username, kept);
+  }
+
   public findProductByBarcode(
     merchantId: string,
     username: string,

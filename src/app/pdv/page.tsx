@@ -65,7 +65,7 @@ import { useSessionExpired } from '@/frontend/auth/use-session-expired';
 import { SessionExpiredNotice } from '@/frontend/auth/session-expired-notice';
 import { loginUrlHere } from '@/frontend/auth/safe-return-path';
 import { browserDraftStorage, buildCartDraft, saveCartDraft, takeCartDraft } from '@/frontend/pdv/cart-draft';
-import { isRegistrableCode, isUnknownCodeError, registeredNotice } from '@/frontend/pdv/register-on-scan';
+import { isInactiveProductError, isRegistrableCode, isUnknownCodeError, registeredNotice } from '@/frontend/pdv/register-on-scan';
 import { useRegisterOnScan } from '@/frontend/pdv/use-register-on-scan';
 import { RegisterOnScanPanel } from '@/frontend/pdv/register-on-scan-panel';
 import { ForgotPinLink } from '@/frontend/auth/forgot-pin-link';
@@ -672,6 +672,10 @@ export default function PdvTerminalPage() {
 
       addProductToCart(product);
     } catch (err) {
+      // The product was deactivated: warn, and stop offering it from the offline cache too (22.17c).
+      if (isInactiveProductError(err) && offlineManagerRef.current && user) {
+        offlineManagerRef.current.forgetCachedProduct(user.merchantId, user.username, code);
+      }
       // Online and the catalog does not know the code: the new product panel instead of the warning.
       if (isUnknownCodeError(err) && isRegistrableCode(code)) {
         register.open(code);

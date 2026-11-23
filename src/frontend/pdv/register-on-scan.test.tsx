@@ -2,11 +2,18 @@ import { describe, it, expect } from 'vitest';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { readScreenSource } from '@/test-utils/read-screen-source';
 import { ApiError } from '@/frontend/lib/api-client';
-import { isRegistrableCode, isUnknownCodeError, newProductError, registeredNotice } from './register-on-scan';
+import { isInactiveProductError, isRegistrableCode, isUnknownCodeError, newProductError, registeredNotice } from './register-on-scan';
 import { RegisterOnScanPanel } from './register-on-scan-panel';
 import type { useRegisterOnScan } from './use-register-on-scan';
 
 describe('what opens the panel', () => {
+  it('a deactivated product (404 PRODUCT_INACTIVE) never opens the panel: it is a warning (22.17c)', () => {
+    const inactive = new ApiError(404, 'Produto "Azeite" está desativado.', undefined, 'PRODUCT_INACTIVE');
+    expect(isUnknownCodeError(inactive)).toBe(false);
+    expect(isInactiveProductError(inactive)).toBe(true);
+    expect(isInactiveProductError(new ApiError(404, 'Produto não encontrado.'))).toBe(false);
+  });
+
   it('opens only for a 404 of the lookup, never for a network, timeout or server failure', () => {
     expect(isUnknownCodeError(new ApiError(404, 'Produto não encontrado.'))).toBe(true);
     expect(isUnknownCodeError(new ApiError(0, 'Sem conexão', undefined, undefined, 'network'))).toBe(false);

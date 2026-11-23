@@ -4,7 +4,12 @@ import { parseCurrencyInput } from '@/frontend/lib/formatters';
 
 /** The lookup said the code is not in the catalog (404). A network failure, timeout or 5xx is not this. */
 export function isUnknownCodeError(err: unknown): boolean {
-  return err instanceof ApiError && err.status === 404;
+  return err instanceof ApiError && err.status === 404 && !isInactiveProductError(err);
+}
+
+/** The code belongs to a deactivated product (404 PRODUCT_INACTIVE): a warning, never the register panel. */
+export function isInactiveProductError(err: unknown): boolean {
+  return err instanceof ApiError && err.status === 404 && err.code === 'PRODUCT_INACTIVE';
 }
 
 /** Only digits are a barcode (same rule as the search field): a name that found nothing never opens the panel. */

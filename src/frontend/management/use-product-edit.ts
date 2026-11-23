@@ -4,7 +4,7 @@ import React, { useState, useRef } from 'react';
 import { apiClient, type ProductItem } from '@/frontend/lib/api-client';
 import { deletedNotice, submitProductActive } from '@/frontend/management/deactivate';
 import { useDeleteConfirm } from '@/frontend/management/use-delete-confirm';
-import { findProductWithBarcode, takenBarcodeMessage } from '@/frontend/management/barcode-check';
+import { findProductWithBarcode, InactiveBarcodeError, takenBarcodeMessage } from '@/frontend/management/barcode-check';
 import {
   GENERATE_BARCODE_QUESTION,
   draftFromProduct,
@@ -69,8 +69,8 @@ export function useProductEdit({ setFeedback, setProcessing, applyEdit, applyDel
     try {
       const existing = await findProductWithBarcode(apiClient.findProductByBarcode, code);
       setBarcodeNote(existing && existing.id !== target.id ? takenBarcodeMessage(existing) : null);
-    } catch {
-      setBarcodeNote(null);
+    } catch (err) {
+      setBarcodeNote(err instanceof InactiveBarcodeError ? err.message : null);
     }
   }
 

@@ -1,7 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import { ApiError, type ProductItem } from '@/frontend/lib/api-client';
 import { readScreenSource } from '@/test-utils/read-screen-source';
-import { findProductWithBarcode, takenBarcodeMessage } from './barcode-check';
+import { findProductWithBarcode, InactiveBarcodeError, takenBarcodeMessage } from './barcode-check';
 
 const rice: ProductItem = { id: 'p1', barcode: '789', name: 'Arroz 5kg', salePrice: 25.5, availableQuantity: 10 };
 
@@ -17,6 +17,17 @@ describe('findProductWithBarcode', () => {
     const lookup = vi.fn().mockRejectedValue(new ApiError(404, 'Produto não encontrado.'));
 
     expect(await findProductWithBarcode(lookup, '999')).toBeNull();
+  });
+
+  it('a code that belongs to a deactivated product is not free: it throws an error that says so (22.17c)', async () => {
+    const lookup = vi
+      .fn()
+      .mockRejectedValue(new ApiError(404, 'Produto "Azeite" está desativado.', undefined, 'PRODUCT_INACTIVE'));
+
+    const error = await findProductWithBarcode(lookup, '789').catch((e: unknown) => e);
+
+    expect(error).toBeInstanceOf(InactiveBarcodeError);
+    expect((error as Error).message).toBe('Produto "Azeite" está desativado. Restaure-o na lista de Excluídos para usar este código.');
   });
 
   it('does not ask the server for an empty code', async () => {

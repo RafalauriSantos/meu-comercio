@@ -5,12 +5,23 @@ import { CreditMovement, CreditMovementType } from '../domain/credit-movement';
 import {
   CustomerCreditRepository,
   CustomerCreditBalance,
+  CustomerCreditBalanceOf,
+  CustomerBalancesReader,
   CreditMetrics,
   CustomerStatementReader,
   StatementRow,
 } from '../domain/customer-credit-repository.port';
 import { StatementPosition } from '../domain/customer-statement';
 import { Money } from '@/shared/domain/money';
+
+// The one formula for the balance: debt is debits minus credits, never below zero.
+function balanceFromTotals(totalDebitsDecimal: string, totalCreditsDecimal: string): CustomerCreditBalance {
+  const totalDebits = Money.fromDecimal(totalDebitsDecimal);
+  const totalCredits = Money.fromDecimal(totalCreditsDecimal);
+  const rawDebt = totalDebits.subtract(totalCredits);
+  const currentDebt = rawDebt.isNegative() ? Money.zero() : rawDebt;
+  return { currentDebt, totalDebits, totalCredits };
+}
 
 interface StatementSqlRow {
   id: string;
@@ -25,7 +36,7 @@ interface StatementSqlRow {
   running_balance: string;
 }
 
-export class DrizzleCustomerCreditRepository implements CustomerCreditRepository, CustomerStatementReader {
+export class DrizzleCustomerCreditRepository implements CustomerCreditRepository, CustomerStatementReader, CustomerBalancesReader {
   async saveMovement(movement: CreditMovement): Promise<void> {
     await db.insert(customerCreditLedger).values({
       id: movement.id,
@@ -56,16 +67,24 @@ export class DrizzleCustomerCreditRepository implements CustomerCreditRepository
         )
       );
 
-    const totalDebits = Money.fromDecimal(result?.totalDebits ?? '0');
-    const totalCredits = Money.fromDecimal(result?.totalCredits ?? '0');
-    const rawDebt = totalDebits.subtract(totalCredits);
-    const currentDebt = rawDebt.isNegative() ? Money.zero() : rawDebt;
+    return balanceFromTotals(result?.totalDebits ?? '0', result?.totalCredits ?? '0');
+  }
 
-    return {
-      currentDebt,
-      totalDebits,
-      totalCredits,
-    };
+  async getBalances(merchantId: string): Promise<CustomerCreditBalanceOf[]> {
+    const rows = await db
+      .select({
+        customerId: customerCreditLedger.customerId,
+        totalDebits: sql<string>`coalesce(sum(case when ${customerCreditLedger.type} = 'DEBIT' then ${customerCreditLedger.amount} else 0 end), 0)`,
+        totalCredits: sql<string>`coalesce(sum(case when ${customerCreditLedger.type} = 'CREDIT' then ${customerCreditLedger.amount} else 0 end), 0)`,
+      })
+      .from(customerCreditLedger)
+      .where(eq(customerCreditLedger.merchantId, merchantId))
+      .groupBy(customerCreditLedger.customerId);
+
+    return rows.map((row) => ({
+      customerId: row.customerId,
+      ...balanceFromTotals(row.totalDebits, row.totalCredits),
+    }));
   }
 
   async getMovementsByCustomerId(merchantId: string, customerId: string): Promise<CreditMovement[]> {

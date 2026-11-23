@@ -50,7 +50,7 @@ export default function LoginPage() {
   const [emailNotice, setEmailNotice] = useState('');
 
   // Abertura de Caixa
-  const [openingBalance, setOpeningBalance] = useState('100.00');
+  const [openingBalance, setOpeningBalance] = useState('100,00');
 
   // Feedback
   const [error, setError] = useState('');

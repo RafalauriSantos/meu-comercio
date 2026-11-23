@@ -25,6 +25,7 @@ import {
   OfflineSale,
 } from '@/frontend/lib/offline-sync';
 import { describeOfflineSync } from '@/frontend/lib/offline-sync-notice';
+import { MoneyInput } from '@/frontend/ui/money-input';
 import {
   formatMoney,
   parseCurrencyInput,
@@ -1280,16 +1281,12 @@ export default function PdvTerminalPage() {
                   <label className="field-label" htmlFor="second-val">
                     Valor da segunda parte (R$)
                   </label>
-                  <input
+                  <MoneyInput
                     id="second-val"
                     className="input num"
-                    type="number"
-                    step="0.01"
-                    min="0.01"
-                    max={totalMoney.toDecimal()}
                     value={secondAmount}
-                    onChange={(e) => setSecondAmount(e.target.value)}
-                    placeholder="0.00"
+                    onValueChange={setSecondAmount}
+                    placeholder="0,00"
                   />
                 </div>
               )}
@@ -1299,15 +1296,12 @@ export default function PdvTerminalPage() {
                   <label className="pdv-card-title" htmlFor="cash-received">
                     Valor recebido (R$)
                   </label>
-                  <input
+                  <MoneyInput
                     id="cash-received"
                     className="pdv-big-input num"
-                    type="number"
-                    step="0.01"
-                    min={0}
                     value={receivedCash}
-                    onChange={(e) => setReceivedCash(e.target.value)}
-                    placeholder={totalMoney.toDecimal()}
+                    onValueChange={setReceivedCash}
+                    placeholder={centsToInputValue(totalMoney.toCents())}
                   />
 
                   {cashDueCents > 0 && (
@@ -1492,17 +1486,14 @@ export default function PdvTerminalPage() {
                 <label className="field-label" htmlFor="cash-op-amount">
                   Valor (R$)
                 </label>
-                <input
+                <MoneyInput
                   id="cash-op-amount"
                   className="input num"
-                  type="number"
-                  step="0.01"
-                  min="0.01"
                   required
                   autoFocus
                   value={cashOpAmount}
-                  onChange={(e) => setCashOpAmount(e.target.value)}
-                  placeholder="0.00"
+                  onValueChange={setCashOpAmount}
+                  placeholder="0,00"
                 />
               </div>
 

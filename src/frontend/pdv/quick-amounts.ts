@@ -1,3 +1,5 @@
+import { maskCurrencyDigits } from '@/frontend/lib/currency-mask';
+
 // Bills a customer is likely to hand over, in cents, from the smallest to the largest.
 const NOTES_IN_CENTS = [2000, 5000, 10000, 20000, 50000];
 
@@ -20,9 +22,9 @@ export function suggestCashAmounts(totalCents: number, max = 3): number[] {
   return suggestions.sort((a, b) => a - b).slice(0, max);
 }
 
-/** Formats cents as the plain decimal string the cash input expects (e.g. 6000 -> "60.00"). */
+/** Formats cents as the masked text the money input holds (e.g. 6000 -> "60,00"). */
 export function centsToInputValue(cents: number): string {
-  return (cents / 100).toFixed(2);
+  return maskCurrencyDigits(String(cents));
 }
 
 /** Short label for a quick-amount button (e.g. 6000 -> "R$ 60"). */

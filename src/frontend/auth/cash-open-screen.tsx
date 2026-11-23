@@ -1,5 +1,7 @@
 import type { FormEvent } from 'react';
 import { BrandMark } from '@/frontend/ui/brand-mark';
+import { MoneyInput } from '@/frontend/ui/money-input';
+import { maskCurrencyDigits } from '@/frontend/lib/currency-mask';
 import { parseCurrencyInput } from '@/frontend/lib/formatters';
 import { FormError } from './form-error';
 import { formatCashDate } from './format-cash-date';
@@ -67,17 +69,13 @@ export function CashOpenScreen({
             <label className="cash-label" htmlFor="opening-balance">
               Fundo de troco em dinheiro
             </label>
-            <input
+            <MoneyInput
               id="opening-balance"
               className="cash-amount"
-              type="number"
-              inputMode="decimal"
-              step="0.01"
-              min="0"
               required
               autoFocus
               value={openingBalance}
-              onChange={(event) => onOpeningBalanceChange(event.target.value)}
+              onValueChange={onOpeningBalanceChange}
             />
             <p className="cash-hint">
               Conte as notas e moedas antes de confirmar. É o valor que você tem para dar troco.
@@ -89,7 +87,7 @@ export function CashOpenScreen({
                   key={amount}
                   type="button"
                   aria-pressed={current === amount}
-                  onClick={() => onOpeningBalanceChange(amount.toFixed(2))}
+                  onClick={() => onOpeningBalanceChange(maskCurrencyDigits(String(amount * 100)))}
                 >
                   R$ {amount}
                 </button>

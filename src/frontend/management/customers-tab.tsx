@@ -5,6 +5,8 @@ import { formatMoney, parseCurrencyInput } from '@/frontend/lib/formatters';
 import { Money } from '@/shared/domain/money';
 import type { AuthUser } from '@/frontend/lib/api-client';
 import { LoadFailureNotice } from '@/frontend/ui/load-failure-notice';
+import { MoneyInput } from '@/frontend/ui/money-input';
+import { priceToDigits } from '@/frontend/lib/currency-mask';
 import { CUSTOMER_FILTERS, STATUS_CLASS, STATUS_LABEL, buildRows, filterCounts, matchesQuery, shownText, visibleRows } from './customers-list';
 import { displayPhone } from '@/frontend/lib/phone-mask';
 import { CustomerEditPanel } from './customer-edit-panel';
@@ -266,7 +268,7 @@ export function CustomersTab({ tab, user, loadFailed, retrying, processing, retr
                             aria-label={`Receber de ${r.name}`}
                             onClick={() => {
                               setSettlingCustomer(r.balance);
-                              setSettleAmount(String(parseCurrencyInput(r.balance?.currentDebt)));
+                              setSettleAmount(priceToDigits(parseCurrencyInput(r.balance?.currentDebt)));
                             }}
                           >
                             Receber
@@ -345,16 +347,12 @@ export function CustomersTab({ tab, user, loadFailed, retrying, processing, retr
 
                   <div>
                     <label className="field-label" htmlFor="settle-val">Valor Pago em Dinheiro (R$)</label>
-                    <input
+                    <MoneyInput
                       id="settle-val"
                       className="input mg-amount num"
-                      type="number"
-                      step="0.01"
-                      min="0.01"
-                      max={parseCurrencyInput(settlingCustomer.currentDebt)}
                       required
                       value={settleAmount}
-                      onChange={(e) => setSettleAmount(e.target.value)}
+                      onValueChange={setSettleAmount}
                     />
                   </div>
 

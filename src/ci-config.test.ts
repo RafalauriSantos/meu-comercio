@@ -42,3 +42,23 @@ describe('the Postgres integration tests in the CI', () => {
     }
   });
 });
+
+describe('the smoke test after the production deploy (21.3)', () => {
+  const ci = read('.github', 'workflows', 'ci.yml');
+  const deploy = ci.slice(ci.indexOf('  deploy:'));
+
+  it('runs after the deploy step, in the deploy job, so a red check means the new version is not working', () => {
+    const deployStep = deploy.indexOf('run: vercel --prod --yes');
+    const smokeStep = deploy.indexOf('run: node scripts/smoke-check.mjs');
+
+    expect(deployStep).toBeGreaterThan(-1);
+    expect(smokeStep).toBeGreaterThan(deployStep);
+  });
+
+  it('checks the public site and the commit that was just deployed, and uses no secret', () => {
+    const smoke = deploy.slice(deploy.indexOf('Smoke test'));
+
+    expect(smoke).toContain('SMOKE_BASE_URL: https://meucomercio.vercel.app');
+    expect(smoke).not.toContain('secrets.');
+  });
+});

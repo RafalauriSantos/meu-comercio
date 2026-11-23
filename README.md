@@ -16,7 +16,7 @@ Sistema de Ponto de Venda (PDV) e gestão comercial para mini-mercados e pequeno
   - `/` — Página inicial (landing), sempre no tema claro.
   - `/login` — Entrar, criar conta (cada comércio se cadastra sozinho) e abrir o caixa.
   - `/pdv` — Terminal de vendas: leitor de código de barras, busca por nome, produto por peso, pagamento dividido, fiado, impressão térmica, sangria e suprimento, **cancelar venda finalizada** e fila offline.
-  - `/gestao` — Painel de retaguarda, em abas: **Catálogo & Estoque** (cadastro, importação por planilha, reposição e o interruptor do controle de estoque), **Clientes & Fiado**, **Controle de Caixa**, **Relatórios** e **Operadores** (as duas últimas só para a proprietária).
+  - `/gestao` — Painel de retaguarda, em abas: **Catálogo** (cadastro, edição, exclusão e restauração de produtos, importação e exportação por planilha, reposição), **Clientes** (cadastro, edição, fiado, bloqueio e extrato), **Caixa**, **Relatórios** e **Ajustes** (e-mail de recuperação, operadores e o interruptor do controle de estoque). As duas últimas só para a proprietária.
 - **App instalável:** no Chrome ou no Edge, o botão **Instalar app** do cabeçalho (ou o ícone da barra de endereço) cria um atalho na área de trabalho que abre o sistema em janela própria. Não há service worker: a instalação não torna o app offline.
 - **Acesso:** novos comércios se cadastram em **Criar conta**, em `/login`. Credenciais de demonstração não são publicadas neste repositório.
 
@@ -35,8 +35,8 @@ Banco de dados (Drizzle): `npm run db:generate` gera uma migração a partir do 
 
 ## Testes e qualidade
 
-- **620 testes automatizados rodam sempre (Vitest, 83 arquivos)** e **39 testes de integração com Postgres** (7 arquivos) rodam quando há `TEST_DATABASE_URL`, como no job de Postgres do CI. A cobertura inclui cálculo monetário em centavos, venda por peso e arredondamento por linha, estoque opcional, conferência cega de caixa, baixa de estoque, idempotência da venda, fiado com PIN, relatórios por período no horário de Brasília, importação de planilha, fila offline, impressão térmica, estorno de vendas, rate limiting e proteção anti-CSRF. O mapa entre regras e testes está em [`docs/TRACEABILITY.md`](docs/TRACEABILITY.md).
-- **Todos os 7 arquivos de integração rodam no CI** (job de Postgres, um arquivo de cada vez, com `npm run test:integration`). Antes só 1 deles rodava; o item 13.7 do [backlog](docs/BACKLOG.md) foi resolvido.
+- **2.486 testes automatizados passam sem banco (Vitest, 197 arquivos)**. Os testes de integração com Postgres ficam pulados sem `TEST_DATABASE_URL` (317 nesta execução) e rodam no job de Postgres do CI. A cobertura inclui cálculo monetário em centavos, venda por peso e arredondamento por linha, estoque opcional, conferência cega de caixa, baixa de estoque, idempotência da venda, fiado com PIN, relatórios por período no horário de Brasília, importação de planilha, fila offline, impressão térmica, estorno de vendas, rate limiting e proteção anti-CSRF. O mapa entre regras e testes está em [`docs/TRACEABILITY.md`](docs/TRACEABILITY.md).
+- **Os testes de integração rodam no CI** (job de Postgres, com `npm run test:integration`).
 - **ESLint sem erros e sem avisos** e **TypeScript em modo estrito** (`npx tsc --noEmit`).
 - **CI no GitHub Actions (`.github/workflows/ci.yml`):** a cada push na `main` e em pull requests roda lint e segurança, tipos, testes, testes de Postgres e build; o deploy de produção na Vercel é a etapa final, só na `main`. **Mesclar na `main` é lançar em produção.**
 
@@ -62,20 +62,28 @@ Banco de dados (Drizzle): `npm run db:generate` gera uma migração a partir do 
 | Fechamento de caixa com conferência cega e justificativa de divergência | Feito |
 | Entradas em dinheiro registradas na gaveta; sangria e suprimento com motivo e auditoria | Feito |
 | Impressão térmica de cupom não fiscal e canhoto de fiado | Parcial: 58 mm; o modelo do cupom conhece 80 mm, mas falta a regra de impressão |
-| Cancelar venda finalizada, no PDV, escolhendo na lista das vendas de hoje, com PIN da dona | Feito; a operação ainda não é atômica (escritas em sequência) |
+| Cancelar venda finalizada, no PDV, escolhendo na lista das vendas de hoje, com PIN da dona | Feito; numa transação única (ADR-021) |
 | Relatório de vendas (dia, semana, mês e período escolhido), só para a dona | Feito |
 | Total de fiado na rua em tempo real na gestão | Feito |
 | Permissões: operador fecha só o seu turno; dona fecha qualquer um | Feito |
 | Bloqueio após 5 tentativas: senha do login e PIN da dona (por loja), por 15 minutos | Feito |
 | Cadastro de clientes com limite de crédito e extrato de fiado | Feito |
 | Venda fiado cria a venda e baixa o estoque; excesso de limite liberado pelo PIN da dona | Feito |
-| Quitação de fiado vinculada a caixa aberto, com entrada na gaveta | Parcial: sem transação nem trava; corrida possível |
+| Quitação de fiado vinculada a caixa aberto, com entrada na gaveta | Feito; numa transação, com a trava do saldo do cliente (ADR-021) |
 | Fila offline para vendas em dinheiro, com sincronização automática | Parcial: só dinheiro; ver AC-50 e AC-51 no backlog |
 | Trilha de auditoria (`audit_events`) para ações sensíveis | Feito; o banco ainda não bloqueia `UPDATE` e `DELETE` nessa tabela |
 | Gestão de operadores pela proprietária | Feito |
 | Auto-cadastro multi-loja com isolamento estrito | Feito |
 | App instalável na área de trabalho ou na tela inicial | Feito |
 | Versão visível no rodapé e em `/api/version`, com Versionamento Semântico | Feito |
+| Recuperação de senha e de PIN da proprietária por link enviado por e-mail, com confirmação do e-mail | Feito; link de uso único e 30 minutos (ADR-023 a 025) |
+| Edição de produto e de cliente, com proteção contra edição simultânea e auditoria | Feito |
+| Exclusão reversível de produto e de cliente (só com dívida zero e PIN da dona para cliente) | Feito |
+| Bloqueio de fiado por cliente (a venda à vista segue livre) | Feito |
+| Extrato do cliente, com saldo depois de cada linha | Feito |
+| Código de barras gerado pelo sistema e validação de EAN-13, EAN-8, UPC-A e GTIN-14 | Feito |
+| Exportar produtos em CSV e reimportar para corrigir nome e preço | Feito |
+| Sessão que expira após 2 horas sem uso, com teto de 12 horas desde o login | Feito |
 
 ## Regras de negócio e comportamentos do sistema
 
@@ -88,7 +96,7 @@ Banco de dados (Drizzle): `npm run db:generate` gera uma migração a partir do 
 - **Sangria e suprimento:** a sangria exige saldo em dinheiro na gaveta e motivo; o suprimento entra na gaveta com motivo registrado.
 - **Vínculo com caixa aberto:** recebimentos em dinheiro (`SALE_RECEIPT`) e quitações de fiado (`DEBT_PAYMENT`) exigem caixa `OPEN` e atualizam a gaveta no mesmo ciclo.
 - **Baixa de estoque na venda:** os itens são validados e baixados na mesma transação da venda, com trava de linha (`FOR UPDATE`) em ordem fixa, então duas vendas simultâneas não passam do saldo.
-- **Cancelamento de venda:** exige o PIN da dona e um motivo. Devolve os itens ao estoque (se a venda os tirou), estorna o dinheiro da gaveta e desfaz o fiado. As escritas ainda são em sequência, não numa transação.
+- **Cancelamento de venda:** exige o PIN da dona e um motivo. Devolve os itens ao estoque (se a venda os tirou), estorna o dinheiro da gaveta e desfaz o fiado, tudo numa transação única (ADR-021).
 - **Idempotência:** a venda aceita `Idempotency-Key`, e a interface mantém a mesma chave até a venda ser concluída, então um reenvio depois de falha de rede não duplica a venda.
 - **Fiado e PIN:** o saldo devedor sai do histórico de débitos e créditos. Compra acima do limite exige o PIN da dona (hash `bcrypt`); o operador logado digita o PIN da dona e o servidor confere com o da proprietária da loja. A 5ª tentativa errada bloqueia o PIN daquela loja por 15 minutos (ADR-013).
 - **Quitação de fiado:** o valor pago não pode passar do saldo devedor e entra como dinheiro no caixa aberto.
@@ -128,6 +136,12 @@ Decisões técnicas em Architecture Decision Records, em [`docs/DECISIONS.md`](d
 - **ADR-017**: App Instalável sem Service Worker
 - **ADR-018**: Versionamento Semântico e Lançamento de Versões
 - **ADR-019**: Cancelar Venda Finalizada no PDV
+- **ADR-020**: Arquitetura do Front End (página fina, hook e componente por funcionalidade)
+- **ADR-021**: Fluxos de Dinheiro Gravam numa Transação Única do Repositório
+- **ADR-022**: Sentry Só no Servidor, Sem Envio do Navegador
+- **ADR-023**: E-mail de Verificação da Proprietária (Brevo, link de uso único, limite por janela)
+- **ADR-024**: Sessão da Proprietária Revogada pela Data da Última Troca de Senha
+- **ADR-025**: Redefinição do PIN da Proprietária por Link de E-mail
 
 ## Mapa da documentação
 

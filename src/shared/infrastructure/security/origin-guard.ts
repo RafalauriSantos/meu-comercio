@@ -63,5 +63,7 @@ export function isAllowedOrigin(params: {
     }
   }
 
-  return true;
+  // A browser always sends Origin on a mutation (and a Referer unless the page hides it), so a mutation with
+  // neither is not a page of this app: refuse it (12.3).
+  return false;
 }

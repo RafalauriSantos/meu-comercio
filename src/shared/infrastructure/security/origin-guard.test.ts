@@ -44,6 +44,23 @@ describe('isAllowedOrigin (Anti-CSRF Origin Guard)', () => {
     expect(blocked).toBe(false);
   });
 
+  it('rejects a mutating request that has neither Origin nor Referer (12.3, AC-39)', () => {
+    for (const method of ['POST', 'PUT', 'PATCH', 'DELETE']) {
+      expect(isAllowedOrigin({ method, origin: null, referer: null, host: 'meucomercio.vercel.app' }), method).toBe(false);
+      expect(isAllowedOrigin({ method, host: 'meucomercio.vercel.app' }), method).toBe(false);
+    }
+  });
+
+  it('rejects an empty Origin or Referer the same way', () => {
+    expect(isAllowedOrigin({ method: 'POST', origin: '', referer: '', host: 'meucomercio.vercel.app' })).toBe(false);
+  });
+
+  it('still lets safe methods through without Origin or Referer', () => {
+    for (const method of ['GET', 'HEAD', 'OPTIONS']) {
+      expect(isAllowedOrigin({ method, origin: null, referer: null, host: 'meucomercio.vercel.app' }), method).toBe(true);
+    }
+  });
+
   it('should allow local development requests on localhost', () => {
     const allowed = isAllowedOrigin({
       method: 'POST',

@@ -630,16 +630,14 @@ export default function PdvTerminalPage() {
         product = await apiClient.findProductByBarcode(code);
         // Cacheia localmente para uso offline
         if (offlineManagerRef.current && user) {
-          offlineManagerRef.current.saveProductsCache(user.merchantId, user.username, [
-            {
-              id: product.id,
-              barcode: product.barcode,
-              name: product.name,
-              salePrice: parseCurrencyInput(product.salePrice),
-              availableQuantity: product.availableQuantity,
-              unit: product.unit,
-            },
-          ]);
+          offlineManagerRef.current.upsertCachedProduct(user.merchantId, user.username, {
+            id: product.id,
+            barcode: product.barcode,
+            name: product.name,
+            salePrice: parseCurrencyInput(product.salePrice),
+            availableQuantity: product.availableQuantity,
+            unit: product.unit,
+          });
         }
       } else {
         // Busca do cache offline

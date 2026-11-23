@@ -36,6 +36,36 @@ class MemoryStorage implements Storage {
 }
 
 describe('OfflineSyncManager', () => {
+  it('upsertCachedProduct junta o produto ao cache sem apagar os outros (AC-51 do 6.3)', () => {
+    const product = (id: string, barcode: string): CachedProduct => ({
+      id,
+      barcode,
+      name: `Produto ${id}`,
+      salePrice: 500,
+      availableQuantity: 3,
+      unit: 'UN',
+    });
+    offlineSync.upsertCachedProduct('m1', 'op1', product('p1', '111'));
+    offlineSync.upsertCachedProduct('m1', 'op1', product('p2', '222'));
+    expect(offlineSync.findProductByBarcode('m1', 'op1', '111')).not.toBeNull();
+    expect(offlineSync.findProductByBarcode('m1', 'op1', '222')).not.toBeNull();
+  });
+
+  it('upsertCachedProduct troca o produto que já estava com o mesmo código', () => {
+    const product = (name: string): CachedProduct => ({
+      id: 'p1',
+      barcode: '111',
+      name,
+      salePrice: 500,
+      availableQuantity: 3,
+      unit: 'UN',
+    });
+    offlineSync.upsertCachedProduct('m1', 'op1', product('Antigo'));
+    offlineSync.upsertCachedProduct('m1', 'op1', product('Novo'));
+    expect(offlineSync.getCachedProducts('m1', 'op1')).toHaveLength(1);
+    expect(offlineSync.findProductByBarcode('m1', 'op1', '111')?.name).toBe('Novo');
+  });
+
   it('forgetCachedProduct remove só o produto do código e mantém os outros (22.17c)', () => {
     offlineSync.saveProductsCache('m1', 'op1', [
       { id: 'p1', barcode: '111', name: 'Azeite', salePrice: 1000, availableQuantity: 5, unit: 'UN' },

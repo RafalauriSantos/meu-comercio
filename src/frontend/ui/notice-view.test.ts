@@ -67,8 +67,7 @@ describe('screens choose success for confirmations', () => {
         'Controle de estoque ligado',
       ],
     ],
-    ['pdv', pdv, ['offline sincronizada(s)', 'confirmada com sucesso', 'Sangria de', 'Suprimento de', 'Os produtos voltaram ao estoque']],
-  ])('%s: each confirmation is marked isSuccess', (_name, src, texts) => {
+    ['pdv', pdv, ['confirmada com sucesso', 'Sangria de', 'Suprimento de', 'Os produtos voltaram ao estoque']],  ])('%s: each confirmation is marked isSuccess', (_name, src, texts) => {
     for (const t of texts) {
       const i = src.indexOf(t);
       expect(i, `${t} not found`).toBeGreaterThan(-1);

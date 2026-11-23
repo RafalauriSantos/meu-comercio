@@ -3,7 +3,7 @@
 import React, { useState, useCallback, useRef, useEffect } from 'react';
 import { apiClient, type ProductItem } from '@/frontend/lib/api-client';
 import { parseCurrencyInput, getErrorMessage } from '@/frontend/lib/formatters';
-import { findProductWithBarcode, takenBarcodeMessage } from '@/frontend/management/barcode-check';
+import { findProductWithBarcode, InactiveBarcodeError, takenBarcodeMessage } from '@/frontend/management/barcode-check';
 import type { ProductUnit } from '@/shared/domain/product-unit';
 import { useProductsList } from '@/frontend/management/use-products-list';
 import { deletedCountText, restoredNotice, submitProductActive } from '@/frontend/management/deactivate';
@@ -149,9 +149,9 @@ export function useProductsTab({ setFeedback, setProcessing, setLoadFailed, stoc
     try {
       const existing = await findProductWithBarcode(apiClient.findProductByBarcode, code);
       setBarcodeNote(existing ? takenBarcodeMessage(existing) : null);
-    } catch {
-      // Sem resposta do servidor: o cadastro em si avisa se o código for repetido.
-      setBarcodeNote(null);
+    } catch (err) {
+      // Sem resposta do servidor: o cadastro em si avisa se o código for repetido. Produto excluído avisa na hora.
+      setBarcodeNote(err instanceof InactiveBarcodeError ? err.message : null);
     }
   }
 
@@ -181,7 +181,12 @@ export function useProductsTab({ setFeedback, setProcessing, setLoadFailed, stoc
         setFeedback({ text: takenBarcodeMessage(existing), isError: true });
         return;
       }
-    } catch {
+    } catch (err) {
+      // Código de produto excluído: só avisa, o código continua reservado.
+      if (err instanceof InactiveBarcodeError) {
+        setFeedback({ text: err.message, isError: true });
+        return;
+      }
       // Sem resposta do servidor: não perde o bip. O formulário abre e o cadastro avisa se o código for repetido.
     }
     setFeedback(null);

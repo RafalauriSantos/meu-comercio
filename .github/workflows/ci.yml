@@ -183,3 +183,12 @@ jobs:
           VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
 
 
+
+      # Reads two public pages after the deploy: /login must answer 200 and /api/version must show the commit that
+      # was just deployed (GITHUB_SHA comes from Actions itself). It touches no data or money. If it fails, the
+      # check goes red and says why; reverting is still done by hand (docs/BACKLOG.md 21.2). A merge right after
+      # another one can fail this check once, because the newer deploy already replaced this one.
+      - name: Smoke test the published site
+        run: node scripts/smoke-check.mjs
+        env:
+          SMOKE_BASE_URL: https://meucomercio.vercel.app

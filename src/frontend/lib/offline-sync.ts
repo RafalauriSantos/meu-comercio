@@ -182,6 +182,12 @@ export class OfflineSyncManager {
     }
   }
 
+  /** Adds or replaces one product (by barcode) in the offline cache, keeping the other products. */
+  public upsertCachedProduct(merchantId: string, username: string, product: CachedProduct): void {
+    const kept = this.getCachedProducts(merchantId, username).filter((p) => p.barcode !== product.barcode);
+    this.saveProductsCache(merchantId, username, [...kept, product]);
+  }
+
   /** Removes one product from the offline cache, e.g. after the server says it is deactivated. */
   public forgetCachedProduct(merchantId: string, username: string, barcode: string): void {
     const kept = this.getCachedProducts(merchantId, username).filter((p) => p.barcode !== barcode);

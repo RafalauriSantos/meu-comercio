@@ -3,6 +3,7 @@ import { Customer, toValidCreditLimit } from '../domain/customer';
 import { CustomerRepository } from '../domain/customer-repository.port';
 import {
   CustomerAlreadyExistsError,
+  CustomerPhoneInactiveError,
   InvalidOwnerPinError,
   OnlyOwnerSetsCreditLimitError,
   OwnerPinRequiredError,
@@ -40,7 +41,7 @@ export class CreateCustomerUseCase {
     const phone = Phone.create(dto.phone).value;
     const existing = await this.customerRepository.findByPhone(dto.merchantId, phone);
     if (existing) {
-      throw new CustomerAlreadyExistsError(phone);
+      throw existing.active ? new CustomerAlreadyExistsError(phone) : new CustomerPhoneInactiveError(phone);
     }
 
     // D-22/D-29: a limit above zero is an increase from zero, so it needs the owner PIN.

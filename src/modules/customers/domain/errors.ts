@@ -14,6 +14,15 @@ export class CustomerAlreadyExistsError extends Error {
   }
 }
 
+/** The phone belongs to a deactivated customer: still a duplicate (409), with a message that says why (22.18c). */
+export class CustomerPhoneInactiveError extends CustomerAlreadyExistsError {
+  constructor(phone: string) {
+    super(phone);
+    this.message = `O telefone ${phone} já está cadastrado em um cliente desativado. Restaure esse cliente para usar o telefone.`;
+    this.name = 'CustomerPhoneInactiveError';
+  }
+}
+
 export class CustomerInactiveError extends Error {
   constructor(customerId: string) {
     super(`Customer '${customerId}' is inactive`);

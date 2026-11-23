@@ -438,6 +438,23 @@ describe('Slice 5: Customers & Credit / Fiado Use Cases', () => {
       ).rejects.toThrow(CustomerAlreadyExistsError);
     });
 
+    it('22.18c: a phone that belongs to a deactivated customer is refused, saying the customer is deactivated', async () => {
+      const created = await createCustomerUseCase.execute({
+        merchantId: MERCHANT_ID,
+        name: 'Seu Joao',
+        phone: '11977776666',
+        operatorId: OPERATOR_ID,
+      });
+      await customerRepo.save(created.deactivate());
+
+      const error = await createCustomerUseCase
+        .execute({ merchantId: MERCHANT_ID, name: 'Outro', phone: '11977776666', operatorId: OPERATOR_ID })
+        .catch((e: unknown) => e);
+
+      expect(error).toBeInstanceOf(CustomerAlreadyExistsError);
+      expect((error as Error).message).toMatch(/desativado/);
+    });
+
     it('should store the phone as national digits', async () => {
       const customer = await createCustomerUseCase.execute({
         merchantId: MERCHANT_ID,

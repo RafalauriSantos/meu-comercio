@@ -154,4 +154,5 @@ Decisões técnicas em Architecture Decision Records, em [`docs/DECISIONS.md`](d
 | [`docs/DECISIONS.md`](docs/DECISIONS.md) | As decisões de arquitetura e de produto (ADRs) |
 | [`docs/TRACEABILITY.md`](docs/TRACEABILITY.md) | Regras de negócio ligadas aos testes que as cobrem |
 | [`docs/PROJECT_WORKFLOW.md`](docs/PROJECT_WORKFLOW.md) | Como trabalhamos: branches, revisão, deploy, banco, versões |
+| [`docs/ROLLBACK.md`](docs/ROLLBACK.md) | Como voltar a versão anterior em produção quando um deploy quebra o site |
 | [`docs/INTEGRATIONS.md`](docs/INTEGRATIONS.md) | Plano para maquininhas e notas fiscais |

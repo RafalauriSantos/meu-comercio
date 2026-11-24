@@ -48,7 +48,7 @@ Auto-merge is enabled with `gh pr merge --auto` after the PR is opened. GitHub m
 
 ## Deploy
 
-Merging to `main` deploys to production. `.github/workflows/ci.yml` runs the four checks and then `vercel --prod` on the push. Merge is therefore a release. Do not describe merge as "no deploy".
+Merging to `main` deploys to production. `.github/workflows/ci.yml` runs the four checks and then `vercel --prod` on the push, followed by a smoke test of the published site (`scripts/smoke-check.mjs`). Merge is therefore a release. Do not describe merge as "no deploy". If a deploy breaks the site, see [`ROLLBACK.md`](ROLLBACK.md) to go back to the previous version.
 
 The build does not touch the database. Schema changes reach production only through the `db-migrate` workflow, which is started by hand and waits for the owner's approval on the `production-db` environment.
 

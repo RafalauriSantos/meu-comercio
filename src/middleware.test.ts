@@ -16,6 +16,27 @@ describe('Next.js Middleware Hardening', () => {
     expect(res.status).toBe(403);
   });
 
+  it('refuses a body over 1 MB with HTTP 413 before any route reads it (12.5)', () => {
+    const req = new NextRequest('http://localhost:3000/api/sales', {
+      method: 'POST',
+      headers: { host: 'localhost:3000', origin: 'http://localhost:3000', 'content-length': '2000000' },
+    });
+
+    const res = middleware(req);
+    expect(res.status).toBe(413);
+  });
+
+  it('lets a normal body through the size check (12.5)', () => {
+    const req = new NextRequest('http://localhost:3000/api/sales', {
+      method: 'POST',
+      headers: { host: 'localhost:3000', origin: 'http://localhost:3000', 'content-length': '800' },
+    });
+
+    const res = middleware(req);
+    expect(res.status).not.toBe(413);
+    expect(res.status).not.toBe(403);
+  });
+
   it('should allow legitimate same-origin read requests and set security headers', () => {
     const req = new NextRequest('http://localhost:3000/api/products', {
       method: 'GET',

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { SlidingWindowRateLimiter } from '@/shared/infrastructure/security/rate-limiter';
 import { isAllowedOrigin } from '@/shared/infrastructure/security/origin-guard';
+import { isBodyTooLarge } from '@/shared/infrastructure/security/body-limit';
 
 const authLimiter = new SlidingWindowRateLimiter({
   windowMs: 60_000,
@@ -46,7 +47,12 @@ export function middleware(request: NextRequest) {
     );
   }
 
-  // 2. IP-based Granular Rate Limiting on API endpoints
+  // 2. Body size limit: a mutation announcing more than 1 MB is refused before any route reads it
+  if (isBodyTooLarge({ method, pathname, contentLength: request.headers.get('content-length') })) {
+    return NextResponse.json({ message: 'O envio é grande demais.' }, { status: 413 });
+  }
+
+  // 3. IP-based Granular Rate Limiting on API endpoints
   if (pathname.startsWith('/api/')) {
     const forwardedFor = request.headers.get('x-forwarded-for');
     const clientIp = forwardedFor ? forwardedFor.split(',')[0].trim() : request.headers.get('x-real-ip') || '127.0.0.1';
@@ -89,7 +95,7 @@ export function middleware(request: NextRequest) {
     }
   }
 
-  // 3. Security Response Headers
+  // 4. Security Response Headers
   const response = NextResponse.next();
   response.headers.set('X-Content-Type-Options', 'nosniff');
   response.headers.set('X-Frame-Options', 'DENY');
